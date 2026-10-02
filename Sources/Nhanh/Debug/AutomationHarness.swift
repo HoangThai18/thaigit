@@ -273,6 +273,17 @@ enum AutomationHarness {
                                                          loadedAt: Date())
                     model.refreshLabels()
                 }
+            case "edit":
+                // Sửa file đang mở trong app; act:edit:<chữ> thêm chữ vào cuối (để thấy trạng thái "Chưa lưu").
+                if let file = model.openFile {
+                    model.beginEditing(file)
+                    if !value.isEmpty { model.fileEditor?.text += value + "\n" }
+                }
+            case "term":
+                // Mở terminal trong app và chạy lệnh: act:term:git status
+                if model.terminal?.isVisible != true { model.toggleTerminal() }
+                model.terminal?.input = value
+                model.terminal?.run()
             case "hide", "solo":
                 // Ẩn / solo nhánh theo tên: act:hide:thu-nghiem, act:solo:main
                 if let ref = model.refs.first(where: { $0.kind != .tag && $0.name == value }) {

@@ -100,6 +100,10 @@ struct CenterArea: View {
                         .transition(.opacity)
                 }
             }
+            if let terminal = model.terminal, terminal.isVisible {
+                TerminalPanel(model: model, session: terminal)
+                    .transition(.move(edge: .bottom))
+            }
         }
         .overlay(alignment: .top) {
             if let busy = model.busy {
@@ -222,6 +226,7 @@ struct RepoActionBar: View {
             .help("Lấy lại stash mới nhất")
 
             Menu {
+                Button(model.terminal?.isVisible == true ? "Ẩn terminal trong app" : "Terminal trong app") { model.toggleTerminal() }
                 Button("Mở trong Terminal") { model.openInTerminal() }
                 Button("Mở trong Finder") { model.revealInFinder() }
                 Button("Mở bằng trình soạn thảo") { model.openInEditor() }

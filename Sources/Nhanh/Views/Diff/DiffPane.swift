@@ -30,6 +30,15 @@ struct DiffPane: View {
 
     @ViewBuilder
     private var content: some View {
+        if let file = model.openFile, model.isEditing(file), let session = model.fileEditor {
+            FileEditorView(session: session)
+        } else {
+            diffContent
+        }
+    }
+
+    @ViewBuilder
+    private var diffContent: some View {
         switch model.diffState {
         case .idle, .loading:
             ProgressView()
@@ -88,6 +97,8 @@ private struct DiffHeader: View {
         }
     }
 
+    private var editing: Bool { model.isEditing(file) && model.fileEditor != nil }
+
     var body: some View {
         HStack(spacing: 10) {
             Button {
@@ -97,8 +108,9 @@ private struct DiffHeader: View {
                     .fixedSize()
             }
             .glassButtonStyle()
-            .keyboardShortcut(.cancelAction)
-            .help("Quay lại graph (Esc)")
+            // Đang sửa file thì Esc không đóng (tránh mất chữ đang gõ).
+            .keyboardShortcut(editing ? nil : .cancelAction)
+            .help(editing ? "Quay lại graph" : "Quay lại graph (Esc)")
 
             ChangeIcon(kind: file.change.kind)
             // Nhãn nguồn nằm ở dòng dưới cùng đường dẫn: khi pane hẹp, tên file vẫn còn chỗ thay vì bị nhãn chiếm hết.
@@ -123,6 +135,27 @@ private struct DiffHeader: View {
             }
             Spacer(minLength: 8)
 
+            if editing, let session = model.fileEditor {
+                EditorControls(model: model, session: session)
+            } else {
+                diffControls
+            }
+
+            Menu {
+                MenuSpecContent(items: model.fileMenu(file.change, source: file.source))
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+
+    @ViewBuilder
+    private var diffControls: some View {
             if case .text(let presentation) = model.diffState {
                 HStack(spacing: 6) {
                     Text("+\(presentation.diff.additions)").foregroundStyle(.green)
@@ -147,6 +180,14 @@ private struct DiffHeader: View {
                 }
             }
 
+            if model.canEditInApp(file) {
+                Button { model.beginEditing(file) } label: {
+                    Label("Sửa", systemImage: "pencil")
+                }
+                .glassButtonStyle()
+                .help("Sửa file ngay trong app (UTF-8)")
+            }
+
             switch file.source {
             case .unstaged:
                 Button(role: .destructive) { model.discard([file.change]) } label: {
@@ -168,18 +209,35 @@ private struct DiffHeader: View {
             default:
                 EmptyView()
             }
+    }
+}
 
-            Menu {
-                MenuSpecContent(items: model.fileMenu(file.change, source: file.source))
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
+/// Nút khi đang sửa file: trạng thái, Thôi, Lưu (⌘S).
+private struct EditorControls: View {
+    let model: RepoModel
+    let session: FileEditorSession
+
+    var body: some View {
+        if session.isDirty {
+            Text("Chưa lưu")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.orange)
+                .fixedSize()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.bar)
+        Button { model.cancelEditing() } label: {
+            Label("Thôi", systemImage: "xmark")
+                .fixedSize()
+        }
+        .glassButtonStyle()
+        .help("Thôi sửa, quay lại diff")
+        Button { model.saveEditor() } label: {
+            Label("Lưu", systemImage: "square.and.arrow.down")
+                .fixedSize()
+        }
+        .glassButtonStyle(prominent: true)
+        .keyboardShortcut("s", modifiers: .command)
+        .disabled(!session.isDirty || session.isSaving)
+        .help("Lưu file (⌘S)")
     }
 }
 

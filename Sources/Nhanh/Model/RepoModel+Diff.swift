@@ -27,6 +27,7 @@ extension RepoModel {
 
     func openDiff(_ change: FileChange, source: DiffSource) {
         let file = OpenFile(source: source, change: change)
+        editorWillLeave(to: file)
         if openFile != file {
             openFile = file
             lineSelection = [:]
@@ -40,6 +41,7 @@ extension RepoModel {
     }
 
     func closeFile() {
+        editorWillLeave(to: nil)
         diffTask?.cancel()
         openFile = nil
         diffState = .idle

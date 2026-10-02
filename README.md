@@ -96,6 +96,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 **Thay đổi & commit**
 - Diff gộp hoặc tách đôi, diff ảnh; stage / bỏ stage / huỷ theo file, hunk hoặc từng dòng.
 - Commit, amend, ⌘↩ để commit nhanh, "Stage tất cả & commit".
+- **Sửa file ngay trong app**: mở diff của file chưa stage, bấm *Sửa* — gõ, ⌘S lưu, ⌘Z hoàn tác. Giữ nguyên BOM và kiểu xuống dòng (CRLF / LF) của file, giữ quyền chạy (+x); file bị sửa ở nơi khác sau khi mở thì hỏi trước khi ghi đè. Chỉ nhận file UTF-8 (file khác: mở bằng trình soạn thảo); không theo symlink ra ngoài repo.
 - **So sánh** hai commit bất kỳ (giữ ⌘ và bấm 2 commit trên graph) hoặc một nhánh với nhánh hiện tại (chuột phải vào nhánh → *So sánh với …*): panel bên phải liệt kê các commit nằm giữa và các file khác nhau, bấm file để xem diff.
 - **Ẩn / solo nhánh trên graph** như GitKraken: rê chuột vào nhánh ở sidebar, bấm con mắt để ẩn (hoặc chuột phải → *Ẩn khỏi graph*); *Chỉ hiện nhánh này (solo)* để graph chỉ còn các nhánh đã chọn và nhánh đang checkout. Ẩn nhánh local thì nhánh remote nó theo dõi cũng ẩn theo; app nhớ riêng cho từng repo; dải báo ở đáy graph có nút *Hiện tất cả*.
 - **Blame** (chuột phải vào file → *Blame — ai sửa từng dòng*): mỗi dòng kèm tác giả, thời gian và commit đã sửa nó; theo dấu cả khi đoạn code được chuyển từ file khác sang.
@@ -115,6 +116,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - **Bảng lệnh ⌘P** như GitKraken: gõ để tìm mọi thao tác (fetch, pull, stash, tạo nhánh, tạo PR…), checkout nhánh, so sánh nhánh, chuyển tab, mở repo gần đây; gõ không dấu vẫn ra ("nhanh" → "nhánh"), ↑↓ chọn, ↩ chạy.
 - Mở gần đây, clone có tiến trình, tạo repo mới.
 - Tự làm mới khi file đổi bên ngoài (sửa trong editor, commit từ terminal…), tự fetch định kỳ.
+- **Terminal trong app** (⌃\` hoặc menu Mở → *Terminal trong app*): panel dưới graph, gõ lệnh chạy trong thư mục repo, nhớ `cd`, ↑↓ gọi lại lệnh cũ, Dừng (⌃C). Mỗi lệnh chạy riêng, không tương tác — chương trình cần bàn phím (vim, less, ssh hỏi mật khẩu) thì dùng *Mở trong Terminal*.
 - Mở repo trong Terminal / Finder / VS Code (hoặc Cursor, Zed, Sublime), lịch sử một file, nhật ký lệnh git đã chạy.
 - An toàn khi mở repo lạ: app không chạy lệnh `core.fsmonitor` hay `diff.*.textconv` do repo tự đặt.
 

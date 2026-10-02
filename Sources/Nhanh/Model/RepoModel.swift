@@ -58,6 +58,10 @@ final class RepoModel {
     private(set) var comparison: Comparison?
     private(set) var isLoadingDetails = false
     var openFile: OpenFile?
+    /// File đang sửa ngay trong app (xem RepoModel+FileEditor.swift).
+    var fileEditor: FileEditorSession?
+    /// Terminal đơn giản dưới graph (xem TerminalSession.swift), tạo khi mở lần đầu.
+    var terminal: TerminalSession?
     var diffState: DiffState = .idle
     /// Các dòng đang chọn trong diff để stage/unstage/huỷ từng dòng: id hunk → chỉ số dòng.
     var lineSelection: [Int: Set<Int>] = [:]

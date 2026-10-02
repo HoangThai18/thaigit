@@ -185,6 +185,7 @@ struct CommandPaletteSheet: View {
             PaletteCommand(id: "go.head", title: "Tới HEAD", systemImage: "scope", shortcut: "⇧⌘H") { model.revealHead() },
             PaletteCommand(id: "merge.repo", title: "Merge từ repository khác…", systemImage: "arrow.triangle.merge") { model.beginMergeFromRepository() },
             PaletteCommand(id: "remote.add", title: "Thêm remote…", systemImage: "cloud") { model.sheet = .addRemote },
+            PaletteCommand(id: "terminal.app", title: "Terminal trong app", systemImage: "apple.terminal", shortcut: "⌃`") { model.toggleTerminal() },
             PaletteCommand(id: "terminal", title: "Mở trong Terminal", systemImage: "terminal", shortcut: "⌥⌘T") { model.openInTerminal() },
             PaletteCommand(id: "finder", title: "Mở trong Finder", systemImage: "folder", shortcut: "⇧⌘R") { model.revealInFinder() },
             PaletteCommand(id: "editor", title: "Mở bằng trình soạn thảo", systemImage: "chevron.left.forwardslash.chevron.right") { model.openInEditor() },
@@ -214,6 +215,11 @@ struct CommandPaletteSheet: View {
         if model.graphFilter.isActive {
             list.append(PaletteCommand(id: "graph.showall", title: "Hiện tất cả nhánh trên graph", systemImage: "eye") {
                 model.showAllBranchesOnGraph()
+            })
+        }
+        if let file = model.openFile, model.canEditInApp(file) {
+            list.append(PaletteCommand(id: "edit", title: "Sửa \(file.change.fileName) trong app", systemImage: "pencil") {
+                model.beginEditing(file)
             })
         }
         if let file = model.openFile, let blame = model.blameSheet(for: file) {

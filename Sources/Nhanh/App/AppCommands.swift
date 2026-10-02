@@ -138,6 +138,9 @@ struct AppCommands: Commands {
             Button("Tới HEAD") { model?.revealHead() }
                 .keyboardShortcut("h", modifiers: [.command, .shift])
             Divider()
+            Button("Terminal trong app") { model?.toggleTerminal() }
+                .keyboardShortcut("`", modifiers: .control)
+                .disabled(model == nil)
             Button("Mở trong Terminal") { model?.openInTerminal() }
                 .keyboardShortcut("t", modifiers: [.command, .option])
             Button("Mở trong Finder") { model?.revealInFinder() }
