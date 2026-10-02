@@ -47,16 +47,25 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
       - name: Cài phụ thuộc
+        id: install
         run: pnpm install --frozen-lockfile
       - name: Kiểm tra kiểu (TS + Svelte)
         run: pnpm check
       - name: Test TS (core, contracts — git thật)
+        # Chạy cả khi bước kiểm tra trước lỗi: một lượt CI thấy hết lỗi (miễn là đã cài được phụ thuộc).
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm test
       - name: Clippy
+        # Chạy cả khi bước kiểm tra trước lỗi: một lượt CI thấy hết lỗi (miễn là đã cài được phụ thuộc).
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         working-directory: apps/desktop/src-tauri
         run: cargo clippy --all-targets -- -D warnings
       - name: Test Rust
+        # Chạy cả khi bước kiểm tra trước lỗi: một lượt CI thấy hết lỗi (miễn là đã cài được phụ thuộc).
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         working-directory: apps/desktop/src-tauri
         run: cargo test
       - name: Build app (debug, không đóng gói)
+        # Chạy cả khi bước kiểm tra trước lỗi: một lượt CI thấy hết lỗi (miễn là đã cài được phụ thuộc).
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm --filter @thaigit/desktop tauri build --debug --no-bundle

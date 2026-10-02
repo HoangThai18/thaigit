@@ -564,25 +564,25 @@ describe('NodeRepoFs: thùng rác của app', () => {
       const fs = fsFor(t);
       await t.write('rác.txt', 'rác\n');
       await t.write('Tài liệu/ghi chú.txt', 'ghi chú\n');
-      await t.write('thư mục/con/sâu.txt', 'sâu\n');
+      await t.write('thư mục/chau/sâu.txt', 'sâu\n');
       await t.write('thư mục/anh em.txt', 'anh em\n');
       const token = await fs.trashUntracked([
         'rác.txt',
         'Tài liệu/ghi chú.txt',
         'thư mục',
-        'thư mục/con/sâu.txt',
+        'thư mục/chau/sâu.txt',
       ]);
       expect(token).toMatch(/^[0-9A-Za-z._-]+$/);
-      for (const path of ['rác.txt', 'Tài liệu/ghi chú.txt', 'thư mục/anh em.txt', 'thư mục/con/sâu.txt'])
+      for (const path of ['rác.txt', 'Tài liệu/ghi chú.txt', 'thư mục/anh em.txt', 'thư mục/chau/sâu.txt'])
         expect(await t.exists(path), path).toBe(false);
       const trashed = join(t.repo.commonDir, 'thaigit', 'trash', token, 'files');
       expect(await readFile(join(trashed, 'rác.txt'), 'utf8')).toBe('rác\n');
-      expect(await readFile(join(trashed, 'thư mục', 'con', 'sâu.txt'), 'utf8')).toBe('sâu\n');
+      expect(await readFile(join(trashed, 'thư mục', 'chau', 'sâu.txt'), 'utf8')).toBe('sâu\n');
 
       await fs.restoreTrash(token);
       expect(await t.read('rác.txt')).toBe('rác\n');
       expect(await t.read('Tài liệu/ghi chú.txt')).toBe('ghi chú\n');
-      expect(await t.read('thư mục/con/sâu.txt')).toBe('sâu\n');
+      expect(await t.read('thư mục/chau/sâu.txt')).toBe('sâu\n');
       expect(await t.read('thư mục/anh em.txt')).toBe('anh em\n');
       await expect(stat(join(t.repo.commonDir, 'thaigit', 'trash', token))).rejects.toThrow();
       expect(((await rejection(fs.restoreTrash(token))) as AdapterError).code).toBe('not-found');
@@ -656,7 +656,8 @@ describe('NodeGitHost', () => {
     await withTempDir(async (dir) => {
       const host = new NodeGitHost(isolatedConfig());
       expect(await host.version()).toMatch(/^git version \d+\.\d+/);
-      const target = join(dir, 'cha', 'con', 'dự án');
+      // Không đặt thư mục tên "con": CON là tên thiết bị bị cấm trên Windows (git báo Invalid argument).
+      const target = join(dir, 'cha', 'chau', 'dự án');
       await host.init(target);
       expect(rawGit(target, ['symbolic-ref', '--short', 'HEAD'])).toBe('main\n');
       await writeFile(join(target, 'a.txt'), 'a');
