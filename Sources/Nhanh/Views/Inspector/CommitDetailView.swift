@@ -76,10 +76,12 @@ private struct DetailContent: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 actionBar(commit)
+                // Không dùng fixedSize dọc: khi SwiftUI đo chiều cao tối thiểu của cột ở bề rộng rất hẹp, chữ dài
+                // thành hàng trăm dòng → cả cửa sổ bị đẩy cao hơn màn hình và lệch lên dưới toolbar.
                 Text(details.summary)
                     .font(.title3.weight(.semibold))
                     .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(4)
                 if !details.body.isEmpty {
                     messageBody
                 }
@@ -149,7 +151,6 @@ private struct DetailContent: View {
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
                 .lineLimit(6)
-                .fixedSize(horizontal: false, vertical: true)
         }
         if isLong {
             Button(showFullBody ? "Thu gọn" : "Xem toàn bộ mô tả") { showFullBody.toggle() }

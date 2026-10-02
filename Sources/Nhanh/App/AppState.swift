@@ -14,6 +14,7 @@ enum Prefs {
     static let relativeDates = "relativeDates"
     static let diffSplit = "diffSplit"
     static let diffContext = "diffContext"
+    static let diffWrap = "diffWrap"
     static let showRemoteBranches = "showRemoteBranches"
     static let showTags = "showTags"
     static let lastCloneDirectory = "lastCloneDirectory"
@@ -31,6 +32,7 @@ enum Prefs {
             relativeDates: true,
             diffSplit: false,
             diffContext: 3,
+            diffWrap: true,
             showRemoteBranches: true,
             showTags: true,
             autoUpdate: true,

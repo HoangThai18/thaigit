@@ -6,11 +6,12 @@ import SwiftUI
 struct DiffPane: View {
     @Bindable var model: RepoModel
     @AppStorage(Prefs.diffSplit) private var split = false
+    @AppStorage(Prefs.diffWrap) private var wrap = true
 
     var body: some View {
         VStack(spacing: 0) {
             if let file = model.openFile {
-                DiffHeader(model: model, file: file, split: $split)
+                DiffHeader(model: model, file: file, split: $split, wrap: $wrap)
                 Divider()
             }
             content
@@ -33,7 +34,7 @@ struct DiffPane: View {
         case .idle, .loading:
             ProgressView()
         case .text(let presentation):
-            DiffTextView(model: model, presentation: presentation, split: split)
+            DiffTextView(model: model, presentation: presentation, split: split, wrap: wrap)
         case .binary(let diff, let images):
             if let images {
                 ImageDiffView(images: images)
@@ -72,6 +73,7 @@ private struct DiffHeader: View {
     @Bindable var model: RepoModel
     let file: OpenFile
     @Binding var split: Bool
+    @Binding var wrap: Bool
 
     private var sourceLabel: (String, Color) {
         switch file.source {
@@ -127,6 +129,14 @@ private struct DiffHeader: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 84)
+
+                if !split {
+                    Toggle(isOn: $wrap) {
+                        Image(systemName: "text.word.spacing")
+                    }
+                    .toggleStyle(.button)
+                    .help(wrap ? "Đang tự xuống dòng — bấm để giữ dòng dài trên một hàng (cuộn ngang)" : "Tự xuống dòng khi dòng dài")
+                }
             }
 
             switch file.source {
@@ -216,6 +226,7 @@ private struct DiffTextView: View {
     @Bindable var model: RepoModel
     let presentation: DiffPresentation
     let split: Bool
+    let wrap: Bool
 
     var body: some View {
         let metrics = DiffMetrics(presentation)
@@ -239,6 +250,24 @@ private struct DiffTextView: View {
                     }
                     .frame(width: halfWidth * 2 + 1, alignment: .leading)
                 }
+            } else if wrap {
+                // Dòng dài tự xuống dòng trong bề rộng khung — đọc được hết, không phải cuộn ngang.
+                ScrollView(.vertical) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(presentation.hunks) { hunk in
+                            HunkHeader(model: model, hunk: hunk)
+                            ForEach(hunk.lines, id: \.index) { line in
+                                UnifiedLineView(line: line, metrics: metrics, wrap: true,
+                                                isSelected: model.lineSelection[hunk.id]?.contains(line.index) == true,
+                                                selectable: selectable && (line.kind == .addition || line.kind == .deletion)) { extend in
+                                    model.toggleLine(hunk: hunk, index: line.index, extend: extend)
+                                }
+                            }
+                        }
+                        Color.clear.frame(height: 60)
+                    }
+                    .frame(width: proxy.size.width, alignment: .leading)
+                }
             } else {
                 let contentWidth = max(metrics.numberWidth * 2 + 20 + metrics.textWidth, proxy.size.width)
                 ScrollView([.vertical, .horizontal]) {
@@ -246,7 +275,7 @@ private struct DiffTextView: View {
                         ForEach(presentation.hunks) { hunk in
                             HunkHeader(model: model, hunk: hunk)
                             ForEach(hunk.lines, id: \.index) { line in
-                                UnifiedLineView(line: line, metrics: metrics,
+                                UnifiedLineView(line: line, metrics: metrics, wrap: false,
                                                 isSelected: model.lineSelection[hunk.id]?.contains(line.index) == true,
                                                 selectable: selectable && (line.kind == .addition || line.kind == .deletion)) { extend in
                                     model.toggleLine(hunk: hunk, index: line.index, extend: extend)
@@ -340,6 +369,7 @@ private func attributedText(_ line: DiffPresentation.Line) -> AttributedString {
 private struct UnifiedLineView: View {
     let line: DiffPresentation.Line
     let metrics: DiffMetrics
+    let wrap: Bool
     let isSelected: Bool
     let selectable: Bool
     let onTap: (Bool) -> Void
@@ -352,7 +382,7 @@ private struct UnifiedLineView: View {
                 .padding(.leading, metrics.numberWidth * 2 + 20)
                 .frame(height: 16)
         } else {
-            HStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
                 Text(line.oldNumber.map(String.init) ?? "")
                     .frame(width: metrics.numberWidth, alignment: .trailing)
                 Text(line.newNumber.map(String.init) ?? "")
@@ -360,14 +390,23 @@ private struct UnifiedLineView: View {
                 Text(marker)
                     .frame(width: 20)
                     .foregroundStyle(markerColor)
-                Text(attributedText(line))
-                    .foregroundStyle(Color.primary)
-                    .fixedSize()
-                Spacer(minLength: 0)
+                if wrap {
+                    Text(attributedText(line))
+                        .foregroundStyle(Color.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.trailing, 10)
+                } else {
+                    Text(attributedText(line))
+                        .foregroundStyle(Color.primary)
+                        .fixedSize()
+                    Spacer(minLength: 0)
+                }
             }
             .font(Font(DiffMetrics.font))
             .foregroundStyle(.secondary)
-            .frame(height: DiffMetrics.lineHeight)
+            .padding(.vertical, wrap ? 1.5 : 0)
+            .frame(minHeight: DiffMetrics.lineHeight, maxHeight: wrap ? nil : DiffMetrics.lineHeight)
             .background(background)
             .overlay(alignment: .leading) {
                 if isSelected {

@@ -272,11 +272,37 @@ enum AutomationHarness {
             log(String(format: "làm mới %.2fs", Date().timeIntervalSince(before)))
         case "log":
             log("sheet=\(String(describing: model.sheet)) windows=\(NSApp.windows.map { "\(type(of: $0)) visible=\($0.isVisible) sheet=\($0.isSheet) \(Int($0.frame.width))x\(Int($0.frame.height)) sheets=\($0.sheets.count)" })")
+        case "tree":
+            // Chẩn đoán bố cục: chuỗi view cha của từng bảng (graph, sidebar…) kèm frame/bounds.
+            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 600 }), let root = window.contentView else { break }
+            for (index, table) in tables(in: root).enumerated() {
+                var chain: [String] = []
+                var view: NSView? = table
+                while let current = view {
+                    let bounds = current.bounds
+                    var entry = "\(type(of: current)) f=\(Int(current.frame.minX)),\(Int(current.frame.minY)) \(Int(current.frame.width))x\(Int(current.frame.height))"
+                    if bounds.origin != .zero { entry += " b.origin=\(Int(bounds.minX)),\(Int(bounds.minY))" }
+                    if let scroll = current as? NSScrollView { entry += " insets.top=\(Int(scroll.contentInsets.top)) auto=\(scroll.automaticallyAdjustsContentInsets)" }
+                    chain.append(entry)
+                    view = current.superview
+                }
+                log("[\(argument)] table \(index) rows=\(table.numberOfRows):\n    " + chain.joined(separator: "\n    "))
+            }
+        case "graphselect":
+            // Chọn hàng thứ N của graph như người dùng bấm.
+            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 600 }), let root = window.contentView,
+                  let table = tables(in: root).first(where: { $0 is CommitNSTableView }), let row = Int(argument), row < table.numberOfRows else { break }
+            table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         case "quit":
             await quit()
         default:
             break
         }
+    }
+
+    private static func tables(in view: NSView) -> [NSTableView] {
+        if let table = view as? NSTableView { return [table] }
+        return view.subviews.flatMap { tables(in: $0) }
     }
 
     /// Chụp toàn bộ cửa sổ (kể cả thanh tiêu đề/toolbar) của chính app — không cần quyền ghi màn hình.

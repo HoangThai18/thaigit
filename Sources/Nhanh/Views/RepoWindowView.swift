@@ -12,9 +12,14 @@ struct RepoWindowView: View {
             SidebarView(model: model)
                 .navigationSplitViewColumnWidth(min: 210, ideal: 260, max: 440)
         } detail: {
+            // Cột nào cũng co được về 0: nội dung cao hơn cửa sổ thì cắt bớt, không được đẩy cả cửa sổ
+            // (NavigationSplitView cao hơn cửa sổ sẽ bị căn giữa → phần trên chui xuống dưới toolbar).
             CenterArea(model: model)
+                .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
                 .inspector(isPresented: $model.showInspector) {
                     InspectorPanel(model: model)
+                        .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+                        .clipped()
                         .inspectorColumnWidth(min: 300, ideal: 380, max: 640)
                 }
         }
