@@ -1,0 +1,10 @@
+.build/
+build/
+target/
+dist/
+node_modules/
+pnpm-lock.yaml
+plans/
+Sources/
+Tests/
+*.md

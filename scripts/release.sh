@@ -47,10 +47,11 @@ fi
 
 OUT=build/release
 mkdir -p "$OUT"
-ZIP="$OUT/Thaigit-$VERSION.zip"
+# Tên file cố định để trang chủ luôn trỏ được tới bản mới nhất: releases/latest/download/Thaigit-macOS.zip
+ZIP="$OUT/Thaigit-macOS.zip"
 rm -f "$ZIP"
 ditto -c -k --sequesterRsrc --keepParent build/Thaigit.app "$ZIP"
-URL="https://github.com/$REPO/releases/download/v$VERSION/Thaigit-$VERSION.zip"
+URL="https://github.com/$REPO/releases/download/v$VERSION/Thaigit-macOS.zip"
 NOTES_FILE="$OUT/notes-$VERSION.txt"
 printf '%s\n' "${NOTES:-Thaigit $VERSION}" > "$NOTES_FILE"
 swift scripts/release-tool.swift manifest "$ZIP" "$VERSION" "$URL" "$NOTES_FILE" > "$OUT/update.json"

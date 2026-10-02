@@ -136,7 +136,7 @@ Ghi chú:
 ./scripts/release.sh 1.1.0 "Thêm blame, sửa lỗi diff ảnh" --publish
 ```
 
-Script tăng phiên bản trong `Resources/Info.plist`, build, nén `Thaigit-1.1.0.zip`, ký bằng khoá Ed25519 trong Keychain, viết `update.json` rồi đăng cả hai lên GitHub Releases (`gh`). Máy nào đang dùng Thaigit sẽ tự tải về trong vòng 6 giờ (hoặc ngay khi bấm *Kiểm tra cập nhật…*); người dùng chỉ cần khởi động lại. Bỏ `--publish` để chỉ tạo file trong `build/release/`. Nhớ commit `Resources/Info.plist` sau khi phát hành.
+Script tăng phiên bản trong `Resources/Info.plist`, build, nén `Thaigit-macOS.zip` (tên cố định để trang chủ luôn trỏ tới bản mới nhất), ký bằng khoá Ed25519 trong Keychain, viết `update.json` rồi đăng cả hai lên GitHub Releases (`gh`). Máy nào đang dùng Thaigit sẽ tự tải về trong vòng 6 giờ (hoặc ngay khi bấm *Kiểm tra cập nhật…*); người dùng chỉ cần khởi động lại. Bỏ `--publish` để chỉ tạo file trong `build/release/`. Nhớ commit `Resources/Info.plist` sau khi phát hành.
 
 - Khoá bí mật nằm trong login Keychain, mục **"Thaigit update signing key"** (tạo bằng `swift scripts/release-tool.swift generate-key`). Hãy sao lưu nó — mất khoá thì các bản đã cài không nhận được bản mới. Phát hành từ máy khác / CI: đặt biến `THAIGIT_UPDATE_PRIVATE_KEY`.
 - Khoá công khai đi kèm app (`ThaigitUpdatePublicKey` trong Info.plist). App chỉ cài gói có chữ ký đúng, đúng mã ứng dụng và đúng số phiên bản ghi trong gói.
@@ -171,14 +171,14 @@ Bản Windows dùng Ctrl thay cho ⌘.
 ## Sắp có (bản Thaigit đa nền tảng)
 
 - **Bản Windows**, chung một code với macOS (Tauri 2 + Svelte 5 + TypeScript).
-- **AI viết commit message** bằng model Hermes của Nous Research — bấm một nút là có, không cần API key. Thêm: giải thích commit, viết mô tả Pull Request.
-- **Trang chủ + tải về**, thống kê lượt tải và số người dùng (ẩn danh, chỉ khi bạn đồng ý).
+- **AI viết commit message** bằng model Hermes (Nous Research) chạy trên server của Thaigit — bấm một nút là có, không cần API key. Thêm: giải thích commit, viết mô tả Pull Request.
+- **Trang chủ [git.thaipro.store](https://git.thaipro.store)** để giới thiệu và tải app (đã có trong `site/`, sắp đưa lên). Thêm thống kê lượt tải và số người dùng (ẩn danh, chỉ khi bạn đồng ý).
 - Giao diện tiếng Anh.
 
 ### Quyền riêng tư
 
 - **Tự cập nhật** chỉ tải `update.json` và file zip từ GitHub Releases — không gửi thông tin gì về máy hay repo của bạn (GitHub vẫn thấy địa chỉ IP như mọi lượt tải).
-- **AI** (sắp có) chỉ chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu. App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file nhị phân) tới server Thaigit để chuyển cho nhà cung cấp model. Chi tiết nhà cung cấp và chính sách lưu dữ liệu sẽ ghi rõ trong hộp thoại đồng ý.
+- **AI** (sắp có) chỉ chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu. App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file nhị phân) tới server Thaigit, nơi model Hermes chạy ngay trên máy chủ của dự án — không gửi cho bên thứ ba, không lưu nội dung code hay message.
 - **Thống kê** (sắp có) chỉ gửi khi bạn đồng ý: mã cài đặt ngẫu nhiên, phiên bản app, hệ điều hành. Không gửi tên repo, đường dẫn, code hay email.
 
 ## Phát triển
@@ -202,10 +202,13 @@ Sources/Nhanh/           Ứng dụng macOS (SwiftUI + AppKit)
 Tests/NhanhCoreTests/    Test parser, diff/patch, graph, tự cập nhật, thao tác trên repo thật tạm thời
 brand/                   Logo gốc và icon
 scripts/                 build-app.sh, release.sh, release-tool.swift, make-icons.py
+site/                    Trang chủ git.thaipro.store (Next.js, xuất trang tĩnh)
 plans/                   Kế hoạch bản đa nền tảng
 ```
 
-Cấu trúc dự kiến khi có bản đa nền tảng: `apps/desktop` (Tauri), `packages/core` (lõi TypeScript, port từ NhanhCore), `server` (AI proxy, thống kê), `site` (trang chủ). Chi tiết trong [kế hoạch](plans/261002-1543-tauri-cross-platform-hermes-ai-stats/plan.md).
+Bản đa nền tảng (Tauri) đang được làm và sẽ gồm `apps/desktop` (app), `packages/contracts` (chính sách lệnh git, định dạng IPC), `packages/core` (lõi TypeScript, port từ NhanhCore) và `server` (AI proxy, thống kê). Chi tiết trong [kế hoạch](plans/261002-1543-tauri-cross-platform-hermes-ai-stats/plan.md).
+
+Trang chủ (`site/`) cần Node 24 và pnpm: `pnpm install`, rồi `pnpm --filter @thaigit/site dev` để xem thử ở http://localhost:3000. Cách đưa lên git.thaipro.store: [docs/deploy-site.md](docs/deploy-site.md).
 
 ## Chưa có
 
@@ -213,7 +216,7 @@ Interactive rebase, blame, giao diện cho submodule và Git LFS, ký commit GPG
 
 ## English
 
-Thaigit is a free, GitKraken-style Git GUI with a Liquid Glass look. The native macOS app (Swift) is usable today and updates itself from GitHub Releases (Ed25519-signed; just restart to get the new version). A cross-platform Windows + macOS app (Tauri 2) is in progress, with AI commit messages powered by Nous Research's Hermes (no API key needed) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
+Thaigit is a free, GitKraken-style Git GUI with a Liquid Glass look. The native macOS app (Swift) is usable today and updates itself from GitHub Releases (Ed25519-signed; just restart to get the new version). A cross-platform Windows + macOS app (Tauri 2) is in progress, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
 
 ---
 

@@ -6,3 +6,11 @@ build/
 .claude/
 .env
 .env.*
+node_modules/
+dist/
+target/
+apps/desktop/src-tauri/gen/schemas/
+*.tsbuildinfo
+site/.next/
+site/out/
+site/next-env.d.ts

@@ -1,0 +1,24 @@
+{
+  "name": "@thaigit/site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trang chủ Thaigit — git.thaipro.store (Next.js, xuất trang tĩnh)",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "npx --yes serve@14 out",
+    "check": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^16.3.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "~6.0.3"
+  }
+}
