@@ -1,81 +1,95 @@
 ---
 phase: 3
 title: "TypeScript Core Port"
-status: pending
+status: in-progress
 priority: P1
-effort: "6-8 ngày"
+effort: "8-10 ngày"
 dependencies: [2]
 ---
 
 # Phase 3: TypeScript Core Port
 
 ## Overview
-Port toàn bộ `NhanhCore` (Swift, khoảng 2.800 dòng) sang `packages/core` (TypeScript thuần, không phụ thuộc UI) và port đủ 40 test sang Vitest. Test chạy với git thật trên cả macOS và Windows.
+Port `NhanhCore` (Swift, ≈ 2.800 dòng) sang `packages/core` (TS thuần, không phụ thuộc UI) với **hai** port I/O (`Exec`, `RepoFs`) và xử lý nội dung **theo byte**. Port 39 test Swift sang Vitest (Parser 10, Diff 6, GraphLayout 8, Repository 15); 2 test watcher sang `cargo test` (phase 2); 7 test cập nhật của Swift không port (updater Tauri có test riêng ở phase 8). Test chạy với git thật trên macOS + Windows. Thuộc mốc **M1a**.
 
 ## Context Links
-- [Port inventory + bất biến cần giữ](./reports/scout-report.md)
+- [Port inventory](./reports/scout-report.md) · [Red team](./plan.md#red-team-review): SC3/AD8, AD5, AD9, FM2, FM8, SA10
 - Swift: `Sources/NhanhCore/**`, `Tests/NhanhCoreTests/**`
 
 ## Key Insights
-- Core phụ thuộc một interface `Exec` duy nhất: test chạy bằng Node `child_process`, còn app chạy qua Rust `git_exec`. Cùng một code repository dùng cho cả hai.
-- `PatchBuilder` là phần rủi ro nhất (stage từng dòng, `\ No newline at end of file`, CRLF). Port **toàn bộ** test cạnh biên và thêm test CRLF trên Windows.
-- Windows: `GIT_CONFIG_GLOBAL` trỏ tới `NUL` thay cho `/dev/null`; git trả đường dẫn dạng `C:/...` (gạch xuôi), cần chuẩn hoá thống nhất.
-- Parse 30k commit và xếp làn graph phải nhanh: chạy được trong Web Worker; không dùng regex quay lui.
+- 10 thao tác Swift đọc/ghi file trực tiếp (`open`, `operationState`, `pendingCommitMessage`, đọc/ghi working file, `addToGitignore`, `trashUntracked`, clone/init mkdir) → core cần port `RepoFs` bên cạnh `Exec`. Mỗi port có adapter Node (test) và adapter Tauri (app, phase 2).
+- Env + cờ `-c` **không** viết trong runner TS: lấy từ `packages/contracts/git-policy.json` (Rust thực thi trong app; adapter Node áp cùng file khi test) → một nguồn sự thật, test và app cùng hành vi.
+- Swift giải mã lossy (`String(decoding:)`) và tách diff theo Character (`"\r\n"` là 1 grapheme → dòng CRLF không tách, `Diff.swift:127`). **Không port nguyên**: parse diff trên `Uint8Array`, tách theo byte `\n`, giữ `\r` trong dòng, build patch thành bytes; chỉ decode UTF-8 để hiển thị.
+- API tách: `exec*()` trả bytes (main thread) và hàm thuần `parse*()`/`layout()` (worker). `history()` không gói exec + parse + layout trong một lời gọi nữa.
+- `PatchBuilder` rủi ro nhất: port toàn bộ test cạnh biên + ma trận CRLF/encoding.
+- Windows: `GIT_CONFIG_GLOBAL=NUL` (thay `/dev/null`) trong TestRepo; git trả `C:/...`, chuẩn hoá thống nhất.
 
 ## Requirements
-- Functional: API tương đương `GitRepository` (khoảng 80 thao tác), models, parsers, diff/patch/conflict, graph layout, command log, `isValidRefName`, clone/init với tiến trình.
-- Non-functional: strict TS, không `any`; parse log 30k dưới 300 ms và layout 30k dưới 300 ms (Node, máy M1); 0 phụ thuộc runtime nặng.
+- API tương đương `GitRepository` (80 thao tác), models, parsers, diff/patch/conflict (byte), graph layout, command log, `isValidRefName`, clone/init có tiến trình.
+- Huỷ: kết quả `{cancelled, exitCode}` → `CancelledError` mang mã thoát (không che kết quả thật); pull = `fetch` (huỷ được) rồi `merge`/`rebase` (không huỷ).
+- Command log: che `scheme://user:pass@` → `scheme://***@` và mẫu token (`ghp_`, `github_pat_`, `glpat-`, `xox[bp]-`, `AKIA…`) trong argv và stderr **ngay lúc ghi**.
+- Non-functional: strict TS, không `any`; parse log 30k < 300 ms, layout 30k < 300 ms (Node, M1); không phụ thuộc runtime nặng; không regex quay lui.
 
 ## Architecture
 ```
 packages/core/src/
-├── exec/        types.ts (Exec, ExecRequest, ExecResult, CancelToken), node.ts (child_process adapter cho test)
-├── git/         runner.ts (global -c flags, env, acceptExitCodes, progress, cancel→CancelledError)
-│                models.ts · parsers.ts · repository.ts (≈80 ops) · environment.ts (askpass env keys)
-├── diff/        diff.ts (parser, inline highlight) · patch-builder.ts · conflict-file.ts · presentation.ts
-├── graph/       layout.ts (lanes, per-lane color, WIP lane)
-├── support/     command-log.ts · paths.ts (chuẩn hoá Windows/macOS) · text.ts (decode, unquote git path)
+├── ports/    exec.ts (ExecRequest{repoId, kind, sub, args, stdin, env}, ExecResult{code, stdout: Uint8Array, stderr, cancelled})
+│             repo-fs.ts (RepoFs) · node/ (adapter Node cho cả hai, đọc git-policy.json)
+├── git/      runner.ts (acceptExitCodes, GitError, CancelledError, CommandLog) · models.ts · parsers.ts · repository.ts (80 thao tác)
+├── diff/     bytes.ts (tách dòng theo byte) · diff.ts · patch-builder.ts (bytes) · conflict-file.ts (bytes) · presentation.ts (decode để hiển thị)
+├── graph/    layout.ts (làn, màu theo làn, làn WIP)
+├── support/  command-log.ts (che credential) · paths.ts · text.ts (decode fatal / không fatal, unquote path)
 └── index.ts
-packages/core/test/  parsers.test.ts · diff.test.ts · graph.test.ts · repository.test.ts · helpers/test-repo.ts
+packages/core/test/  parsers · diff · patch-bytes (ma trận) · graph · repository · helpers/test-repo.ts
 ```
 
 ## Related Code Files
-- Create: tất cả file trên + `packages/core/{package.json,tsconfig.json,vitest.config.ts}`
-- Create: `apps/desktop/src/lib/core-tauri-exec.ts` (Exec adapter gọi Rust)
+- Create: các file trên + `packages/core/{package.json,tsconfig.json,vitest.config.ts}`
+- Create: `apps/desktop/src/lib/core-tauri.ts` (adapter `Exec` + `RepoFs` gọi phase 2), `apps/desktop/src/workers/history.worker.ts` (nhận bytes → parse + layout)
 - Tham chiếu (không sửa): `Sources/NhanhCore/**`, `Tests/NhanhCoreTests/**`
 
 ## Implementation Steps
-1. `exec/types.ts` + `exec/node.ts` (spawn args mảng, stdin Buffer, env merge, kill khi AbortSignal).
-2. `git/runner.ts`: cùng cờ chung và env như Swift; ánh xạ lỗi → `GitError{message, exitCode, stderr}`; huỷ → `CancelledError`; ghi `CommandLog`.
-3. Port models + parsers (giữ **đúng** format `--format`, `%1f`, `-z`); test parser trước (10 test).
-4. Port diff + patch-builder + conflict + presentation; port 6 test diff + toàn bộ case EOF/no-newline; thêm test CRLF (file `\r\n`, stage 1 dòng giữa, `git apply --cached --recount` thành công trên Windows với `core.autocrlf=true`).
-5. Port graph layout + 8 test (gồm 5k commit dưới 2 s → siết thành 30k dưới 300 ms).
-6. Port repository (≈80 thao tác) + 14 test tích hợp (staging dòng, merge conflict, rebase abort, stash, fetch/push/pull với remote bare cục bộ). Helper `TestRepo` cô lập cấu hình.
-7. Thêm test riêng cho Windows: đường dẫn tiếng Việt (`Tài liệu/ghi chú.txt`), có dấu cách, dài hơn 200 ký tự (bật `core.longpaths` trong repo test), file thực thi/mode.
-8. Bench `vitest bench`: log parse + layout 30k. Repo giả lập sinh bằng [`research/make-big-repo.py`](./research/make-big-repo.py) (`python3 make-big-repo.py | git fast-import`: 30k commit, khoảng 1.100 ref); chép script vào `packages/core/test/fixtures/`.
-9. Tích hợp vào app: `core-tauri-exec.ts`; chạy parse + layout trong Web Worker (`comlink` hoặc postMessage thuần).
+1. Ports + adapter Node (spawn args mảng, stdin bytes, env + cờ từ policy, AbortSignal → huỷ; RepoFs Node cùng luật phạm vi).
+2. `runner.ts`: `GitError{message, exitCode, stderr}`, `CancelledError{exitCode}`, ghi CommandLog đã che.
+3. Models + parsers (giữ đúng `--format`, `%1f`, `-z`); 10 test parser trước.
+4. Diff/patch/conflict theo byte; 6 test diff + case EOF/no-newline. **Ma trận CRLF**: {autocrlf true/input/false} × {LF trong index, CRLF trong index (`-text`), lẫn lộn} × {stage dòng, unstage dòng, huỷ dòng, không newline cuối}; so **byte** blob index (`git cat-file -p :path`) và file working tree. Thêm: stage 1 dòng file CP1258; conflict file CP1252 bị từ chối (không đổi byte nào); file có BOM giữ BOM.
+5. Graph layout + 8 test (siết 30k < 300 ms).
+6. Repository (80 thao tác) + 15 test tích hợp (staging dòng, merge conflict, rebase abort, stash, fetch/push/pull với remote bare cục bộ). TestRepo cô lập cấu hình.
+7. Test Windows: đường dẫn tiếng Việt (`Tài liệu/ghi chú.txt`), dấu cách, > 200 ký tự (`core.longpaths`), file thực thi/mode.
+8. Bench `vitest bench`: parse + layout 30k với repo sinh từ [`make-big-repo.py`](./research/make-big-repo.py) (30k commit, 1.077 ref = 878 nhánh + 199 tag); chép script vào `packages/core/test/fixtures/`.
+9. Tích hợp app: `core-tauri.ts` + worker (bytes chuyển bằng transferable `ArrayBuffer`).
 
 ## Todo List
-- [ ] Exec abstraction + Node adapter
-- [ ] Runner + errors + command log
-- [ ] Parsers (10 test)
-- [ ] Diff/patch/conflict (6+ test, CRLF)
-- [ ] Graph layout (8 test, bench)
-- [ ] Repository ops (14 test tích hợp)
-- [ ] Test riêng Windows + chạy CI 2 OS
-- [ ] Tauri exec adapter + worker
+- [x] Ports `Exec` + `RepoFs` + adapter Node (37 test)
+- [x] Runner + lỗi + command log đã che (16 test)
+- [x] Parsers (22 test)
+- [x] Diff/patch/conflict theo byte (381 test: ma trận CRLF 144 ô, CP1252/CP1258, BOM, fuzz 96 cặp)
+- [x] Graph layout (12 test; bench repo 30k commit: log 16 ms + layout 8 ms + history 26 ms)
+- [x] Repository (53 test tích hợp trên git thật, gồm kiểm chính sách cho mọi thao tác)
+- [ ] Test riêng Windows + CI 2 OS (workflow có, chưa chạy trên GitHub)
+- [ ] Adapter Tauri + worker
 
 ## Success Criteria
-- [ ] ≥ 45 test xanh trên macOS **và** Windows CI (40 port + test Windows mới)
-- [ ] Stage từng dòng đúng với file LF, CRLF, không newline cuối
-- [ ] Bench: log parse 30k < 300 ms, layout 30k < 300 ms (Node)
+- [ ] 39 test port + test mới (ma trận CRLF, encoding, Windows) xanh trên macOS **và** Windows CI
+- [ ] Mọi ô ma trận CRLF khớp byte (index + working tree)
+- [ ] File không phải UTF-8 không bao giờ bị ghi lại qua đường decode
+- [ ] Bench: parse 30k < 300 ms, layout 30k < 300 ms (Node)
+- [ ] Đủ 80 thao tác chạy qua validator phase 2 không bị chặn nhầm (qua adapter Tauri trong harness 4a)
 
 ## Risk Assessment
-- Khác biệt hành vi git giữa các phiên bản (Apple git vs Git for Windows). Giảm thiểu: CI chạy 2 OS; yêu cầu git ≥ 2.35; tránh cờ quá mới.
-- CRLF + `git apply`: rủi ro hỏng patch. Giảm thiểu: test byte-chính-xác, giữ `\r` khi parse diff (không `trim`).
+- Khác biệt hành vi git giữa phiên bản (Apple git vs Git for Windows) → CI 2 OS; sàn bảo mật (phase 2); tránh cờ quá mới.
+- Patch theo byte khó debug → test vàng (golden bytes) cho từng ô ma trận.
+- Rollback: chưa phát hành tới M1b → revert commit.
 
 ## Security Considerations
-- Không ghép chuỗi lệnh; mọi path qua stdin NUL-separated; `GIT_LITERAL_PATHSPECS=1` cho thao tác theo path.
+- Không ghép chuỗi lệnh; path qua stdin NUL-separated hoặc sau `--` với `GIT_LITERAL_PATHSPECS=1`.
+- Command log không bao giờ giữ credential ở dạng rõ.
+
+## Ghi chú sau khi port (2026-10-02)
+- Port phát hiện 3 lỗi của bản Swift mà `git apply` áp âm thầm (dòng "không newline cuối file" đặt trước ngữ cảnh → hai dòng dính nhau; unstage một phần file đổi tên → đổi tên ngược trong index; dòng được thêm xuống dòng trong file CRLF nhận "\n" lẻ). Bản TS đã sửa. Bản Swift còn tách dòng CRLF sai (`String.split` coi "\r\n" là một ký tự) và giải mã UTF-8 kiểu thay thế → đang sửa trong app Swift.
+- `applyPatch` có tuỳ chọn `unidiffZero` (patch `-U0` cần `--unidiff-zero`).
+- Việc tiếp (làm sau khi Rust 2a xong, sửa cùng lúc TS + Rust + vectors): thêm `readSecond` vào `git-policy.json` cho dạng chỉ đọc của sub ghi (`stash list|show`, `remote -v|get-url`) để làm mới không phải chờ sau fetch/push đang giữ khoá.
+- `classifyGitPath` bản TS chỉ để tham chiếu: khi watcher Rust (2b) xong → chuyển case test sang `packages/contracts` làm vectors chung rồi xoá bản TS.
 
 ## Next Steps
-- Phase 4/5 dùng `@thaigit/core`; Phase 6 thêm `ai/context-builder.ts` vào core.
+- Phase 4/5 dùng `@thaigit/core`; phase 6 thêm `ai/*` vào core.

@@ -14,3 +14,4 @@ apps/desktop/src-tauri/gen/schemas/
 site/.next/
 site/out/
 site/next-env.d.ts
+.vitest/

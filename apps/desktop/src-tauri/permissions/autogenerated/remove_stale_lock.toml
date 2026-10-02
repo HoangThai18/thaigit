@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remove-stale-lock"
+description = "Enables the remove_stale_lock command without any pre-configured scope."
+commands.allow = ["remove_stale_lock"]
+
+[[permission]]
+identifier = "deny-remove-stale-lock"
+description = "Denies the remove_stale_lock command without any pre-configured scope."
+commands.deny = ["remove_stale_lock"]

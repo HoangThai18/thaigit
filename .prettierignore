@@ -8,3 +8,4 @@ plans/
 Sources/
 Tests/
 *.md
+site/lib/shots.ts

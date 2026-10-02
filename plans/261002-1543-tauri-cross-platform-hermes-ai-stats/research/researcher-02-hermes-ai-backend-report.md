@@ -1,5 +1,11 @@
 # Nhánh Tauri 2: Hermes AI Backend & Telemetry Research
 
+> **Đính chính (2026-10-02, sau red team + quyết định user — khi mâu thuẫn, `plan.md` là chuẩn):**
+> - Quyết định cuối: **Hermes tự host trên VPS của chủ dự án** (OpenAI-compatible). Mục Nous Portal, giá token, gói thuê bao, Privacy Mode và ngân sách token/$ trong báo cáo này **không còn áp dụng**; giới hạn là năng lực máy (phase 7).
+> - Ghi nhận khi kiểm tra trực tiếp ngày 2026-10-02: hostname `api.nous.nousresearch.com` sai (đúng là `inference-api.nousresearch.com`); Hermes-4-70B/405B báo "retired" trên Nous Portal; mục Ultra tier tự mâu thuẫn (1.600 vs 800 RPM); mục "~4k context" sai.
+> - Không còn endpoint updater/telemetry chung trên server: cập nhật qua manifest tĩnh GitHub Releases; thống kê qua `/v1/telemetry/ping` (chỉ khi opt-in, `telemetryId` riêng); AI dùng `aiInstallId` riêng, tạo sau khi đồng ý AI. Admin chỉ-đọc qua SSH tunnel, không basic auth công khai.
+> - Prompt mẫu (§2) vẫn dùng được làm điểm xuất phát.
+
 **Date:** 2026-10-02 | **Researcher:** Claude Haiku 4.5
 
 ---

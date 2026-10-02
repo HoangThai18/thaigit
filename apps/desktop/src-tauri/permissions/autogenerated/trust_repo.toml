@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-trust-repo"
+description = "Enables the trust_repo command without any pre-configured scope."
+commands.allow = ["trust_repo"]
+
+[[permission]]
+identifier = "deny-trust-repo"
+description = "Denies the trust_repo command without any pre-configured scope."
+commands.deny = ["trust_repo"]

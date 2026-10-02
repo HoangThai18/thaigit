@@ -1,0 +1,742 @@
+/**
+ * Trạng thái và hành động của MỘT repo đang mở (port `RepoModel.swift`): nạp refs/status/stash/remote song song, quyết định
+ * có nạp lại lịch sử không bằng "dấu vân tay" ref, dựng graph (xếp làn + nhãn), nhận sự kiện `repo-changed`, theo dõi chọn
+ * commit/stash + tải chi tiết, và hàng đợi thao tác ghi (4a chỉ đọc, nhưng hàng đợi có sẵn hình dạng cho các phase sau).
+ *
+ * Phản ứng (Svelte 5): mảng lớn (entries, refs…) dùng `$state.raw` — thay cả mảng khi đổi, không bọc proxy sâu. Mỗi trường là
+ * một signal riêng nên component chỉ phụ thuộc đúng thứ nó đọc (sidebar không đọc `status`/`selection`).
+ */
+import {
+  CancelledError,
+  CommandLog,
+  EMPTY_STATUS,
+  GitRepository,
+  buildHistory,
+  headBranchName,
+  headOid,
+  isStatusClean,
+  isWorkingTreeCommit,
+  operationTitle,
+  refName,
+  stashDisplayMessage,
+  type Commit,
+  type CommitDetails,
+  type GitRef,
+  type GraphRow,
+  type HeadState,
+  type Remote,
+  type RepoOperation,
+  type Stash,
+  type WorkingTreeStatus,
+} from '@thaigit/core';
+import type { RepoChangedEvent } from '@thaigit/contracts';
+import { compareNatural } from '../format/natural.ts';
+import { buildRefLabels, type RefLabel } from '../graph/pills.ts';
+import type { RepoPort } from '../platform/host.ts';
+import { vi } from '../strings.vi.ts';
+import { jsonEqual } from './equality.ts';
+import { prefs as globalPrefs, type PrefsStore } from './prefs.svelte.ts';
+import { toasts as globalToasts, describeError, type ToastAction, type ToastStore } from './toasts.svelte.ts';
+
+// MARK: - Kiểu
+
+/** Phạm vi làm mới (cờ bit như `RefreshScope` của Swift). */
+export const Scope = { status: 1, refs: 2, history: 4, all: 7 } as const;
+export type RefreshScope = number;
+
+export type RepoSelection =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'workingTree' }
+  | { readonly kind: 'commit'; readonly sha: string }
+  | { readonly kind: 'stash'; readonly sha: string };
+
+export interface GraphEntry {
+  readonly commit: Commit;
+  readonly row: GraphRow;
+  readonly labels: readonly RefLabel[];
+}
+
+export interface BusyState {
+  title: string;
+  detail: string;
+  fraction: number | null;
+  canCancel: boolean;
+}
+
+export interface ScrollRequest {
+  readonly row: number;
+  readonly id: number;
+}
+
+export interface PerformOptions {
+  showsProgress?: boolean;
+  cancellable?: boolean;
+  /** Phạm vi làm mới sau khi xong (mặc định status + refs; lịch sử tự nạp lại khi dấu vân tay ref đổi). */
+  refresh?: RefreshScope;
+  onSuccess?: () => void;
+  /** Trả `true` nếu đã tự xử lý lỗi (khỏi hiện toast mặc định). */
+  onError?: (error: unknown) => boolean;
+}
+
+export interface RepoStoreOptions {
+  prefs?: PrefsStore;
+  toasts?: ToastStore;
+  /** Mặc định `navigator.clipboard.writeText`. */
+  clipboard?: (text: string) => Promise<void>;
+  /** Trễ trước khi tải chi tiết commit khi lướt phím mũi tên (Swift: 35 ms). */
+  detailsDelayMs?: number;
+  /**
+   * Lõi Rust từ chối lệnh vì repo chưa được tin tưởng (cấu hình đổi sau khi mở, có `include` trỏ vào file trong repo…):
+   * nút "Xem lại cấu hình repo" trên thông báo gọi hàm này để hỏi tin tưởng lại.
+   */
+  onUntrusted?: () => void;
+}
+
+type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown };
+
+async function settle<T>(promise: Promise<T>): Promise<Settled<T>> {
+  try {
+    return { ok: true, value: await promise };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+const NO_LABELS: readonly RefLabel[] = Object.freeze([]);
+const REFRESH_ERROR_TAG = 'refresh-error';
+
+export function sameSelection(a: RepoSelection, b: RepoSelection): boolean {
+  if (a.kind !== b.kind) return false;
+  return (a.kind === 'commit' || a.kind === 'stash') && (b.kind === 'commit' || b.kind === 'stash')
+    ? a.sha === b.sha
+    : true;
+}
+
+/**
+ * Dấu vân tay quyết định có nạp lại lịch sử không: đổi ref/HEAD/tuỳ chọn hiển thị thì lịch sử đổi, còn đổi ahead/behind hay
+ * file làm việc thì không. Giống `makeFingerprint` của Swift.
+ */
+export function makeFingerprint(
+  refs: readonly Pick<GitRef, 'fullName' | 'target'>[],
+  head: HeadState,
+  options: { showRemotes: boolean; showTags: boolean; order: string },
+): string {
+  const parts = refs.map((ref) => `${ref.fullName}=${ref.target}`);
+  parts.push(`HEAD=${headOid(head) ?? '-'}@${headBranchName(head) ?? '-'}`);
+  parts.push(`remotes=${options.showRemotes},tags=${options.showTags},order=${options.order}`);
+  return parts.join('\n');
+}
+
+// MARK: - Store
+
+export class RepoStore {
+  readonly port: RepoPort;
+  readonly git: GitRepository;
+  readonly commandLog = new CommandLog();
+  private readonly prefs: PrefsStore;
+  private readonly toasts: ToastStore;
+  private readonly clipboard: (text: string) => Promise<void>;
+  private readonly detailsDelayMs: number;
+  private readonly onUntrusted: (() => void) | undefined;
+
+  // --- dữ liệu repository ---
+  refs = $state.raw<readonly GitRef[]>([]);
+  /** Đã lọc + xếp sẵn mỗi khi refs đổi (repo lớn có hàng nghìn ref — không tính lại khi dựng giao diện). */
+  localBranches = $state.raw<readonly GitRef[]>([]);
+  remoteBranches = $state.raw<readonly GitRef[]>([]);
+  tags = $state.raw<readonly GitRef[]>([]);
+  status = $state.raw<WorkingTreeStatus>(EMPTY_STATUS);
+  stashes = $state.raw<readonly Stash[]>([]);
+  remotes = $state.raw<readonly Remote[]>([]);
+  operation = $state.raw<RepoOperation | null>(null);
+  entries = $state.raw<readonly GraphEntry[]>([]);
+  graphVersion = $state(0);
+  graphLanes = $state(1);
+  mayHaveMoreCommits = $state(false);
+  isLoadingHistory = $state(false);
+  hasLoaded = $state(false);
+  /** Lỗi nạp lịch sử gần nhất (để graph báo thay vì "chưa có commit"). */
+  historyError = $state<string | null>(null);
+  commitLimit: number;
+
+  // --- chọn, chi tiết ---
+  selection = $state.raw<RepoSelection>({ kind: 'none' });
+  details = $state.raw<CommitDetails | null>(null);
+  isLoadingDetails = $state(false);
+  scrollRequest = $state.raw<ScrollRequest | null>(null);
+
+  // --- giao diện ---
+  busy = $state.raw<BusyState | null>(null);
+
+  // --- nội bộ (không phản ứng) ---
+  private rowIndex = new Map<string, number>();
+  private refIndex = new Map<string, GitRef>();
+  private rawCommits: Commit[] = [];
+  private refsFingerprint = '';
+  private active = false;
+  private disposed = false;
+  private unwatch: (() => Promise<void>) | null = null;
+  private refreshTask: Promise<void> | null = null;
+  private pendingRefresh: RefreshScope = 0;
+  private fileSystemPending: RefreshScope = 0;
+  private detailsToken = 0;
+  private scrollSerial = 0;
+  private didChooseInitialSelection = false;
+  private operationChain: Promise<void> = Promise.resolve();
+  private runningOperations = 0;
+  private abort: AbortController | null = null;
+
+  constructor(port: RepoPort, options: RepoStoreOptions = {}) {
+    this.port = port;
+    this.prefs = options.prefs ?? globalPrefs;
+    this.toasts = options.toasts ?? globalToasts;
+    this.clipboard = options.clipboard ?? ((text) => navigator.clipboard.writeText(text));
+    this.detailsDelayMs = options.detailsDelayMs ?? 35;
+    this.onUntrusted = options.onUntrusted;
+    this.commitLimit = this.prefs.value.commitLimit;
+    this.git = new GitRepository({
+      exec: port.exec,
+      fs: port.fs,
+      root: port.info.root,
+      gitDir: port.info.gitDir,
+      commonDir: port.info.commonDir,
+      log: this.commandLog,
+      typed: port.typedGit,
+    });
+  }
+
+  get name(): string {
+    return this.git.name;
+  }
+
+  get rootPath(): string {
+    return this.port.info.root;
+  }
+
+  // MARK: - Vòng đời
+
+  /** Nạp lần đầu và bắt đầu nghe `repo-changed`. Gọi một lần. */
+  async start(): Promise<void> {
+    if (this.active || this.disposed) return;
+    this.active = true;
+    this.requestRefresh(Scope.all);
+    try {
+      const stop = await this.port.watch((event) => this.handleChange(event));
+      if (this.disposed) await stop().catch(() => undefined);
+      else this.unwatch = stop;
+    } catch (error) {
+      if (!this.disposed) this.showError(vi.errors.watch, error);
+    }
+  }
+
+  /** Dừng theo dõi và bỏ kết quả của mọi việc đang chạy dở. */
+  async dispose(): Promise<void> {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.active = false;
+    this.detailsToken++;
+    this.abort?.abort();
+    const stop = this.unwatch;
+    this.unwatch = null;
+    if (stop) await stop().catch(() => undefined);
+  }
+
+  // MARK: - Thuộc tính tiện dụng
+
+  get headOid(): string | null {
+    return headOid(this.status.head);
+  }
+
+  get currentBranch(): string | null {
+    return headBranchName(this.status.head);
+  }
+
+  get headDescription(): string {
+    const head = this.status.head;
+    switch (head.kind) {
+      case 'branch':
+        return head.name;
+      case 'detached':
+        return vi.window.detachedHead(head.oid.slice(0, 7));
+      case 'unknown':
+        return '';
+    }
+  }
+
+  /** "main ↑2 ↓1 · Đang merge" — dòng phụ dưới tên repo. */
+  get branchSubtitle(): string {
+    const parts = [this.headDescription];
+    if (this.status.ahead > 0) parts.push(`↑${this.status.ahead}`);
+    if (this.status.behind > 0) parts.push(`↓${this.status.behind}`);
+    if (this.operation) parts.push(`· ${operationTitle(this.operation)}`);
+    return parts.join(' ');
+  }
+
+  get hasWorkingTreeRow(): boolean {
+    const first = this.entries[0];
+    return first !== undefined && isWorkingTreeCommit(first.commit);
+  }
+
+  get shouldShowWorkingTree(): boolean {
+    return !isStatusClean(this.status) || this.operation !== null;
+  }
+
+  /** Hàng của mục đang chọn (phản ứng theo `selection` và `graphVersion`). */
+  get selectedRow(): number | null {
+    void this.graphVersion;
+    return this.rowFor(this.selection);
+  }
+
+  entryAt(row: number): GraphEntry | undefined {
+    return this.entries[row];
+  }
+
+  rowFor(selection: RepoSelection): number | null {
+    switch (selection.kind) {
+      case 'workingTree':
+        return this.hasWorkingTreeRow ? 0 : null;
+      case 'commit':
+        return this.rowIndex.get(selection.sha) ?? null;
+      default:
+        return null;
+    }
+  }
+
+  findRef(fullName: string): GitRef | undefined {
+    void this.refs;
+    return this.refIndex.get(fullName);
+  }
+
+  // MARK: - Làm mới dữ liệu
+
+  refreshEverything(): void {
+    this.requestRefresh(Scope.all);
+  }
+
+  /** Gộp các yêu cầu đang chờ thành một lượt làm mới kế tiếp (không phải debounce: lượt đang chạy không bị huỷ). */
+  requestRefresh(scope: RefreshScope): void {
+    this.pendingRefresh |= scope;
+    if (this.refreshTask !== null || this.disposed || this.pendingRefresh === 0) return;
+    this.refreshTask = (async () => {
+      try {
+        while (this.pendingRefresh !== 0 && !this.disposed) {
+          const next = this.pendingRefresh;
+          this.pendingRefresh = 0;
+          try {
+            await this.performRefresh(next);
+          } catch (error) {
+            this.reportRefreshFailure(vi.errors.status, error);
+          }
+        }
+      } finally {
+        this.refreshTask = null;
+      }
+    })();
+  }
+
+  async refreshAndWait(scope: RefreshScope): Promise<void> {
+    this.requestRefresh(scope);
+    if (this.refreshTask !== null) await this.refreshTask;
+  }
+
+  private async performRefresh(scope: RefreshScope): Promise<void> {
+    const first = !this.hasLoaded;
+    const wantsRefs = (scope & Scope.refs) !== 0 || first;
+    const wantsStatus = (scope & Scope.status) !== 0 || first;
+    const git = this.git;
+
+    // Lần đầu: lịch sử chạy song song với refs/status. HEAD chưa biết nên luôn thêm `HEAD` vào log; repo mà HEAD chưa có
+    // commit nhưng vẫn có nhánh khác được xử lý bên dưới.
+    const firstLog = first ? settle(this.fetchLog(true)) : null;
+    const [statusResult, refsResult, stashResult, remoteResult, operationResult] = await Promise.all([
+      wantsStatus ? settle(git.status()) : null,
+      wantsRefs ? settle(git.refs()) : null,
+      wantsRefs ? settle(git.stashes()) : null,
+      wantsRefs ? settle(git.remotes()) : null,
+      wantsStatus ? settle(git.operationState()) : null,
+    ]);
+    if (this.disposed) return;
+
+    if (statusResult) {
+      if (statusResult.ok) {
+        this.toasts.dismissTag(REFRESH_ERROR_TAG);
+        if (!jsonEqual(statusResult.value, this.status)) this.status = statusResult.value;
+      } else {
+        this.reportRefreshFailure(vi.errors.status, statusResult.error);
+      }
+    }
+    if (refsResult) {
+      if (refsResult.ok) {
+        if (!jsonEqual(refsResult.value, this.refs)) this.updateRefs(refsResult.value);
+      } else {
+        this.reportRefreshFailure(vi.errors.refs, refsResult.error);
+      }
+    }
+    if (stashResult?.ok && !jsonEqual(stashResult.value, this.stashes)) {
+      this.stashes = stashResult.value;
+      const selected = this.selection;
+      if (selected.kind === 'stash' && !stashResult.value.some((stash) => stash.sha === selected.sha)) {
+        this.select({ kind: 'none' });
+      }
+    }
+    if (remoteResult?.ok && !jsonEqual(remoteResult.value, this.remotes)) this.remotes = remoteResult.value;
+    if (operationResult?.ok && !jsonEqual(operationResult.value, this.operation)) {
+      this.operation = operationResult.value;
+    }
+
+    const fingerprint = this.currentFingerprint();
+    if (firstLog) {
+      this.refsFingerprint = fingerprint;
+      await this.loadHistory(firstLog);
+    } else if ((scope & Scope.history) !== 0 || fingerprint !== this.refsFingerprint) {
+      this.refsFingerprint = fingerprint;
+      await this.loadHistory(null);
+    } else if (this.shouldShowWorkingTree !== this.hasWorkingTreeRow) {
+      this.relayoutGraph();
+    } else if (wantsRefs) {
+      this.refreshLabels();
+    }
+    if (this.disposed) return;
+    this.hasLoaded = true;
+  }
+
+  private currentFingerprint(): string {
+    return makeFingerprint(this.refs, this.status.head, {
+      showRemotes: this.prefs.value.showRemoteBranches,
+      showTags: this.prefs.value.showTags,
+      order: this.prefs.value.logOrder,
+    });
+  }
+
+  private updateRefs(value: readonly GitRef[]): void {
+    this.refs = value;
+    this.refIndex = new Map(value.map((ref) => [ref.fullName, ref]));
+    const byName = (a: GitRef, b: GitRef): number => compareNatural(refName(a), refName(b));
+    this.localBranches = value.filter((ref) => ref.kind === 'localBranch').sort(byName);
+    this.remoteBranches = value.filter((ref) => ref.kind === 'remoteBranch').sort(byName);
+    // Tag mới nhất (theo tên số lớn) lên trước, như Swift (`orderedDescending`).
+    this.tags = value.filter((ref) => ref.kind === 'tag').sort((a, b) => byName(b, a));
+  }
+
+  private fetchLog(includeHead: boolean): Promise<Uint8Array> {
+    const { logOrder, showRemoteBranches, showTags } = this.prefs.value;
+    return this.git.logBytes({
+      limit: this.commitLimit,
+      order: logOrder,
+      includeHead,
+      includeRemotes: showRemoteBranches,
+      includeTags: showTags,
+    });
+  }
+
+  /** Nạp lịch sử + xếp làn rồi dựng graph. `pending`: log đã chạy sẵn song song ở lần nạp đầu. */
+  private async loadHistory(pending: Promise<Settled<Uint8Array>> | null): Promise<void> {
+    this.isLoadingHistory = true;
+    try {
+      const head = headOid(this.status.head);
+      let result = pending ? await pending : await settle(this.fetchLog(head !== null));
+      if (
+        pending &&
+        result.ok &&
+        result.value.length === 0 &&
+        head === null &&
+        this.refs.length > 0 &&
+        !this.disposed
+      ) {
+        // HEAD chưa có commit (nhánh mồ côi) nhưng repo vẫn có nhánh khác: chạy lại không kèm `HEAD`.
+        result = await settle(this.fetchLog(false));
+      }
+      if (this.disposed) return;
+      if (!result.ok) {
+        this.historyError = describeError(result.error);
+        this.showError(vi.errors.history, result.error);
+        return;
+      }
+      this.historyError = null;
+      const showWorkingTree = this.shouldShowWorkingTree;
+      const history = buildHistory(result.value, { limit: this.commitLimit, headOid: head, showWorkingTree });
+      this.rawCommits = showWorkingTree ? history.commits.slice(1) : [...history.commits];
+      this.mayHaveMoreCommits = history.mayHaveMore;
+      this.applyGraph(history.commits, history.rows);
+    } finally {
+      this.isLoadingHistory = false;
+    }
+  }
+
+  /** WIP vừa hiện/ẩn: dựng lại từ commit đã tải, không chạy lại git. */
+  private relayoutGraph(): void {
+    const history = buildHistory(this.rawCommits, {
+      limit: this.commitLimit,
+      headOid: this.headOid,
+      showWorkingTree: this.shouldShowWorkingTree,
+    });
+    this.applyGraph(history.commits, history.rows);
+  }
+
+  /** Tải thêm commit cũ hơn khi cuộn gần cuối graph: nới giới hạn rồi nạp lại lịch sử (như Swift). */
+  loadMoreHistory(): void {
+    if (!this.mayHaveMoreCommits || this.isLoadingHistory || this.disposed) return;
+    this.commitLimit += Math.max(2000, Math.floor(this.commitLimit / 2));
+    this.isLoadingHistory = true;
+    this.requestRefresh(Scope.history);
+  }
+
+  private applyGraph(commits: readonly Commit[], rows: readonly GraphRow[]): void {
+    const labels = this.labelsByCommit();
+    const entries: GraphEntry[] = [];
+    const index = new Map<string, number>();
+    let lanes = 1;
+    commits.forEach((commit, position) => {
+      const row = rows[position];
+      if (row === undefined) return;
+      entries.push({ commit, row, labels: labels.get(commit.id) ?? NO_LABELS });
+      index.set(commit.id, position);
+      if (row.width > lanes) lanes = row.width;
+    });
+    this.rowIndex = index;
+    this.entries = entries;
+    this.graphLanes = lanes;
+    this.graphVersion++;
+    this.validateSelection();
+  }
+
+  /** Cập nhật nhãn nhánh/tag trên graph mà không dựng lại cả lịch sử (vd. đổi upstream). */
+  private refreshLabels(): void {
+    const labels = this.labelsByCommit();
+    let next: GraphEntry[] | undefined;
+    for (const [position, entry] of this.entries.entries()) {
+      const fresh = labels.get(entry.commit.id) ?? NO_LABELS;
+      if (entry.labels === fresh || jsonEqual(entry.labels, fresh)) continue;
+      next ??= [...this.entries];
+      next[position] = { ...entry, labels: fresh };
+    }
+    if (next) {
+      this.entries = next;
+      this.graphVersion++;
+    }
+  }
+
+  private labelsByCommit(): Map<string, RefLabel[]> {
+    return buildRefLabels(this.refs, this.status.head, {
+      showRemotes: this.prefs.value.showRemoteBranches,
+      showTags: this.prefs.value.showTags,
+    });
+  }
+
+  private validateSelection(): void {
+    if (!this.didChooseInitialSelection && (this.hasLoaded || this.entries.length > 0)) {
+      this.didChooseInitialSelection = true;
+      const head = this.headOid;
+      if (this.hasWorkingTreeRow) this.select({ kind: 'workingTree' }, true);
+      else if (head !== null && this.rowIndex.has(head)) this.select({ kind: 'commit', sha: head }, true);
+      return;
+    }
+    const selected = this.selection;
+    if (selected.kind === 'workingTree' && !this.hasWorkingTreeRow) {
+      const head = this.headOid;
+      if (head !== null && this.rowIndex.has(head)) this.select({ kind: 'commit', sha: head });
+      else this.select({ kind: 'none' });
+    } else if (selected.kind === 'commit' && !this.rowIndex.has(selected.sha)) {
+      this.select({ kind: 'none' });
+    }
+  }
+
+  // MARK: - Theo dõi file
+
+  /** Sự kiện đã debounce/lọc gitignore ở Rust: đổi thành phạm vi làm mới rồi chạy luôn, không debounce thêm. */
+  handleChange(event: RepoChangedEvent): void {
+    if (!this.active || this.disposed) return;
+    let scope = 0;
+    if (event.kinds.includes('workingTree')) scope |= Scope.status;
+    if (event.kinds.includes('refs')) scope |= Scope.refs | Scope.status;
+    if (event.kinds.includes('rescan')) scope |= Scope.all;
+    if (scope === 0) return;
+    // Đang chạy thao tác của chính app: việc làm mới diễn ra ngay sau khi thao tác xong (xem `perform`).
+    if (this.runningOperations > 0) this.fileSystemPending |= scope;
+    else this.requestRefresh(scope);
+  }
+
+  // MARK: - Chọn commit / stash
+
+  select(next: RepoSelection, reveal = false): void {
+    if (!sameSelection(next, this.selection)) {
+      this.selection = next;
+      this.loadDetails();
+    }
+    if (reveal) {
+      const row = this.rowFor(next);
+      if (row !== null) this.scrollRequest = { row, id: ++this.scrollSerial };
+    }
+  }
+
+  /** Chọn commit `sha` và cuộn tới nó; ngoài phần đã tải thì báo kèm nút "Tải thêm". */
+  reveal(sha: string): void {
+    if (this.rowIndex.has(sha)) {
+      this.select({ kind: 'commit', sha }, true);
+      return;
+    }
+    const actions: ToastAction[] = this.mayHaveMoreCommits
+      ? [{ title: vi.graph.loadMore, run: () => this.loadMoreHistory() }]
+      : [];
+    this.toasts.info(vi.graph.notLoaded(sha.slice(0, 7), this.commitLimit), { actions });
+  }
+
+  revealRef(ref: GitRef): void {
+    this.reveal(ref.target);
+  }
+
+  private loadDetails(): void {
+    const token = ++this.detailsToken;
+    const selection = this.selection;
+    switch (selection.kind) {
+      case 'commit': {
+        const position = this.rowIndex.get(selection.sha);
+        const commit = position === undefined ? undefined : this.entries[position]?.commit;
+        if (!commit) {
+          this.details = null;
+          this.isLoadingDetails = false;
+          return;
+        }
+        if (this.details?.commit.id === selection.sha) {
+          this.isLoadingDetails = false;
+          return;
+        }
+        this.isLoadingDetails = true;
+        void (async () => {
+          // Trễ một chút để lướt nhanh bằng phím mũi tên không tạo quá nhiều lệnh git.
+          await new Promise((resolve) => setTimeout(resolve, this.detailsDelayMs));
+          if (token !== this.detailsToken) return;
+          const result = await settle(this.git.commitDetails(commit));
+          if (token !== this.detailsToken) return;
+          if (result.ok) this.details = result.value;
+          else {
+            this.details = null;
+            this.showError(vi.errors.commitDetails, result.error);
+          }
+          this.isLoadingDetails = false;
+        })();
+        return;
+      }
+      case 'stash': {
+        const stash = this.stashes.find((candidate) => candidate.sha === selection.sha);
+        if (!stash) {
+          this.details = null;
+          this.isLoadingDetails = false;
+          return;
+        }
+        this.isLoadingDetails = true;
+        void (async () => {
+          const result = await settle(this.git.stashFiles(stash));
+          if (token !== this.detailsToken) return;
+          if (result.ok) {
+            const commit: Commit = {
+              id: stash.sha,
+              parents: stash.parents,
+              authorName: '',
+              authorEmail: '',
+              authorDate: stash.date,
+              committerName: '',
+              committerEmail: '',
+              commitDate: stash.date,
+              subject: stashDisplayMessage(stash),
+            };
+            this.details = { commit, message: stash.message, files: result.value };
+          } else {
+            this.details = null;
+            this.showError(vi.errors.stashDetails, result.error);
+          }
+          this.isLoadingDetails = false;
+        })();
+        return;
+      }
+      case 'workingTree':
+      case 'none':
+        this.details = null;
+        this.isLoadingDetails = false;
+    }
+  }
+
+  // MARK: - Thông báo
+
+  showError(title: string, error: unknown, actions: readonly ToastAction[] = []): void {
+    if (this.disposed) return;
+    this.toasts.error(title, error, { actions });
+  }
+
+  private reportRefreshFailure(title: string, error: unknown): void {
+    if (this.disposed) return;
+    // Thư mục repo bị xoá/đổi tên: một cảnh báo rõ ràng thay vì lỗi git khó hiểu.
+    const code = (error as { code?: unknown } | null)?.code;
+    if (code === 'not-found') {
+      this.toasts.error(vi.errors.repoMissing, this.rootPath, { tag: REFRESH_ERROR_TAG });
+      return;
+    }
+    if (code === 'untrusted') {
+      const review = this.onUntrusted;
+      this.toasts.warning(vi.errors.repoUntrusted, {
+        tag: REFRESH_ERROR_TAG,
+        actions: review ? [{ title: vi.errors.reviewTrust, run: review }] : [],
+      });
+      return;
+    }
+    this.toasts.error(title, error, { tag: REFRESH_ERROR_TAG });
+  }
+
+  async copy(text: string, label: string): Promise<void> {
+    try {
+      await this.clipboard(text);
+      this.toasts.success(vi.inspector.copied(label));
+    } catch (error) {
+      this.toasts.error(vi.inspector.copyFailed, error);
+    }
+  }
+
+  // MARK: - Hàng đợi thao tác ghi
+
+  /**
+   * Chạy một thao tác git qua hàng đợi tuần tự (tránh tranh chấp index.lock; Rust cũng khoá theo `commonDir`), tự làm mới khi
+   * xong và hiện lỗi dạng toast. `work` nhận `signal` (chỉ lệnh `network` huỷ được). Trả khi thao tác và lần làm mới sau nó đã xong.
+   */
+  perform(
+    title: string,
+    work: (git: GitRepository, signal: AbortSignal) => Promise<void>,
+    options: PerformOptions = {},
+  ): Promise<void> {
+    const previous = this.operationChain;
+    this.runningOperations++;
+    const run = async (): Promise<void> => {
+      await previous;
+      const controller = new AbortController();
+      this.abort = controller;
+      if (options.showsProgress) {
+        this.busy = { title, detail: '', fraction: null, canCancel: options.cancellable === true };
+      }
+      try {
+        if (this.disposed) return;
+        await work(this.git, controller.signal);
+        options.onSuccess?.();
+      } catch (error) {
+        if (error instanceof CancelledError || controller.signal.aborted) {
+          this.toasts.info(vi.errors.cancelled(title));
+        } else if (!(options.onError?.(error) ?? false)) {
+          this.showError(title, error);
+        }
+      } finally {
+        if (this.abort === controller) this.abort = null;
+        if (options.showsProgress) this.busy = null;
+        this.runningOperations--;
+        const scope = (options.refresh ?? Scope.status | Scope.refs) | this.fileSystemPending;
+        this.fileSystemPending = 0;
+        await this.refreshAndWait(scope);
+      }
+    };
+    const task = run();
+    // Chuỗi không bao giờ reject: một thao tác hỏng không chặn các thao tác sau.
+    this.operationChain = task.catch(() => undefined);
+    return task;
+  }
+
+  cancelCurrentOperation(): void {
+    this.abort?.abort();
+  }
+}

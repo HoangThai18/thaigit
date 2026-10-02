@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forget-recent-repo"
+description = "Enables the forget_recent_repo command without any pre-configured scope."
+commands.allow = ["forget_recent_repo"]
+
+[[permission]]
+identifier = "deny-forget-recent-repo"
+description = "Denies the forget_recent_repo command without any pre-configured scope."
+commands.deny = ["forget_recent_repo"]

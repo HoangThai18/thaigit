@@ -1,5 +1,7 @@
 # Scout report — current Swift app (port inventory)
 
+> **Đính chính (2026-10-02 — khi mâu thuẫn, `plan.md` là chuẩn):** app Swift nay tên **Thaigit** (`com.phanthai.thaigit`, `build/Thaigit.app`), **48 test** (thêm 7 test cập nhật + 1 test repository); sang Vitest port 39 test (Parser 10, Diff 6, GraphLayout 8, Repository 15), 2 test watcher sang Rust, 7 test cập nhật không port. "Paths never argv" không đúng hẳn: vài lệnh truyền path sau `--` (an toàn nhờ `GIT_LITERAL_PATHSPECS=1`). Env Swift đầy đủ ở `GitEnvironment.swift:33-49` (bỏ `LC_ALL`, `LANGUAGE=en`, `GIT_MERGE_AUTOEDIT=no`, pager) và cờ `-c` ở `GitRunner.swift:67-78` (có `core.fsmonitor=false`). App layer `Sources/Nhanh` ≈ 7,8k dòng. Repo lớn: 1.077 ref. Harness: dùng WebdriverIO + `@wdio/tauri-service` (phase 4a).
+
 Source: thư mục gốc repo (Swift 6 / SwiftPM, macOS 14+, built with CLT + MacOSX26 SDK). 11,467 lines Swift. 40 tests (Swift Testing), all passing.
 
 ## Core (`Sources/NhanhCore`, ~2.8k lines) → port 1:1 to TypeScript (`packages/core`)

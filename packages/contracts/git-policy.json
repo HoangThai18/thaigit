@@ -1,0 +1,283 @@
+{
+  "$comment": "Chính sách chạy git của Thaigit — một nguồn sự thật cho Rust (thực thi trong app, include_str!) và adapter Node (test). Ý nghĩa từng mục: packages/contracts/README.md.",
+  "version": 1,
+  "globalConfig": [
+    "core.quotepath=false",
+    "color.ui=false",
+    "core.pager=cat",
+    "log.showSignature=false",
+    "diff.noprefix=false",
+    "diff.mnemonicPrefix=false",
+    "advice.detachedHead=false",
+    "core.fsmonitor=false",
+    "safe.bareRepository=explicit",
+    "protocol.file.allow=user",
+    "protocol.ext.allow=never"
+  ],
+  "diffSafety": {
+    "args": ["--no-ext-diff", "--no-textconv"],
+    "after": [["diff"], ["show"], ["diff-tree"], ["log"], ["stash", "show"]]
+  },
+  "env": {
+    "set": {
+      "GIT_TERMINAL_PROMPT": "0",
+      "GIT_EDITOR": "true",
+      "GIT_MERGE_AUTOEDIT": "no",
+      "GIT_PAGER": "cat",
+      "PAGER": "cat",
+      "LC_MESSAGES": "C",
+      "LANGUAGE": "en"
+    },
+    "setIfMissing": {
+      "LANG": "en_US.UTF-8"
+    },
+    "remove": [
+      "LC_ALL",
+      "GIT_DIR",
+      "GIT_WORK_TREE",
+      "GIT_INDEX_FILE",
+      "GIT_COMMON_DIR",
+      "GIT_OBJECT_DIRECTORY",
+      "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+      "GIT_NAMESPACE",
+      "GIT_CEILING_DIRECTORIES",
+      "GIT_CONFIG_PARAMETERS",
+      "GIT_CONFIG_COUNT",
+      "GIT_EXEC_PATH"
+    ],
+    "removePrefixes": ["GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"],
+    "fromCaller": {
+      "GIT_OPTIONAL_LOCKS": {
+        "values": ["0"]
+      },
+      "GIT_LITERAL_PATHSPECS": {
+        "values": ["1"]
+      },
+      "GIT_INDEX_FILE": {
+        "pathInside": "gitDir"
+      }
+    },
+    "profiles": {
+      "background": {
+        "GCM_INTERACTIVE": "never",
+        "GIT_ASKPASS": "<askpass-deny>",
+        "SSH_ASKPASS": "<askpass-deny>",
+        "SSH_ASKPASS_REQUIRE": "force"
+      },
+      "interactive": {
+        "GIT_ASKPASS": "<askpass>",
+        "SSH_ASKPASS": "<askpass>",
+        "SSH_ASKPASS_REQUIRE": "force"
+      }
+    },
+    "pathFallback": {
+      "macos": [
+        "/opt/homebrew/bin",
+        "/opt/homebrew/sbin",
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin"
+      ],
+      "windows": [
+        "C:\\Program Files\\Git\\cmd",
+        "C:\\Program Files\\Git\\mingw64\\bin",
+        "C:\\Program Files\\Git\\usr\\bin"
+      ]
+    }
+  },
+  "rejectLong": [
+    "--config",
+    "--config-env",
+    "--exec-path",
+    "--git-dir",
+    "--work-tree",
+    "--namespace",
+    "--super-prefix",
+    "--upload-pack",
+    "--receive-pack",
+    "--exec",
+    "--template",
+    "--ext-diff",
+    "--textconv",
+    "--output",
+    "--open-files-in-pager"
+  ],
+  "rejectShort": ["-c", "-C", "-x", "-o", "-O", "-u"],
+  "url": {
+    "rejectPrefixes": ["ext::", "fd::", "-"],
+    "rejectSchemes": ["ext", "fd"]
+  },
+  "subcommands": {
+    "add": {
+      "kind": "write",
+      "allowShort": ["-u"]
+    },
+    "am": {
+      "kind": "write"
+    },
+    "apply": {
+      "kind": "write"
+    },
+    "bisect": {
+      "kind": "write",
+      "rejectSecond": ["run"]
+    },
+    "branch": {
+      "kind": "write",
+      "allowShort": ["-c", "-C", "-u"]
+    },
+    "cat-file": {
+      "kind": "read"
+    },
+    "check-ref-format": {
+      "kind": "read"
+    },
+    "checkout": {
+      "kind": "write"
+    },
+    "cherry-pick": {
+      "kind": "write",
+      "allowShort": ["-x"]
+    },
+    "commit": {
+      "kind": "write",
+      "allowShort": ["-c", "-C", "-u", "-o"]
+    },
+    "config": {
+      "kind": "read",
+      "requireAny": ["--get", "--get-all", "--get-regexp", "--list", "-l"],
+      "rejectExtraLong": [
+        "--add",
+        "--unset",
+        "--unset-all",
+        "--replace-all",
+        "--rename-section",
+        "--remove-section",
+        "--edit",
+        "--file",
+        "--blob"
+      ],
+      "rejectExtraShort": ["-e", "-f"]
+    },
+    "diff": {
+      "kind": "read",
+      "allowShort": ["-c", "-C", "-u"]
+    },
+    "diff-tree": {
+      "kind": "read",
+      "allowShort": ["-c", "-C", "-u"]
+    },
+    "fetch": {
+      "kind": "network",
+      "urls": true
+    },
+    "for-each-ref": {
+      "kind": "read"
+    },
+    "hash-object": {
+      "kind": "write"
+    },
+    "log": {
+      "kind": "read",
+      "allowShort": ["-c", "-C", "-u"]
+    },
+    "ls-files": {
+      "kind": "read"
+    },
+    "ls-remote": {
+      "kind": "network",
+      "urls": true
+    },
+    "merge": {
+      "kind": "write"
+    },
+    "merge-base": {
+      "kind": "read"
+    },
+    "pull": {
+      "kind": "network",
+      "urls": true
+    },
+    "push": {
+      "kind": "network",
+      "allowShort": ["-u"],
+      "urls": true
+    },
+    "rebase": {
+      "kind": "write"
+    },
+    "remote": {
+      "kind": "write",
+      "allowSecond": ["", "-v", "--verbose", "get-url", "remove", "rename", "prune", "set-head", "show"],
+      "typedSecond": ["add", "set-url"]
+    },
+    "reset": {
+      "kind": "write"
+    },
+    "restore": {
+      "kind": "write"
+    },
+    "rev-list": {
+      "kind": "read"
+    },
+    "rev-parse": {
+      "kind": "read",
+      "allowLong": ["--git-dir", "--git-common-dir", "--absolute-git-dir"]
+    },
+    "revert": {
+      "kind": "write"
+    },
+    "rm": {
+      "kind": "write"
+    },
+    "show": {
+      "kind": "read",
+      "allowShort": ["-c", "-C", "-u"]
+    },
+    "stash": {
+      "kind": "write",
+      "allowShort": ["-u"]
+    },
+    "status": {
+      "kind": "read",
+      "allowShort": ["-u"]
+    },
+    "switch": {
+      "kind": "write",
+      "allowShort": ["-c", "-C"]
+    },
+    "symbolic-ref": {
+      "kind": "write"
+    },
+    "tag": {
+      "kind": "write"
+    },
+    "update-ref": {
+      "kind": "write"
+    },
+    "version": {
+      "kind": "read"
+    }
+  },
+  "typedOnly": {
+    "clone": "git_clone(url, destination) — URL đã kiểm, thư mục đích do dialog native chọn",
+    "init": "git_init(destination)",
+    "config-set": "git_config_set(key, value) — key thuộc configSetAllowlist",
+    "remote add / set-url": "git_remote_add(name, url) / git_remote_set_url(name, url) — URL đã kiểm"
+  },
+  "configSetAllowlist": [
+    "user.name",
+    "user.email",
+    "pull.rebase",
+    "pull.ff",
+    "init.defaultBranch",
+    "push.autoSetupRemote",
+    "branch.*.remote",
+    "branch.*.merge",
+    "branch.*.rebase"
+  ],
+  "networkKinds": ["fetch", "pull", "push", "ls-remote", "clone"],
+  "shortAttached": ["^-[UMCBl][0-9]+%?$", "^-n[0-9]+$", "^-[0-9]+$", "^-u(no|normal|all)$"]
+}

@@ -1,0 +1,60 @@
+[package]
+name = "thaigit"
+version = "0.1.0"
+description = "Thaigit — Git client trực quan như GitKraken"
+authors = ["Phan Thái"]
+license = ""
+edition = "2024"
+# ≥ 1.77.2 (BatBadBut: Command không còn bị chèn lệnh qua .bat/.cmd); `ignore` yêu cầu 1.88.
+rust-version = "1.88"
+
+[lib]
+name = "thaigit_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+# Hộp thoại chọn thư mục: chỉ gọi từ Rust (capability không cấp quyền `dialog:*` cho webview).
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["process", "io-util", "sync", "time", "rt", "rt-multi-thread", "macros"] }
+notify-debouncer-full = "0.7"
+ignore = "0.4"
+dunce = "1"
+sha2 = "0.10"
+regex = "1"
+base64 = "0.22"
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+percent-encoding = "2"
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.31", features = ["signal", "process"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_System_Console",
+  "Win32_System_JobObjects",
+  "Win32_System_Registry",
+  "Win32_System_Threading",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tempfile = "3"
+# Runtime giả để test IPC thật (đối số, ACL/capabilities, dạng lỗi) mà không mở cửa sổ.
+tauri = { version = "2", features = ["test"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

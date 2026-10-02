@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-repo-health"
+description = "Enables the repo_health command without any pre-configured scope."
+commands.allow = ["repo_health"]
+
+[[permission]]
+identifier = "deny-repo-health"
+description = "Denies the repo_health command without any pre-configured scope."
+commands.deny = ["repo_health"]

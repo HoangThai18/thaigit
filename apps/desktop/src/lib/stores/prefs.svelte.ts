@@ -1,0 +1,154 @@
+/**
+ * Cài đặt người dùng lưu ở localStorage (webview). Hôm nay chỉ vài giá trị mà graph/sidebar/bố cục cần; màn Cài đặt (4b)
+ * sẽ sửa chính các trường này. Dữ liệu đọc ra luôn qua `sanitizePrefs` (localStorage có thể bị sửa/hỏng).
+ */
+import type { LogOrder } from '@thaigit/core';
+import { DEFAULT_WIDTHS, sanitizePreferred, type PreferredWidths } from '../graph/columns.ts';
+
+export const PREFS_KEY = 'thaigit.prefs.v1';
+
+export type ColorScheme = 'system' | 'light' | 'dark';
+
+export interface PrefsData {
+  /** Số commit tải mỗi lần (Swift: mặc định 2000, tối thiểu 200). */
+  commitLimit: number;
+  logOrder: LogOrder;
+  showRemoteBranches: boolean;
+  showTags: boolean;
+  relativeDates: boolean;
+  scheme: ColorScheme;
+  /** `false` → lớp `no-glass`: nền đặc thay cho kính. */
+  glass: boolean;
+  showSidebar: boolean;
+  showInspector: boolean;
+  sidebarWidth: number;
+  inspectorWidth: number;
+  sidebarSections: { local: boolean; remote: boolean; tags: boolean; stashes: boolean };
+  columns: PreferredWidths;
+}
+
+export const SIDEBAR_LIMITS = { min: 210, max: 440, ideal: 260 } as const;
+export const INSPECTOR_LIMITS = { min: 300, max: 640, ideal: 380 } as const;
+export const COMMIT_LIMIT_MIN = 200;
+export const COMMIT_LIMIT_MAX = 200_000;
+
+export function defaultPrefs(): PrefsData {
+  return {
+    commitLimit: 2000,
+    logOrder: 'date',
+    showRemoteBranches: true,
+    showTags: true,
+    relativeDates: true,
+    scheme: 'system',
+    glass: true,
+    showSidebar: true,
+    showInspector: true,
+    sidebarWidth: SIDEBAR_LIMITS.ideal,
+    inspectorWidth: INSPECTOR_LIMITS.ideal,
+    sidebarSections: { local: true, remote: true, tags: false, stashes: true },
+    columns: { ...DEFAULT_WIDTHS },
+  };
+}
+
+function bool(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function clamp(value: unknown, min: number, max: number, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, Math.round(value)))
+    : fallback;
+}
+
+/** Biến dữ liệu thô (đã `JSON.parse`) thành `PrefsData` hợp lệ: trường thiếu/sai kiểu lấy mặc định, số bị kẹp. */
+export function sanitizePrefs(raw: unknown): PrefsData {
+  const base = defaultPrefs();
+  if (typeof raw !== 'object' || raw === null) return base;
+  const source = raw as Record<string, unknown>;
+  const sections =
+    typeof source.sidebarSections === 'object' && source.sidebarSections !== null
+      ? (source.sidebarSections as Record<string, unknown>)
+      : {};
+  return {
+    commitLimit: clamp(source.commitLimit, COMMIT_LIMIT_MIN, COMMIT_LIMIT_MAX, base.commitLimit),
+    logOrder: source.logOrder === 'topo' ? 'topo' : 'date',
+    showRemoteBranches: bool(source.showRemoteBranches, base.showRemoteBranches),
+    showTags: bool(source.showTags, base.showTags),
+    relativeDates: bool(source.relativeDates, base.relativeDates),
+    scheme: source.scheme === 'light' || source.scheme === 'dark' ? source.scheme : 'system',
+    glass: bool(source.glass, base.glass),
+    showSidebar: bool(source.showSidebar, base.showSidebar),
+    showInspector: bool(source.showInspector, base.showInspector),
+    sidebarWidth: clamp(source.sidebarWidth, SIDEBAR_LIMITS.min, SIDEBAR_LIMITS.max, base.sidebarWidth),
+    inspectorWidth: clamp(
+      source.inspectorWidth,
+      INSPECTOR_LIMITS.min,
+      INSPECTOR_LIMITS.max,
+      base.inspectorWidth,
+    ),
+    sidebarSections: {
+      local: bool(sections.local, base.sidebarSections.local),
+      remote: bool(sections.remote, base.sidebarSections.remote),
+      tags: bool(sections.tags, base.sidebarSections.tags),
+      stashes: bool(sections.stashes, base.sidebarSections.stashes),
+    },
+    columns: sanitizePreferred(source.columns),
+  };
+}
+
+export interface KeyValueStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+/** localStorage nếu dùng được (có thể ném lỗi khi bị chặn), không thì `null`. */
+export function browserStorage(): KeyValueStorage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+const SAVE_DELAY_MS = 250;
+
+export class PrefsStore {
+  /** Proxy phản ứng sâu: đọc `prefs.value.showTags` chỉ phụ thuộc đúng trường đó. */
+  value = $state<PrefsData>(defaultPrefs());
+  private timer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor(private readonly storage: KeyValueStorage | null = browserStorage()) {
+    let raw: unknown = null;
+    try {
+      const text = storage?.getItem(PREFS_KEY);
+      raw = text ? JSON.parse(text) : null;
+    } catch {
+      raw = null;
+    }
+    this.value = sanitizePrefs(raw);
+  }
+
+  /** Gộp `patch` (kẹp lại cho hợp lệ) rồi ghi xuống kho sau một nhịp (kéo thanh chia đôi gọi liên tục). */
+  update(patch: Partial<PrefsData>): void {
+    Object.assign(this.value, sanitizePrefs({ ...$state.snapshot(this.value), ...patch }));
+    this.scheduleSave();
+  }
+
+  /** Ghi ngay (khi đóng cửa sổ hoặc test). */
+  flush(): void {
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    try {
+      this.storage?.setItem(PREFS_KEY, JSON.stringify($state.snapshot(this.value)));
+    } catch {
+      // Hết dung lượng / bị chặn: cài đặt chỉ sống trong phiên này.
+    }
+  }
+
+  private scheduleSave(): void {
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.flush(), SAVE_DELAY_MS);
+  }
+}
+
+export const prefs = new PrefsStore();

@@ -1,0 +1,183 @@
+/*
+ * Token giao diện Thaigit — cùng ngôn ngữ kính với app Swift (Theme.swift, GraphStyle.swift).
+ * Lớp `no-glass` trên <html>: OS tắt trong suốt hoặc người dùng tắt kính → nền đặc, cùng màu, đủ tương phản.
+ * Kính (`backdrop-filter`) CHỈ dùng cho chrome (toolbar, sidebar, inspector, popover, toast), không bao giờ phủ vùng graph/diff.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* Thương hiệu: thân xanh, nhánh cam đỏ của git. */
+  --brand-blue: #2f86e8;
+  --brand-orange: #f05032;
+
+  /* Nền cửa sổ: dải bạc–băng rất nhẹ (tối: xanh đêm). */
+  --bg-1: #f4f7fb;
+  --bg-2: #e9eff6;
+  --bg-3: #eef0f6;
+  --surface: #ffffff;
+  --surface-muted: #f6f7f9;
+  --separator: rgb(0 0 0 / 0.09);
+
+  --text: #1d2330;
+  --text-secondary: #5b6474;
+  --text-tertiary: #8a93a3;
+  --accent: var(--brand-blue);
+  --selection: rgb(47 134 232 / 0.16);
+  --selection-strong: #2f86e8;
+
+  --success: #18a957;
+  --warning: #f5a524;
+  --danger: #e5484d;
+  --info: #2f86e8;
+
+  /* Kính: chỉ cho chrome. */
+  --glass-fill: rgb(255 255 255 / 0.58);
+  --glass-rim: rgb(255 255 255 / 0.75);
+  --glass-shadow: 0 10px 30px rgb(20 30 60 / 0.12);
+  --glass-blur: blur(24px) saturate(160%);
+
+  /* Chrome của cửa sổ repo. */
+  --sidebar-fill: rgb(229 231 236 / 0.8);
+  --inspector-fill: rgb(247 248 250 / 0.8);
+  --toolbar-fill: rgb(246 247 250 / 0.5);
+  --field-fill: rgb(255 255 255 / 0.72);
+  --field-border: rgb(0 0 0 / 0.1);
+  --table-header-fill: rgb(255 255 255 / 0.5);
+  --row-hover: rgb(0 0 0 / 0.04);
+  --row-selected: rgb(0 0 0 / 0.1);
+  --row-selected-focus: rgb(47 134 232 / 0.2);
+  --chip-fill: rgb(0 0 0 / 0.07);
+  --scrollbar-thumb: rgb(0 0 0 / 0.22);
+
+  /* 12 màu làn graph (2 màu đầu là màu thương hiệu) — giống GraphStyle.palette. */
+  --lane-0: #2f86e8;
+  --lane-1: #f05032;
+  --lane-2: #8b5cf6;
+  --lane-3: #18a957;
+  --lane-4: #e5487d;
+  --lane-5: #0eafc4;
+  --lane-6: #f5a524;
+  --lane-7: #5b6cf0;
+  --lane-8: #c14fd8;
+  --lane-9: #7db51f;
+  --lane-10: #ff7a59;
+  --lane-11: #14a38b;
+
+  --row-height: 30px;
+  --radius-s: 6px;
+  --radius-m: 12px;
+  --radius-l: 18px;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, Menlo, monospace;
+
+  /* Chừa chỗ cho nút đèn giao thông macOS khi cửa sổ dùng thanh tiêu đề chồng (xem html.titlebar-overlay). */
+  --titlebar-inset: 0px;
+}
+
+/* Tối theo hệ thống (khi người dùng không ép sáng). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg-1: #10141f;
+    --bg-2: #161c2c;
+    --bg-3: #1b1a26;
+    --surface: #161a24;
+    --surface-muted: #1c2130;
+    --separator: rgb(255 255 255 / 0.09);
+    --text: #e8ebf2;
+    --text-secondary: #9aa3b5;
+    --text-tertiary: #6d7688;
+    --selection: rgb(47 134 232 / 0.28);
+    --glass-fill: rgb(36 42 60 / 0.55);
+    --glass-rim: rgb(255 255 255 / 0.12);
+    --glass-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+    --sidebar-fill: rgb(44 44 49 / 0.7);
+    --inspector-fill: rgb(38 38 43 / 0.72);
+    --toolbar-fill: rgb(30 33 44 / 0.45);
+    --field-fill: rgb(255 255 255 / 0.08);
+    --field-border: rgb(255 255 255 / 0.12);
+    --table-header-fill: rgb(255 255 255 / 0.06);
+    --row-hover: rgb(255 255 255 / 0.05);
+    --row-selected: rgb(255 255 255 / 0.14);
+    --row-selected-focus: rgb(47 134 232 / 0.38);
+    --chip-fill: rgb(255 255 255 / 0.12);
+    --scrollbar-thumb: rgb(255 255 255 / 0.25);
+  }
+}
+
+/* Tối do người dùng chọn. */
+:root[data-theme='dark'] {
+  --bg-1: #10141f;
+  --bg-2: #161c2c;
+  --bg-3: #1b1a26;
+  --surface: #161a24;
+  --surface-muted: #1c2130;
+  --separator: rgb(255 255 255 / 0.09);
+  --text: #e8ebf2;
+  --text-secondary: #9aa3b5;
+  --text-tertiary: #6d7688;
+  --selection: rgb(47 134 232 / 0.28);
+  --glass-fill: rgb(36 42 60 / 0.55);
+  --glass-rim: rgb(255 255 255 / 0.12);
+  --glass-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+  --sidebar-fill: rgb(44 44 49 / 0.7);
+  --inspector-fill: rgb(38 38 43 / 0.72);
+  --toolbar-fill: rgb(30 33 44 / 0.45);
+  --field-fill: rgb(255 255 255 / 0.08);
+  --field-border: rgb(255 255 255 / 0.12);
+  --table-header-fill: rgb(255 255 255 / 0.06);
+  --row-hover: rgb(255 255 255 / 0.05);
+  --row-selected: rgb(255 255 255 / 0.14);
+  --row-selected-focus: rgb(47 134 232 / 0.38);
+  --chip-fill: rgb(255 255 255 / 0.12);
+  --scrollbar-thumb: rgb(255 255 255 / 0.25);
+}
+
+/*
+ * Không kính: nền đặc cùng tông, viền rõ hơn để giữ tương phản. Lớp `no-glass` do theme.svelte.ts bật khi người dùng tắt kính
+ * hoặc OS bật "Giảm độ trong suốt". Đặt SAU hai khối tối; bản tối có giá trị đặc riêng bên dưới.
+ */
+:root.no-glass {
+  --glass-fill: var(--surface);
+  --glass-rim: var(--separator);
+  --glass-blur: none;
+  --glass-shadow: 0 6px 18px rgb(20 30 60 / 0.16);
+  --sidebar-fill: #eceef2;
+  --inspector-fill: #f6f7f9;
+  --toolbar-fill: #f1f3f7;
+  --field-fill: #ffffff;
+  --table-header-fill: #f3f5f8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root.no-glass:not([data-theme='light']) {
+    --glass-shadow: 0 6px 18px rgb(0 0 0 / 0.5);
+    --sidebar-fill: #26262b;
+    --inspector-fill: #212126;
+    --toolbar-fill: #1d2029;
+    --field-fill: #2a2d38;
+    --table-header-fill: #1e222d;
+  }
+}
+
+:root.no-glass[data-theme='dark'] {
+  --glass-shadow: 0 6px 18px rgb(0 0 0 / 0.5);
+  --sidebar-fill: #26262b;
+  --inspector-fill: #212126;
+  --toolbar-fill: #1d2029;
+  --field-fill: #2a2d38;
+  --table-header-fill: #1e222d;
+}
+
+/* Thanh tiêu đề chồng (macOS, tauri.conf `titleBarStyle: Overlay`): chừa chỗ cho 3 nút ở góc trái. */
+:root.titlebar-overlay {
+  --titlebar-inset: 78px;
+}
+
+.glass {
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-rim);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}

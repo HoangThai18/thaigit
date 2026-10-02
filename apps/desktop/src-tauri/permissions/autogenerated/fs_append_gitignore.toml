@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fs-append-gitignore"
+description = "Enables the fs_append_gitignore command without any pre-configured scope."
+commands.allow = ["fs_append_gitignore"]
+
+[[permission]]
+identifier = "deny-fs-append-gitignore"
+description = "Denies the fs_append_gitignore command without any pre-configured scope."
+commands.deny = ["fs_append_gitignore"]

@@ -333,7 +333,7 @@
 
 | # | Claim (location) | Result | Evidence |
 |---|---|---|---|
-| 1 | `git/` has no repo of its own; it is untracked in the parent (phase-01:20) | VERIFIED | `git rev-parse --show-toplevel` → `/Users/…/Documents/code`; parent status `?? git/` |
+| 1 | `git/` has no repo of its own; it is untracked in the parent (phase-01:20) | VERIFIED | `git rev-parse --show-toplevel` → the parent directory; parent status `?? git/` (since resolved: the repo now has its own public GitHub repo) |
 | 2 | Rename targets exist: Info.plist, build-app.sh, WelcomeView.swift, askpass title + App Support dir in GitEnvironment.swift (phase-01:43) | VERIFIED | GitEnvironment.swift:141,149,156 (`with title "Nhánh"`), :166 (`"Nhanh"`); build-app.sh:48 |
 | 3 | 11,467 Swift lines; 40 tests; core ≈ 2.8k lines (scout-report:3,5) | VERIFIED | `wc`: 11,467 (Sources+Tests); 40 `@Test`; NhanhCore 2,791 |
 | 4 | Paths always go via `--pathspec-from-file`, "never argv" (scout-report:27; phase-03:78 "mọi path qua stdin") | FAILED | GitRepository.swift:159, 169, 171, 173, 188, 486-489 pass paths in argv after `--` |

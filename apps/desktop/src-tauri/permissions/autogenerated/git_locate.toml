@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-git-locate"
+description = "Enables the git_locate command without any pre-configured scope."
+commands.allow = ["git_locate"]
+
+[[permission]]
+identifier = "deny-git-locate"
+description = "Denies the git_locate command without any pre-configured scope."
+commands.deny = ["git_locate"]

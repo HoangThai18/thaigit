@@ -1,5 +1,14 @@
 # Tauri 2 Desktop Git Client: Research Report
 
+> **Đính chính (2026-10-02, sau red team — khi mâu thuẫn, `plan.md` là chuẩn):**
+> - Updater: `{{target}}` là `darwin`/`windows`/`linux` (không phải `macos`); `{{arch}}` không có "universal". Plan dùng manifest tĩnh trên GitHub Releases, không endpoint động.
+> - GitButler có dùng `git2` và `gix` (Cargo.toml), không chỉ gọi git CLI.
+> - Không dùng CodeMirror merge view (diff viewer tự viết — phase 5); askpass bằng chính binary app, không sidecar `externalBin` (phase 2).
+> - `Channel<Vec<u8>>` bị gửi thành mảng số JSON → dùng `Channel<InvokeResponseBody>` frame Raw (phase 2).
+> - GCM không xử lý `SSH_ASKPASS`; nó trả lời HTTPS trước `GIT_ASKPASS` bằng UI riêng.
+> - EV không còn vượt SmartScreen ngay; Azure Artifact Signing không nhận cá nhân ngoài Mỹ/Canada; notarization không liên quan Ed25519. macOS chưa ký: dùng ký ad-hoc (`signingIdentity: "-"`).
+> - `tauri-driver` không chạy macOS, nhưng `@wdio/tauri-service` (WebDriver nhúng) chạy cả macOS — plan dùng cách này.
+
 **Date:** 2026-10-02  
 **Status:** Production-ready stack identified; stack choices below reflect current (Q4 2026) maturity.
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-git-cancel"
+description = "Enables the git_cancel command without any pre-configured scope."
+commands.allow = ["git_cancel"]
+
+[[permission]]
+identifier = "deny-git-cancel"
+description = "Denies the git_cancel command without any pre-configured scope."
+commands.deny = ["git_cancel"]

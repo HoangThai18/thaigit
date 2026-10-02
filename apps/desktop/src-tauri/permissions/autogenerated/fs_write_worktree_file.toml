@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fs-write-worktree-file"
+description = "Enables the fs_write_worktree_file command without any pre-configured scope."
+commands.allow = ["fs_write_worktree_file"]
+
+[[permission]]
+identifier = "deny-fs-write-worktree-file"
+description = "Denies the fs_write_worktree_file command without any pre-configured scope."
+commands.deny = ["fs_write_worktree_file"]
