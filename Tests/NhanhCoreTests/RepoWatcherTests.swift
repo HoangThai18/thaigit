@@ -17,18 +17,21 @@ struct RepoWatcherTests {
         }
         watcher.start()
         defer { watcher.stop() }
-        try await Task.sleep(for: .milliseconds(300))
 
-        try test.write("ghi-chu.txt", "xin chào\n")
-        let deadline = Date().addingTimeInterval(5)
+        // FSEvents có thể bắt đầu theo dõi muộn trên máy CI bận: ghi lại file mỗi nửa giây tới khi có sự kiện. Hạn 30 giây
+        // chỉ để không treo, không phải điều kiện đúng/sai.
+        let deadline = Date().addingTimeInterval(30)
+        var round = 0
         while !received.current.contains(.workingTree), Date() < deadline {
+            if round % 5 == 0 { try test.write("ghi-chu.txt", "xin chào \(round)\n") }
+            round += 1
             try await Task.sleep(for: .milliseconds(100))
         }
         #expect(received.current.contains(.workingTree))
 
         try await test.git("add", "ghi-chu.txt")
         try await test.git("commit", "-m", "Thêm ghi chú")
-        let refsDeadline = Date().addingTimeInterval(5)
+        let refsDeadline = Date().addingTimeInterval(30)
         while !received.current.contains(.refs), Date() < refsDeadline {
             try await Task.sleep(for: .milliseconds(100))
         }

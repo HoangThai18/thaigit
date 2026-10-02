@@ -333,10 +333,16 @@ struct GitHubTokenScopeTests {
         try? store.saveToken("gho_WORK", account: "alice-work")
         let provider = GitHubTokenProvider(state: state, tokenStore: store)
         #expect(provider.token(forOwner: "org-w-299") == "gho_WORK")
+        // Không so với số giây cố định (máy CI chậm / bận): so với chính thời gian dựng bảng một lần trên cùng máy. Dựng lại
+        // bảng mỗi lần hỏi thì 200 lần ≈ 200 lần dựng; có cache thì gần như không tốn gì.
+        provider.update(state: state)
+        let buildStart = Date()
+        _ = provider.token(forOwner: "owner-dau")
+        let oneBuild = Date().timeIntervalSince(buildStart)
         let start = Date()
         for index in 0..<200 { _ = provider.token(forOwner: "owner-\(index)") }
         let elapsed = Date().timeIntervalSince(start)
-        #expect(elapsed < 0.5, "200 lần token(forOwner:) mất \(elapsed) giây")
+        #expect(elapsed < oneBuild * 50, "200 lần token(forOwner:) mất \(elapsed) giây, dựng bảng một lần mất \(oneBuild) giây")
         #expect(provider.token(forOwner: "org-p-7") == "gho_PERSONAL")
         // Đổi bảng: kết quả mới ngay.
         state.assign(owner: "org-p-7", to: "alice-work")
@@ -374,26 +380,41 @@ struct GitHubTokenScopeTests {
 
     // MARK: - A5g: đọc Keychain ngoài khoá
 
+    /// Không đo thời gian: kho token giả GIỮ lần đọc lại cho tới khi test cho phép. Các lệnh khác (publish trên luồng chính:
+    /// `hasToken`, `credentialSet`, `update`) phải chạy xong TRONG LÚC lần đọc vẫn đang bị giữ — nếu khoá chính bị giữ
+    /// trong lúc đọc, chúng chỉ xong được sau khi lần đọc được thả, tức là sau điểm kiểm tra. Timeout 30 giây chỉ để test
+    /// không treo khi có lỗi, không phải điều kiện đúng/sai. Dùng `Thread` riêng (không phải hàng đợi GCD dùng chung)
+    /// để máy CI bận không làm trễ việc bắt đầu đọc.
     @Test func readingKeychainDoesNotBlockOtherCallers() {
         let (state, tokens) = Self.twoAccounts()
         let store = SlowTokenStore(tokens)
         let provider = GitHubTokenProvider(state: state, tokenStore: store)
-        let finished = DispatchSemaphore(value: 0)
+        let readerFinished = DispatchSemaphore(value: 0)
         let result = LockedBox<String?>(nil)
-        DispatchQueue.global().async {
-            result.withValue { $0 = provider.token(forOwner: "acme") }
-            finished.signal()
-        }
-        // Luồng nền đang đọc Keychain (bị giữ lại): các lệnh khác (publish trên luồng chính) không phải chờ.
-        #expect(store.entered.wait(timeout: .now() + 5) == .success)
-        let start = Date()
-        _ = provider.hasToken(for: "alice")
-        _ = provider.credentialSet(helperPath: "/h")
-        provider.update(state: state)
-        let elapsed = Date().timeIntervalSince(start)
+        Thread {
+            // Hỏi token NGOÀI khoá của `result` (test đọc `result` trong lúc luồng này còn bị giữ).
+            let token = provider.token(forOwner: "acme")
+            result.withValue { $0 = token }
+            readerFinished.signal()
+        }.start()
+        // Luồng đọc đã vào kho token và đang bị giữ.
+        #expect(store.entered.wait(timeout: .now() + 30) == .success)
+
+        let callersFinished = DispatchSemaphore(value: 0)
+        Thread {
+            _ = provider.hasToken(for: "alice")
+            _ = provider.credentialSet(helperPath: "/h")
+            provider.update(state: state)
+            callersFinished.signal()
+        }.start()
+        let callersDoneWhileReading = callersFinished.wait(timeout: .now() + 30) == .success
+        // Lần đọc vẫn đang bị giữ: luồng đọc chưa trả token.
+        let readerStillBlocked = result.current == nil && !store.isReleased
         store.release()
-        #expect(finished.wait(timeout: .now() + 10) == .success)
-        #expect(elapsed < 1, "Bị chặn \(elapsed) giây trong lúc đọc Keychain")
+        #expect(callersDoneWhileReading, "Lệnh khác phải chờ tới khi Keychain đọc xong")
+        #expect(readerStillBlocked)
+        #expect(readerFinished.wait(timeout: .now() + 30) == .success)
+        if !callersDoneWhileReading { _ = callersFinished.wait(timeout: .now() + 30) }
         #expect(result.current == "gho_WORK")
         // Đã nạp: không đọc lại.
         let reads = store.reads
@@ -402,7 +423,8 @@ struct GitHubTokenScopeTests {
     }
 }
 
-/// Kho token giả mà mỗi lần đọc bị giữ lại tới khi `release()` (tối đa 3 giây) — như Keychain đang hỏi quyền.
+/// Kho token giả mà mỗi lần đọc bị giữ lại tới khi `release()` — như Keychain đang chờ người dùng bấm "Cho phép".
+/// Giữ tối đa 60 giây chỉ để không treo mãi nếu test quên thả.
 final class SlowTokenStore: GitHubTokenStore, @unchecked Sendable {
     let entered = DispatchSemaphore(value: 0)
     private let gate = DispatchSemaphore(value: 0)
@@ -415,6 +437,7 @@ final class SlowTokenStore: GitHubTokenStore, @unchecked Sendable {
     }
 
     var reads: Int { readCount.current }
+    var isReleased: Bool { released.current }
 
     func release() {
         released.withValue { $0 = true }
@@ -424,7 +447,7 @@ final class SlowTokenStore: GitHubTokenStore, @unchecked Sendable {
     func readToken(account login: String) throws -> String? {
         readCount.withValue { $0 += 1 }
         entered.signal()
-        if !released.current { _ = gate.wait(timeout: .now() + 3) }
+        if !released.current { _ = gate.wait(timeout: .now() + 60) }
         return tokens.withValue { $0[login] }
     }
 

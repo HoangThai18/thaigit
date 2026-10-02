@@ -169,9 +169,19 @@ struct ForeignMergeTests {
         try await a.commitAll("A")
         try b.write("g.txt", "b\n")
         try await b.commitAll("B")
+        // Hook của `git merge` báo đã chạy (file `started`) rồi chờ tới khi test cho đi tiếp (file `release`): huỷ chắc chắn
+        // rơi vào lúc merge đang chạy, không phụ thuộc tốc độ máy. Chờ tối đa 60 giây chỉ để không treo.
+        let started = b.repo.gitDir.appendingPathComponent("hook-started")
+        let release = b.repo.gitDir.appendingPathComponent("hook-release")
         let hook = b.repo.gitDir.appendingPathComponent("hooks/pre-merge-commit")
         try FileManager.default.createDirectory(at: hook.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data("#!/bin/sh\nsleep 2\n".utf8).write(to: hook)
+        try Data("""
+        #!/bin/sh
+        touch '\(started.path)'
+        i=0
+        while [ ! -f '\(release.path)' ] && [ $i -lt 600 ]; do sleep 0.1; i=$((i + 1)); done
+
+        """.utf8).write(to: hook)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hook.path)
 
         let repo = b.repo
@@ -179,13 +189,13 @@ struct ForeignMergeTests {
         let task = Task {
             try await repo.mergeBranch("main", fromRepository: source, allowUnrelatedHistories: true)
         }
-        // Chờ fetch xong (ref tạm đã có) rồi huỷ trong lúc merge đang chạy.
-        for _ in 0..<200 {
-            if !(try await b.git("for-each-ref", "refs/thaigit")).isEmpty { break }
+        let deadline = Date().addingTimeInterval(30)
+        while !FileManager.default.fileExists(atPath: started.path), Date() < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
-        try await Task.sleep(for: .milliseconds(400))
+        #expect(FileManager.default.fileExists(atPath: started.path), "git merge chưa chạy tới hook")
         task.cancel()
+        try Data().write(to: release)
         _ = await task.result
 
         #expect(try await b.git("for-each-ref", "refs/thaigit").isEmpty)
