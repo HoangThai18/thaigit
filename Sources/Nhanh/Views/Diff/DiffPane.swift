@@ -55,6 +55,8 @@ struct DiffPane: View {
                 .id(entry.path)
         case .conflictWithoutMarkers(let entry):
             ConflictWithoutMarkersView(model: model, entry: entry)
+        case .conflictNotUTF8(let entry):
+            ConflictNotUTF8View(model: model, entry: entry)
         case .message(let text):
             ContentUnavailableView(text, systemImage: "doc.text.magnifyingglass")
         case .failed(let message):
@@ -329,6 +331,8 @@ private struct HunkHeader: View {
                 Button(role: .destructive) { model.apply(.discard, hunk: hunk) } label: { Label("Huỷ hunk", systemImage: "arrow.uturn.backward") }
                     .controlSize(.small)
                     .glassButtonStyle()
+            } else if model.openDiffIsNotUTF8 {
+                NotUTF8Hint(text: "File không phải UTF-8 — chỉ stage được cả file", wholeFileAction: "“Stage file” / “Huỷ”")
             }
         case .staged?:
             if partial {
@@ -336,10 +340,27 @@ private struct HunkHeader: View {
                     .controlSize(.small)
                     .tint(.red)
                     .glassButtonStyle(prominent: true)
+            } else if model.openDiffIsNotUTF8 {
+                NotUTF8Hint(text: "File không phải UTF-8 — chỉ bỏ stage được cả file", wholeFileAction: "“Bỏ stage file”")
             }
         default:
             EmptyView()
         }
+    }
+}
+
+/// Thay chỗ nút hunk khi file có byte không phải UTF-8: stage/huỷ từng phần sẽ ghi U+FFFD thay các ký tự đó.
+private struct NotUTF8Hint: View {
+    let text: String
+    let wholeFileAction: String
+
+    var body: some View {
+        Label(text, systemImage: "exclamationmark.triangle")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .fixedSize()
+            .help("File có ký tự không phải UTF-8 (ví dụ Latin-1, CP1258) nên Thaigit tắt thao tác từng hunk/từng dòng để không làm hỏng các ký tự đó. Dùng nút \(wholeFileAction) cho cả file.")
     }
 }
 

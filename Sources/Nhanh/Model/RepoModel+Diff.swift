@@ -9,6 +9,7 @@ nonisolated enum LoadedDiff: Sendable {
     case tooLarge(FileDiff)
     case conflict(ConflictFile, ConflictEntry)
     case conflictWithoutMarkers(ConflictEntry)
+    case conflictNotUTF8(ConflictEntry)
     case message(String)
 }
 
@@ -113,6 +114,8 @@ extension RepoModel {
             return .conflict(file, entry)
         case .conflictWithoutMarkers(let entry):
             return .conflictWithoutMarkers(entry)
+        case .conflictNotUTF8(let entry):
+            return .conflictNotUTF8(entry)
         case .message(let text):
             return .message(text)
         }
@@ -128,9 +131,16 @@ extension RepoModel {
         case .conflict:
             let kind = conflictKind ?? .bothModified
             let entry = ConflictEntry(path: change.path, kind: kind)
-            if let text = try? repo.readWorkingFile(change.path) {
-                let parsed = ConflictFile.parse(text)
-                if parsed.conflictCount > 0 { return .conflict(parsed, entry) }
+            if let data = repo.workingFileData(change.path) {
+                switch ConflictFile.parse(data) {
+                case .parsed(let parsed) where parsed.conflictCount > 0:
+                    return .conflict(parsed, entry)
+                case .notUTF8(let conflictCount) where conflictCount > 0:
+                    // Không giải từng đoạn: ghi lại qua chuỗi sẽ làm hỏng ký tự không phải ASCII.
+                    return .conflictNotUTF8(entry)
+                default:
+                    break
+                }
             }
             return .conflictWithoutMarkers(entry)
         case .unstaged:
@@ -252,6 +262,12 @@ extension RepoModel {
         return presentation.diff.supportsPartialStaging
     }
 
+    /// Diff đang mở có byte không phải UTF-8 (Latin-1, CP1258…): chỉ stage/bỏ stage/huỷ được cả file.
+    var openDiffIsNotUTF8: Bool {
+        guard case .text(let presentation) = diffState else { return false }
+        return !presentation.diff.isValidUTF8
+    }
+
     var selectedLineCount: Int { lineSelection.values.reduce(0) { $0 + $1.count } }
 
     func toggleLine(hunk: DiffPresentation.Hunk, index: Int, extend: Bool) {
@@ -296,15 +312,21 @@ extension RepoModel {
 
     private func applyPatch(_ action: HunkAction, selection: [Int: Set<Int>], title: String) {
         guard case .text(let presentation) = diffState, let file = openFile else { return }
+        guard presentation.diff.isValidUTF8 else {
+            toast(.warning, "File không phải UTF-8 — chỉ thao tác được trên cả file")
+            return
+        }
         guard let patch = PatchBuilder.makePatch(file: presentation.diff, selection: selection, reverse: action.reverse) else {
             toast(.warning, "Không có thay đổi nào được chọn")
             return
         }
         let path = file.change.path
+        // Diff tải với 0 dòng ngữ cảnh (Cài đặt): hunk không có dòng ngữ cảnh nào, git apply cần --unidiff-zero.
+        let unidiffZero = presentation.diff.hunks.allSatisfy { hunk in !hunk.lines.contains { $0.kind == .context } }
         var snapshot: String?
         perform(title, refresh: [.status]) { repo in
             if action == .discard { snapshot = try await repo.snapshotChanges() }
-            try await repo.applyPatch(patch, cached: action.cached, reverse: action.reverse)
+            try await repo.applyPatch(patch, cached: action.cached, reverse: action.reverse, unidiffZero: unidiffZero)
         } onSuccess: { [weak self] in
             guard let self else { return }
             lineSelection = [:]
@@ -336,15 +358,21 @@ extension RepoModel {
     }
 
     func saveConflictResolution(_ entry: ConflictEntry, file: ConflictFile, choices: [Int: ConflictFile.Resolution]) {
-        guard let content = file.resolved(with: choices) else {
+        // Ghép theo byte: BOM, kiểu xuống dòng và mọi byte ngoài các khối xung đột giữ nguyên văn.
+        guard let content = file.resolvedData(with: choices) else {
             toast(.warning, "Còn xung đột chưa chọn cách giải quyết")
             return
         }
         perform("Lưu file đã giải quyết", refresh: [.status]) { repo in
-            try repo.writeWorkingFile(entry.path, contents: content)
+            // Chỉ ghi khi file trên đĩa vẫn là bản đã mở: sửa bên ngoài trong lúc giải thì không ghi đè mất.
+            try repo.replaceWorkingFile(entry.path, data: content, expecting: Data(file.bytes))
             try await repo.markResolved(paths: [entry.path])
         } onSuccess: { [weak self] in
             self?.toast(.success, "Đã giải quyết \((entry.path as NSString).lastPathComponent)")
+        } onError: { [weak self] error in
+            // File đã đổi trên đĩa: nạp lại để người dùng thấy nội dung mới (lựa chọn cũ không còn khớp).
+            if case RepositoryError.changedOnDisk = error { self?.loadDiff() }
+            return false
         }
     }
 

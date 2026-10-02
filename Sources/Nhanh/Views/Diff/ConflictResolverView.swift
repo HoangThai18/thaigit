@@ -239,6 +239,37 @@ private struct CodeLines: View {
     }
 }
 
+/// Xung đột trong file không phải UTF-8 (Latin-1, CP1258…): không giải từng đoạn trong app vì ghi lại qua chuỗi sẽ
+/// làm hỏng mọi ký tự không phải ASCII — chỉ chọn nguyên bản một bên (`git checkout`, giữ nguyên byte) hoặc mở editor.
+struct ConflictNotUTF8View: View {
+    @Bindable var model: RepoModel
+    let entry: ConflictEntry
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 40))
+                .foregroundStyle(.orange)
+            Text((entry.path as NSString).lastPathComponent).font(.title2.bold())
+            Text("File không phải UTF-8").font(.headline).foregroundStyle(.secondary)
+            Text("File có ký tự không phải UTF-8 (ví dụ Latin-1, CP1258) nên Thaigit không giải từng đoạn xung đột trong app — lưu lại sẽ làm hỏng các ký tự đó. Chọn toàn bộ bản của một bên, hoặc mở bằng trình soạn thảo để sửa.")
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: 460)
+            HStack {
+                Button("Dùng toàn bộ Current") { model.resolveConflict(entry, useOurs: true) }
+                    .glassButtonStyle()
+                Button("Dùng toàn bộ Incoming") { model.resolveConflict(entry, useOurs: false) }
+                    .glassButtonStyle()
+            }
+            Button("Mở bằng trình soạn thảo") { model.openInEditor(path: entry.path) }
+                .buttonStyle(.link)
+        }
+        .padding(30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 /// Xung đột không có dấu <<<<<<< (file bị xoá ở một bên, hoặc đã sửa tay xong).
 struct ConflictWithoutMarkersView: View {
     @Bindable var model: RepoModel

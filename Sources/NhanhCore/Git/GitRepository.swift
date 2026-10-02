@@ -4,12 +4,16 @@ public enum RepositoryError: LocalizedError, Sendable {
     case notARepository(String)
     case bareRepository(String)
     case invalidName(String)
+    case notUTF8(String)
+    case changedOnDisk(String)
 
     public var errorDescription: String? {
         switch self {
         case .notARepository(let path): return "“\(path)” không phải là một Git repository."
         case .bareRepository(let path): return "“\(path)” là bare repository (không có working tree) — Thaigit chưa hỗ trợ loại này."
         case .invalidName(let name): return "Tên “\(name)” không hợp lệ."
+        case .notUTF8(let path): return "“\(path)” không phải văn bản UTF-8 — Thaigit không sửa nội dung file này trong app để tránh làm hỏng ký tự."
+        case .changedOnDisk(let path): return "“\(path)” vừa được sửa bên ngoài Thaigit nên chưa ghi đè. Hãy xem lại nội dung mới rồi giải tiếp."
         }
     }
 }
@@ -157,22 +161,26 @@ public struct GitRepository: Sendable {
         var args = ["diff-tree", "-p", "-M", "--no-color", "-U\(context)", "--src-prefix=a/", "--dst-prefix=b/", "--no-commit-id"]
         if let parent { args += [parent, sha] } else { args += ["--root", sha] }
         args += ["--"] + file.allPaths
-        let text = try await runner.output(args, environment: Self.literalPathspecs)
-        return DiffParser.parse(text).first
+        let output = try await runner.run(args, environment: Self.literalPathspecs)
+        return DiffParser.parse(output.stdout).first
     }
 
+    /// Diff của file trong working tree / index. Parse thẳng từ byte của git (không qua chuỗi giải mã lỏng): dòng giữ
+    /// nguyên "\r", file không phải UTF-8 bị đánh dấu `isValidUTF8 = false` nên không stage/huỷ từng dòng được.
+    /// `--no-textconv`: patch phải dựng từ byte thật, và repo lạ có thể đặt `diff.<driver>.textconv` thành lệnh tuỳ ý
+    /// (như `core.fsmonitor`) — chỉ xem diff không được chạy lệnh của repo.
     public func workingDiff(_ change: FileChange, kind: WorkingDiffKind, context: Int = 3) async throws -> FileDiff? {
-        let common = ["--no-color", "--no-ext-diff", "-U\(context)", "--src-prefix=a/", "--dst-prefix=b/"]
-        let text: String
+        let common = ["--no-color", "--no-ext-diff", "--no-textconv", "-U\(context)", "--src-prefix=a/", "--dst-prefix=b/"]
+        let output: ProcessOutput
         switch kind {
         case .unstaged:
-            text = try await runner.output(["diff"] + common + ["--", change.path], environment: Self.literalPathspecs)
+            output = try await runner.run(["diff"] + common + ["--", change.path], environment: Self.literalPathspecs)
         case .staged:
-            text = try await runner.output(["diff", "--cached", "-M"] + common + ["--"] + change.allPaths, environment: Self.literalPathspecs)
+            output = try await runner.run(["diff", "--cached", "-M"] + common + ["--"] + change.allPaths, environment: Self.literalPathspecs)
         case .untracked:
-            text = try await runner.output(["diff", "--no-index"] + common + ["--", "/dev/null", change.path], acceptExitCodes: [0, 1])
+            output = try await runner.run(["diff", "--no-index"] + common + ["--", "/dev/null", change.path], acceptExitCodes: [0, 1])
         }
-        return DiffParser.parse(text).first
+        return DiffParser.parse(output.stdout).first
     }
 
     /// Nội dung blob, ví dụ "HEAD:path", ":path" (index), "<sha>:path".
@@ -240,11 +248,14 @@ public struct GitRepository: Sendable {
         return nil
     }
 
-    /// Message gợi ý khi đang merge (MERGE_MSG/SQUASH_MSG), đã bỏ các dòng chú thích.
+    /// Message gợi ý khi đang merge (MERGE_MSG/SQUASH_MSG), đã bỏ các dòng chú thích; xuống dòng luôn là "\n".
     public func pendingCommitMessage() -> String? {
         for name in ["MERGE_MSG", "SQUASH_MSG"] {
             guard let text = try? String(contentsOf: gitDir.appendingPathComponent(name), encoding: .utf8) else { continue }
-            let lines = text.split(separator: "\n", omittingEmptySubsequences: false).filter { !$0.hasPrefix("#") }
+            // Tách theo scalar "\n" ("\r\n" là MỘT Character nên `split(separator: "\n")` không tách được message CRLF).
+            let lines = text.unicodeScalars.split(separator: "\n", omittingEmptySubsequences: false)
+                .map { line in String(line.last == "\r" ? line.dropLast() : line) }
+                .filter { !$0.hasPrefix("#") }
             let message = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
             if !message.isEmpty { return message }
         }
@@ -316,10 +327,12 @@ public struct GitRepository: Sendable {
                              input: paths.nulSeparatedData, environment: Self.literalPathspecs)
     }
 
-    public func applyPatch(_ patch: String, cached: Bool, reverse: Bool) async throws {
+    /// - Parameter unidiffZero: patch dựng từ diff không có dòng ngữ cảnh (`-U0`) — git apply chỉ nhận khi có cờ này.
+    public func applyPatch(_ patch: String, cached: Bool, reverse: Bool, unidiffZero: Bool = false) async throws {
         var args = ["apply", "--whitespace=nowarn", "--recount"]
         if cached { args.append("--cached") }
         if reverse { args.append("--reverse") }
+        if unidiffZero { args.append("--unidiff-zero") }
         args.append("-")
         try await runner.run(args, input: Data(patch.utf8))
     }
@@ -496,13 +509,27 @@ public struct GitRepository: Sendable {
                              input: paths.nulSeparatedData, environment: Self.literalPathspecs)
     }
 
+    /// Đọc file dạng UTF-8 CHẶT (giữ BOM): ném `RepositoryError.notUTF8` thay vì trả chuỗi đã thay byte lỗi bằng
+    /// U+FFFD — ghi chuỗi đó trở lại sẽ làm hỏng mọi ký tự không phải ASCII của file Latin-1/CP1258.
     public func readWorkingFile(_ path: String) throws -> String {
         let data = try Data(contentsOf: root.appendingPathComponent(path))
-        return String(decoding: data, as: UTF8.self)
+        guard let text = UTF8Text.decodeStrict(data) else { throw RepositoryError.notUTF8(path) }
+        return text
     }
 
     public func writeWorkingFile(_ path: String, contents: String) throws {
-        try Data(contents.utf8).write(to: root.appendingPathComponent(path), options: .atomic)
+        try writeWorkingFile(path, data: Data(contents.utf8))
+    }
+
+    public func writeWorkingFile(_ path: String, data: Data) throws {
+        try data.write(to: root.appendingPathComponent(path), options: .atomic)
+    }
+
+    /// Ghi đè file chỉ khi nội dung trên đĩa vẫn đúng `expected` (bản app đã đọc). File được sửa bên ngoài trong lúc
+    /// đang giải xung đột thì ném `RepositoryError.changedOnDisk` thay vì ghi đè mất phần sửa đó.
+    public func replaceWorkingFile(_ path: String, data: Data, expecting expected: Data) throws {
+        guard workingFileData(path) == expected else { throw RepositoryError.changedOnDisk(path) }
+        try writeWorkingFile(path, data: data)
     }
 
     // MARK: - Remote

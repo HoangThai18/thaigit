@@ -45,6 +45,8 @@ enum DiffState {
     case tooLarge(FileDiff)
     case conflict(ConflictFile, ConflictEntry)
     case conflictWithoutMarkers(ConflictEntry)
+    /// Xung đột trong file không phải UTF-8: chỉ chọn cả file một bên hoặc mở editor.
+    case conflictNotUTF8(ConflictEntry)
     case message(String)
     case failed(String)
 }

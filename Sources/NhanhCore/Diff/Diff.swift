@@ -10,6 +10,8 @@ public struct DiffLine: Sendable, Hashable {
     }
 
     public let kind: Kind
+    /// Nội dung dòng, không gồm ký tự đánh dấu đầu dòng và "\n" cuối. "\r" của file CRLF được GIỮ (patch dựng lại
+    /// bằng `text + "\n"` mới đúng từng byte); hiển thị thì dùng `DiffPresentation` (đã bỏ "\r").
     public let text: String
     public let oldNumber: Int?
     public let newNumber: Int?
@@ -66,10 +68,14 @@ public struct FileDiff: Sendable, Hashable {
     public var similarity: Int?
     public var additions: Int
     public var deletions: Int
+    /// false nếu output git của file này có byte không phải UTF-8 (file Latin-1, CP1258…): chữ đã giải mã lỏng
+    /// (byte lỗi thành U+FFFD) chỉ để hiển thị — dựng patch từ đó sẽ ghi EF BF BD vào index/working tree.
+    public var isValidUTF8: Bool
 
     public init(oldPath: String? = nil, newPath: String? = nil, headerLines: [String] = [], hunks: [DiffHunk] = [],
                 isBinary: Bool = false, isNewFile: Bool = false, isDeletedFile: Bool = false, oldMode: String? = nil,
-                newMode: String? = nil, similarity: Int? = nil, additions: Int = 0, deletions: Int = 0) {
+                newMode: String? = nil, similarity: Int? = nil, additions: Int = 0, deletions: Int = 0,
+                isValidUTF8: Bool = true) {
         self.oldPath = oldPath
         self.newPath = newPath
         self.headerLines = headerLines
@@ -82,14 +88,16 @@ public struct FileDiff: Sendable, Hashable {
         self.similarity = similarity
         self.additions = additions
         self.deletions = deletions
+        self.isValidUTF8 = isValidUTF8
     }
 
     public var lineCount: Int { hunks.reduce(0) { $0 + $1.lines.count } }
 
-    /// Có thể stage/unstage/discard từng hunk hoặc từng dòng không.
+    /// Có thể stage/unstage/discard từng hunk hoặc từng dòng không. File không phải UTF-8 thì không: chỉ thao tác
+    /// cả file (`git add`/`restore`/`reset` giữ nguyên byte).
     public var supportsPartialStaging: Bool {
-        !isBinary && !isNewFile && !isDeletedFile && !hunks.isEmpty
-            && headerLines.contains { $0.hasPrefix("--- ") } && headerLines.contains { $0.hasPrefix("+++ ") }
+        isValidUTF8 && !isBinary && !isNewFile && !isDeletedFile && !hunks.isEmpty
+            && headerLines.contains { $0.hasBytePrefix("--- ") } && headerLines.contains { $0.hasBytePrefix("+++ ") }
     }
 
     public var isModeChangeOnly: Bool { hunks.isEmpty && !isBinary && oldMode != nil && newMode != nil && oldMode != newMode }
@@ -98,8 +106,27 @@ public struct FileDiff: Sendable, Hashable {
 public enum DiffParser {
     /// Parse output dạng unified diff (`git diff`, `git diff-tree -p`), có thể gồm nhiều file.
     public static func parse(_ text: String) -> [FileDiff] {
+        var text = text
+        return text.withUTF8 { parse(bytes: $0) }
+    }
+
+    /// Parse byte thô của git — dùng bản này cho output thật (không giải mã cả output trước khi tách dòng).
+    public static func parse(_ data: Data) -> [FileDiff] {
+        data.withUnsafeBytes { raw in
+            raw.withMemoryRebound(to: UInt8.self) { parse(bytes: $0) }
+        }
+    }
+
+    /// Tách dòng CHỈ theo byte "\n": trong Swift "\r\n" là MỘT Character nên tách theo Character làm dính các dòng
+    /// CRLF vào nhau; ở đây "\r" nằm lại cuối `DiffLine.text`. Ký tự đánh dấu đầu dòng (" ", "+", "-", "\\") cũng xét
+    /// theo byte (dòng bắt đầu bằng dấu kết hợp vẫn đúng). Phần của file nào có byte không phải UTF-8 vẫn được giải
+    /// mã lỏng để hiển thị nhưng bị đánh dấu `isValidUTF8 = false`.
+    private static func parse(bytes: UnsafeBufferPointer<UInt8>) -> [FileDiff] {
+        // Gần như luôn hợp lệ: kiểm một lần cả buffer, chỉ khi hỏng mới kiểm riêng phần của từng file.
+        let allValid = UTF8Text.isValid(bytes)
         var files: [FileDiff] = []
         var current: FileDiff?
+        var currentStart = 0
         var inHeader = false
 
         var hunkInfo: (header: String, oldStart: Int, oldCount: Int, newStart: Int, newCount: Int, section: String)?
@@ -118,36 +145,47 @@ public enum DiffParser {
             hunkLines = []
         }
 
-        func flushFile() {
+        func flushFile(end: Int) {
             flushHunk()
-            if let file = current { files.append(file) }
+            if var file = current {
+                if !allValid {
+                    file.isValidUTF8 = UTF8Text.isValid(UnsafeBufferPointer(rebasing: bytes[currentStart..<end]))
+                }
+                files.append(file)
+            }
             current = nil
         }
 
-        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
-            let line = String(rawLine)
+        var position = 0
+        while position < bytes.count {
+            let lineStart = position
+            let lineEnd = bytes[lineStart...].firstIndex(of: UInt8(ascii: "\n")) ?? bytes.count
+            let line = UnsafeBufferPointer(rebasing: bytes[lineStart..<lineEnd])
+            position = lineEnd + 1
 
-            if line.hasPrefix("diff --git ") {
-                flushFile()
-                current = FileDiff(headerLines: [line])
+            if line.starts(with: "diff --git ".utf8) {
+                flushFile(end: lineStart)
+                current = FileDiff(headerLines: [decode(line)])
+                currentStart = lineStart
                 inHeader = true
                 continue
             }
             guard current != nil else { continue }
 
             if inHeader {
-                if line.hasPrefix("@@ ") {
+                if line.starts(with: "@@ ".utf8) {
                     inHeader = false
                 } else {
-                    parseHeaderLine(line, into: &current!)
+                    parseHeaderLine(decode(line), into: &current!)
                     continue
                 }
             }
 
-            if line.hasPrefix("@@ ") {
+            if line.starts(with: "@@ ".utf8) {
                 flushHunk()
-                if let parsed = parseHunkHeader(line) {
-                    hunkInfo = (line, parsed.oldStart, parsed.oldCount, parsed.newStart, parsed.newCount, parsed.section)
+                let header = decode(line)
+                if let parsed = parseHunkHeader(header) {
+                    hunkInfo = (header, parsed.oldStart, parsed.oldCount, parsed.newStart, parsed.newCount, parsed.section)
                     oldLine = parsed.oldStart
                     newLine = parsed.newStart
                 }
@@ -156,51 +194,59 @@ public enum DiffParser {
 
             guard hunkInfo != nil, let marker = line.first else { continue }
             switch marker {
-            case " ":
-                hunkLines.append(DiffLine(kind: .context, text: String(line.dropFirst()), oldNumber: oldLine, newNumber: newLine))
+            case UInt8(ascii: " "):
+                hunkLines.append(DiffLine(kind: .context, text: decode(line, from: 1), oldNumber: oldLine, newNumber: newLine))
                 oldLine += 1
                 newLine += 1
-            case "+":
-                hunkLines.append(DiffLine(kind: .addition, text: String(line.dropFirst()), oldNumber: nil, newNumber: newLine))
+            case UInt8(ascii: "+"):
+                hunkLines.append(DiffLine(kind: .addition, text: decode(line, from: 1), oldNumber: nil, newNumber: newLine))
                 newLine += 1
                 current!.additions += 1
-            case "-":
-                hunkLines.append(DiffLine(kind: .deletion, text: String(line.dropFirst()), oldNumber: oldLine, newNumber: nil))
+            case UInt8(ascii: "-"):
+                hunkLines.append(DiffLine(kind: .deletion, text: decode(line, from: 1), oldNumber: oldLine, newNumber: nil))
                 oldLine += 1
                 current!.deletions += 1
-            case "\\":
-                hunkLines.append(DiffLine(kind: .noNewline, text: String(line.dropFirst(2)), oldNumber: nil, newNumber: nil))
+            case UInt8(ascii: "\\"):
+                hunkLines.append(DiffLine(kind: .noNewline, text: decode(line, from: 2), oldNumber: nil, newNumber: nil))
             default:
                 break
             }
         }
-        flushFile()
+        flushFile(end: bytes.count)
         return files
+    }
+
+    /// Giải mã (lỏng) phần `line[offset...]`.
+    private static func decode(_ line: UnsafeBufferPointer<UInt8>, from offset: Int = 0) -> String {
+        String(decoding: UnsafeBufferPointer(rebasing: line[min(offset, line.count)...]), as: UTF8.self)
     }
 
     private static func parseHeaderLine(_ line: String, into file: inout FileDiff) {
         file.headerLines.append(line)
-        if line.hasPrefix("--- ") {
-            file.oldPath = parsePath(String(line.dropFirst(4)))
-        } else if line.hasPrefix("+++ ") {
-            file.newPath = parsePath(String(line.dropFirst(4)))
-        } else if line.hasPrefix("new file mode ") {
+        func value(after prefix: String) -> String? {
+            line.hasBytePrefix(prefix) ? line.droppingBytes(prefix.utf8.count) : nil
+        }
+        if let path = value(after: "--- ") {
+            file.oldPath = parsePath(path)
+        } else if let path = value(after: "+++ ") {
+            file.newPath = parsePath(path)
+        } else if let mode = value(after: "new file mode ") {
             file.isNewFile = true
-            file.newMode = String(line.dropFirst("new file mode ".count))
-        } else if line.hasPrefix("deleted file mode ") {
+            file.newMode = mode
+        } else if let mode = value(after: "deleted file mode ") {
             file.isDeletedFile = true
-            file.oldMode = String(line.dropFirst("deleted file mode ".count))
-        } else if line.hasPrefix("old mode ") {
-            file.oldMode = String(line.dropFirst("old mode ".count))
-        } else if line.hasPrefix("new mode ") {
-            file.newMode = String(line.dropFirst("new mode ".count))
-        } else if line.hasPrefix("rename from ") {
-            file.oldPath = String(line.dropFirst("rename from ".count)).unquotedGitPath
-        } else if line.hasPrefix("rename to ") {
-            file.newPath = String(line.dropFirst("rename to ".count)).unquotedGitPath
-        } else if line.hasPrefix("similarity index ") {
-            file.similarity = Int(line.dropFirst("similarity index ".count).dropLast())
-        } else if line.hasPrefix("Binary files ") || line.hasPrefix("GIT binary patch") {
+            file.oldMode = mode
+        } else if let mode = value(after: "old mode ") {
+            file.oldMode = mode
+        } else if let mode = value(after: "new mode ") {
+            file.newMode = mode
+        } else if let path = value(after: "rename from ") {
+            file.oldPath = path.unquotedGitPath
+        } else if let path = value(after: "rename to ") {
+            file.newPath = path.unquotedGitPath
+        } else if let percent = value(after: "similarity index ") {
+            file.similarity = Int(percent.dropLast())
+        } else if line.hasBytePrefix("Binary files ") || line.hasBytePrefix("GIT binary patch") {
             file.isBinary = true
         }
     }
@@ -211,7 +257,7 @@ public enum DiffParser {
         if value.hasSuffix("\t") { value.removeLast() }
         value = value.unquotedGitPath
         if value == "/dev/null" { return nil }
-        if value.hasPrefix("a/") || value.hasPrefix("b/") { value.removeFirst(2) }
+        if value.hasBytePrefix("a/") || value.hasBytePrefix("b/") { value = value.droppingBytes(2) }
         return value
     }
 
@@ -228,7 +274,7 @@ public enum DiffParser {
             return (start, count)
         }
         guard let old = parseRange(ranges[0]), let new = parseRange(ranges[1]) else { return nil }
-        let section = body[end.upperBound...].trimmingCharacters(in: .whitespaces)
+        let section = body[end.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
         return (old.0, old.1, new.0, new.1, section)
     }
 }

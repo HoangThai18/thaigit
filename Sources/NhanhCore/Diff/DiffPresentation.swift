@@ -63,6 +63,7 @@ public struct DiffPresentation: Sendable {
         return DiffPresentation(diff: diff, hunks: hunks, maxLineLength: maxLength, maxLineNumber: maxNumber)
     }
 
+    /// Tab → 4 dấu cách, bỏ một "\r" cuối dòng (file CRLF — `DiffLine.text` vẫn giữ để dựng patch), cắt dòng quá dài.
     static func displayText(_ text: String) -> String {
         var value = text.replacingOccurrences(of: "\t", with: "    ")
         if value.hasSuffix("\r") { value.removeLast() }

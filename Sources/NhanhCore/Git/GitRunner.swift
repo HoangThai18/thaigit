@@ -71,6 +71,8 @@ public struct GitRunner: Sendable {
         "-c", "log.showSignature=false",
         "-c", "diff.noprefix=false",
         "-c", "diff.mnemonicPrefix=false",
+        // true thì dòng ngữ cảnh rỗng thành dòng trống (thiếu " "): parser bỏ qua nên patch dựng lại sai ngữ cảnh.
+        "-c", "diff.suppressBlankEmpty=false",
         "-c", "advice.detachedHead=false",
         // Repo lạ có thể đặt core.fsmonitor thành một lệnh tuỳ ý trong .git/config; app chạy `git status`
         // tự động khi mở/làm mới repo nên tắt hẳn để mở repo không bao giờ chạy lệnh của repo.

@@ -36,7 +36,7 @@ Thả xong luôn có hộp thoại hỏi lại — không có gì chạy ngầm 
 
 ![Chọn 3 dòng trong diff rồi bấm Stage dòng](docs/screenshots/diff-lines.png)
 
-Bấm vào dòng để chọn (Shift+bấm để chọn liên tiếp), rồi **Stage dòng** / **Huỷ dòng**. Cũng làm được theo cả hunk hoặc cả file.
+Bấm vào dòng để chọn (Shift+bấm để chọn liên tiếp), rồi **Stage dòng** / **Huỷ dòng**. Cũng làm được theo cả hunk hoặc cả file. Patch giữ nguyên từng byte (CRLF, BOM); file không phải UTF-8 (Latin-1, CP1258…) chỉ stage / huỷ được cả file để không làm hỏng ký tự.
 
 ### Diff tách đôi và diff ảnh
 
@@ -53,7 +53,7 @@ Tô sáng đúng phần chữ thay đổi trong dòng. File ảnh hiện trướ
 
 ![Trình giải xung đột: giữ Current, Incoming hoặc cả hai cho từng khối](docs/screenshots/conflict.png)
 
-Banner báo đang merge / rebase / cherry-pick kèm nút Tiếp tục / Huỷ. Với mỗi khối xung đột chọn giữ bản hiện tại, bản kia hoặc cả hai, xem trước rồi **Lưu & đánh dấu đã giải quyết**.
+Banner báo đang merge / rebase / cherry-pick kèm nút Tiếp tục / Huỷ. Với mỗi khối xung đột chọn giữ bản hiện tại, bản kia hoặc cả hai, xem trước rồi **Lưu & đánh dấu đã giải quyết**. File không phải UTF-8 thì chọn nguyên bản một bên hoặc mở bằng trình soạn thảo.
 
 ### ⌘B — tìm & chuyển nhánh tức thì
 
@@ -106,7 +106,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - Nhiều repo trong nhiều tab, mở gần đây, clone có tiến trình, tạo repo mới.
 - Tự làm mới khi file đổi bên ngoài (sửa trong editor, commit từ terminal…), tự fetch định kỳ.
 - Mở repo trong Terminal / Finder / VS Code (hoặc Cursor, Zed, Sublime), lịch sử một file, nhật ký lệnh git đã chạy.
-- An toàn khi mở repo lạ: app không chạy lệnh `core.fsmonitor` do repo tự đặt.
+- An toàn khi mở repo lạ: app không chạy lệnh `core.fsmonitor` hay `diff.*.textconv` do repo tự đặt.
 
 ## Cài đặt (macOS)
 

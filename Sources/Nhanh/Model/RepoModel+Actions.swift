@@ -207,7 +207,8 @@ extension RepoModel {
             let repo = repository
             Task {
                 guard let message = try? await repo.commitMessage(head), amendLastCommit, commitSummary.isEmpty else { return }
-                let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+                // Message CRLF (commit từ công cụ khác): "\r\n" là MỘT Character nên phải đổi về "\n" trước khi tách dòng.
+                let trimmed = message.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
                 let parts = trimmed.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
                 commitSummary = parts.first.map(String.init) ?? ""
                 commitBody = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespacesAndNewlines) : ""
