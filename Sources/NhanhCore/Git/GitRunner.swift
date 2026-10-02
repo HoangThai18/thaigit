@@ -89,18 +89,22 @@ public struct GitRunner: Sendable {
         GitRunner(environmentStore: environmentStore, workingDirectory: directory, logger: logger)
     }
 
+    /// `credentialURLs`: địa chỉ remote mà lệnh mạng này thật sự chạm, do người gọi đọc từ cấu hình remote (xem
+    /// `GitRepository.remoteURLs`) — không đoán từ tham số. Chỉ khi có địa chỉ https://github.com và đã đăng nhập mới
+    /// thêm credential helper + token của đúng các tài khoản dùng cho những địa chỉ đó.
     @discardableResult
     public func run(
         _ arguments: [String],
         input: Data? = nil,
         acceptExitCodes: Set<Int32> = [0],
         environment extra: [String: String] = [:],
+        credentialURLs: [String] = [],
         onProgress: (@Sendable (String) -> Void)? = nil
     ) async throws -> ProcessOutput {
         let (environment, github) = environmentStore.snapshot()
-        // Đã đăng nhập GitHub + lệnh mạng: thêm credential helper chọn token theo owner, đọc token từ biến môi trường
-        // của riêng tiến trình này. Nhật ký lệnh và GitError chỉ giữ `arguments` của người gọi — không bao giờ chứa token.
-        let credentials = GitCredentialInjection.additions(for: arguments, credentials: github)
+        // Lệnh chạm remote HTTPS trên github.com: thêm credential helper chọn token theo owner, đọc token từ biến môi
+        // trường của riêng tiến trình này. Nhật ký lệnh và GitError chỉ giữ `arguments` của người gọi — không chứa token.
+        let credentials = GitCredentialInjection.additions(forURLs: credentialURLs, credentials: github)
         var variables = environment.variables
         for (key, value) in credentials.environment { variables[key] = value }
         for (key, value) in extra { variables[key] = value }
@@ -116,7 +120,7 @@ public struct GitRunner: Sendable {
         // Lệnh bị dừng vì Task bị huỷ: báo huỷ thay vì lỗi git (mã thoát 15).
         try Task.checkCancellation()
         logger?(GitCommandRecord(
-            arguments: arguments,
+            arguments: arguments.map(Self.maskingUserInfo),
             startedAt: start,
             duration: Date().timeIntervalSince(start),
             exitCode: output.exitCode,
@@ -128,8 +132,29 @@ public struct GitRunner: Sendable {
         return output
     }
 
-    public func output(_ arguments: [String], input: Data? = nil, acceptExitCodes: Set<Int32> = [0], environment extra: [String: String] = [:]) async throws -> String {
-        try await run(arguments, input: input, acceptExitCodes: acceptExitCodes, environment: extra).stdoutString
+    public func output(_ arguments: [String], input: Data? = nil, acceptExitCodes: Set<Int32> = [0], environment extra: [String: String] = [:],
+                       credentialURLs: [String] = []) async throws -> String {
+        try await run(arguments, input: input, acceptExitCodes: acceptExitCodes, environment: extra, credentialURLs: credentialURLs).stdoutString
+    }
+
+    /// Che "user:mật-khẩu@" (hoặc token đặt làm username) của mọi URL trong một tham số trước khi ghi nhật ký lệnh:
+    /// "https://ten:mk@git.vd.vn/a.git" → "https://***@git.vd.vn/a.git".
+    static func maskingUserInfo(_ argument: String) -> String {
+        guard argument.contains("://") else { return argument }
+        var result = ""
+        var rest = Substring(argument)
+        while let scheme = rest.range(of: "://") {
+            result += rest[..<scheme.upperBound]
+            let authority = rest[scheme.upperBound...]
+            let authorityEnd = authority.firstIndex { $0 == "/" || $0.isWhitespace } ?? authority.endIndex
+            if let at = authority[..<authorityEnd].lastIndex(of: "@") {
+                result += "***"
+                rest = authority[at...]
+            } else {
+                rest = authority
+            }
+        }
+        return result + rest
     }
 }
 

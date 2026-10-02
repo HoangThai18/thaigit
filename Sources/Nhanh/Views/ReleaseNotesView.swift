@@ -2,21 +2,6 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Tab đặc biệt: cửa sổ (WindowGroup "repo") mở với giá trị này thay cho đường dẫn repository.
-/// Mở lại cùng giá trị thì SwiftUI đưa tab đang có lên trước, nên mỗi loại chỉ có một tab.
-enum SpecialTab {
-    static let releaseNotes = "thaigit:release-notes"
-
-    static func isSpecial(_ value: String?) -> Bool { value?.hasPrefix("thaigit:") == true }
-}
-
-/// Mở tab từ chỗ không có `openWindow` của SwiftUI (nút + trên thanh tab gọi qua AppDelegate).
-enum TabActions {
-    static var openNewTab: (() -> Void)?
-    /// Đã tự mở tab "Có gì mới" sau khi cập nhật (một lần mỗi lần chạy app).
-    static var didAutoShowReleaseNotes = false
-}
-
 /// Tab "Có gì mới" như Release Notes của GitKraken: đọc CHANGELOG.md đi kèm app.
 struct ReleaseNotesView: View {
     private let notes = Self.load()
@@ -50,7 +35,7 @@ struct ReleaseNotesView: View {
                 }
                 if let notes, !notes.sections.isEmpty {
                     ForEach(notes.sections) { section in
-                        ReleaseSectionCard(section: section, isCurrent: section.title == currentVersion)
+                        ReleaseSectionCard(section: section, isCurrent: section.isVersion(currentVersion))
                     }
                 } else {
                     ContentUnavailableView("Chưa có nhật ký thay đổi", systemImage: "doc.text",

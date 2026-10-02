@@ -63,8 +63,14 @@ struct GitHubRepoAccountSheet: View {
 
     @ViewBuilder
     private var form: some View {
-        if let targetOwner {
-            Text("Fetch / pull / push / clone tới github.com/\(targetOwner)/… sẽ dùng tài khoản:")
+        if let targetOwner, owner == nil, let originURL = model.originURL, !GitHubRemoteURL.isHTTPS(originURL) {
+            // SSH (git@github.com:…) hoặc https://www.github.com: không đi qua credential helper của Thaigit.
+            Text("Remote origin (\(originURL)) không đi qua HTTPS tới github.com — SSH dùng SSH key của máy — nên ở đây chỉ ghi được tên & email commit của một tài khoản. Gán owner \(targetOwner) chỉ có tác dụng với remote https://github.com/\(targetOwner)/….")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        } else if let targetOwner {
+            Text("Fetch / pull / push / clone tới https://github.com/\(targetOwner)/… sẽ dùng tài khoản:")
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
         } else {

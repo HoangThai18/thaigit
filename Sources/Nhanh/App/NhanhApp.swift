@@ -8,10 +8,12 @@ struct NhanhApp: App {
     @State private var appState = AppState.shared
 
     var body: some Scene {
-        WindowGroup("Thaigit", id: "repo", for: String.self) { $repoPath in
-            RootView(repoPath: $repoPath)
+        // Một cửa sổ chứa nhiều tab do Thaigit tự vẽ (như GitKraken), nên ẩn thanh tiêu đề của macOS.
+        WindowGroup("Thaigit", id: "main") {
+            RootView()
                 .environment(appState)
         }
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1440, height: 900)
         .commands {
             AppCommands(appState: appState)
@@ -26,9 +28,9 @@ struct NhanhApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
-        // Mở nhiều repo thành các tab trong một cửa sổ, giống GitKraken.
-        UserDefaults.standard.set("always", forKey: "AppleWindowTabbingMode")
-        NSWindow.allowsAutomaticWindowTabbing = true
+        // Thaigit tự vẽ thanh tab: tắt tab của macOS (bản cũ đã bật "always" cho app).
+        UserDefaults.standard.removeObject(forKey: "AppleWindowTabbingMode")
+        NSWindow.allowsAutomaticWindowTabbing = false
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -47,10 +49,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
-    }
-
-    /// Nút + trên thanh tab: mở tab mới với màn hình chọn repository (như GitKraken).
-    @objc func newWindowForTab(_ sender: Any?) {
-        TabActions.openNewTab?()
     }
 }

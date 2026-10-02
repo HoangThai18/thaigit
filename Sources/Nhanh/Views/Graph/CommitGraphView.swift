@@ -267,7 +267,9 @@ private struct CommitTable: NSViewRepresentable {
         let headerMenu = NSMenu()
         /// Repo GitHub của remote mặc định — giúp tìm ảnh đại diện qua API commit.
         var githubRepo: GitHubRepoRef?
-        private var avatarObserver: NSObjectProtocol?
+        /// Gỡ khi coordinator bị huỷ (đóng tab / repo) — observer kiểu block không tự gỡ. `nonisolated(unsafe)` để deinit
+        /// (không chạy trên MainActor) đọc được; chỉ ghi một lần trong init.
+        nonisolated(unsafe) private var avatarObserver: NSObjectProtocol?
 
         private static let messageFont = NSFont.systemFont(ofSize: 13)
         private static let secondaryFont = NSFont.systemFont(ofSize: 12)
@@ -291,6 +293,10 @@ private struct CommitTable: NSViewRepresentable {
             avatarObserver = NotificationCenter.default.addObserver(forName: AvatarStore.didChange, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.refreshAvatars() }
             }
+        }
+
+        deinit {
+            if let avatarObserver { NotificationCenter.default.removeObserver(avatarObserver) }
         }
 
         /// Ảnh đại diện vừa tải xong: vẽ lại cột graph của các dòng đang hiện.

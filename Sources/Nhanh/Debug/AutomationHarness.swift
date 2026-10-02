@@ -66,6 +66,8 @@ enum AutomationHarness {
     }
 
     static var welcomeActions: WindowActions?
+    /// Các tab của cửa sổ đang chạy kịch bản (bước newtab / tab:<đường dẫn> / notes / selecttab:<n>).
+    static weak var tabs: TabsModel?
 
     /// Ghi log chẩn đoán ra stderr khi đang chạy kiểm thử tự động.
     static func log(_ message: @autoclosure () -> String) {
@@ -159,6 +161,14 @@ enum AutomationHarness {
             model.searchText = argument
         case "inspector":
             model.showInspector = argument != "off"
+        case "newtab":
+            tabs?.newTab()
+        case "tab":
+            tabs?.open(path: argument)
+        case "notes":
+            tabs?.openReleaseNotes()
+        case "selecttab":
+            tabs?.select(number: Int(argument) ?? 1)
         case "selectlines":
             // Chọn n dòng thay đổi đầu tiên của hunk đầu tiên.
             if case .text(let presentation) = model.diffState, let hunk = presentation.hunks.first {
@@ -214,6 +224,12 @@ enum AutomationHarness {
                 }
             case "newbranch":
                 model.beginCreateBranchAtHead()
+            case "blame":
+                // Blame file trong working tree: act:blame:đường/dẫn
+                model.sheet = .blame(path: value, rev: nil)
+            case "irebase":
+                // Interactive rebase từ commit ở dòng n của graph: act:irebase:4
+                if let entry = model.entry(at: Int(value) ?? 3) { model.beginInteractiveRebase(from: entry.commit) }
             case "addremote":
                 model.sheet = .addRemote
             case "switchbranch":

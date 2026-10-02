@@ -144,13 +144,27 @@ struct GitHubAuthTests {
 
     @Test func cancellingStopsPolling() async throws {
         let server = FakeGitHub([])
-        // Task.sleep thật: huỷ phải dừng ngay, không chờ hết 60 giây.
-        let auth = GitHubAuth(clientID: "Iv1.thu", transport: server.transport)
+        // Task.sleep thật: huỷ phải dừng ngay, không chờ hết 60 giây. Chỉ huỷ khi Task đã thật sự vào lúc chờ (như người
+        // dùng đóng hộp đăng nhập) — không huỷ Task chưa kịp chạy.
+        let (waiting, waitingSignal) = AsyncStream<Void>.makeStream()
+        let auth = GitHubAuth(clientID: "Iv1.thu", transport: server.transport) { duration in
+            waitingSignal.yield()
+            try await Task.sleep(for: duration)
+        }
         let slow = GitHubDeviceCode(deviceCode: "dev-123", userCode: "WDJB-MJHT", verificationURL: GitHubAuth.defaultVerificationURL,
                                     expiresIn: 900, interval: 60)
         let task = Task { try await auth.pollForToken(slow) }
+        var signals = waiting.makeAsyncIterator()
+        _ = await signals.next()
         task.cancel()
-        await #expect(throws: CancellationError.self) { try await task.value }
+        let result = await task.result
+        waitingSignal.finish()
+        switch result {
+        case .success:
+            Issue.record("Đã huỷ mà vẫn trả token")
+        case .failure(let error):
+            #expect(error is CancellationError, "\(error)")
+        }
         #expect(server.requests.isEmpty)
     }
 

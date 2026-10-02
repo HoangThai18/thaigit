@@ -141,6 +141,10 @@ enum RepoSheet: Identifiable {
     case githubLogin
     /// Chọn tài khoản GitHub cho một owner (nil: owner của remote origin — "Tài khoản GitHub cho repo này").
     case githubAccount(owner: String?)
+    /// Interactive rebase các commit sau `base` (như GitKraken).
+    case interactiveRebase(base: String, label: String)
+    /// Blame một file; `rev` nil là bản trong working tree.
+    case blame(path: String, rev: String?)
 
     var id: String {
         switch self {
@@ -157,6 +161,8 @@ enum RepoSheet: Identifiable {
         case .mergeFromRepository(let target): return "merge-from-repo-\(target ?? "")"
         case .githubLogin: return "github-login"
         case .githubAccount(let owner): return "github-account-\(owner ?? "")"
+        case .interactiveRebase(let base, _): return "interactive-rebase-\(base)"
+        case .blame(let path, let rev): return "blame-\(rev ?? "")-\(path)"
         }
     }
 }

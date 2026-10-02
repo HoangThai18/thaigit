@@ -29,7 +29,11 @@ extension RepoModel {
         return (try? JSONDecoder().decode([String: [ForeignMergeSource]].self, from: data)) ?? [:]
     }
 
-    private func rememberForeignMergeSource(_ source: ForeignMergeSource) {
+    /// Nhớ nguồn (bỏ "user:mật-khẩu@" của URL — không lưu bí mật vào UserDefaults; lần sau git hỏi lại qua credential
+    /// helper / hộp thoại nếu cần).
+    private func rememberForeignMergeSource(_ request: ForeignMergeSource) {
+        var source = request
+        source.source = GitRepository.anonymizedSource(request.source)
         var all = Self.loadSavedSources()
         var list = all[rootPath] ?? []
         list.removeAll { $0 == source }
@@ -48,25 +52,31 @@ extension RepoModel {
         sheet = .mergeFromRepository(target: target)
     }
 
-    /// Merge nhánh của repository khác vào nhánh đích, không thêm remote. Nhánh đích khác nhánh hiện tại thì checkout
-    /// trước (như thả nhánh lên nhánh để merge). Nguồn là thư mục trên máy thì không cần mạng hay đăng nhập.
-    func mergeFromRepository(_ request: ForeignMergeSource, allowUnrelatedHistories: Bool = false) {
+    /// Merge nhánh của repository khác vào nhánh đích, không thêm remote. Fetch nhánh nguồn TRƯỚC, rồi mới checkout nhánh
+    /// đích (nếu khác nhánh hiện tại — như thả nhánh lên nhánh để merge) và merge: nguồn lỗi thì HEAD không đổi; git từ
+    /// chối merge ngay sau khi đã checkout thì quay lại HEAD cũ. Huỷ được tới hết bước fetch. Nguồn là thư mục trên máy
+    /// thì không cần mạng hay đăng nhập. `previousHead`: HEAD trước lần thử đầu (nút "Vẫn merge" truyền lại).
+    func mergeFromRepository(_ request: ForeignMergeSource, allowUnrelatedHistories: Bool = false, previousHead original: HeadState? = nil) {
         rememberForeignMergeSource(request)
         let label = request.label
         let target = request.target
-        let previousHead = status.head
+        let previousHead = original ?? status.head
         let switches = target != currentBranch
         let previousTarget = switches ? localBranches.first { $0.name == target }?.target : headOID
+        let leftPrevious = previousHead.branchName != target
+        let previousName = previousHead.branchName ?? previousHead.oid.map { String($0.prefix(7)) } ?? "HEAD cũ"
         var newTarget: String?
         let progress = progressReporter()
-        perform("Merge \(label) vào \(target)", showsProgress: true, cancellable: true) { repo in
-            if switches { try await repo.switchTo(branch: target) }
-            try await repo.mergeBranch(request.branch, fromRepository: request.source,
-                                       allowUnrelatedHistories: allowUnrelatedHistories, onProgress: progress)
+        perform("Merge \(label) vào \(target)", showsProgress: true, cancellable: true) { [weak self] repo in
+            try await repo.fetchForeignBranch(request.branch, fromRepository: request.source, onProgress: progress)
+            // Từ đây checkout + merge chạy tới cùng: dừng `git merge` giữa chừng để lại index nửa vời.
+            self?.busy?.canCancel = false
+            try await repo.mergeFetchedForeignBranch(request.branch, fromRepository: request.source,
+                                                     into: switches ? target : nil, allowUnrelatedHistories: allowUnrelatedHistories)
             newTarget = try? await repo.resolveCommit("HEAD")
         } onSuccess: { [weak self] in
             guard let self else { return }
-            let goBack = switches ? [ToastAction(title: "Quay lại \(previousHead.branchName ?? "HEAD cũ")") { [weak self] in
+            let goBack = leftPrevious ? [ToastAction(title: "Quay lại \(previousName)") { [weak self] in
                 self?.restoreHead(previousHead)
             }] : []
             if let previousTarget, newTarget == previousTarget {
@@ -76,17 +86,28 @@ extension RepoModel {
             toast(.success, "Đã merge \(label) vào \(target)", actions: previousTarget.map { head in
                 [ToastAction(title: "Hoàn tác") { [weak self] in
                     self?.perform("Hoàn tác merge") { repo in try await repo.resetKeepingLocalChanges(to: head) }
-                    if switches { self?.restoreHead(previousHead) }
+                    if leftPrevious { self?.restoreHead(previousHead) }
                 }]
             } ?? goBack)
         } onError: { [weak self] error in
             guard let self else { return false }
-            if let gitError = error as? GitError, gitError.contains("refusing to merge unrelated histories") {
+            // Đã checkout nhánh đích nhưng git từ chối merge: Thaigit đã (hoặc không) quay lại HEAD cũ — nói rõ.
+            let failure = error as? ForeignMergeFailure
+            let mergeError = failure?.underlying ?? error
+            let whereNow = failure.map { failure in
+                failure.restoredHead.map { "Đã quay lại \($0)." } ?? "Chưa quay lại được \(previousName) — vẫn đang ở \(target)."
+            }
+            if let gitError = mergeError as? GitError, gitError.contains("refusing to merge unrelated histories") {
                 toast(.warning, "\(request.repositoryName) và \(name) không có commit chung",
-                      message: "Thường gặp khi một bên là bản copy code (không clone từ bên kia). Lần đầu vẫn merge được: file có ở cả hai bên mà khác nội dung sẽ thành xung đột để bạn chọn bản giữ lại. Từ lần sau hai bên đã có commit chung nên merge bình thường.",
+                      message: "Thường gặp khi một bên là bản copy code (không clone từ bên kia). Lần đầu vẫn merge được: file có ở cả hai bên mà khác nội dung sẽ thành xung đột để bạn chọn bản giữ lại. Từ lần sau hai bên đã có commit chung nên merge bình thường."
+                          + (whereNow.map { " " + $0 } ?? ""),
                       actions: [ToastAction(title: "Vẫn merge") { [weak self] in
-                          self?.mergeFromRepository(request, allowUnrelatedHistories: true)
+                          self?.mergeFromRepository(request, allowUnrelatedHistories: true, previousHead: previousHead)
                       }])
+                return true
+            }
+            if let whereNow {
+                showError("Không merge được \(label) vào \(target). \(whereNow)", mergeError)
                 return true
             }
             return handleConflictError(error, operation: "Merge")

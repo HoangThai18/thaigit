@@ -2,36 +2,25 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Nội dung một cửa sổ/tab: màn hình chào khi chưa mở repo, giao diện repo, hoặc tab đặc biệt ("Có gì mới").
+/// Nội dung một cửa sổ, như GitKraken: thanh tab tự vẽ ở hàng trên cùng (cạnh 3 nút đỏ/vàng/xanh), bên dưới là tab
+/// đang chọn — màn hình chọn repository, một repository, hoặc "Có gì mới".
 struct RootView: View {
-    @Binding var repoPath: String?
     @Environment(AppState.self) private var appState
-    @Environment(\.openWindow) private var openWindow
-    @State private var model: RepoModel?
-    @State private var loadError: String?
-    @State private var isLoading = false
+    @State private var tabs = TabsModel()
     @State private var windowActions = WindowActions()
     @State private var showClone = false
 
     var body: some View {
-        // ZStack (không dùng Group): modifier .task/.onAppear phải gắn vào một view cố định,
-        // nếu không SwiftUI chạy lại chúng mỗi khi nội dung đổi (chào → đang tải → repo).
-        ZStack {
-            if repoPath == SpecialTab.releaseNotes {
-                ReleaseNotesView()
-            } else if let model {
-                RepoWindowView(model: model)
-            } else if isLoading || repoPath != nil {
-                ProgressView("Đang mở repository…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                WelcomeView(
-                    error: loadError,
-                    onOpen: { open($0) },
-                    onClone: { showClone = true },
-                    onInit: initializeRepository
-                )
+        GeometryReader { proxy in
+            // Cửa sổ ẩn thanh tiêu đề (nội dung tràn lên trên): khoảng an toàn phía trên chính là chiều cao thanh tiêu đề,
+            // nơi đặt 3 nút đỏ/vàng/xanh — hàng tab cao đúng bằng nó để các nút nằm giữa hàng.
+            let stripHeight = max(proxy.safeAreaInsets.top, 30)
+            VStack(spacing: 0) {
+                TabStrip(tabs: tabs, height: stripHeight)
+                TabContentView(tab: tabs.selected, tabs: tabs, onClone: { showClone = true }, onInit: initializeRepository)
+                    .id(tabs.selectedID)
             }
+            .ignoresSafeArea(.container, edges: .top)
         }
         .frame(minWidth: 980, minHeight: 620)
         .overlay(alignment: .bottomLeading) {
@@ -41,87 +30,51 @@ struct RootView: View {
         .animation(.snappy(duration: 0.25), value: AppUpdater.shared.phase)
         .animation(.snappy(duration: 0.25), value: AppUpdater.shared.bannerHidden)
         .background(WindowConfigurator())
+        .environment(tabs)
+        .focusedSceneValue(tabs)
         .focusedSceneValue(windowActions)
-        .task(id: repoPath) { await load() }
         .onAppear {
+            TabsModel.liveWindows += 1
             configureWindowActions()
-            TabActions.openNewTab = { [openWindow] in openWindow(id: "repo") }
+            tabs.restoreIfFirstWindow()
             consumePendingOpens()
             showReleaseNotesIfJustUpdated()
-            if model == nil && repoPath == nil {
+            AutomationHarness.tabs = tabs
+            if tabs.selected.kind == .home || tabs.selected.kind == .welcome {
                 AutomationHarness.welcomeActions = windowActions
                 AutomationHarness.attachWelcome()
             }
         }
+        .onDisappear { TabsModel.liveWindows -= 1 }
         .onChange(of: appState.pendingOpenPaths) { consumePendingOpens() }
         .onChange(of: AppUpdater.shared.justUpdated) { showReleaseNotesIfJustUpdated() }
         .sheet(isPresented: $showClone) {
-            CloneSheet { path in open(path) }
+            CloneSheet { path in tabs.open(path: path) }
                 .environment(appState)
         }
     }
 
     private func configureWindowActions() {
-        windowActions.openPath = { path in open(path) }
-        windowActions.closeRepository = { repoPath = nil }
+        windowActions.openPath = { [tabs] path in tabs.open(path: path) }
         windowActions.showClone = { showClone = true }
         windowActions.showInit = { initializeRepository() }
     }
 
-    /// Mở repo ngay trong tab này nếu đang ở màn hình chào, ngược lại mở tab mới.
-    private func open(_ path: String) {
-        if model == nil && !isLoading && repoPath == nil {
-            repoPath = path
-        } else if path != model?.rootPath {
-            openWindow(id: "repo", value: path)
-        }
-    }
-
     /// Lần mở đầu tiên sau khi cập nhật: tự mở tab "Có gì mới" (như Release Notes của GitKraken), một lần.
     private func showReleaseNotesIfJustUpdated() {
-        guard AppUpdater.shared.justUpdated != nil, !TabActions.didAutoShowReleaseNotes else { return }
-        TabActions.didAutoShowReleaseNotes = true
-        openWindow(id: "repo", value: SpecialTab.releaseNotes)
+        guard AppUpdater.shared.justUpdated != nil, !Self.didAutoShowReleaseNotes else { return }
+        Self.didAutoShowReleaseNotes = true
+        tabs.openReleaseNotes()
     }
 
+    private static var didAutoShowReleaseNotes = false
+
+    /// Thư mục mở từ Finder / Dock / dòng lệnh: mỗi thư mục một tab trong cửa sổ đang dùng.
     private func consumePendingOpens() {
         let paths = appState.pendingOpenPaths
         guard !paths.isEmpty else { return }
         appState.pendingOpenPaths = []
-        var usedThisWindow = model != nil || repoPath != nil
-        for path in paths {
-            if !usedThisWindow {
-                usedThisWindow = true
-                repoPath = path
-            } else {
-                openWindow(id: "repo", value: path)
-            }
-        }
-    }
-
-    private func load() async {
-        guard let path = repoPath, !SpecialTab.isSpecial(path) else {
-            model?.stop()
-            model = nil
-            return
-        }
-        if model?.rootPath == path { return }
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            let newModel = try await RepoModel.open(path: path, appState: appState)
-            model?.stop()
-            model = newModel
-            loadError = nil
-            appState.noteRecent(newModel.rootPath)
-            newModel.start()
-            if newModel.rootPath != path { repoPath = newModel.rootPath }
-        } catch {
-            // Bị huỷ vì đường dẫn đổi giữa chừng: lần tải mới sẽ lo.
-            if Task.isCancelled || error is CancellationError { return }
-            loadError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            repoPath = nil
-        }
+        for path in paths { tabs.open(path: path) }
     }
 
     private func initializeRepository() {
@@ -136,47 +89,51 @@ struct RootView: View {
         Task {
             do {
                 try await GitRepository.initialize(at: url, environment: environment)
-                open(url.path)
+                tabs.open(path: url.path)
             } catch {
-                loadError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                tabs.selected.loadError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
         }
     }
 }
 
-/// Cấu hình NSWindow bên dưới: mở repo mới thành tab, thanh tab luôn hiện (kể cả khi chỉ có một tab) như
-/// GitKraken / Chrome — có nút + mở tab mới và nút × trên từng tab.
+/// Nội dung của tab đang chọn.
+private struct TabContentView: View {
+    let tab: AppTab
+    let tabs: TabsModel
+    let onClone: () -> Void
+    let onInit: () -> Void
+
+    var body: some View {
+        switch tab.kind {
+        case .releaseNotes:
+            ReleaseNotesView()
+        case .repository:
+            if let model = tab.model {
+                RepoWindowView(model: model)
+            } else {
+                ProgressView("Đang mở repository…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        case .home, .welcome:
+            WelcomeView(error: tab.loadError, onOpen: { tabs.open(path: $0) }, onClone: onClone, onInit: onInit)
+        }
+    }
+}
+
+/// Cấu hình NSWindow bên dưới: tắt tab của macOS (Thaigit tự vẽ thanh tab) để mở repo không sinh thêm cửa sổ.
 struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
-        let view = ConfiguratorView()
-        return view
+        ConfiguratorView()
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {}
 
     final class ConfiguratorView: NSView {
-        private var keyObserver: NSObjectProtocol?
-
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
-            keyObserver = nil
             guard let window else { return }
-            window.tabbingMode = .preferred
-            window.tabbingIdentifier = "nhanh.repository"
-            DispatchQueue.main.async { [weak window] in
-                MainActor.assumeIsolated { window.map(Self.showTabBar) }
-            }
-            // Tab bị kéo ra thành cửa sổ riêng: nhóm tab mới mặc định ẩn thanh tab.
-            keyObserver = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window,
-                                                                 queue: .main) { [weak window] _ in
-                MainActor.assumeIsolated { window.map(Self.showTabBar) }
-            }
-        }
-
-        private static func showTabBar(_ window: NSWindow) {
-            guard let group = window.tabGroup, !group.isTabBarVisible else { return }
-            window.toggleTabBar(nil)
+            window.tabbingMode = .disallowed
         }
     }
 }

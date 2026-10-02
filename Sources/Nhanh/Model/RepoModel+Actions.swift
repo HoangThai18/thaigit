@@ -157,7 +157,8 @@ extension RepoModel {
             return
         }
         let message = composedCommitMessage
-        let amend = amendLastCommit
+        // Đang merge / revert…: commit hoàn tất thao tác, không bao giờ sửa commit trước (ô amend bị khoá lúc này).
+        let amend = amendLastCommit && operation == nil
         let previousHead = headOID
         let branch = currentBranch ?? "HEAD"
         perform(amend ? "Sửa commit trước" : "Commit") { repo in
@@ -590,7 +591,12 @@ extension RepoModel {
                     },
                 ])
             } onError: { [weak self] error in
-                self?.handleConflictError(error, operation: "Revert") ?? false
+                // Commit đã được đảo ngược từ trước: lõi đã huỷ trạng thái "Đang revert", chỉ cần báo.
+                if case RepositoryError.nothingToRevert = error {
+                    self?.toast(.info, "Commit này đã được đảo ngược, không có gì để revert")
+                    return true
+                }
+                return self?.handleConflictError(error, operation: "Revert") ?? false
             }
             return
         }
@@ -668,6 +674,12 @@ extension RepoModel {
                 commitSummary = parts.first.map(String.init) ?? "Merge"
                 commitBody = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespacesAndNewlines) : ""
             }
+            commit()
+            return
+        }
+        // Đang revert, ô commit có message và có thay đổi đã stage: commit thẳng (`--cleanup=whitespace`) như nút "Hoàn tất
+        // revert" — `revert --continue` luôn dùng `--cleanup=strip`, làm mất mọi dòng bắt đầu bằng "#" (#123, #hotfix…).
+        if operation == .reverting, hasCommitMessage, !status.staged.isEmpty {
             commit()
             return
         }
@@ -1126,6 +1138,8 @@ extension RepoModel {
                 .action("Mixed — giữ thay đổi, bỏ stage") { [weak self] in self?.reset(to: commit, mode: .mixed) },
                 .action("Hard — bỏ mọi thay đổi", destructive: true) { [weak self] in self?.reset(to: commit, mode: .hard) },
             ]),
+            .action("Interactive rebase \(branchLabel) từ đây…", systemImage: "list.bullet.indent",
+                    enabled: canInteractiveRebase(from: commit)) { [weak self] in self?.beginInteractiveRebase(from: commit) },
             .separator,
             .action("Sao chép SHA", systemImage: "number") { [weak self] in self?.copy(commit.id, label: "SHA") },
             .action("Sao chép message", systemImage: "doc.on.doc") { [weak self] in self?.copy(commit.subject, label: "message") },
@@ -1266,6 +1280,9 @@ extension RepoModel {
         })
         items.append(.action("Hiện trong Finder", systemImage: "folder", enabled: fileExists) { [weak self] in self?.revealFile(change.path) })
         items.append(.action("Lịch sử file", systemImage: "clock") { [weak self] in self?.sheet = .fileHistory(change.path) })
+        if let blame = blameSheet(for: OpenFile(source: source, change: change)) {
+            items.append(.action("Blame — ai sửa từng dòng", systemImage: "person.text.rectangle") { [weak self] in self?.sheet = blame })
+        }
         items.append(.separator)
         items.append(.action("Sao chép đường dẫn", systemImage: "doc.on.doc") { [weak self] in self?.copy(change.path, label: "đường dẫn") })
         return items

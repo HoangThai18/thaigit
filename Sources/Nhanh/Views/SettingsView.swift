@@ -35,6 +35,7 @@ private struct GeneralSettings: View {
     @AppStorage(Prefs.relativeDates) private var relativeDates = true
     @AppStorage(Prefs.diffContext) private var diffContext = 3
     @AppStorage(Prefs.diffSplit) private var diffSplit = false
+    @Bindable private var avatars = AvatarStore.shared
 
     var body: some View {
         Form {
@@ -51,6 +52,14 @@ private struct GeneralSettings: View {
                 Toggle("Hiện nhánh remote trên graph", isOn: $showRemoteBranches)
                 Toggle("Hiện tag trên graph", isOn: $showTags)
                 Toggle("Hiện thời gian tương đối (“3 giờ trước”)", isOn: $relativeDates)
+                // Cùng cài đặt với công tắc trong menu chuột phải lên tiêu đề cột graph.
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle("Ảnh đại diện thật (GitHub, Gravatar)", isOn: $avatars.isEnabled)
+                    Text("Để tìm ảnh, Thaigit gửi mã băm SHA-256 của email người commit tới Gravatar; với repo có remote github.com, gửi email người commit tới API GitHub. Tắt thì không gửi gì nữa.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Section("Diff") {
                 Stepper("Số dòng ngữ cảnh quanh thay đổi: \(diffContext)", value: $diffContext, in: 0...20)

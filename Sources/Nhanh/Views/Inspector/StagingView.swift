@@ -266,15 +266,17 @@ struct CommitComposer: View {
     private var remaining: Int { 72 - model.commitSummary.count }
 
     private var commitTitle: String {
-        if model.amendLastCommit { return "Sửa commit trước" }
+        if model.amendLastCommit, model.operation == nil { return "Sửa commit trước" }
         if model.operation == .merging { return "Hoàn tất merge" }
         if model.operation == .reverting { return "Hoàn tất revert" }
         let count = model.status.staged.count
         return count > 0 ? "Commit \(count) file vào \(model.currentBranch ?? "HEAD")" : "Commit"
     }
 
+    /// Không gợi ý khi đang merge / revert…: "Stage tất cả & commit" sẽ gói luôn thay đổi đang làm dở vào commit hoàn tất
+    /// thao tác (với message của thao tác).
     private var suggestsStageAll: Bool {
-        model.status.staged.isEmpty && !model.status.unstaged.isEmpty && !model.amendLastCommit && model.operation != .merging
+        model.status.staged.isEmpty && !model.status.unstaged.isEmpty && !model.amendLastCommit && model.operation == nil
     }
 
     var body: some View {
@@ -285,7 +287,8 @@ struct CommitComposer: View {
                 Toggle("Sửa commit trước (amend)", isOn: $model.amendLastCommit)
                     .toggleStyle(.checkbox)
                     .controlSize(.small)
-                    .disabled(model.headOID == nil)
+                    // Đang merge / revert…: commit là để hoàn tất thao tác, không sửa commit trước.
+                    .disabled(model.headOID == nil || model.operation != nil)
                     .help("Gộp thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó")
             }
             TextField("Tóm tắt (bắt buộc)", text: $model.commitSummary)

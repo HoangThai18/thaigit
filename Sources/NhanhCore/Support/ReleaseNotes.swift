@@ -14,12 +14,20 @@ public struct ReleaseNotes: Sendable, Equatable {
 
         public var id: String { title }
         public var isUnreleased: Bool { AppVersion(title) == nil }
+
+        /// Mục này có phải phiên bản `version` không — so bằng `AppVersion` ("1.1" là "1.1.0", "v1.2" là "1.2").
+        public func isVersion(_ version: String) -> Bool {
+            guard let mine = AppVersion(title), let other = AppVersion(version) else { return title == version }
+            return mine == other
+        }
     }
 
     public var sections: [Section]
 
-    /// Đọc Markdown kiểu "## 1.0.0 — 2026-10-02" rồi các dòng "- …"; bỏ tiêu đề "# …" và phần mở đầu.
-    /// Dòng tiếp nối (thụt đầu dòng) được nối vào gạch đầu dòng phía trên.
+    /// Đọc Markdown kiểu "## 1.0.0 — 2026-10-02" rồi các dòng "- …"; bỏ tiêu đề "# …" và phần mở đầu. Tiêu đề tách ở
+    /// gạch dài / gạch ngắn / gạch nối có khoảng trắng hai bên ("1.0.0-beta" không bị tách), số phiên bản trong ngoặc
+    /// vuông ("[1.1.0]", kiểu keep-a-changelog) được bỏ ngoặc. Dòng tiếp nối (thụt đầu dòng) được nối vào gạch đầu dòng
+    /// phía trên.
     public static func parse(_ markdown: String) -> ReleaseNotes {
         var sections: [Section] = []
         var paragraph: [String] = []
@@ -34,9 +42,16 @@ public struct ReleaseNotes: Sendable, Equatable {
             if line.hasPrefix("## ") {
                 flushParagraph()
                 let heading = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
-                let parts = heading.components(separatedBy: " — ")
-                let title = parts[0].trimmingCharacters(in: .whitespaces)
-                let date = parts.count > 1 ? parts.dropFirst().joined(separator: " — ").trimmingCharacters(in: .whitespaces) : nil
+                var title = heading
+                var date: String?
+                if let separator = heading.range(of: #"\s+[—–-]\s+"#, options: .regularExpression) {
+                    title = String(heading[..<separator.lowerBound])
+                    date = heading[separator.upperBound...].trimmingCharacters(in: .whitespaces)
+                }
+                title = title.trimmingCharacters(in: .whitespaces)
+                if title.hasPrefix("["), title.hasSuffix("]"), title.count > 2 {
+                    title = String(title.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
+                }
                 sections.append(Section(title: title, date: date, paragraphs: [], items: []))
             } else if sections.isEmpty {
                 continue

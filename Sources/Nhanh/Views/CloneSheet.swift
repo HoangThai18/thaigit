@@ -27,6 +27,8 @@ struct CloneSheet: View {
     @State private var suggestGitHubLogin = false
     /// Repo vừa chọn trong danh sách của một tài khoản (để clone bằng đúng tài khoản đó).
     @State private var picked: PickedRepository?
+    /// Vừa gán owner của repo đã chọn cho tài khoản liệt kê nó (báo cho người dùng biết).
+    @State private var assignmentNote: String?
     private let github = GitHubAccountManager.shared
 
     private var destination: URL {
@@ -141,15 +143,23 @@ struct CloneSheet: View {
         }
     }
 
-    /// Repo HTTPS trên github.com: cho biết tài khoản nào sẽ được dùng (theo owner của địa chỉ).
+    /// Repo HTTPS trên github.com: cho biết tài khoản nào sẽ được dùng — đúng cách lệnh git chọn (username trong địa chỉ,
+    /// rồi bảng owner → tài khoản).
     private var footnote: String {
         let remote = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let assignmentNote, picked?.cloneURL == remote { return assignmentNote }
         if GitHubRemoteURL.isHTTPS(remote), let owner = GitHubRemoteURL.owner(of: remote) {
-            if let picked, picked.cloneURL == remote, picked.owner.caseInsensitiveCompare(owner) == .orderedSame {
-                return "Clone bằng tài khoản @\(picked.login)."
+            if let user = GitHubRemoteURL.username(of: remote), let profile = github.state.profile(login: user) {
+                return "Clone bằng tài khoản @\(profile.login) (username trong địa chỉ)."
             }
-            if let resolution = github.resolution(forOwner: owner) {
-                return "Clone bằng tài khoản @\(resolution.profile.login) (owner \(owner))."
+            let resolved = github.resolution(forOwner: owner)?.profile.login
+            if let picked, picked.cloneURL == remote, picked.owner.caseInsensitiveCompare(owner) == .orderedSame,
+               let resolved, picked.login != resolved {
+                // Repo chọn trong danh sách của tài khoản khác tài khoản owner đang dùng: khi clone sẽ gán owner cho nó.
+                return "Clone bằng tài khoản @\(picked.login): owner \(owner) sẽ được gán cho @\(picked.login) (hiện dùng @\(resolved))."
+            }
+            if let resolved {
+                return "Clone bằng tài khoản @\(resolved) (owner \(owner))."
             }
         }
         return github.accounts.isEmpty
@@ -187,10 +197,10 @@ struct CloneSheet: View {
         isCloning = true
         UserDefaults.standard.set(parentDirectory, forKey: Prefs.lastCloneDirectory)
         let remoteURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Repo chọn từ danh sách của một tài khoản: owner chưa khớp tài khoản nào thì gán cho tài khoản đó, để clone
+        // Repo chọn từ danh sách của một tài khoản: owner đang dùng tài khoản khác thì gán cho tài khoản đó, để clone
         // (và fetch / push sau này) dùng đúng token.
-        if let picked, picked.cloneURL == remoteURL {
-            github.noteCloneSelection(owner: picked.owner, login: picked.login)
+        if let picked, picked.cloneURL == remoteURL, github.noteCloneSelection(owner: picked.owner, login: picked.login) {
+            assignmentNote = "Đã gán owner \(picked.owner) cho @\(picked.login) — đổi lại trong Cài đặt → Tài khoản."
         }
         let environment = appState.environment
         let progress = progress
@@ -238,6 +248,8 @@ private struct GitHubRepositoryPicker: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var tokenRejected = false
+    /// Lần tải lại bằng tay đang chạy (nút ↻ / "Thử lại"): huỷ khi tải lại lần nữa hoặc đổi tài khoản.
+    @State private var reloadTask: Task<Void, Never>?
 
     private var filtered: [GitHubRepository] {
         let text = query.trimmingCharacters(in: .whitespaces)
@@ -263,9 +275,7 @@ private struct GitHubRepositoryPicker: View {
                 } else {
                     Text("@\(login)").font(.caption).foregroundStyle(.secondary)
                 }
-                Button {
-                    Task { await load() }
-                } label: {
+                Button(action: reload) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
@@ -280,7 +290,10 @@ private struct GitHubRepositoryPicker: View {
         .onAppear {
             if github.state.profile(login: login) == nil { login = github.defaultAccount?.login ?? "" }
         }
-        .task(id: login) { await load() }
+        .task(id: login) {
+            reloadTask?.cancel()
+            await load()
+        }
         .onChange(of: selection) { _, id in
             guard let repository = repositories.first(where: { $0.id == id }) else { return }
             url = repository.cloneURL
@@ -304,7 +317,7 @@ private struct GitHubRepositoryPicker: View {
                 if tokenRejected {
                     Button("Đăng nhập lại…", action: onLogin)
                 } else {
-                    Button("Thử lại") { Task { await load() } }
+                    Button("Thử lại", action: reload)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -323,6 +336,11 @@ private struct GitHubRepositoryPicker: View {
         }
     }
 
+    private func reload() {
+        reloadTask?.cancel()
+        reloadTask = Task { await load() }
+    }
+
     private func load() async {
         guard !login.isEmpty else { return }
         let account = login
@@ -332,15 +350,23 @@ private struct GitHubRepositoryPicker: View {
             loadedLogin = account
         }
         isLoading = true
-        defer { isLoading = false }
         selection = nil
+        let result: Result<[GitHubRepository], any Error>
         do {
-            repositories = try await github.repositories(for: account)
+            result = .success(try await github.repositories(for: account))
+        } catch {
+            result = .failure(error)
+        }
+        // Đã đổi tài khoản hoặc tải lại trong lúc chờ: đây là kết quả cũ (có thể của tài khoản trước) — bỏ đi.
+        guard login == account, !Task.isCancelled else { return }
+        isLoading = false
+        switch result {
+        case .success(let list):
+            repositories = list
             errorMessage = nil
             tokenRejected = false
-        } catch is CancellationError {
-            return
-        } catch {
+        case .failure(let error):
+            guard !(error is CancellationError) else { return }
             tokenRejected = error as? GitHubError == .unauthorized
             errorMessage = tokenRejected
                 ? "Token GitHub của @\(account) không còn hợp lệ — đăng nhập lại."

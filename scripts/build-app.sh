@@ -15,6 +15,12 @@ for arg in "$@"; do
   esac
 done
 
+# Tab "Có gì mới" trong app đọc CHANGELOG.md: thiếu file thì dừng ngay — trước khi xoá bản build/Thaigit.app đang có.
+if [ ! -f CHANGELOG.md ]; then
+  echo "Thiếu CHANGELOG.md (tab \"Có gì mới\" trong app đọc file này)."
+  exit 1
+fi
+
 # macOS 27 SDK biến @State thành macro, cần plugin chỉ có trong Xcode.
 # Khi chỉ có Command Line Tools thì build bằng SDK macOS 26 (app vẫn chạy bình thường trên macOS 27).
 if ! xcode-select -p 2>/dev/null | grep -q "Xcode.app"; then

@@ -34,6 +34,10 @@ struct SheetContent: View {
             GitHubLoginSheet()
         case .githubAccount(let owner):
             GitHubRepoAccountSheet(model: model, owner: owner)
+        case .interactiveRebase(let base, let label):
+            InteractiveRebaseSheet(model: model, base: base, baseLabel: label)
+        case .blame(let path, let rev):
+            BlameSheet(model: model, path: path, rev: rev)
         }
     }
 }

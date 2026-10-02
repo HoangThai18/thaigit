@@ -18,10 +18,14 @@ struct CommitIdentityHint: Equatable {
 extension RepoModel {
     // MARK: - Tài khoản GitHub của repo
 
+    /// Địa chỉ remote origin (không có origin thì remote đầu tiên).
+    var originURL: String? {
+        (remotes.first { $0.name == "origin" } ?? remotes.first)?.fetchURL
+    }
+
     /// Owner (người dùng / tổ chức) của remote origin trên github.com (không có origin thì remote đầu tiên).
     var originOwner: String? {
-        let remote = remotes.first { $0.name == "origin" } ?? remotes.first
-        return remote.flatMap { GitHubRemoteURL.owner(of: $0.fetchURL) }
+        originURL.flatMap { GitHubRemoteURL.owner(of: $0) }
     }
 
     /// Đọc lại tên / email commit đang dùng (sau khi mở repo hoặc đổi danh tính).
@@ -65,6 +69,12 @@ extension RepoModel {
         let github = GitHubAccountManager.shared
         guard let used = github.resolution(forOwner: failure.owner)?.profile else {
             showError("\(name) bị GitHub từ chối — chưa đăng nhập GitHub", error, actions: githubLoginActions("Đăng nhập GitHub"))
+            return true
+        }
+        // Tài khoản của owner chưa đọc được token (Keychain lỗi / bị từ chối): git không dùng token tài khoản khác thay vào.
+        if !github.loginsWithToken.contains(used.login) {
+            showError("Chưa đọc được token của @\(used.login) — đăng nhập lại tài khoản này", error,
+                      actions: githubLoginActions("Đăng nhập lại @\(used.login)"))
             return true
         }
         let target = failure.owner.map { "github.com/\($0)" } ?? "repo này"

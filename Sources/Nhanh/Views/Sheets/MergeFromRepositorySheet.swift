@@ -65,7 +65,7 @@ struct MergeFromRepositorySheet: View {
                                     .truncationMode(.middle)
                             }
                             .buttonStyle(.borderless)
-                            .help(item.source)
+                            .help(GitRepository.anonymizedSource(item.source))
                             Spacer()
                             Button {
                                 model.forgetForeignMergeSource(item)
@@ -228,7 +228,9 @@ struct MergeFromRepositorySheet: View {
         return initialTarget ?? model.currentBranch ?? targets.first ?? ""
     }
 
-    private func describe(_ error: any Error, source: String) -> String {
+    private func describe(_ error: any Error, source rawSource: String) -> String {
+        // Không hiện "user:mật-khẩu@" người dùng gõ trong URL.
+        let source = GitRepository.anonymizedSource(rawSource)
         if let gitError = error as? GitError {
             if gitError.contains("does not appear to be a git repository") || gitError.contains("not a git repository") {
                 return "“\(source)” không phải Git repository — hãy chọn thư mục gốc của repo (nơi có thư mục .git)."

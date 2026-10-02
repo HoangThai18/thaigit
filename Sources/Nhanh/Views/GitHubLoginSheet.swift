@@ -28,11 +28,9 @@ struct GitHubLoginSheet: View {
         }
         .padding(24)
         .frame(width: 480)
-        .onAppear {
-            // Hộp khác đang đăng nhập dở (Cài đặt, hộp Clone…) thì xem tiếp, không xin mã mới.
-            if github.isConfigured, !github.loginState.isInProgress { github.startLogin() }
-        }
-        .onDisappear { github.cancelLogin() }
+        // Hộp khác đang đăng nhập dở (Cài đặt, hộp Clone…) thì xem tiếp, không xin mã mới; chỉ huỷ khi hộp cuối cùng đóng.
+        .onAppear { github.loginSheetAppeared() }
+        .onDisappear { github.loginSheetDisappeared() }
     }
 
     @ViewBuilder
@@ -144,11 +142,9 @@ struct GitHubLoginSheet: View {
                 Button("Thử lại") { github.startLogin() }
                     .keyboardShortcut(.defaultAction)
             case .idle, .requestingCode, .waitingForUser, .finishing:
-                Button("Huỷ") {
-                    github.cancelLogin()
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
+                // Đóng hộp: lần đăng nhập bị huỷ khi không còn hộp nào khác đang xem nó.
+                Button("Huỷ") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
             }
         }
     }

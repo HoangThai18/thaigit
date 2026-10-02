@@ -52,6 +52,9 @@ final class GitHubAccountManager {
     @ObservationIgnored private var helperPath: String?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var loginTask: Task<Void, Never>?
+    /// Số hộp đăng nhập đang mở (Cài đặt, hộp Clone, cửa sổ repo…): cùng xem một lần đăng nhập, chỉ huỷ khi hộp cuối
+    /// cùng đóng — đóng một hộp không làm hộp kia quay vòng mãi.
+    @ObservationIgnored private var openLoginSheets = 0
     @ObservationIgnored private var organizationsTask: Task<Void, Never>?
 
     nonisolated private init() {
@@ -151,6 +154,18 @@ final class GitHubAccountManager {
         if loginState.isInProgress { loginState = .idle }
     }
 
+    /// Hộp đăng nhập vừa hiện: hộp khác đang đăng nhập dở thì xem tiếp, không xin mã mới.
+    func loginSheetAppeared() {
+        openLoginSheets += 1
+        if isConfigured, !loginState.isInProgress { startLogin() }
+    }
+
+    /// Hộp đăng nhập vừa đóng: chỉ huỷ lần đăng nhập đang chạy khi không còn hộp nào xem nó.
+    func loginSheetDisappeared() {
+        openLoginSheets = max(0, openLoginSheets - 1)
+        if openLoginSheets == 0 { cancelLogin() }
+    }
+
     /// Xoá một tài khoản: chỉ token của tài khoản đó bị xoá khỏi Keychain. Token vẫn còn hiệu lực trên GitHub tới khi
     /// người dùng thu hồi.
     func removeAccount(login: String) {
@@ -158,7 +173,8 @@ final class GitHubAccountManager {
         state = result.state
         tokens.setToken(nil, for: login)
         publish()
-        removedLogin = login
+        // Chỉ báo "đã xoá token khỏi máy" khi Keychain thật sự xoá được.
+        removedLogin = result.tokenError == nil ? login : nil
         problem = result.tokenError.map { "Không xoá được token của @\(login) khỏi Keychain: \(Self.describe($0))" }
     }
 
@@ -175,11 +191,14 @@ final class GitHubAccountManager {
         mutate { $0.setCommitIdentity(login: login, name: name, email: email) }
     }
 
-    /// Chọn repo trong danh sách của tài khoản `login` để clone: owner chưa khớp tài khoản nào (đang rơi về tài khoản
-    /// mặc định) thì gán owner đó cho `login`, để clone / fetch sau này dùng đúng token.
-    func noteCloneSelection(owner: String, login: String) {
-        guard let resolution = state.resolve(owner: owner), resolution.match == .fallback, resolution.profile.login != login else { return }
-        assign(owner: owner, to: login)
+    /// Chọn repo trong danh sách của tài khoản `login` để clone: owner đang dùng tài khoản khác (kể cả do quy tắc tổ chức /
+    /// mặc định) thì gán owner đó cho `login`, để clone / fetch sau này dùng đúng tài khoản đã liệt kê repo. Trả về true
+    /// nếu vừa gán (hộp Clone báo cho người dùng biết).
+    @discardableResult
+    func noteCloneSelection(owner: String, login: String) -> Bool {
+        var assigned = false
+        mutate { assigned = $0.assignOwnerForPickedRepository(owner: owner, login: login) }
+        return assigned
     }
 
     /// Làm mới danh sách tổ chức của mọi tài khoản (khi mở Cài đặt). Lỗi mạng bỏ qua, giữ danh sách cũ.

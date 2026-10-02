@@ -6,6 +6,8 @@ public enum RepositoryError: LocalizedError, Sendable {
     case invalidName(String)
     case notUTF8(String)
     case changedOnDisk(String)
+    /// Revert một commit mà thay đổi của nó đã được đảo ngược từ trước.
+    case nothingToRevert(String)
 
     public var errorDescription: String? {
         switch self {
@@ -14,6 +16,7 @@ public enum RepositoryError: LocalizedError, Sendable {
         case .invalidName(let name): return "Tên “\(name)” không hợp lệ."
         case .notUTF8(let path): return "“\(path)” không phải văn bản UTF-8 — Thaigit không sửa nội dung file này trong app để tránh làm hỏng ký tự."
         case .changedOnDisk(let path): return "“\(path)” vừa được sửa bên ngoài Thaigit nên chưa ghi đè. Hãy xem lại nội dung mới rồi giải tiếp."
+        case .nothingToRevert(let sha): return "Commit \(sha) đã được đảo ngược, không có gì để revert."
         }
     }
 }
@@ -417,7 +420,8 @@ public struct GitRepository: Sendable {
         try await runner.run(["update-ref", fullName, object])
     }
 
-    /// Fast-forward nhánh không phải nhánh hiện tại tới upstream của nó.
+    /// Fast-forward nhánh không phải nhánh hiện tại tới upstream của nó. `fetch .` chỉ chép ref trong repo, không chạm
+    /// mạng nên không có token GitHub.
     public func fastForward(branch: String, to upstream: String) async throws {
         try await runner.run(["fetch", ".", "\(upstream):refs/heads/\(branch)"])
     }
@@ -448,8 +452,16 @@ public struct GitRepository: Sendable {
     /// Revert `sha` (commit merge cần `mainline`, thường là 1 = cha thứ nhất). `commit: false` (`--no-commit`) chỉ
     /// stage thay đổi đảo ngược: git để lại REVERT_HEAD (thao tác "Đang revert") và message gợi ý trong MERGE_MSG,
     /// người dùng xem lại rồi tự commit (hoặc `revert --continue`, huỷ bằng `revert --abort`).
+    /// Commit đã được đảo ngược từ trước thì `--no-commit` không stage gì mà vẫn để REVERT_HEAD (commit tiếp sẽ gói thay
+    /// đổi đang làm dở vào "commit revert"): huỷ ngay thao tác đó và ném `RepositoryError.nothingToRevert`.
     public func revert(_ sha: String, mainline: Int? = nil, commit: Bool = true) async throws {
         try await runner.run(["revert", commit ? "--no-edit" : "--no-commit"] + (mainline.map { ["-m", String($0)] } ?? []) + [sha])
+        guard !commit, operationState() == .reverting else { return }
+        let staged = try await runner.run(["diff", "--cached", "--quiet"], acceptExitCodes: [0, 1])
+        if staged.exitCode == 0 {
+            try await abort(.reverting)
+            throw RepositoryError.nothingToRevert(String(sha.prefix(7)))
+        }
     }
 
     public func reset(to rev: String, mode: ResetMode) async throws {
@@ -542,12 +554,48 @@ public struct GitRepository: Sendable {
 
     // MARK: - Remote
 
+    /// Địa chỉ mà lệnh mạng tới `remote` thật sự chạm — để chỉ đưa token GitHub của đúng tài khoản (xem
+    /// `GitRunner.run(credentialURLs:)`). Đọc `remote.<tên>.url` / `pushurl` qua `git remote -v` (đã áp `insteadOf` /
+    /// `pushInsteadOf`): fetch dùng URL đầu tiên, push dùng mọi URL push. `remote` nil: mọi remote (`fetch --all`). Tên
+    /// không phải remote đã cấu hình (URL / đường dẫn gõ thẳng) thì chính nó là địa chỉ. Đọc lỗi thì không có địa chỉ nào.
+    public func remoteURLs(_ remote: String?, push: Bool) async -> [String] {
+        guard let text = try? await runner.output(["remote", "-v"]) else { return remote.map { [$0] } ?? [] }
+        var urls: [String] = []
+        var known = false
+        for line in text.split(separator: "\n") {
+            let parts = line.split(separator: "\t", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            let name = String(parts[0])
+            guard remote == nil || name == remote else { continue }
+            known = true
+            let suffix = push ? " (push)" : " (fetch)"
+            guard parts[1].hasSuffix(suffix) else { continue }
+            let url = String(parts[1].dropLast(suffix.count))
+            if !urls.contains(url) { urls.append(url) }
+        }
+        if let remote, !known { return [remote] }
+        return urls
+    }
+
+    /// Remote mà `git pull` (không tham số) fetch: `branch.<nhánh hiện tại>.remote`, không có thì remote duy nhất, rồi
+    /// "origin" — như git. "." (nhánh theo dõi nhánh local) không chạm mạng.
+    func pullRemote() async -> String? {
+        let branch = (try? await runner.output(["symbolic-ref", "--quiet", "--short", "HEAD"]))?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let branch, !branch.isEmpty, let remote = await config("branch.\(branch).remote") {
+            return remote == "." ? nil : remote
+        }
+        let names = ((try? await runner.output(["remote"])) ?? "").split(separator: "\n").map(String.init)
+        return names.count == 1 ? names[0] : "origin"
+    }
+
     public func fetch(remote: String?, prune: Bool, onProgress: (@Sendable (String) -> Void)? = nil,
                       environment extra: [String: String] = [:]) async throws {
         var args = ["fetch", "--progress"]
         if prune { args.append("--prune") }
         if let remote { args.append(remote) } else { args.append("--all") }
-        try await runner.run(args, environment: extra, onProgress: onProgress)
+        let urls = await remoteURLs(remote, push: false)
+        try await runner.run(args, environment: extra, credentialURLs: urls, onProgress: onProgress)
     }
 
     public func pull(mode: PullMode, onProgress: (@Sendable (String) -> Void)? = nil) async throws {
@@ -557,7 +605,9 @@ public struct GitRepository: Sendable {
         case .rebase: flag = "--rebase"
         case .fastForwardOnly: flag = "--ff-only"
         }
-        try await runner.run(["pull", "--progress", flag], onProgress: onProgress)
+        var urls: [String] = []
+        if let remote = await pullRemote() { urls = await remoteURLs(remote, push: false) }
+        try await runner.run(["pull", "--progress", flag], credentialURLs: urls, onProgress: onProgress)
     }
 
     public func push(remote: String, localBranch: String, remoteBranch: String, setUpstream: Bool, force: Bool,
@@ -566,28 +616,32 @@ public struct GitRepository: Sendable {
         if setUpstream { args.append("--set-upstream") }
         if force { args.append("--force-with-lease") }
         args += [remote, "refs/heads/\(localBranch):refs/heads/\(remoteBranch)"]
-        try await runner.run(args, onProgress: onProgress)
+        try await runner.run(args, credentialURLs: await remoteURLs(remote, push: true), onProgress: onProgress)
     }
 
     /// Đẩy một commit bất kỳ lên nhánh trên remote (dùng để khôi phục nhánh remote vừa xoá).
     public func pushCommit(_ sha: String, remote: String, branch: String, onProgress: (@Sendable (String) -> Void)? = nil) async throws {
-        try await runner.run(["push", "--progress", remote, "\(sha):refs/heads/\(branch)"], onProgress: onProgress)
+        try await runner.run(["push", "--progress", remote, "\(sha):refs/heads/\(branch)"],
+                             credentialURLs: await remoteURLs(remote, push: true), onProgress: onProgress)
     }
 
     public func deleteRemoteBranch(remote: String, branch: String, onProgress: (@Sendable (String) -> Void)? = nil) async throws {
-        try await runner.run(["push", "--progress", remote, "--delete", "refs/heads/\(branch)"], onProgress: onProgress)
+        try await runner.run(["push", "--progress", remote, "--delete", "refs/heads/\(branch)"],
+                             credentialURLs: await remoteURLs(remote, push: true), onProgress: onProgress)
     }
 
     public func pushTag(remote: String, tag: String, onProgress: (@Sendable (String) -> Void)? = nil) async throws {
-        try await runner.run(["push", "--progress", remote, "refs/tags/\(tag)"], onProgress: onProgress)
+        try await runner.run(["push", "--progress", remote, "refs/tags/\(tag)"],
+                             credentialURLs: await remoteURLs(remote, push: true), onProgress: onProgress)
     }
 
     public func pushAllTags(remote: String, onProgress: (@Sendable (String) -> Void)? = nil) async throws {
-        try await runner.run(["push", "--progress", remote, "--tags"], onProgress: onProgress)
+        try await runner.run(["push", "--progress", remote, "--tags"], credentialURLs: await remoteURLs(remote, push: true),
+                             onProgress: onProgress)
     }
 
     public func deleteRemoteTag(remote: String, tag: String) async throws {
-        try await runner.run(["push", remote, "--delete", "refs/tags/\(tag)"])
+        try await runner.run(["push", remote, "--delete", "refs/tags/\(tag)"], credentialURLs: await remoteURLs(remote, push: true))
     }
 
     public func addRemote(name: String, url: String) async throws {
@@ -662,7 +716,7 @@ public struct GitRepository: Sendable {
         let parent = destination.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
         let runner = GitRunner(environmentStore: environment, workingDirectory: parent)
-        try await runner.run(["clone", "--progress", "--", url, destination.path], onProgress: onProgress)
+        try await runner.run(["clone", "--progress", "--", url, destination.path], credentialURLs: [url], onProgress: onProgress)
     }
 
     public static func initialize(at url: URL, environment: GitEnvironmentStore) async throws {

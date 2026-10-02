@@ -99,6 +99,20 @@ public enum AvatarSource {
     }
 }
 
+/// Kết quả tìm ảnh đại diện của một email.
+public enum AvatarResult: Sendable, Equatable {
+    case found(Data)
+    /// Không nguồn nào có ảnh.
+    case missing
+    /// Lỗi tạm (mạng, máy chủ, hết lượt API, token hết hạn…): lát nữa thử lại.
+    case unavailable
+
+    public var data: Data? {
+        if case .found(let data) = self { return data }
+        return nil
+    }
+}
+
 /// Tải và cache ảnh đại diện trên đĩa. Thứ tự: email ẩn GitHub → API GitHub của repo (nếu repo nằm trên GitHub) →
 /// Gravatar. Không ai có ảnh thì nhớ "không có" vài ngày để khỏi hỏi lại; lỗi mạng thì không nhớ gì.
 public actor AvatarFetcher {
@@ -106,20 +120,28 @@ public actor AvatarFetcher {
     public static let missingLifetime: TimeInterval = 3 * 24 * 3600
 
     private let cacheDirectory: URL?
-    private let session: URLSession
+    private let transport: GitHubHTTPTransport
     /// API GitHub hết lượt (60 lần/giờ khi không đăng nhập): bỏ qua tới thời điểm này.
     private var githubBlockedUntil = Date.distantPast
 
     public init(cacheDirectory: URL?, session: URLSession? = nil) {
-        self.cacheDirectory = cacheDirectory
-        if let session {
-            self.session = session
-        } else {
+        let session = session ?? {
             let configuration = URLSessionConfiguration.ephemeral
             configuration.timeoutIntervalForRequest = 15
             configuration.httpAdditionalHeaders = ["User-Agent": "Thaigit"]
-            self.session = URLSession(configuration: configuration)
+            return URLSession(configuration: configuration)
+        }()
+        self.init(cacheDirectory: cacheDirectory) { request in
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+            return (data, http)
         }
+    }
+
+    /// `transport`: gửi một request HTTP — test thay bằng máy chủ giả riêng của từng test (không gọi mạng thật).
+    public init(cacheDirectory: URL?, transport: @escaping GitHubHTTPTransport) {
+        self.cacheDirectory = cacheDirectory
+        self.transport = transport
         if let cacheDirectory { try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true) }
     }
 
@@ -132,22 +154,30 @@ public actor AvatarFetcher {
 
     /// Byte ảnh (PNG/JPEG) của người có email này, hoặc nil nếu không có ảnh / không tải được.
     public func avatar(email: String, repo: GitHubRepoRef?, size: Int, token: String? = nil) async -> Data? {
+        await lookupAvatar(email: email, repo: repo, size: size, token: token).data
+    }
+
+    /// Như `avatar`, nhưng phân biệt "không có ảnh" với lỗi tạm (để app thử lại sau). "Không có" chỉ được nhớ khi mọi
+    /// nguồn đều trả lời rõ ràng; nhớ riêng trường hợp chưa hỏi API GitHub (không có `repo`) để lần hỏi có repo GitHub
+    /// vẫn hỏi GitHub.
+    public func lookupAvatar(email: String, repo: GitHubRepoRef?, size: Int, token: String? = nil) async -> AvatarResult {
         let key = AvatarSource.hash(email)
-        if let cached = cached(key) { return cached.isEmpty ? nil : cached }
+        if let cached = cached(key, askedGitHub: repo != nil) { return cached.isEmpty ? .missing : .found(cached) }
         var sawUnavailable = false
         for source in sources(email: email, repo: repo) {
             switch await lookup(source, size: size, token: token) {
             case .found(let data):
                 store(data, key: key)
-                return data
+                return .found(data)
             case .missing:
                 continue
             case .unavailable:
                 sawUnavailable = true
             }
         }
-        if !sawUnavailable { store(Data(), key: key) }
-        return nil
+        if sawUnavailable { return .unavailable }
+        storeMissing(key: key, askedGitHub: repo != nil)
+        return .missing
     }
 
     private enum Source {
@@ -172,33 +202,33 @@ public actor AvatarFetcher {
         case .githubAPI(let repo, let email):
             guard Date() >= githubBlockedUntil,
                   let request = AvatarSource.githubCommitsRequest(repo: repo, email: email, token: token) else { return .unavailable }
-            guard let (data, response) = try? await session.data(for: request), let http = response as? HTTPURLResponse else {
-                return .unavailable
-            }
+            guard let (data, http) = try? await transport(request) else { return .unavailable }
             if http.statusCode == 403 || http.statusCode == 429 || http.value(forHTTPHeaderField: "X-RateLimit-Remaining") == "0" {
                 let reset = http.value(forHTTPHeaderField: "X-RateLimit-Reset").flatMap(TimeInterval.init)
                 githubBlockedUntil = reset.map { Date(timeIntervalSince1970: $0) } ?? Date().addingTimeInterval(3600)
                 if http.statusCode != 200 { return .unavailable }
             }
+            // 401: token hết hạn / bị thu hồi — lỗi tạm, đăng nhập lại là hỏi được.
             // 404/409/422: repo riêng tư (chưa đăng nhập), repo rỗng, email lạ — coi như GitHub không có ảnh.
-            guard http.statusCode == 200 else { return (400..<500).contains(http.statusCode) ? .missing : .unavailable }
+            guard http.statusCode == 200 else {
+                return (400..<500).contains(http.statusCode) && http.statusCode != 401 ? .missing : .unavailable
+            }
             guard let url = AvatarSource.parseCommitAvatar(data, size: size) else { return .missing }
             return await download(URLRequest(url: url, timeoutInterval: 15))
         }
     }
 
     private func download(_ request: URLRequest) async -> Lookup {
-        guard let (data, response) = try? await session.data(for: request), let http = response as? HTTPURLResponse else {
-            return .unavailable
-        }
+        guard let (data, http) = try? await transport(request) else { return .unavailable }
         if http.statusCode == 404 || http.statusCode == 410 { return .missing }
         guard http.statusCode == 200, !data.isEmpty, (http.mimeType ?? "").hasPrefix("image/") else { return .unavailable }
         return .found(data)
     }
 
-    // MARK: Cache trên đĩa: <hash>.img là ảnh, <hash>.none là "không có ảnh".
+    // MARK: Cache trên đĩa: <hash>.img là ảnh; <hash>.none là "không có ảnh" (đã hỏi cả API GitHub),
+    // <hash>.nogithub.none là "không có ảnh" khi chưa hỏi API GitHub (repo không ở GitHub).
 
-    private func cached(_ key: String) -> Data? {
+    private func cached(_ key: String, askedGitHub: Bool) -> Data? {
         guard let cacheDirectory else { return nil }
         let fm = FileManager.default
         func fresh(_ url: URL, lifetime: TimeInterval) -> Bool {
@@ -208,18 +238,22 @@ public actor AvatarFetcher {
         let image = cacheDirectory.appendingPathComponent(key + ".img")
         if fresh(image, lifetime: Self.imageLifetime), let data = try? Data(contentsOf: image) { return data }
         if fresh(cacheDirectory.appendingPathComponent(key + ".none"), lifetime: Self.missingLifetime) { return Data() }
+        if !askedGitHub, fresh(cacheDirectory.appendingPathComponent(key + ".nogithub.none"), lifetime: Self.missingLifetime) {
+            return Data()
+        }
         return nil
     }
 
     private func store(_ data: Data, key: String) {
-        guard let cacheDirectory else { return }
-        let image = cacheDirectory.appendingPathComponent(key + ".img")
-        let none = cacheDirectory.appendingPathComponent(key + ".none")
-        if data.isEmpty {
-            try? Data().write(to: none, options: .atomic)
-        } else {
-            try? data.write(to: image, options: .atomic)
-            try? FileManager.default.removeItem(at: none)
+        guard let cacheDirectory, !data.isEmpty else { return }
+        try? data.write(to: cacheDirectory.appendingPathComponent(key + ".img"), options: .atomic)
+        for suffix in [".none", ".nogithub.none"] {
+            try? FileManager.default.removeItem(at: cacheDirectory.appendingPathComponent(key + suffix))
         }
+    }
+
+    private func storeMissing(key: String, askedGitHub: Bool) {
+        guard let cacheDirectory else { return }
+        try? Data().write(to: cacheDirectory.appendingPathComponent(key + (askedGitHub ? ".none" : ".nogithub.none")), options: .atomic)
     }
 }

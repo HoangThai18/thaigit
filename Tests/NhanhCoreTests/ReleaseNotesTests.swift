@@ -50,4 +50,25 @@ struct ReleaseNotesTests {
         #expect(notes.sections.first?.items == ["a", "b"])
         #expect(notes.sections.first?.date == "hôm nay")
     }
+
+    /// Tiêu đề viết khác một chút vẫn tách đúng số phiên bản / ngày: gạch nối hay gạch ngắn thay gạch dài, số phiên bản
+    /// trong ngoặc vuông (kiểu keep-a-changelog). Gạch nối dính liền số phiên bản ("1.0.0-beta") không bị tách.
+    @Test func headingVariants() {
+        let notes = ReleaseNotes.parse("""
+        ## 1.2.0 - 2026-11-01
+        - gạch nối
+        ## [1.1.0] — 2026-10-20
+        - ngoặc vuông
+        ## 1.0.5 – 2026-10-10
+        - gạch ngắn
+        ## 1.0.0-beta
+        - bản thử
+        """)
+        #expect(notes.sections.map(\.title) == ["1.2.0", "1.1.0", "1.0.5", "1.0.0-beta"])
+        #expect(notes.sections.map(\.date) == ["2026-11-01", "2026-10-20", "2026-10-10", nil])
+        #expect(notes.sections.prefix(3).allSatisfy { !$0.isUnreleased })
+        // Đánh dấu "bản đang dùng" theo AppVersion: "1.1" là "1.1.0".
+        #expect(notes.sections[1].isVersion("1.1") && notes.sections[1].isVersion("1.1.0") && notes.sections[1].isVersion("v1.1"))
+        #expect(!notes.sections[1].isVersion("1.1.1") && !notes.sections[1].isVersion("Chưa phát hành"))
+    }
 }

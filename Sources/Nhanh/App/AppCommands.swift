@@ -1,20 +1,19 @@
 import NhanhCore
 import SwiftUI
 
-/// Hành động của một cửa sổ (tab) cho thanh menu: mở repo, clone, tạo repo.
+/// Hành động của một cửa sổ cho thanh menu: mở repo (vào tab), clone, tạo repo.
 @Observable
 final class WindowActions {
     var openPath: (String) -> Void = { _ in }
     var showClone: () -> Void = {}
     var showInit: () -> Void = {}
-    /// Đóng repo của tab này, quay về màn hình chọn repository (tab vẫn giữ).
-    var closeRepository: () -> Void = {}
 }
 
 struct AppCommands: Commands {
     let appState: AppState
     @FocusedValue(RepoModel.self) private var model
     @FocusedValue(WindowActions.self) private var windowActions
+    @FocusedValue(TabsModel.self) private var tabs
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
     private let github = GitHubAccountManager.shared
@@ -24,7 +23,9 @@ struct AppCommands: Commands {
             Button("Kiểm tra cập nhật…") {
                 Task { await AppUpdater.shared.check(userInitiated: true) }
             }
-            Button("Có gì mới…") { openWindow(id: "repo", value: SpecialTab.releaseNotes) }
+            Button("Có gì mới…") {
+                if let tabs { tabs.openReleaseNotes() } else { openWindow(id: "main") }
+            }
         }
 
         CommandGroup(after: .appSettings) {
@@ -36,8 +37,12 @@ struct AppCommands: Commands {
         }
 
         CommandGroup(replacing: .newItem) {
-            Button("Tab mới") { openWindow(id: "repo") }
-                .keyboardShortcut("t")
+            Button("Tab mới") {
+                if let tabs { tabs.newTab() } else { openWindow(id: "main") }
+            }
+            .keyboardShortcut("t")
+            Button("Cửa sổ mới") { openWindow(id: "main") }
+                .keyboardShortcut("n")
             Button("Mở repository…") { openRepository() }
                 .keyboardShortcut("o")
             Button("Clone repository…") { windowAction { $0.showClone() } }
@@ -53,8 +58,32 @@ struct AppCommands: Commands {
             }
             .disabled(appState.recentRepositories.isEmpty)
             Divider()
-            Button("Đóng repository") { windowActions?.closeRepository() }
-                .disabled(model == nil)
+            Button("Đóng repository") { if let tabs { tabs.closeRepository(in: tabs.selected) } }
+                .disabled(tabs?.selected.model == nil)
+        }
+
+        CommandGroup(replacing: .saveItem) {
+            Button("Đóng tab") { closeTab() }
+                .keyboardShortcut("w")
+            Button("Đóng cửa sổ") { NSApp.keyWindow?.performClose(nil) }
+                .keyboardShortcut("w", modifiers: [.command, .shift])
+        }
+
+        CommandGroup(before: .windowList) {
+            Button("Tab sau") { tabs?.selectNext(1) }
+                .keyboardShortcut(.tab, modifiers: .control)
+                .disabled((tabs?.tabs.count ?? 0) < 2)
+            Button("Tab trước") { tabs?.selectNext(-1) }
+                .keyboardShortcut(.tab, modifiers: [.control, .shift])
+                .disabled((tabs?.tabs.count ?? 0) < 2)
+            Menu("Chuyển tới tab") {
+                ForEach(1...9, id: \.self) { number in
+                    Button(number == 9 ? "Tab cuối" : "Tab \(number)") { tabs?.select(number: number) }
+                        .keyboardShortcut(KeyEquivalent(Character(String(number))), modifiers: .command)
+                }
+            }
+            .disabled(tabs == nil)
+            Divider()
         }
 
         CommandGroup(after: .sidebar) {
@@ -75,6 +104,16 @@ struct AppCommands: Commands {
                 .keyboardShortcut("p", modifiers: [.command, .shift])
             Button("Merge từ repository khác…") { model?.beginMergeFromRepository() }
                 .disabled(model == nil)
+            Button("Blame file đang mở") {
+                if let model, let file = model.openFile, let sheet = model.blameSheet(for: file) { model.sheet = sheet }
+            }
+            .keyboardShortcut("b", modifiers: [.command, .control])
+            .disabled(model?.openFile.flatMap { model?.blameSheet(for: $0) } == nil)
+            Button("Interactive rebase từ commit đang chọn…") {
+                if let model, let commit = model.selectedCommit { model.beginInteractiveRebase(from: commit) }
+            }
+            .keyboardShortcut("i", modifiers: [.command, .shift])
+            .disabled(!(model.flatMap { model in model.selectedCommit.map(model.canInteractiveRebase) } ?? false))
             Divider()
             Button("Chuyển nhánh…") { model?.sheet = .switchBranch }
                 .keyboardShortcut("b", modifiers: [.command])
@@ -104,11 +143,23 @@ struct AppCommands: Commands {
         }
     }
 
+    /// ⌘W: đóng tab đang chọn. Cửa sổ khác (Cài đặt…) thì đóng cửa sổ đó; đang mở hộp thoại thì bỏ qua.
+    private func closeTab() {
+        guard let key = NSApp.keyWindow else { return }
+        if key.sheetParent != nil || key.attachedSheet != nil { return }
+        // Đang ở Trang chủ (không đóng được) thì ⌘W đóng cửa sổ, như đóng tab cuối của trình duyệt.
+        if let tabs, !(key is NSPanel), tabs.selected.kind != .home {
+            tabs.close(tabs.selectedID)
+        } else {
+            key.performClose(nil)
+        }
+    }
+
     private func windowAction(_ body: (WindowActions) -> Void) {
         if let windowActions {
             body(windowActions)
-        } else {
-            openWindow(id: "repo")
+        } else if TabsModel.liveWindows == 0 {
+            openWindow(id: "main")
         }
     }
 
@@ -121,7 +172,9 @@ struct AppCommands: Commands {
         if let windowActions {
             windowActions.openPath(path)
         } else {
-            openWindow(id: "repo", value: path)
+            // Cửa sổ đang có (không phải cửa sổ đang dùng) sẽ nhận và mở thành tab; chưa có cửa sổ nào thì mở mới.
+            appState.pendingOpenPaths.append(path)
+            if TabsModel.liveWindows == 0 { openWindow(id: "main") }
         }
     }
 }

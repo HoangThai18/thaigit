@@ -22,6 +22,18 @@ REPO="${THAIGIT_REPO:-HoangThai18/thaigit}"
 PLIST=Resources/Info.plist
 plist() { /usr/libexec/PlistBuddy -c "$1" "$PLIST"; }
 
+# CHANGELOG.md (tab "Có gì mới" trong app đọc file này): mục "## Chưa phát hành" sẽ thành "## <phiên bản> — <ngày>".
+# Sau khi đổi phải có ĐÚNG MỘT tiêu đề "## <phiên bản> " — không có (quên ghi nhật ký) hoặc trùng (bản này đã phát hành,
+# hay có hai mục "Chưa phát hành") thì dừng. Kiểm tra TRƯỚC khi tăng phiên bản trong Info.plist để không đụng gì khi sai.
+VERSION_RE="${VERSION//./\\.}"
+changelog_headings() { grep -cE "^## ${VERSION_RE}( |\$)" CHANGELOG.md || true; }
+UNRELEASED="$(grep -c '^## Chưa phát hành' CHANGELOG.md || true)"
+if [ ! -f CHANGELOG.md ] || [ $(( $(changelog_headings) + UNRELEASED )) -ne 1 ]; then
+  echo "CHANGELOG.md phải có đúng một mục cho bản $VERSION (\"## Chưa phát hành\" hoặc \"## $VERSION — <ngày>\");"
+  echo "đang có $(changelog_headings) mục \"## $VERSION\" và ${UNRELEASED:-0} mục \"## Chưa phát hành\". Chưa thay đổi gì."
+  exit 1
+fi
+
 CURRENT="$(plist 'Print :CFBundleShortVersionString')"
 BUILD="$(plist 'Print :CFBundleVersion')"
 if [ "$VERSION" != "$CURRENT" ]; then
@@ -33,9 +45,13 @@ if [ "$VERSION" != "$CURRENT" ]; then
   plist "Set :CFBundleVersion $((BUILD + 1))"
 fi
 
-# Mục "## Chưa phát hành" trong CHANGELOG.md thành "## <phiên bản> — <ngày>" (tab "Có gì mới" trong app đọc file này).
+# Mục "## Chưa phát hành" trong CHANGELOG.md thành "## <phiên bản> — <ngày>" (đã kiểm ở trên: chỉ có một mục).
 if grep -q '^## Chưa phát hành' CHANGELOG.md; then
   sed -i '' "s/^## Chưa phát hành.*/## $VERSION — $(date +%Y-%m-%d)/" CHANGELOG.md
+fi
+if [ "$(changelog_headings)" -ne 1 ]; then
+  echo "CHANGELOG.md sau khi đổi tiêu đề không có đúng một mục \"## $VERSION\" — kiểm tra lại file."
+  exit 1
 fi
 
 # Như build-app.sh: chỉ có Command Line Tools thì dùng SDK macOS 26 để chạy swift script.

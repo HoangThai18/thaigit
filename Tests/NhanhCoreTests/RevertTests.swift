@@ -141,4 +141,44 @@ struct RevertTests {
         #expect(try t.read("c.txt") == "từ main\n")
         #expect(try await t.repo.status().isClean)
     }
+
+    /// "Revert, chưa commit" với commit đã được đảo ngược từ trước: git không stage gì mà vẫn để REVERT_HEAD — nút
+    /// "Stage tất cả & commit" sẽ commit luôn thay đổi đang làm dở với message revert. Phải dừng và không để lại trạng thái.
+    @Test func revertingAlreadyRevertedCommitLeavesNoRevertState() async throws {
+        let (t, sha) = try await makeRepo()
+        defer { t.cleanup() }
+        try await t.repo.revert(sha)
+        let head = try await t.repo.resolveCommit("HEAD")
+        try t.write("dang-lam.txt", "chưa xong\n")
+
+        await #expect(throws: RepositoryError.self) { try await t.repo.revert(sha, commit: false) }
+        #expect(t.repo.operationState() == nil)
+        #expect(!exists(t, gitFile: "REVERT_HEAD"))
+        let status = try await t.repo.status()
+        #expect(status.staged.isEmpty)
+        #expect(status.unstaged == [FileChange(path: "dang-lam.txt", kind: .untracked)])
+        #expect(try t.read("dang-lam.txt") == "chưa xong\n")
+        #expect(try await t.repo.resolveCommit("HEAD") == head)
+    }
+
+    /// Hoàn tất revert có message đã sửa: `revert --continue` luôn dùng `--cleanup=strip` nên dòng bắt đầu bằng "#"
+    /// (#123, #hotfix) bị mất; commit thường (`--cleanup=whitespace`, như nút "Tiếp tục" của app khi ô commit có message)
+    /// giữ nguyên và kết thúc revert.
+    @Test func finishingRevertByCommitKeepsHashLines() async throws {
+        let (t, sha) = try await makeRepo()
+        defer { t.cleanup() }
+        let message = "Revert dòng 2\n\n#123 gây lỗi hiển thị\n\nThis reverts commit \(sha)."
+
+        try await t.repo.revert(sha, commit: false)
+        try t.repo.setPendingCommitMessage(message)
+        try await t.repo.continueOperation(.reverting)
+        #expect(!(try await t.repo.commitMessage("HEAD")).contains("#123"))
+
+        try await t.repo.reset(to: sha, mode: .hard)
+        try await t.repo.revert(sha, commit: false)
+        try await t.repo.commit(message: message, amend: false)
+        #expect(t.repo.operationState() == nil)
+        #expect(try await t.repo.commitMessage("HEAD").contains("#123 gây lỗi hiển thị"))
+        #expect(try t.read("a.txt") == "1\n2\n3\n")
+    }
 }

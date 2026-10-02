@@ -105,8 +105,8 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - Stash kèm lời nhắn, apply, pop, xoá; checkout bị chặn vì có thay đổi thì có nút "Stash rồi checkout".
 
 **Khác**
-- Nhiều repo trong nhiều tab như GitKraken / Chrome: thanh tab luôn hiện, **+** mở tab mới (màn hình chọn repo gần đây), **×** đóng tab, kéo để đổi chỗ hoặc tách ra cửa sổ riêng. *File → Đóng repository* đưa tab về màn hình chọn repo.
-- Tab **Có gì mới** (menu *Thaigit → Có gì mới…*) đọc nhật ký thay đổi; tự mở một lần sau mỗi lần cập nhật.
+- Nhiều repo trong nhiều tab như GitKraken: thanh tab ở hàng trên cùng cạnh 3 nút đỏ/vàng/xanh. Đầu hàng là tab **Trang chủ** (🏠, mở / clone / tạo repo, danh sách repo gần đây), cuối hàng là nút ✨ **Có gì mới**; **+** mở tab mới (màn hình chọn repo gần đây), **×** đóng tab, kéo tab để đổi chỗ, chuột phải để đóng các tab khác. Mỗi tab giữ nguyên repo của nó; mở lại app thì các tab của lần trước được mở lại. *File → Đóng repository* đưa tab về màn hình chọn repo. Hàng công cụ của repo (Fetch, Pull, Push…) nằm ngay dưới thanh tab, cửa sổ hẹp thì chỉ còn biểu tượng.
+- Tab **Có gì mới** (nút ✨ cuối thanh tab, hoặc menu *Thaigit → Có gì mới…*) đọc nhật ký thay đổi; tự mở một lần sau mỗi lần cập nhật.
 - Mở gần đây, clone có tiến trình, tạo repo mới.
 - Tự làm mới khi file đổi bên ngoài (sửa trong editor, commit từ terminal…), tự fetch định kỳ.
 - Mở repo trong Terminal / Finder / VS Code (hoặc Cursor, Zed, Sublime), lịch sử một file, nhật ký lệnh git đã chạy.
@@ -139,10 +139,10 @@ Ghi chú:
 Menu **Thaigit → Đăng nhập GitHub…** (hoặc Cài đặt → Tài khoản): app hiện một mã, bấm **Mở GitHub để xác nhận** (mã đã được sao chép sẵn), dán mã trên github.com rồi bấm *Authorize*. Không cần tự tạo token; Thaigit không bao giờ thấy mật khẩu GitHub.
 
 - Fetch / pull / push / clone tới repo **HTTPS trên github.com** dùng tài khoản GitHub; host khác (GitLab…) và SSH giữ nguyên cách cũ. Hộp Clone liệt kê repo của từng tài khoản, gõ để lọc theo tên.
-- **Nhiều tài khoản** (cá nhân, công ty…): Cài đặt → Tài khoản → *Thêm tài khoản…* (trên trình duyệt, chuyển sang đúng tài khoản GitHub đó trước khi nhập mã). Mỗi lệnh git chọn token theo **owner** trong URL `github.com/<owner>/…`: owner bạn tự gán → owner là chính tài khoản → tổ chức mà tài khoản là thành viên → tài khoản mặc định. Repo bị GitHub từ chối thì thông báo có nút *Dùng tài khoản khác cho &lt;owner&gt;…*.
+- **Nhiều tài khoản** (cá nhân, công ty…): Cài đặt → Tài khoản → *Thêm tài khoản…* (trên trình duyệt, chuyển sang đúng tài khoản GitHub đó trước khi nhập mã). Mỗi lệnh git chọn token theo **owner** trong URL `github.com/<owner>/…`: owner bạn tự gán → owner là chính tài khoản → tổ chức mà tài khoản là thành viên → tài khoản mặc định. URL có username trùng một tài khoản (`https://alice@github.com/…`) thì dùng tài khoản đó. Tài khoản không đọc được token thì owner của nó không mượn token tài khoản khác: lệnh báo lỗi và gợi ý đăng nhập lại đúng tài khoản ấy. Repo bị GitHub từ chối thì thông báo có nút *Dùng tài khoản khác cho &lt;owner&gt;…*.
 - **Tài khoản cho repo này** (menu Repository): gán owner của `origin` cho một tài khoản và — sau khi bạn xác nhận — ghi tên / email commit của tài khoản đó vào config local của repo (mặc định: tên GitHub + email `id+login@users.noreply.github.com`, sửa được trong Cài đặt). Ô commit nhắc khi email đang dùng khác tài khoản của repo.
 - Quyền xin: `repo`, `workflow` (để push được thay đổi trong `.github/workflows`) và `read:org` (biết tài khoản thuộc tổ chức nào).
-- Token mỗi tài khoản nằm riêng trong Keychain (mục `com.phanthai.thaigit.github`, theo login) và chỉ được đưa cho tiến trình git qua biến môi trường khi chạy lệnh mạng, qua script `~/Library/Application Support/Thaigit/github-credential.sh` — không ghi vào cấu hình git, không hiện trong nhật ký lệnh.
+- Token mỗi tài khoản nằm riêng trong Keychain (mục `com.phanthai.thaigit.github`, theo login) — không ghi vào cấu hình git, không hiện trong nhật ký lệnh. Token chỉ được đưa (qua biến môi trường và script `~/Library/Application Support/Thaigit/github-credential.sh`) cho lệnh git thật sự chạm remote `https://github.com/…` — fetch / pull / push tới remote đó, clone hay merge từ URL đó — và chỉ token của tài khoản dùng cho remote ấy; `fetch --all` mang token của đúng các tài khoản ứng với các remote github.com của repo. Lệnh tới remote khác (GitLab, thư mục trên máy, SSH) và mọi lệnh local không có token nào. Trong lúc lệnh đó chạy, hook của chính repo (pre-push…) và các chương trình git gọi ra vẫn thấy token của tài khoản dùng cho remote đó.
 - Xoá một tài khoản chỉ xoá token của tài khoản đó; muốn vô hiệu hẳn token, thu hồi ở [github.com/settings/applications](https://github.com/settings/applications).
 
 Người duy trì — bản build chưa có Client ID thì mục này hiện *Chưa cấu hình*. Tạo OAuth App một lần:
@@ -169,7 +169,9 @@ Script tăng phiên bản trong `Resources/Info.plist`, build, nén `Thaigit-mac
 | --- | --- |
 | ⌘O / ⇧⌘O / ⌥⌘N | Mở / clone / tạo repository |
 | ⌘T / ⌘W | Tab mới / đóng tab |
-| ⌃Tab / ⌃⇧Tab | Sang tab sau / trước |
+| ⌃Tab / ⌃⇧Tab / ⌘1…⌘9 | Sang tab sau / trước / tới tab thứ n (⌘1 là Trang chủ, ⌘9 là tab cuối) |
+| ⌘N / ⇧⌘W | Cửa sổ mới / đóng cửa sổ |
+| ⌘F | Tìm commit |
 | ⌘R | Làm mới |
 | ⌥⌘F / ⇧⌘L / ⇧⌘P | Fetch / Pull / Push |
 | ⌘B | Tìm & chuyển nhánh |
@@ -203,7 +205,7 @@ Bản Windows dùng Ctrl thay cho ⌘.
 
 - **Tự cập nhật** chỉ tải `update.json` và file zip từ GitHub Releases — không gửi thông tin gì về máy hay repo của bạn (GitHub vẫn thấy địa chỉ IP như mọi lượt tải).
 - **Đăng nhập GitHub** (nếu dùng): app nói chuyện thẳng với github.com / api.github.com; token chỉ nằm trong Keychain trên máy bạn, không gửi tới server Thaigit.
-- **Ảnh đại diện trên graph**: để tìm ảnh, app gửi mã băm SHA-256 của email người commit tới Gravatar, và với repo nằm trên GitHub thì hỏi API GitHub "tài khoản nào đã commit bằng email này" (GitHub vốn đã có các commit đó). Ảnh được cache trên máy 7 ngày. Tắt bằng chuột phải lên tiêu đề cột graph → bỏ chọn *Ảnh đại diện thật*: khi đó app không gửi gì.
+- **Ảnh đại diện trên graph**: để tìm ảnh, app gửi mã băm SHA-256 của email người commit tới Gravatar, và với repo nằm trên GitHub thì hỏi API GitHub "tài khoản nào đã commit bằng email này" (GitHub vốn đã có các commit đó). Ảnh được cache trên máy 7 ngày. Tắt trong Cài đặt → Chung → *Ảnh đại diện thật*, hoặc chuột phải lên tiêu đề cột graph → bỏ chọn *Ảnh đại diện thật*: khi đó app dừng ngay hàng đợi và không gửi gì nữa.
 - **AI** (sắp có) chỉ chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu. App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file nhị phân) tới server Thaigit, nơi model Hermes chạy ngay trên máy chủ của dự án — không gửi cho bên thứ ba, không lưu nội dung code hay message.
 - **Thống kê** (sắp có) chỉ gửi khi bạn đồng ý: mã cài đặt ngẫu nhiên, phiên bản app, hệ điều hành. Không gửi tên repo, đường dẫn, code hay email.
 

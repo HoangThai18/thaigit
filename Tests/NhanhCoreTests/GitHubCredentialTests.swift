@@ -107,57 +107,52 @@ struct GitHubCredentialTests {
 
     // MARK: - Tham số / biến môi trường cho git
 
-    @Test func addsHelperOnlyToNetworkCommandsWhenLoggedIn() {
+    @Test func addsHelperOnlyForGitHubURLsOfTheCommand() {
         let set = Self.credentialSet(helperPath: "/Users/thai/Library/Application Support/Thaigit/github-credential.sh")
         let expectedArguments = [
             "-c", "credential.https://github.com.helper=",
             "-c", "credential.https://github.com.helper=!'/Users/thai/Library/Application Support/Thaigit/github-credential.sh'",
             "-c", "credential.https://github.com.useHttpPath=true",
         ]
-        let expectedEnvironment = [
+        // Một remote của tổ chức Cong-Ty-ABC: chỉ token tài khoản công ty; owner lạ (repo đổi owner) dùng luôn tài khoản đó.
+        let company = GitCredentialInjection.additions(forURLs: ["https://github.com/Cong-Ty-ABC/du-an.git"], credentials: set)
+        #expect(company.arguments == expectedArguments)
+        #expect(company.environment == [
+            "THAIGIT_GITHUB_ACCOUNTS": "1",
+            "THAIGIT_GITHUB_USER_0": "thai-congty", "THAIGIT_GITHUB_TOKEN_0": "gho_congty222",
+            "THAIGIT_GITHUB_DEFAULT": "0",
+            "THAIGIT_GITHUB_OWNERS": "cong-ty-abc:0",
+        ])
+        // Nhiều remote (fetch --all): đúng các tài khoản của chúng, không có tài khoản mặc định cho owner lạ.
+        let all = GitCredentialInjection.additions(forURLs: [
+            "https://github.com/octocat/a.git", "https://github.com/nhom-mo/b", "https://github.com/cong-ty-abc/c",
+            "https://gitlab.com/cong-ty-abc/d.git",
+        ], credentials: set)
+        #expect(all.arguments == expectedArguments)
+        #expect(all.environment == [
             "THAIGIT_GITHUB_ACCOUNTS": "2",
             "THAIGIT_GITHUB_USER_0": "octocat", "THAIGIT_GITHUB_TOKEN_0": "gho_canhan111",
             "THAIGIT_GITHUB_USER_1": "thai-congty", "THAIGIT_GITHUB_TOKEN_1": "gho_congty222",
-            "THAIGIT_GITHUB_DEFAULT": "0",
-            "THAIGIT_GITHUB_OWNERS": "cong-ty-abc:1,nhom-mo:0,octocat:0,thai-congty:1",
-        ]
-        let network: [[String]] = [
-            ["fetch", "--progress", "--prune", "--all"],
-            ["pull", "--progress", "--no-rebase"],
-            ["push", "--progress", "origin", "refs/heads/main:refs/heads/main"],
-            ["clone", "--progress", "--", "https://github.com/octocat/du-an.git", "/tmp/du-an"],
-            ["ls-remote", "origin"],
-            ["remote", "update"],
-            ["remote", "-v", "update", "origin"],
-            ["submodule", "update", "--init", "--recursive"],
-            ["-c", "http.lowSpeedLimit=1", "fetch", "origin"],
-            ["--no-pager", "push", "origin"],
-        ]
-        for arguments in network {
-            let additions = GitCredentialInjection.additions(for: arguments, credentials: set)
-            #expect(additions.arguments == expectedArguments, "\(arguments)")
-            #expect(additions.environment == expectedEnvironment, "\(arguments)")
-            // Tham số lệnh không chứa token.
-            #expect(!additions.arguments.joined(separator: " ").contains("gho_"))
-        }
+            "THAIGIT_GITHUB_OWNERS": "cong-ty-abc:1,nhom-mo:0,octocat:0",
+        ])
+        // Username trong URL trùng login: script chọn theo username, không cần bảng owner.
+        let byUser = GitCredentialInjection.additions(forURLs: ["https://Thai-CongTy@github.com/octocat/x.git"], credentials: set)
+        #expect(byUser.environment["THAIGIT_GITHUB_USER_0"] == "thai-congty")
+        #expect(byUser.environment["THAIGIT_GITHUB_ACCOUNTS"] == "1")
+        #expect(byUser.environment["THAIGIT_GITHUB_OWNERS"] == "")
+        // Tham số lệnh không chứa token.
+        #expect(![company, all, byUser].contains { $0.arguments.joined(separator: " ").contains("gho_") })
 
-        let local: [[String]] = [
-            ["status", "--porcelain=v2", "--branch"],
-            ["commit", "--cleanup=whitespace", "-F", "-"],
-            ["remote", "add", "origin", "https://github.com/octocat/du-an.git"],
-            ["remote", "-v"],
-            ["submodule", "status"],
-            ["log", "--", "fetch"],
-            ["credential", "fill"],
-            ["-c", "credential.helper=", "credential", "fill"],
-            [],
-            ["-c", "a.b=c"],
+        // Không chạm https://github.com: không thêm gì.
+        let notGitHub: [[String]] = [
+            [], ["https://gitlab.com/octocat/x.git"], ["git@github.com:octocat/x.git"], ["ssh://git@github.com/octocat/x"],
+            ["https://www.github.com/octocat/x"], ["/Users/thai/du-an"], ["."], ["https://github.com.evil.vn/octocat/x"],
         ]
-        for arguments in local {
-            #expect(GitCredentialInjection.additions(for: arguments, credentials: set) == .none, "\(arguments)")
+        for urls in notGitHub {
+            #expect(GitCredentialInjection.additions(forURLs: urls, credentials: set) == .none, "\(urls)")
         }
-        // Chưa đăng nhập: không thêm gì, kể cả lệnh mạng (helper trả lời rỗng làm hỏng helper riêng của người dùng).
-        #expect(GitCredentialInjection.additions(for: ["fetch", "--all"], credentials: nil).isEmpty)
+        // Chưa đăng nhập: không thêm gì (helper trả lời rỗng làm hỏng helper riêng của người dùng).
+        #expect(GitCredentialInjection.additions(forURLs: ["https://github.com/octocat/x"], credentials: nil).isEmpty)
         // Đường dẫn có dấu nháy đơn vẫn được trích dẫn đúng cho shell.
         #expect(GitHubCredentialHelper.configValue(path: "/Users/O'Neil/x.sh") == #"!'/Users/O'\''Neil/x.sh'"#)
     }
@@ -166,18 +161,25 @@ struct GitHubCredentialTests {
         let (state, tokens) = Self.twoAccounts()
         let set = Self.credentialSet()
         #expect(set.defaultLogin == "octocat")
-        #expect(set.credential(forOwner: "Cong-Ty-ABC").login == "thai-congty")
-        #expect(set.credential(forOwner: "octocat").token == "gho_canhan111")
-        #expect(set.credential(forOwner: "nguoi-la").login == "octocat")
-        #expect(set.credential(forOwner: nil).login == "octocat")
+        #expect(set.credential(forOwner: "Cong-Ty-ABC")?.login == "thai-congty")
+        #expect(set.credential(forOwner: "octocat")?.token == "gho_canhan111")
+        #expect(set.credential(forOwner: "nguoi-la")?.login == "octocat")
+        #expect(set.credential(forOwner: nil)?.login == "octocat")
+        #expect(set.credential(forURL: "https://THAI-CONGTY@github.com/octocat/x")?.login == "thai-congty")
+        #expect(set.credential(forURL: "https://nguoi-la@github.com/octocat/x")?.login == "octocat")
 
-        // Tài khoản công ty chưa nạp được token: owner của nó rơi về tài khoản mặc định, không lộ token sai chỗ.
+        // Tài khoản công ty chưa nạp được token: owner của nó KHÔNG dùng token tài khoản khác.
         let partial = try #require(GitHubCredentialSet(helperPath: "/tmp/h", state: state, tokens: ["octocat": tokens["octocat"]!]))
         #expect(partial.accounts.map(\.login) == ["octocat"])
-        #expect(partial.credential(forOwner: "cong-ty-abc").login == "octocat")
-        // Mặc định không có token: tài khoản còn lại làm mặc định.
+        #expect(partial.credential(forOwner: "cong-ty-abc") == nil)
+        #expect(GitCredentialInjection.additions(forURLs: ["https://github.com/cong-ty-abc/x"], credentials: partial).environment == [
+            "THAIGIT_GITHUB_ACCOUNTS": "0", "THAIGIT_GITHUB_OWNERS": "cong-ty-abc:-",
+        ])
+        // Mặc định không có token: không tự nâng tài khoản còn lại lên làm mặc định.
         let onlyCompany = try #require(GitHubCredentialSet(helperPath: "/tmp/h", state: state, tokens: ["thai-congty": "gho_congty222"]))
-        #expect(onlyCompany.defaultLogin == "thai-congty")
+        #expect(onlyCompany.defaultLogin == "octocat")
+        #expect(onlyCompany.credential(forOwner: "nguoi-la") == nil)
+        #expect(onlyCompany.credential(forOwner: "cong-ty-abc")?.login == "thai-congty")
         #expect(GitHubCredentialSet(helperPath: "/tmp/h", state: state, tokens: [:]) == nil)
         #expect(GitHubCredentialSet(helperPath: "/tmp/h", state: GitHubAccountsState(), tokens: tokens) == nil)
     }
@@ -224,12 +226,13 @@ struct GitHubCredentialTests {
         }
 
         let set = Self.credentialSet()
+        let origin = ["https://github.com/cong-ty-abc/du-an.git"]
         store.githubCredentials = set
-        try await runner.run(["fetch", "--progress", "origin"])
+        try await runner.run(["fetch", "--progress", "origin"], credentialURLs: origin)
         try await runner.run(["status", "--porcelain=v2"])
         // Đăng xuất hết: runner đang dùng (repo đang mở) thấy ngay ở lệnh kế tiếp.
         store.githubCredentials = nil
-        try await runner.run(["push", "origin", "main"])
+        try await runner.run(["push", "origin", "main"], credentialURLs: origin)
 
         let calls = try String(contentsOf: log, encoding: .utf8)
             .components(separatedBy: "---\n")
@@ -237,10 +240,10 @@ struct GitHubCredentialTests {
             .map(FakeGitCall.init)
         #expect(calls.count == 3)
         guard calls.count == 3 else { return }
-        let injected = GitCredentialInjection.additions(for: ["fetch"], credentials: set)
+        let injected = GitCredentialInjection.additions(forURLs: origin, credentials: set)
         #expect(calls[0].arguments == GitRunner.globalArguments + injected.arguments + ["fetch", "--progress", "origin"])
-        #expect(calls[0].values["owners"] == "cong-ty-abc:1,nhom-mo:0,octocat:0,thai-congty:1")
-        #expect(calls[0].values["token0"] == "gho_canhan111" && calls[0].values["token1"] == "gho_congty222")
+        #expect(calls[0].values["owners"] == "cong-ty-abc:0")
+        #expect(calls[0].values["token0"] == "gho_congty222" && calls[0].values["token1"] == "")
         #expect(calls[1].arguments == GitRunner.globalArguments + ["status", "--porcelain=v2"])
         #expect(calls[1].values["token0"] == "" && calls[1].values["owners"] == "")
         #expect(calls[2].arguments == GitRunner.globalArguments + ["push", "origin", "main"])
@@ -277,13 +280,21 @@ struct GitHubCredentialTests {
             environment.variables.removeValue(forKey: key)
         }
         let runner = GitRunner(environmentStore: GitEnvironmentStore(environment), workingDirectory: directory)
-        let loggedIn = GitCredentialInjection.additions(for: ["fetch"], credentials: Self.credentialSet(helperPath: helper.path))
+        let credentials = Self.credentialSet(helperPath: helper.path)
+        // Lệnh chạm ba remote: owner octocat, tổ chức Cong-Ty-ABC, owner thai-congty.
+        let loggedIn = GitCredentialInjection.additions(forURLs: [
+            "https://github.com/octocat/du-an.git", "https://github.com/Cong-Ty-ABC/san-pham.git", "https://github.com/thai-congty/cong-cu",
+        ], credentials: credentials)
+        // Lệnh chạm một remote của owner lạ: tài khoản mặc định.
+        let stranger = GitCredentialInjection.additions(forURLs: ["https://github.com/nguoi-la/repo.git"], credentials: credentials)
 
         func fill(_ host: String, path: String?, _ additions: GitCredentialInjection.Additions) async throws -> String? {
             var request = "protocol=https\nhost=\(host)\n"
             if let path { request += "path=\(path)\n" }
+            // Không helper nào trả lời: git (không terminal, không askpass) thoát 128.
             let output = try await runner.run(additions.arguments + ["credential", "fill"], input: Data((request + "\n").utf8),
-                                              environment: additions.environment)
+                                              acceptExitCodes: [0, 128], environment: additions.environment)
+            guard output.exitCode == 0 else { return nil }
             var fields: [String: String] = [:]
             for line in output.stdoutString.split(separator: "\n") {
                 let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
@@ -296,9 +307,12 @@ struct GitHubCredentialTests {
         #expect(try await fill("github.com", path: "octocat/du-an.git", loggedIn) == "octocat:gho_canhan111")
         #expect(try await fill("github.com", path: "Cong-Ty-ABC/san-pham.git", loggedIn) == "thai-congty:gho_congty222")
         #expect(try await fill("github.com", path: "thai-congty/cong-cu", loggedIn) == "thai-congty:gho_congty222")
-        // Owner lạ (hoặc không có path): tài khoản mặc định.
-        #expect(try await fill("github.com", path: "nguoi-la/repo.git", loggedIn) == "octocat:gho_canhan111")
-        #expect(try await fill("github.com", path: nil, loggedIn) == "octocat:gho_canhan111")
+        // Owner ngoài các remote của lệnh dùng nhiều tài khoản: không đoán, không trả lời.
+        #expect(try await fill("github.com", path: "nguoi-la/repo.git", loggedIn) == nil)
+        #expect(try await fill("github.com", path: nil, loggedIn) == nil)
+        // Owner lạ của chính remote: tài khoản mặc định; lệnh chỉ dùng một tài khoản thì owner khác (chuyển hướng) cũng vậy.
+        #expect(try await fill("github.com", path: "nguoi-la/repo.git", stranger) == "octocat:gho_canhan111")
+        #expect(try await fill("github.com", path: nil, stranger) == "octocat:gho_canhan111")
         // Host khác: helper riêng của người dùng.
         #expect(try await fill("gitlab.com", path: "Cong-Ty-ABC/x.git", loggedIn) == "nguoi-dung:helper-rieng")
         // Chưa đăng nhập: github.com vẫn dùng helper riêng như trước.
@@ -388,15 +402,15 @@ struct GitHubCredentialTests {
         #expect(tokens.reads == 2)
         #expect(provider.credentialSet(helperPath: "/tmp/h") == Self.credentialSet(helperPath: "/tmp/h"))
 
-        // Gọi đồng thời từ nhiều luồng (như tải ảnh đại diện): luôn cùng kết quả, không đọc lại kho token.
-        let results = await withTaskGroup(of: String?.self) { group in
-            for index in 0..<64 {
-                group.addTask { provider.token(forOwner: index.isMultiple(of: 2) ? "cong-ty-abc" : "octocat") }
-            }
-            var collected: [String?] = []
-            for await token in group { collected.append(token) }
-            return collected
+        // Gọi đồng thời từ nhiều luồng (như tải ảnh đại diện): luôn cùng kết quả, không đọc lại kho token. Dùng luồng GCD
+        // thật thay vì 64 task con cùng chờ một NSLock trên pool cooperative (ít luồng trên máy CI).
+        let collected = LockedBox([String?]())
+        DispatchQueue.concurrentPerform(iterations: 64) { index in
+            let token = provider.token(forOwner: index.isMultiple(of: 2) ? "cong-ty-abc" : "octocat")
+            collected.withValue { $0.append(token) }
         }
+        let results = collected.current
+        #expect(results.count == 64)
         #expect(results.filter { $0 == "gho_congty222" }.count == 32)
         #expect(results.filter { $0 == "gho_canhan111" }.count == 32)
         #expect(tokens.reads == 2)

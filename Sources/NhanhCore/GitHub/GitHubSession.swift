@@ -109,10 +109,14 @@ public struct GitHubAccountStore: Sendable {
     }
 
     /// Thêm (hoặc đăng nhập lại) một tài khoản: lưu token của tài khoản đó — không đụng token của tài khoản khác.
+    /// Login trên GitHub đã đổi (cùng id, khác hoa/thường hoặc tên mới): xoá token cất theo login cũ để không để lại
+    /// mục Keychain mồ côi — xoá TRƯỚC khi lưu vì Keychain có thể so tên tài khoản không phân biệt hoa thường.
     @discardableResult
     public func addAccount(_ account: GitHubAccount, token: String, organizations: [String]?,
                            to state: GitHubAccountsState) throws -> GitHubAccountsState {
         guard GitHubCredential(login: account.login, token: token) != nil else { throw GitHubError.invalidResponse }
+        let previousLogin = state.profiles.first { $0.account.id == account.id }?.login ?? state.profile(login: account.login)?.login
+        if let previousLogin, previousLogin != account.login { try? tokens.deleteToken(account: previousLogin) }
         try tokens.saveToken(token, account: account.login)
         var updated = state
         updated.upsert(account, organizations: organizations)
@@ -138,15 +142,21 @@ public struct GitHubAccountStore: Sendable {
 }
 
 /// Tài khoản + token GitHub dùng chung giữa các luồng: lệnh git (qua `GitEnvironmentStore`) và API (ảnh đại diện…)
-/// chọn token theo owner bằng cùng một bảng (`GitHubCredentialSet`). Token chưa nạp thì đọc Keychain khi cần — giữ khoá
-/// trong lúc đọc để không hỏi Keychain trùng lặp từ nhiều luồng.
+/// chọn token theo owner bằng cùng một bảng (`GitHubCredentialSet`, dựng một lần rồi giữ tới khi danh sách tài khoản /
+/// token đổi). Token chưa nạp thì đọc Keychain khi cần — NGOÀI khoá chính (Keychain có thể chờ người dùng bấm "Cho
+/// phép"), chỉ một luồng đọc một lúc để không hỏi trùng lặp.
 public final class GitHubTokenProvider: @unchecked Sendable {
     private let lock = NSLock()
+    /// Chỉ một luồng đọc kho token một lúc. Không bao giờ giữ `lock` trong lúc đọc.
+    private let loadLock = NSLock()
     private let tokenStore: any GitHubTokenStore
     private var state: GitHubAccountsState
     private var tokens: [String: String] = [:]
     /// Login đã đọc Keychain mà không có token (hoặc lỗi) — không đọc lại liên tục.
     private var unavailable: Set<String> = []
+    /// Bảng đã dựng (`isCacheValid`): dựng bảng owner tốn vài chục ms khi tài khoản thuộc hàng trăm tổ chức.
+    private var cachedSet: GitHubCredentialSet?
+    private var isCacheValid = false
 
     public init(state: GitHubAccountsState = GitHubAccountsState(), tokenStore: any GitHubTokenStore) {
         self.state = state
@@ -161,6 +171,7 @@ public final class GitHubTokenProvider: @unchecked Sendable {
         let logins = Set(newState.profiles.map(\.login))
         tokens = tokens.filter { logins.contains($0.key) }
         unavailable.formIntersection(logins)
+        isCacheValid = false
     }
 
     /// Token vừa nhận khi đăng nhập (nil: quên token của tài khoản).
@@ -169,14 +180,13 @@ public final class GitHubTokenProvider: @unchecked Sendable {
         defer { lock.unlock() }
         tokens[login] = token
         if token == nil { unavailable.insert(login) } else { unavailable.remove(login) }
+        isCacheValid = false
     }
 
     /// Nạp token của mọi tài khoản chưa nạp (gọi ở luồng nền lúc mở app). Trả về lỗi Keychain theo login.
     @discardableResult
     public func loadTokens() -> [String: any Error] {
-        lock.lock()
-        defer { lock.unlock() }
-        return loadMissingLocked()
+        loadMissing()
     }
 
     public func hasToken(for login: String) -> Bool {
@@ -187,41 +197,67 @@ public final class GitHubTokenProvider: @unchecked Sendable {
 
     /// Token của đúng tài khoản `login` (nạp từ Keychain nếu chưa nạp). Gọi được từ mọi luồng.
     public func token(login: String) -> String? {
+        loadMissing()
         lock.lock()
         defer { lock.unlock() }
-        loadMissingLocked()
         return tokens[login]
     }
 
-    /// Token cho owner (người dùng / tổ chức trên github.com) theo đúng bảng mà lệnh git dùng. Gọi được từ mọi luồng.
+    /// Token cho owner (người dùng / tổ chức trên github.com) theo đúng bảng mà lệnh git dùng; nil nếu tài khoản của
+    /// owner chưa có token. Gọi được từ mọi luồng.
     public func token(forOwner owner: String?) -> String? {
+        loadMissing()
         lock.lock()
         defer { lock.unlock() }
-        loadMissingLocked()
-        return GitHubCredentialSet(helperPath: "", state: state, tokens: tokens)?.credential(forOwner: owner).token
+        return credentialSetLocked()?.credential(forOwner: owner)?.token
     }
 
     /// Bảng cho credential helper của lệnh git (chỉ gồm tài khoản đã nạp token). nil nếu chưa có tài khoản nào.
     public func credentialSet(helperPath: String) -> GitHubCredentialSet? {
         lock.lock()
         defer { lock.unlock() }
-        return GitHubCredentialSet(helperPath: helperPath, state: state, tokens: tokens)
+        return credentialSetLocked()?.withHelperPath(helperPath)
     }
 
+    private func credentialSetLocked() -> GitHubCredentialSet? {
+        if !isCacheValid {
+            cachedSet = GitHubCredentialSet(helperPath: "", state: state, tokens: tokens)
+            isCacheValid = true
+        }
+        return cachedSet
+    }
+
+    private func pendingLoginsLocked() -> [String] {
+        state.profiles.map(\.login).filter { tokens[$0] == nil && !unavailable.contains($0) }
+    }
+
+    /// Đọc kho token cho các tài khoản chưa nạp, ngoài `lock`; chỉ khoá lại để ghi kết quả.
     @discardableResult
-    private func loadMissingLocked() -> [String: any Error] {
+    private func loadMissing() -> [String: any Error] {
+        let needsLoading = lock.withLock { !pendingLoginsLocked().isEmpty }
+        guard needsLoading else { return [:] }
+        loadLock.lock()
+        defer { loadLock.unlock() }
+        // Luồng khác có thể vừa nạp xong trong lúc chờ.
+        let pending = lock.withLock { pendingLoginsLocked() }
+        var loaded: [String: String] = [:]
         var errors: [String: any Error] = [:]
-        for profile in state.profiles where tokens[profile.login] == nil && !unavailable.contains(profile.login) {
+        for login in pending {
             do {
-                if let token = try tokenStore.readToken(account: profile.login), GitHubCredential(login: profile.login, token: token) != nil {
-                    tokens[profile.login] = token
-                } else {
-                    unavailable.insert(profile.login)
+                if let token = try tokenStore.readToken(account: login), GitHubCredential(login: login, token: token) != nil {
+                    loaded[login] = token
                 }
             } catch {
-                unavailable.insert(profile.login)
-                errors[profile.login] = error
+                errors[login] = error
             }
+        }
+        lock.withLock {
+            // Trong lúc đọc, tài khoản có thể vừa bị xoá hoặc vừa đăng nhập lại (`setToken`): giữ trạng thái mới đó.
+            let logins = Set(state.profiles.map(\.login))
+            for login in pending where logins.contains(login) && tokens[login] == nil && !unavailable.contains(login) {
+                if let token = loaded[login] { tokens[login] = token } else { unavailable.insert(login) }
+            }
+            isCacheValid = false
         }
         return errors
     }

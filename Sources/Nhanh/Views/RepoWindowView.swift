@@ -2,32 +2,36 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Bố cục chính giống GitKraken: sidebar nhánh bên trái, graph ở giữa, panel chi tiết bên phải.
+/// Bố cục chính giống GitKraken: hàng công cụ của repo ở trên (dưới thanh tab), sidebar nhánh bên trái, graph ở giữa,
+/// panel chi tiết bên phải.
 struct RepoWindowView: View {
     @Bindable var model: RepoModel
     @State private var columnVisibility = NavigationSplitViewVisibility.all
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            SidebarView(model: model)
-                .navigationSplitViewColumnWidth(min: 210, ideal: 260, max: 440)
-        } detail: {
-            // Cột nào cũng co được về 0: nội dung cao hơn cửa sổ thì cắt bớt, không được đẩy cả cửa sổ
-            // (NavigationSplitView cao hơn cửa sổ sẽ bị căn giữa → phần trên chui xuống dưới toolbar).
-            CenterArea(model: model)
-                .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
-                .inspector(isPresented: $model.showInspector) {
-                    InspectorPanel(model: model)
-                        .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
-                        .clipped()
-                        .inspectorColumnWidth(min: 300, ideal: 380, max: 640)
-                }
+        VStack(spacing: 0) {
+            RepoActionBar(model: model, columnVisibility: $columnVisibility)
+            Divider()
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                SidebarView(model: model)
+                    .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 440)
+                    // Cửa sổ không có toolbar của macOS (thanh tab tự vẽ ở trên): nút ẩn/hiện sidebar nằm ở hàng công cụ.
+                    .toolbar(removing: .sidebarToggle)
+            } detail: {
+                // Cột nào cũng co được về 0: nội dung cao hơn cửa sổ thì cắt bớt, không được đẩy cả cửa sổ
+                // (NavigationSplitView cao hơn cửa sổ sẽ bị căn giữa → phần trên bị đẩy lên).
+                CenterArea(model: model)
+                    .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+                    .inspector(isPresented: $model.showInspector) {
+                        InspectorPanel(model: model)
+                            .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+                            .clipped()
+                            .inspectorColumnWidth(min: 300, ideal: 380, max: 640)
+                    }
+            }
         }
+        // Tiêu đề cửa sổ (menu Cửa sổ, Mission Control) — thanh tiêu đề đã ẩn.
         .navigationTitle(model.name)
-        .navigationSubtitle(model.branchSubtitle)
-        .toolbar { RepoToolbar(model: model) }
-        .searchable(text: $model.searchText, placement: .toolbar, prompt: "Tìm commit, tác giả, SHA…")
-        .onSubmit(of: .search) { model.selectNextSearchMatch() }
         .sheet(item: $model.sheet) { sheet in
             SheetContent(model: model, sheet: sheet)
         }
@@ -126,17 +130,45 @@ struct InspectorPanel: View {
     }
 }
 
-struct RepoToolbar: ToolbarContent {
+/// Hàng công cụ của repo (dưới thanh tab, như GitKraken): sidebar, nhánh, Fetch / Pull / Push / Branch / Stash / Pop,
+/// ô tìm commit (⌘F) và nút panel chi tiết.
+struct RepoActionBar: View {
     @Bindable var model: RepoModel
+    @Binding var columnVisibility: NavigationSplitViewVisibility
+    @FocusState private var searchFocused: Bool
 
-    var body: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            BranchSwitcher(model: model)
+    var body: some View {
+        // Cửa sổ hẹp: các nút chỉ còn biểu tượng (chú thích vẫn hiện khi rê chuột) thay vì tràn ra ngoài.
+        ViewThatFits(in: .horizontal) {
+            bar(titles: true)
+            bar(titles: false)
         }
-        ToolbarItemGroup(placement: .primaryAction) {
+        .menuStyle(.button)
+        .glassButtonStyle()
+        // Mũi tên của menu (Pull ▾, nhánh ▾) xám như nút thường, không nhuộm màu nhấn.
+        .tint(.secondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private func bar(titles: Bool) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                withAnimation { columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly }
+            } label: {
+                Label("Sidebar", systemImage: "sidebar.left").labelStyle(.iconOnly)
+            }
+            .help("Ẩn/hiện danh sách nhánh")
+
+            BranchSwitcher(model: model)
+                .fixedSize()
+
+            Spacer(minLength: 8)
+
             Button { model.fetch() } label: {
                 Label("Fetch", systemImage: "arrow.triangle.2.circlepath")
-                    .labelStyle(.titleAndIcon)
             }
             .help("Lấy thông tin mới từ mọi remote (⌥⌘F)")
 
@@ -153,34 +185,30 @@ struct RepoToolbar: ToolbarContent {
                 Button("Merge từ repository khác…") { model.beginMergeFromRepository() }
             } label: {
                 Label(model.status.behind > 0 ? "Pull ↓\(model.status.behind)" : "Pull", systemImage: "arrow.down.circle")
-                    .labelStyle(.titleAndIcon)
             } primaryAction: {
                 model.pull()
             }
+            .fixedSize()
             .help("Kéo commit mới từ remote về nhánh hiện tại (⇧⌘L)")
 
             Button { model.push() } label: {
                 Label(model.status.ahead > 0 ? "Push ↑\(model.status.ahead)" : "Push", systemImage: "arrow.up.circle")
-                    .labelStyle(.titleAndIcon)
             }
             .help("Đẩy commit của nhánh hiện tại lên remote (⇧⌘P)")
 
             Button { model.beginCreateBranchAtHead() } label: {
                 Label("Branch", systemImage: "arrow.triangle.branch")
-                    .labelStyle(.titleAndIcon)
             }
             .help("Tạo nhánh mới từ commit hiện tại (⇧⌘B)")
 
             Button { model.quickStash() } label: {
                 Label("Stash", systemImage: "archivebox")
-                    .labelStyle(.titleAndIcon)
             }
             .disabled(model.status.isClean)
             .help("Cất tạm mọi thay đổi chưa commit")
 
             Button { model.popLatestStash() } label: {
                 Label("Pop", systemImage: "archivebox.circle")
-                    .labelStyle(.titleAndIcon)
             }
             .disabled(model.stashes.isEmpty)
             .help("Lấy lại stash mới nhất")
@@ -193,14 +221,53 @@ struct RepoToolbar: ToolbarContent {
                 Button("Nhật ký lệnh git…") { model.sheet = .commandLog }
                 Button("Làm mới") { model.refreshEverything() }
             } label: {
-                Label("Mở", systemImage: "terminal")
+                Label("Mở", systemImage: "terminal").labelStyle(.iconOnly)
             }
+            .fixedSize()
             .help("Mở repository bằng ứng dụng khác")
 
+            Spacer(minLength: 8)
+
+            searchField
+
             Button { model.toggleInspector() } label: {
-                Label("Chi tiết", systemImage: "sidebar.trailing")
+                Label("Chi tiết", systemImage: "sidebar.trailing").labelStyle(.iconOnly)
             }
             .help("Ẩn/hiện panel chi tiết (⌥⌘I)")
+        }
+        .labelStyle(titles ? AnyLabelStyle(.titleAndIcon) : AnyLabelStyle(.iconOnly))
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Tìm commit, tác giả, SHA…", text: $model.searchText)
+                .textFieldStyle(.plain)
+                .focused($searchFocused)
+                .onSubmit { model.selectNextSearchMatch() }
+                .onExitCommand {
+                    model.searchText = ""
+                    searchFocused = false
+                }
+            if !model.searchText.isEmpty {
+                Button { model.searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .frame(minWidth: 150, idealWidth: 230, maxWidth: 230)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.06)))
+        // ⌘F: tới ô tìm commit (nút ẩn chỉ để nhận phím tắt).
+        .background {
+            Button("Tìm commit") { searchFocused = true }
+                .keyboardShortcut("f")
+                .opacity(0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 }
@@ -427,5 +494,18 @@ struct MenuSpecContent: View {
                 Divider()
             }
         }
+    }
+}
+
+/// Đổi kiểu nhãn theo điều kiện (nhãn đầy đủ hay chỉ biểu tượng).
+struct AnyLabelStyle: LabelStyle {
+    private let make: (Configuration) -> AnyView
+
+    init<S: LabelStyle>(_ style: S) {
+        make = { AnyView(style.makeBody(configuration: $0)) }
+    }
+
+    func makeBody(configuration: Configuration) -> some View {
+        make(configuration)
     }
 }

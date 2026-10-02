@@ -116,11 +116,18 @@ public struct GitHubAccountsState: Codable, Sendable, Equatable {
 
     // MARK: - Thay đổi
 
-    /// Thêm tài khoản, hoặc cập nhật nếu login đã có (giữ danh tính commit người dùng đã sửa). Tài khoản đầu tiên
-    /// thành mặc định. `organizations` nil: giữ danh sách tổ chức cũ.
+    /// Thêm tài khoản, hoặc cập nhật nếu đã có — tìm theo id GitHub trước (login có thể đổi hoa/thường hoặc đổi tên),
+    /// rồi theo login. Giữ danh tính commit người dùng đã sửa; login đổi thì owner đã gán và tài khoản mặc định đi theo
+    /// login mới. Tài khoản đầu tiên thành mặc định. `organizations` nil: giữ danh sách tổ chức cũ.
     public mutating func upsert(_ account: GitHubAccount, organizations: [String]?, at date: Date = Date()) {
-        if let index = profiles.firstIndex(where: { $0.login.caseInsensitiveCompare(account.login) == .orderedSame }) {
+        if let index = profiles.firstIndex(where: { $0.account.id == account.id })
+            ?? profiles.firstIndex(where: { $0.login.caseInsensitiveCompare(account.login) == .orderedSame }) {
+            let oldLogin = profiles[index].login
             profiles[index].account = account
+            if oldLogin != account.login {
+                ownerAssignments = ownerAssignments.mapValues { $0 == oldLogin ? account.login : $0 }
+                if defaultLogin == oldLogin { defaultLogin = account.login }
+            }
             if let organizations {
                 profiles[index].organizations = organizations
                 profiles[index].organizationsUpdatedAt = date
@@ -168,13 +175,15 @@ public struct GitHubAccountsState: Codable, Sendable, Equatable {
         profiles[index].organizationsUpdatedAt = date
     }
 
-    /// Chỉ giữ tài khoản trong `logins` (ví dụ tài khoản đã nạp được token) — dùng để dựng bảng cho lệnh git.
-    public func restricted(to logins: Set<String>) -> GitHubAccountsState {
-        var copy = self
-        copy.profiles = profiles.filter { logins.contains($0.login) }
-        if copy.profile(login: defaultLogin) == nil { copy.defaultLogin = copy.profiles.first?.login }
-        copy.ownerAssignments = ownerAssignments.filter { copy.profile(login: $0.value) != nil }
-        return copy
+    /// Repo chọn trong danh sách repo của tài khoản `login` (hộp Clone): owner đang dùng tài khoản khác (kể cả do quy tắc
+    /// tổ chức / mặc định) thì gán owner cho `login`, để clone — và fetch / push sau này — dùng đúng tài khoản đã liệt kê
+    /// repo đó. Trả về true nếu vừa gán.
+    @discardableResult
+    public mutating func assignOwnerForPickedRepository(owner: String, login: String) -> Bool {
+        guard let picked = profile(login: login), let current = resolve(owner: owner),
+              current.profile.login != picked.login else { return false }
+        assign(owner: owner, to: picked.login)
+        return true
     }
 }
 
@@ -197,6 +206,14 @@ public enum GitHubRemoteURL {
         guard let path, let owner = path.split(separator: "/").first.map(String.init),
               GitHubAccountsState.normalizedOwner(owner) != nil else { return nil }
         return owner
+    }
+
+    /// Username trong URL (`https://alice@github.com/…` → "alice"), nếu có.
+    public static func username(of remote: String) -> String? {
+        guard let user = URLComponents(string: remote.trimmingCharacters(in: .whitespacesAndNewlines))?.user, !user.isEmpty else {
+            return nil
+        }
+        return user
     }
 
     /// Remote dùng HTTPS tới github.com (mới đi qua credential helper của Thaigit; SSH dùng khoá SSH).
