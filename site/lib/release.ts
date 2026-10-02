@@ -56,5 +56,7 @@ export function formatSize(bytes: number): string {
 
 export function formatDate(iso: string): string {
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' });
+  return Number.isNaN(date.getTime())
+    ? ''
+    : date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' });
 }

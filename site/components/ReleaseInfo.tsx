@@ -24,14 +24,24 @@ function useMacRelease(initial: MacRelease | null): MacRelease | null {
 }
 
 /** Nút tải bản macOS: số phiên bản + dung lượng lấy từ GitHub Releases (dựng sẵn lúc build, làm mới khi mở trang). */
-export function DownloadButton({ initial, className = 'btn btn-primary' }: { initial: MacRelease | null; className?: string }) {
+export function DownloadButton({
+  initial,
+  className = 'btn btn-primary',
+}: {
+  initial: MacRelease | null;
+  className?: string;
+}) {
   const release = useMacRelease(initial);
   return (
     <a className={className} href={release ? LINKS.downloadMac : LINKS.releases} data-download="mac">
       <AppleIcon />
       <span className="btn-stack">
         Tải cho macOS
-        <span className="sub">{release ? `Phiên bản ${release.version} · ${formatSize(release.size)}` : 'macOS 14 trở lên · miễn phí'}</span>
+        <span className="sub">
+          {release
+            ? `Phiên bản ${release.version} · ${formatSize(release.size)}`
+            : 'macOS 14 trở lên · miễn phí'}
+        </span>
       </span>
     </a>
   );

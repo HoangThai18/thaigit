@@ -1,7 +1,15 @@
 import { SHOTS, type ShotName } from '@/lib/shots';
 
 /** Ảnh giao diện: WebP 800/1600 px theo bề rộng màn hình, có sẵn kích thước để trang không nhảy khi tải. */
-export function Shot({ name, priority = false, sizes = '(max-width: 980px) 100vw, 680px' }: { name: ShotName; priority?: boolean; sizes?: string }) {
+export function Shot({
+  name,
+  priority = false,
+  sizes = '(max-width: 980px) 100vw, 680px',
+}: {
+  name: ShotName;
+  priority?: boolean;
+  sizes?: string;
+}) {
   const shot = SHOTS[name];
   return (
     <img

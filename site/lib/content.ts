@@ -28,7 +28,11 @@ export const FEATURES: Feature[] = [
     tag: 'Commit sạch',
     title: 'Stage từng dòng, không cần nhớ git add -p',
     text: 'Bấm vào dòng để chọn, Shift+bấm để chọn liên tiếp, rồi Stage dòng hoặc Huỷ dòng. Diff tự xuống dòng và tô sáng đúng phần chữ thay đổi.',
-    points: ['Theo file, theo hunk hoặc từng dòng', 'Commit, amend, ⌘↩ để commit nhanh', 'Giữ nguyên byte: CRLF, file không phải UTF-8'],
+    points: [
+      'Theo file, theo hunk hoặc từng dòng',
+      'Commit, amend, ⌘↩ để commit nhanh',
+      'Giữ nguyên byte: CRLF, file không phải UTF-8',
+    ],
     shot: 'diff-lines',
   },
   {
@@ -36,7 +40,11 @@ export const FEATURES: Feature[] = [
     tag: 'Xung đột',
     title: 'Giải conflict bằng vài cú bấm',
     text: 'Với mỗi khối xung đột, chọn giữ bản hiện tại, bản kia hoặc cả hai; xem trước rồi “Lưu & đánh dấu đã giải quyết”. Banner luôn cho biết đang merge, rebase hay cherry-pick.',
-    points: ['Nút Tiếp tục / Bỏ qua / Huỷ ngay trên banner', 'Mở bằng trình soạn thảo quen thuộc khi cần', 'Chọn nhanh “Dùng toàn bộ Current / Incoming”'],
+    points: [
+      'Nút Tiếp tục / Bỏ qua / Huỷ ngay trên banner',
+      'Mở bằng trình soạn thảo quen thuộc khi cần',
+      'Chọn nhanh “Dùng toàn bộ Current / Incoming”',
+    ],
     shot: 'conflict',
   },
   {
@@ -44,7 +52,11 @@ export const FEATURES: Feature[] = [
     tag: '⌘B',
     title: 'Tìm & chuyển nhánh trong một giây',
     text: 'Nhấn ⌘B, gõ vài chữ, ↑↓ để chọn, Enter để checkout. Đang có thay đổi chưa commit? Thaigit đề xuất “Stash rồi checkout”.',
-    points: ['15 nhánh dùng gần đây ngay trên thanh công cụ', 'Nhấp đúp nhánh ở sidebar để checkout', 'Đặt upstream, đổi tên, xoá nhánh bằng menu chuột phải'],
+    points: [
+      '15 nhánh dùng gần đây ngay trên thanh công cụ',
+      'Nhấp đúp nhánh ở sidebar để checkout',
+      'Đặt upstream, đổi tên, xoá nhánh bằng menu chuột phải',
+    ],
     shot: 'switch',
   },
   {
@@ -52,7 +64,11 @@ export const FEATURES: Feature[] = [
     tag: 'Nhanh',
     title: 'Repo lớn vẫn mượt',
     text: 'Repo thử 30.000 commit, gần 1.100 nhánh và tag: graph hiện trong khoảng 1 giây, tải thêm khi cuộn, nhánh gom theo thư mục ở sidebar.',
-    points: ['Tự làm mới khi file đổi bên ngoài', 'Tự fetch định kỳ, không làm phiền', 'Tìm commit theo nội dung, tác giả, SHA'],
+    points: [
+      'Tự làm mới khi file đổi bên ngoài',
+      'Tự fetch định kỳ, không làm phiền',
+      'Tìm commit theo nội dung, tác giả, SHA',
+    ],
     shot: 'large',
   },
 ];
@@ -91,7 +107,7 @@ export const SMALL_FEATURES: SmallFeature[] = [
   },
   {
     title: 'An toàn khi mở repo lạ',
-    text: 'Không chạy lệnh do repo tự cài trong cấu hình khi bạn chỉ mở để xem.',
+    text: 'Không chạy lệnh core.fsmonitor hay textconv mà repo tự đặt trong cấu hình.',
     icon: 'shield',
     colors: ['#21b8cf', '#0b8fa5'],
   },
@@ -111,7 +127,9 @@ export interface FaqItem {
 export const FAQ: FaqItem[] = [
   {
     q: 'Thaigit có miễn phí không?',
-    a: ['Có. Thaigit miễn phí, không quảng cáo, không cần tài khoản, không giới hạn repo riêng tư. Mã nguồn công khai trên GitHub.'],
+    a: [
+      'Có. Thaigit miễn phí, không quảng cáo, không cần tài khoản, không giới hạn repo riêng tư. Mã nguồn công khai trên GitHub.',
+    ],
   },
   {
     q: 'Thaigit khác GitKraken hay SourceTree ở điểm nào?',
@@ -153,6 +171,8 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: 'Tôi cần cài gì thêm không?',
-    a: ['Chỉ cần git. Trên macOS, git có sẵn khi cài Command Line Tools: chạy xcode-select --install trong Terminal.'],
+    a: [
+      'Chỉ cần git. Trên macOS, git có sẵn khi cài Command Line Tools: chạy xcode-select --install trong Terminal.',
+    ],
   },
 ];

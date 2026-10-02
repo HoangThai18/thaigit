@@ -29,7 +29,10 @@ const ICONS: Record<SmallFeature['icon'], () => React.ReactElement> = {
 
 export default async function HomePage() {
   // Lúc build: số phiên bản mới nhất có sẵn trong HTML (tốt cho SEO); trong trình duyệt nút tải tự làm mới.
-  const [release, changelog] = await Promise.all([fetchMacRelease({ cache: 'force-cache' }), readChangelog(3)]);
+  const [release, changelog] = await Promise.all([
+    fetchMacRelease({ cache: 'force-cache' }),
+    readChangelog(3),
+  ]);
 
   const structuredData = [
     {
@@ -61,7 +64,10 @@ export default async function HomePage() {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
 
       {/* Hero */}
       <section className="hero container">
@@ -75,8 +81,8 @@ export default async function HomePage() {
           <span className="gradient-text">Miễn phí, nhẹ, dễ dùng.</span>
         </h1>
         <p className="lead">
-          Thaigit giúp bạn làm việc với Git bằng chuột: graph lịch sử nhiều màu, kéo nhánh thả lên nhánh để merge, stage từng
-          dòng, giải conflict trong vài cú bấm — không cần nhớ lệnh.
+          Thaigit giúp bạn làm việc với Git bằng chuột: graph lịch sử nhiều màu, kéo nhánh thả lên nhánh để
+          merge, stage từng dòng, giải conflict trong vài cú bấm — không cần nhớ lệnh.
         </p>
         <div className="cta">
           <DownloadButton initial={release} />
@@ -129,11 +135,18 @@ export default async function HomePage() {
         <div className="section-head">
           <span className="kicker">Tính năng</span>
           <h2>Mọi việc với Git, gọn trong một cửa sổ</h2>
-          <p>Thaigit gọi thẳng git trên máy bạn nên kết quả giống hệt dùng terminal — chỉ dễ nhìn và dễ bấm hơn.</p>
+          <p>
+            Thaigit gọi thẳng git trên máy bạn nên kết quả giống hệt dùng terminal — chỉ dễ nhìn và dễ bấm
+            hơn.
+          </p>
         </div>
 
         {FEATURES.map((feature, index) => (
-          <article key={feature.id} id={feature.id} className={`feature reveal${index % 2 === 1 ? ' reverse' : ''}`}>
+          <article
+            key={feature.id}
+            id={feature.id}
+            className={`feature reveal${index % 2 === 1 ? ' reverse' : ''}`}
+          >
             <div className="feature-media glass">
               <Shot name={feature.shot} />
             </div>
@@ -153,7 +166,10 @@ export default async function HomePage() {
         <div className="grid">
           {SMALL_FEATURES.map((feature) => (
             <div key={feature.title} className="card glass reveal">
-              <div className="icon" style={{ '--c1': feature.colors[0], '--c2': feature.colors[1] } as React.CSSProperties}>
+              <div
+                className="icon"
+                style={{ '--c1': feature.colors[0], '--c2': feature.colors[1] } as React.CSSProperties}
+              >
                 {ICONS[feature.icon]()}
               </div>
               <h3>{feature.title}</h3>
@@ -196,8 +212,8 @@ export default async function HomePage() {
             <span className="badge">Sắp có</span>
             <h2>AI viết commit message cho bạn</h2>
             <p style={{ color: 'var(--text-2)' }}>
-              Bấm một nút, Thaigit đọc phần thay đổi đã stage và đề xuất message rõ ràng. Model Hermes chạy ngay trên máy chủ của
-              Thaigit.
+              Bấm một nút, Thaigit đọc phần thay đổi đã stage và đề xuất message rõ ràng. Model Hermes chạy
+              ngay trên máy chủ của Thaigit.
             </p>
             <ul className="checks">
               <li>Không cần API key, không tốn phí</li>
@@ -209,7 +225,9 @@ export default async function HomePage() {
           <div className="commit-demo" aria-label="Ví dụ commit message do AI viết">
             <div className="label">Thay đổi đã stage: 3 file · +42 −7</div>
             <div className="message">
-              {'feat(auth): thêm đăng nhập qua API /login\n\n- Kiểm tra dữ liệu rỗng trước khi so khớp\n- Trả 401 khi sai tài khoản hoặc mật khẩu'}
+              {
+                'feat(auth): thêm đăng nhập qua API /login\n\n- Kiểm tra dữ liệu rỗng trước khi so khớp\n- Trả 401 khi sai tài khoản hoặc mật khẩu'
+              }
             </div>
             <span className="spark">
               <SparkIcon /> Viết bằng AI
@@ -236,7 +254,8 @@ export default async function HomePage() {
               <li>Mở file Thaigit-macOS.zip để giải nén.</li>
               <li>Kéo Thaigit.app vào thư mục Applications.</li>
               <li>
-                Lần đầu mở, nếu macOS chặn: Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật → <strong>Vẫn mở</strong>. Hoặc chạy:
+                Lần đầu mở, nếu macOS chặn: Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật →{' '}
+                <strong>Vẫn mở</strong>. Hoặc chạy:
               </li>
             </ol>
             <CopyCode code="xattr -dr com.apple.quarantine /Applications/Thaigit.app" />
@@ -265,10 +284,13 @@ export default async function HomePage() {
             </h3>
             <p className="meta">Cần Xcode hoặc Command Line Tools · chạy được cả trên Mac Intel</p>
             <CopyCode
-              code={'git clone https://github.com/HoangThai18/thaigit.git\ncd thaigit\n./scripts/build-app.sh --install'}
+              code={
+                'git clone https://github.com/HoangThai18/thaigit.git\ncd thaigit\n./scripts/build-app.sh --install'
+              }
             />
             <p className="hash">
-              Lệnh trên build bản release rồi chép vào /Applications. Chi tiết trong <a href={LINKS.github}>README</a>.
+              Lệnh trên build bản release rồi chép vào /Applications. Chi tiết trong{' '}
+              <a href={LINKS.github}>README</a>.
             </p>
           </div>
         </div>
@@ -328,10 +350,11 @@ export default async function HomePage() {
         <div className="english glass">
           <h2 id="in-english">In English</h2>
           <p>
-            Thaigit is a free, GitKraken-style Git GUI with a Liquid Glass look: a colorful commit graph, drag-and-drop to merge,
-            rebase or push, line-by-line staging and a friendly conflict resolver. The native macOS app is available today and
-            updates itself from GitHub Releases. A Windows version (Tauri 2) is in progress, with AI commit messages powered by a
-            self-hosted Hermes model — no API key, no third party. The UI is Vietnamese for now.
+            Thaigit is a free, GitKraken-style Git GUI with a Liquid Glass look: a colorful commit graph,
+            drag-and-drop to merge, rebase or push, line-by-line staging and a friendly conflict resolver. The
+            native macOS app is available today and updates itself from GitHub Releases. A Windows version
+            (Tauri 2) is in progress, with AI commit messages powered by a self-hosted Hermes model — no API
+            key, no third party. The UI is Vietnamese for now.
           </p>
         </div>
       </section>
