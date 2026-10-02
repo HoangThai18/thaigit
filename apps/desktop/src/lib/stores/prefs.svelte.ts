@@ -4,6 +4,7 @@
  */
 import type { LogOrder } from '@thaigit/core';
 import { DEFAULT_WIDTHS, sanitizePreferred, type PreferredWidths } from '../graph/columns.ts';
+import { jsonEqual } from './equality.ts';
 
 export const PREFS_KEY = 'thaigit.prefs.v1';
 
@@ -128,9 +129,18 @@ export class PrefsStore {
     this.value = sanitizePrefs(raw);
   }
 
-  /** Gộp `patch` (kẹp lại cho hợp lệ) rồi ghi xuống kho sau một nhịp (kéo thanh chia đôi gọi liên tục). */
+  /**
+   * Gộp `patch` (kẹp lại cho hợp lệ) rồi ghi xuống kho sau một nhịp (kéo thanh chia đôi gọi liên tục). Chỉ gán khoá THẬT SỰ đổi
+   * (so sánh theo nội dung): gán object con mới cho `sidebarSections`/`columns` mỗi lần sẽ làm mọi giá trị dẫn xuất từ chúng
+   * (cây nhánh, bố cục cột) tính lại dù chỉ đổi `sidebarWidth`.
+   */
   update(patch: Partial<PrefsData>): void {
-    Object.assign(this.value, sanitizePrefs({ ...$state.snapshot(this.value), ...patch }));
+    const current = $state.snapshot(this.value) as PrefsData;
+    const next = sanitizePrefs({ ...current, ...patch });
+    const target = this.value as Record<keyof PrefsData, unknown>;
+    for (const key of Object.keys(next) as (keyof PrefsData)[]) {
+      if (!jsonEqual(current[key], next[key])) target[key] = next[key];
+    }
     this.scheduleSave();
   }
 

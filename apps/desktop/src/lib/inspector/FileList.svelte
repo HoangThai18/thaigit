@@ -1,6 +1,7 @@
 <!-- Danh sách file thay đổi (commit/stash/WIP), ảo hoá để commit hàng nghìn file vẫn mượt. Chỉ-đọc ở 4a. -->
 <script lang="ts">
   import { fileChangeDirectory, fileChangeName, type FileChange } from '@thaigit/core';
+  import { showBidi } from '../format/bidi.ts';
   import VirtualList from '../ui/VirtualList.svelte';
   import ChangeIcon from './ChangeIcon.svelte';
   import { summarizeChanges } from './changes.ts';
@@ -36,11 +37,14 @@
         key={(change) => `${change.kind}:${change.path}`}
       >
         {#snippet row(change: FileChange)}
-          <div class="file" title={change.oldPath ? `${change.oldPath} → ${change.path}` : change.path}>
+          <div
+            class="file"
+            title={showBidi(change.oldPath ? `${change.oldPath} → ${change.path}` : change.path)}
+          >
             <ChangeIcon kind={change.kind} />
-            <span class="name selectable">{fileChangeName(change)}</span>
+            <span class="name selectable"><bdi>{showBidi(fileChangeName(change))}</bdi></span>
             {#if fileChangeDirectory(change) !== ''}
-              <span class="dir selectable"><bdi>{fileChangeDirectory(change)}</bdi></span>
+              <span class="dir selectable"><bdi>{showBidi(fileChangeDirectory(change))}</bdi></span>
             {/if}
           </div>
         {/snippet}

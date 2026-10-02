@@ -3,6 +3,7 @@
 // danh sách lệnh để harness 4a (Rust) đối chiếu: Rust phải chấp nhận đúng các lệnh này.
 
 import { validateGitCommand } from '@thaigit/contracts';
+import vectors from '@thaigit/contracts/git-policy.vectors.json' with { type: 'json' };
 import { describe, expect, it } from 'vitest';
 import { GitRepository, execKindOf } from '../src/git/index.ts';
 import type { Exec, ExecRequest, RepoFs, TypedGit } from '../src/ports/index.ts';
@@ -278,11 +279,29 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     expect(execKindOf('remote', ['get-url', 'origin'])).toBe('read');
     expect(execKindOf('remote', ['prune', 'origin'])).toBe('write');
     expect(execKindOf('remote', ['set-url'])).toBe('write');
+    // Khớp theo TOÀN BỘ hình dạng args: `-v` đứng trước subcommand khác không phải dạng chỉ-đọc, `remote show` hỏi máy chủ.
+    expect(execKindOf('remote', ['--verbose'])).toBe('read');
+    expect(execKindOf('remote', ['-v', 'update'])).toBe('write');
+    expect(execKindOf('remote', ['-v', 'add', 'x', 'https://example.com/x.git'])).toBe('write');
+    expect(execKindOf('remote', ['--verbose', 'prune', 'origin'])).toBe('write');
+    expect(execKindOf('remote', ['show', 'origin'])).toBe('write');
+    expect(execKindOf('remote', [''])).toBe('write');
     expect(execKindOf('log')).toBe('read');
     expect(execKindOf('fetch', ['--all'])).toBe('network');
     expect(execKindOf('commit', ['list'])).toBe('write');
     expect(execKindOf('không-có')).toBe('write');
     expect(execKindOf('__proto__', ['list'])).toBe('write');
+  });
+
+  it('execKindOf khớp mọi ca `kinds` dùng chung với Rust (git-policy.vectors.json)', () => {
+    const { kinds } = vectors as unknown as { kinds: { sub: string; args: string[]; kind: string | null }[] };
+    expect(kinds.length).toBeGreaterThan(30);
+    for (const vector of kinds) {
+      // Lạ → `write` (khoá chặt nhất); còn lại khớp đúng cột `kind` của ca.
+      expect(execKindOf(vector.sub, vector.args), `${vector.sub} ${JSON.stringify(vector.args)}`).toBe(
+        vector.kind ?? 'write',
+      );
+    }
   });
 
   it('stdin và env đúng chỗ: message qua stdin, đường dẫn qua NUL, GIT_OPTIONAL_LOCKS cho status/diff', async () => {

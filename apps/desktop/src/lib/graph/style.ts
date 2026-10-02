@@ -1,3 +1,5 @@
+import { stripBidi } from '../format/bidi.ts';
+
 /** Kích thước graph — giống GraphStyle.swift để hai bản trông như nhau. */
 export const GraphStyle = {
   rowHeight: 30,
@@ -20,7 +22,10 @@ export function graphWidth(lanes: number): number {
 
 /** Chữ cái đầu của tên ("Phan Thái" → "PT", "thai" → "TH") — như GraphStyle.initials. */
 export function initials(name: string): string {
-  const words = name.split(/[ ._-]+/u).filter((word) => word.length > 0);
+  // Ký tự điều khiển bidi (U+202E…) vô hình nên không được thành "chữ cái đầu".
+  const words = stripBidi(name)
+    .split(/[ ._-]+/u)
+    .filter((word) => word.length > 0);
   const first = words[0];
   if (!first) return '?';
   const last = words.length > 1 ? words[words.length - 1] : undefined;

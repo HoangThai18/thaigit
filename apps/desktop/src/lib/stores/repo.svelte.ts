@@ -35,7 +35,7 @@ import { buildRefLabels, type RefLabel } from '../graph/pills.ts';
 import type { RepoPort } from '../platform/host.ts';
 import { vi } from '../strings.vi.ts';
 import { jsonEqual } from './equality.ts';
-import { prefs as globalPrefs, type PrefsStore } from './prefs.svelte.ts';
+import { COMMIT_LIMIT_MAX, prefs as globalPrefs, type PrefsStore } from './prefs.svelte.ts';
 import { toasts as globalToasts, describeError, type ToastAction, type ToastStore } from './toasts.svelte.ts';
 
 // MARK: - Kiểu
@@ -104,6 +104,8 @@ async function settle<T>(promise: Promise<T>): Promise<Settled<T>> {
 
 const NO_LABELS: readonly RefLabel[] = Object.freeze([]);
 const REFRESH_ERROR_TAG = 'refresh-error';
+/** Số thứ tự cửa sổ repo (cùng một repo mở lại là một chủ sở hữu toast khác). */
+let storeSerial = 0;
 
 export function sameSelection(a: RepoSelection, b: RepoSelection): boolean {
   if (a.kind !== b.kind) return false;
@@ -158,6 +160,11 @@ export class RepoStore {
   /** Lỗi nạp lịch sử gần nhất (để graph báo thay vì "chưa có commit"). */
   historyError = $state<string | null>(null);
   commitLimit: number;
+  /**
+   * Lần tải thêm lịch sử gần nhất bị lỗi: dừng mọi lần tải thêm TỰ ĐỘNG (cuộn gần cuối graph) — nếu không, lỗi bền sẽ khiến
+   * giao diện gọi `git log` lặp mãi. Chỉ thao tác của người dùng (`loadMoreHistory(true)`) mới xoá cờ và thử lại.
+   */
+  loadMoreFailed = $state(false);
 
   // --- chọn, chi tiết ---
   selection = $state.raw<RepoSelection>({ kind: 'none' });
@@ -173,6 +180,11 @@ export class RepoStore {
   private refIndex = new Map<string, GitRef>();
   private rawCommits: Commit[] = [];
   private refsFingerprint = '';
+  /** Giới hạn commit TRƯỚC lần tải thêm đang chờ/chạy (khác `null` = đang tải thêm); lỗi thì trả `commitLimit` về đây. */
+  private loadMoreBase: number | null = null;
+  /** Chủ sở hữu mọi toast của store này (gỡ hết khi `dispose`) và tag riêng cho lỗi làm mới (không đè/xoá nhầm repo khác). */
+  private readonly ownerId: string;
+  private readonly refreshErrorTag: string;
   private active = false;
   private disposed = false;
   private unwatch: (() => Promise<void>) | null = null;
@@ -193,6 +205,8 @@ export class RepoStore {
     this.clipboard = options.clipboard ?? ((text) => navigator.clipboard.writeText(text));
     this.detailsDelayMs = options.detailsDelayMs ?? 35;
     this.onUntrusted = options.onUntrusted;
+    this.ownerId = `${port.info.repoId}#${++storeSerial}`;
+    this.refreshErrorTag = `${REFRESH_ERROR_TAG}:${this.ownerId}`;
     this.commitLimit = this.prefs.value.commitLimit;
     this.git = new GitRepository({
       exec: port.exec,
@@ -235,6 +249,8 @@ export class RepoStore {
     this.disposed = true;
     this.active = false;
     this.detailsToken++;
+    // Toast của repo đã đóng mang nút gọi vào store này (Xem lại cấu hình, Tải thêm…): bấm vào sẽ tác động lên repo không còn mở.
+    this.toasts.dismissOwner(this.ownerId);
     this.abort?.abort();
     const stop = this.unwatch;
     this.unwatch = null;
@@ -359,7 +375,7 @@ export class RepoStore {
 
     if (statusResult) {
       if (statusResult.ok) {
-        this.toasts.dismissTag(REFRESH_ERROR_TAG);
+        this.toasts.dismissTag(this.refreshErrorTag);
         if (!jsonEqual(statusResult.value, this.status)) this.status = statusResult.value;
       } else {
         this.reportRefreshFailure(vi.errors.status, statusResult.error);
@@ -432,6 +448,9 @@ export class RepoStore {
   /** Nạp lịch sử + xếp làn rồi dựng graph. `pending`: log đã chạy sẵn song song ở lần nạp đầu. */
   private async loadHistory(pending: Promise<Settled<Uint8Array>> | null): Promise<void> {
     this.isLoadingHistory = true;
+    // Lần nạp này dùng giới hạn đã nới (do `loadMoreHistory`) hay không: `fetchLog` chạy ngay bên dưới nên `commitLimit` lúc này chính là
+    // giá trị nó dùng. Chỉ lần nạp ĐÓ mới được xoá `loadMoreBase` / trả giới hạn về cũ — lần nạp khác đang chạy dở không liên quan.
+    const raisedFrom = this.loadMoreBase;
     try {
       const head = headOid(this.status.head);
       let result = pending ? await pending : await settle(this.fetchLog(head !== null));
@@ -449,7 +468,17 @@ export class RepoStore {
       if (this.disposed) return;
       if (!result.ok) {
         this.historyError = describeError(result.error);
-        this.showError(vi.errors.history, result.error);
+        if (raisedFrom !== null && this.loadMoreBase === raisedFrom) {
+          // Tải thêm hỏng: bỏ giới hạn đã nới (không thì lần sau nới tiếp trên nền hỏng), dừng tải thêm tự động, và cho người
+          // dùng một nút thử lại ngay trên thông báo.
+          this.commitLimit = raisedFrom;
+          this.loadMoreFailed = true;
+          this.reportFailure(vi.errors.history, result.error, {
+            actions: [{ title: vi.graph.loadMore, run: () => this.loadMoreHistory(true) }],
+          });
+        } else {
+          this.reportFailure(vi.errors.history, result.error);
+        }
         return;
       }
       this.historyError = null;
@@ -459,6 +488,7 @@ export class RepoStore {
       this.mayHaveMoreCommits = history.mayHaveMore;
       this.applyGraph(history.commits, history.rows);
     } finally {
+      if (raisedFrom !== null && this.loadMoreBase === raisedFrom) this.loadMoreBase = null;
       this.isLoadingHistory = false;
     }
   }
@@ -473,10 +503,22 @@ export class RepoStore {
     this.applyGraph(history.commits, history.rows);
   }
 
-  /** Tải thêm commit cũ hơn khi cuộn gần cuối graph: nới giới hạn rồi nạp lại lịch sử (như Swift). */
-  loadMoreHistory(): void {
-    if (!this.mayHaveMoreCommits || this.isLoadingHistory || this.disposed) return;
-    this.commitLimit += Math.max(2000, Math.floor(this.commitLimit / 2));
+  /** Còn commit cũ hơn VÀ giới hạn chưa chạm trần (`COMMIT_LIMIT_MAX`): đã chạm trần thì tải thêm cũng vô ích. */
+  get canLoadMore(): boolean {
+    return this.mayHaveMoreCommits && this.commitLimit < COMMIT_LIMIT_MAX;
+  }
+
+  /**
+   * Tải thêm commit cũ hơn: nới giới hạn (kẹp ≤ `COMMIT_LIMIT_MAX`) rồi nạp lại lịch sử (như Swift). Lời gọi TỰ ĐỘNG (cuộn gần
+   * cuối graph) bị bỏ qua khi lần tải thêm trước hỏng (`loadMoreFailed`); `byUser = true` (bấm nút) thì thử lại và xoá cờ.
+   */
+  loadMoreHistory(byUser = false): void {
+    if (this.disposed || !this.canLoadMore || this.isLoadingHistory || this.loadMoreBase !== null) return;
+    if (this.loadMoreFailed && !byUser) return;
+    this.loadMoreFailed = false;
+    const base = this.commitLimit;
+    this.loadMoreBase = base;
+    this.commitLimit = Math.min(COMMIT_LIMIT_MAX, base + Math.max(2000, Math.floor(base / 2)));
     this.isLoadingHistory = true;
     this.requestRefresh(Scope.history);
   }
@@ -520,6 +562,7 @@ export class RepoStore {
     return buildRefLabels(this.refs, this.status.head, {
       showRemotes: this.prefs.value.showRemoteBranches,
       showTags: this.prefs.value.showTags,
+      remoteNames: this.remotes.map((remote) => remote.name),
     });
   }
 
@@ -569,20 +612,24 @@ export class RepoStore {
     }
   }
 
-  /** Chọn commit `sha` và cuộn tới nó; ngoài phần đã tải thì báo kèm nút "Tải thêm". */
-  reveal(sha: string): void {
+  /**
+   * Chọn commit `sha` và cuộn tới nó; trả `true` nếu đã chọn. Commit ngoài phần đã tải thì không chọn gì, báo kèm nút "Tải thêm"
+   * và trả `false` — nơi gọi (sidebar) không được coi như đã chọn.
+   */
+  reveal(sha: string): boolean {
     if (this.rowIndex.has(sha)) {
       this.select({ kind: 'commit', sha }, true);
-      return;
+      return true;
     }
-    const actions: ToastAction[] = this.mayHaveMoreCommits
-      ? [{ title: vi.graph.loadMore, run: () => this.loadMoreHistory() }]
+    const actions: ToastAction[] = this.canLoadMore
+      ? [{ title: vi.graph.loadMore, run: () => this.loadMoreHistory(true) }]
       : [];
-    this.toasts.info(vi.graph.notLoaded(sha.slice(0, 7), this.commitLimit), { actions });
+    this.toast('info', vi.graph.notLoaded(sha.slice(0, 7), this.commitLimit), { actions });
+    return false;
   }
 
-  revealRef(ref: GitRef): void {
-    this.reveal(ref.target);
+  revealRef(ref: GitRef): boolean {
+    return this.reveal(ref.target);
   }
 
   private loadDetails(): void {
@@ -611,7 +658,7 @@ export class RepoStore {
           if (result.ok) this.details = result.value;
           else {
             this.details = null;
-            this.showError(vi.errors.commitDetails, result.error);
+            this.reportFailure(vi.errors.commitDetails, result.error);
           }
           this.isLoadingDetails = false;
         })();
@@ -643,7 +690,7 @@ export class RepoStore {
             this.details = { commit, message: stash.message, files: result.value };
           } else {
             this.details = null;
-            this.showError(vi.errors.stashDetails, result.error);
+            this.reportFailure(vi.errors.stashDetails, result.error);
           }
           this.isLoadingDetails = false;
         })();
@@ -660,34 +707,65 @@ export class RepoStore {
 
   showError(title: string, error: unknown, actions: readonly ToastAction[] = []): void {
     if (this.disposed) return;
-    this.toasts.error(title, error, { actions });
+    this.toasts.error(title, error, { actions, owner: this.ownerId });
   }
 
-  private reportRefreshFailure(title: string, error: unknown): void {
+  /** Toast thường của store này: có chủ sở hữu (gỡ khi đóng repo) và không hiện sau `dispose`. */
+  private toast(
+    style: 'info' | 'success',
+    title: string,
+    options: { actions?: readonly ToastAction[] } = {},
+  ): void {
     if (this.disposed) return;
-    // Thư mục repo bị xoá/đổi tên: một cảnh báo rõ ràng thay vì lỗi git khó hiểu.
+    this.toasts[style](title, { ...options, owner: this.ownerId });
+  }
+
+  /**
+   * Báo lỗi nạp dữ liệu (status/refs/lịch sử/chi tiết) qua MỘT bộ phân loại: lỗi theo mã của lõi (`not-found`, `untrusted`) thành
+   * một cảnh báo rõ ràng chung tag — nên status, refs, lịch sử và chi tiết cùng hỏng một lý do chỉ hiện MỘT thông báo, không kèm
+   * thêm lỗi git thô. Lỗi khác hiện nguyên văn với `title` (kèm `tag` nếu có để lần sau thay lần trước).
+   */
+  private reportFailure(
+    title: string,
+    error: unknown,
+    options: { tag?: string; actions?: readonly ToastAction[] } = {},
+  ): void {
+    if (this.disposed) return;
     const code = (error as { code?: unknown } | null)?.code;
     if (code === 'not-found') {
-      this.toasts.error(vi.errors.repoMissing, this.rootPath, { tag: REFRESH_ERROR_TAG });
+      // Thư mục repo bị xoá/đổi tên: một cảnh báo rõ ràng thay vì lỗi git khó hiểu.
+      this.toasts.error(vi.errors.repoMissing, this.rootPath, {
+        tag: this.refreshErrorTag,
+        owner: this.ownerId,
+      });
       return;
     }
     if (code === 'untrusted') {
       const review = this.onUntrusted;
       this.toasts.warning(vi.errors.repoUntrusted, {
-        tag: REFRESH_ERROR_TAG,
+        tag: this.refreshErrorTag,
+        owner: this.ownerId,
         actions: review ? [{ title: vi.errors.reviewTrust, run: review }] : [],
       });
       return;
     }
-    this.toasts.error(title, error, { tag: REFRESH_ERROR_TAG });
+    this.toasts.error(title, error, {
+      tag: options.tag,
+      actions: options.actions ?? [],
+      owner: this.ownerId,
+    });
+  }
+
+  private reportRefreshFailure(title: string, error: unknown): void {
+    this.reportFailure(title, error, { tag: this.refreshErrorTag });
   }
 
   async copy(text: string, label: string): Promise<void> {
     try {
       await this.clipboard(text);
-      this.toasts.success(vi.inspector.copied(label));
+      this.toast('success', vi.inspector.copied(label));
     } catch (error) {
-      this.toasts.error(vi.inspector.copyFailed, error);
+      this.showError(vi.inspector.copyFailed, error);
     }
   }
 
@@ -717,7 +795,7 @@ export class RepoStore {
         options.onSuccess?.();
       } catch (error) {
         if (error instanceof CancelledError || controller.signal.aborted) {
-          this.toasts.info(vi.errors.cancelled(title));
+          this.toast('info', vi.errors.cancelled(title));
         } else if (!(options.onError?.(error) ?? false)) {
           this.showError(title, error);
         }

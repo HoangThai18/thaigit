@@ -80,17 +80,46 @@ export function refName(ref: Pick<GitRef, 'fullName' | 'kind'>): string {
   return ref.fullName.slice(REF_PREFIX[ref.kind].length);
 }
 
-export function refRemoteName(ref: Pick<GitRef, 'fullName' | 'kind'>): string | null {
+/**
+ * Remote khớp DÀI NHẤT với phần đầu tên ref (`refs/remotes/<remote>/<nhánh>`). Tên remote có thể chứa `/` (`team/a`), nên không
+ * thể suy ra bằng cách cắt ở dấu `/` đầu tiên; khi có cả `team` lẫn `team/a` thì `team/a/main` thuộc `team/a` (git cũng mơ hồ ở
+ * đây — chọn khớp dài nhất để mỗi ref thuộc đúng MỘT remote). Không remote nào khớp → `null`.
+ */
+function matchRemote(name: string, remoteNames: readonly string[]): string | null {
+  let best: string | null = null;
+  for (const candidate of remoteNames) {
+    if (candidate === '' || name.length <= candidate.length + 1 || !name.startsWith(`${candidate}/`))
+      continue;
+    if (best === null || candidate.length > best.length) best = candidate;
+  }
+  return best;
+}
+
+/**
+ * Tên remote của nhánh remote. Truyền `remoteNames` (danh sách remote đã cấu hình) để nhận đúng remote có `/` trong tên; thiếu
+ * hoặc không khớp thì cắt ở dấu `/` đầu tiên.
+ */
+export function refRemoteName(
+  ref: Pick<GitRef, 'fullName' | 'kind'>,
+  remoteNames: readonly string[] = [],
+): string | null {
   if (ref.kind !== 'remoteBranch') return null;
   const name = refName(ref);
+  const known = matchRemote(name, remoteNames);
+  if (known !== null) return known;
   const slash = name.indexOf('/');
   return slash > 0 ? name.slice(0, slash) : name;
 }
 
-/** Với nhánh remote "origin/feature/x" trả về "feature/x". */
-export function refShortBranchName(ref: Pick<GitRef, 'fullName' | 'kind'>): string {
+/** Với nhánh remote "origin/feature/x" trả về "feature/x" (cắt theo remote khớp dài nhất, xem `refRemoteName`). */
+export function refShortBranchName(
+  ref: Pick<GitRef, 'fullName' | 'kind'>,
+  remoteNames: readonly string[] = [],
+): string {
   const name = refName(ref);
   if (ref.kind !== 'remoteBranch') return name;
+  const known = matchRemote(name, remoteNames);
+  if (known !== null) return name.slice(known.length + 1);
   const slash = name.indexOf('/');
   return slash > 0 && slash < name.length - 1 ? name.slice(slash + 1) : name;
 }

@@ -2,7 +2,7 @@
 // Env và cờ `-c` KHÔNG viết ở đây: adapter (Rust trong app, Node trong test) áp từ `git-policy.json`.
 
 import {
-  gitPolicy,
+  effectiveKind,
   type CommandError,
   type EnvProfile,
   type ExecKind,
@@ -102,25 +102,13 @@ export interface RunOutput {
 }
 
 /**
- * Dạng chỉ-đọc của subcommand mà chính sách xếp `write` — khớp `READ_FORMS` trong `src-tauri/src/policy.rs`. Chúng không cần
- * khoá độc quyền theo repo: nếu cứ xin `write` thì mỗi lần làm mới (`stash list`, `remote -v`) phải xếp hàng sau fetch/pull đang
- * chạy lâu và giao diện đứng hình.
- */
-const READ_FORMS: Readonly<Record<string, readonly string[]>> = {
-  stash: ['list', 'show'],
-  remote: ['', '-v', '--verbose', 'get-url', 'show'],
-};
-
-/**
  * Loại thao tác của một lệnh theo `git-policy.json` (nguồn sự thật cho khoá theo repo và quyền huỷ). Truyền `args` để nhận ra
- * dạng chỉ-đọc của subcommand `write` (`stash list`, `remote -v`…); thiếu `args` thì chỉ xét subcommand.
+ * dạng chỉ-đọc của subcommand `write` (`stash list`, `remote -v`…; khớp theo TOÀN BỘ hình dạng args, xem `readForms` trong
+ * chính sách): chúng không cần khoá độc quyền nên mỗi lần làm mới không phải xếp hàng sau fetch/pull đang chạy lâu. Thiếu `args`
+ * thì chỉ xét subcommand; subcommand lạ coi như `write` (khoá chặt nhất).
  */
 export function execKindOf(sub: string, args: readonly string[] = []): ExecKind {
-  const kind = Object.hasOwn(gitPolicy.subcommands, sub) ? gitPolicy.subcommands[sub]?.kind : undefined;
-  if (kind === 'write' && Object.hasOwn(READ_FORMS, sub) && READ_FORMS[sub]?.includes(args[0] ?? '')) {
-    return 'read';
-  }
-  return kind ?? 'write';
+  return effectiveKind(sub, args) ?? 'write';
 }
 
 export class GitRunner {

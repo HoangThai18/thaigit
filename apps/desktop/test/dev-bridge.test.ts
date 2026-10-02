@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gitPolicy } from '@thaigit/contracts';
+import { effectiveKind } from '@thaigit/contracts';
 import { createServer, type ViteDevServer } from 'vite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { thaigitDevBridge, type DevBridgeOptions } from '../dev/bridge-plugin.ts';
@@ -36,7 +36,7 @@ afterEach(async () => {
 
 describe('checkReadOnly (cổng chỉ-đọc theo chính sách)', () => {
   const check = (kind: 'read' | 'write' | 'network', sub: string, ...args: string[]) =>
-    checkReadOnly(gitPolicy, kind, sub, args);
+    checkReadOnly((s, a) => effectiveKind(s, a), kind, sub, args);
 
   it('cho phép lệnh đọc và dạng chỉ-đọc của lệnh "write" (GitRunner yêu cầu kind write cho chúng)', () => {
     expect(check('read', 'log', '-z').ok).toBe(true);
@@ -55,6 +55,10 @@ describe('checkReadOnly (cổng chỉ-đọc theo chính sách)', () => {
       ['stash', ['push']],
       ['remote', ['remove', 'origin']],
       ['remote', ['show', 'origin']],
+      ['remote', ['-v', 'add', 'x', 'https://example.com/x.git']],
+      ['remote', ['--verbose', 'remove', 'origin']],
+      ['remote', ['-v', 'update']],
+      ['remote', ['-v', 'prune', 'origin']],
       ['checkout', ['main']],
       ['reset', ['--hard']],
       ['tag', ['v1']],
@@ -77,6 +81,52 @@ describe('checkReadOnly (cổng chỉ-đọc theo chính sách)', () => {
   it('từ chối diff --no-index (đọc file tuỳ ý trên máy)', () => {
     expect(check('read', 'diff', '--no-index', '--', '/dev/null', '/etc/passwd').ok).toBe(false);
     expect(check('read', 'diff', '--cached', '-M', '--', 'a.txt').ok).toBe(true);
+  });
+
+  it('từ chối đường dẫn tuyệt đối / có ".." cho diff, log, show (diff ngầm thành --no-index)', () => {
+    for (const [sub, args] of [
+      ['diff', ['/etc/hosts', '/dev/null']],
+      ['diff', ['--', '/etc/hosts']],
+      ['diff', ['../x', 'a.txt']],
+      ['diff', ['a/../../x', 'a.txt']],
+      ['diff', ['C:\\Windows\\win.ini', 'a.txt']],
+      ['diff', ['\\\\server\\share\\f', 'a.txt']],
+      ['log', ['--', '/etc/hosts']],
+      ['log', ['-p', '../outside']],
+      ['show', ['/etc/hosts']],
+      ['show', ['HEAD:../../etc/hosts']],
+      ['show', ['HEAD:/etc/hosts']],
+    ] as const) {
+      expect(check('read', sub, ...args).ok, `${sub} ${args.join(' ')}`).toBe(false);
+    }
+    // Revision/đường dẫn trong repo, dải `a..b`, tuỳ chọn có `=` vẫn được.
+    for (const [sub, args] of [
+      ['diff', ['HEAD~1..HEAD', '--', 'src/a.ts']],
+      ['diff', ['main...feature']],
+      ['diff', ['--cached', '--stat', '-M', '-U3']],
+      ['log', ['--format=%H', 'main..feature', '--', 'a/b.txt']],
+      ['log', ['--all', '-n50']],
+      ['show', ['HEAD:src/a.ts']],
+      ['show', ['-s', '--format=%B', 'stash@{0}']],
+    ] as const) {
+      expect(check('read', sub, ...args).ok, `${sub} ${args.join(' ')}`).toBe(true);
+    }
+  });
+
+  it('remote chỉ là đọc với args [], ["-v"], ["--verbose"] hoặc ["get-url", …]', () => {
+    expect(check('write', 'remote').ok).toBe(true);
+    expect(check('write', 'remote', '-v').ok).toBe(true);
+    expect(check('write', 'remote', '--verbose').ok).toBe(true);
+    expect(check('write', 'remote', 'get-url', 'origin').ok).toBe(true);
+    for (const args of [
+      ['-v', 'add', 'x', 'u'],
+      ['--verbose', 'update'],
+      ['-v', 'remove', 'o'],
+      ['show', 'o'],
+      [''],
+    ]) {
+      expect(check('write', 'remote', ...args).ok, args.join(' ')).toBe(false);
+    }
   });
 });
 
@@ -281,6 +331,51 @@ describe('plugin: chạy git chỉ-đọc', () => {
     expect((await failure(output)).message).toContain('--output');
     const noIndex = await bridge.exec('diff', ['--no-index', '--', '/dev/null', '/etc/passwd']);
     expect(noIndex.status).toBe(403);
+  });
+
+  it('cổng chỉ-đọc không bị vượt: `remote -v <lệnh ghi>` và đường dẫn tuyệt đối / `..` cho diff, log, show', async () => {
+    const bridge = await startBridge();
+    const remotesBefore = rawGit(bridge.repo, ['remote', '-v']);
+    const attempts: [string, string[]][] = [
+      // `-v` đứng trước subcommand: git vẫn chạy subcommand đó (ghi cấu hình / gọi máy chủ).
+      ['remote', ['-v', 'add', 'evil', 'https://example.com/x.git']],
+      ['remote', ['--verbose', 'add', 'evil', 'https://example.com/x.git']],
+      ['remote', ['-v', 'remove', 'origin']],
+      ['remote', ['-v', 'update']],
+      ['remote', ['-v', 'prune', 'origin']],
+      ['remote', ['-v', 'set-url', 'origin', 'https://example.com/x.git']],
+      ['remote', ['show', 'origin']],
+      // `diff <đường dẫn ngoài repo> <đường dẫn>` ngầm là `--no-index`: đọc file bất kỳ trên máy.
+      ['diff', ['/etc/hosts', '/dev/null']],
+      ['diff', ['/dev/null', '/etc/hosts']],
+      ['diff', ['--', '/etc/hosts', '/dev/null']],
+      ['diff', ['../../etc/hosts', 'a.txt']],
+      ['diff', ['C:\\Windows\\win.ini', 'a.txt']],
+      ['log', ['--', '/etc/hosts']],
+      ['log', ['-p', '../outside']],
+      ['show', ['HEAD:../../etc/hosts']],
+      ['show', ['/etc/hosts']],
+    ];
+    for (const [sub, args] of attempts) {
+      const response = await bridge.exec(sub, args, 'read');
+      expect(response.status, `${sub} ${args.join(' ')}`).toBe(403);
+      expect((await failure(response)).code).toBe('policy');
+    }
+    expect(rawGit(bridge.repo, ['remote', '-v'])).toBe(remotesBefore);
+
+    // Dạng chỉ-đọc hợp lệ và lệnh bình thường vẫn chạy.
+    for (const [sub, args] of [
+      ['remote', []],
+      ['remote', ['-v']],
+      ['remote', ['--verbose']],
+      ['diff', ['HEAD~0', '--', 'a.txt']],
+      ['diff', ['--cached', '--stat']],
+      ['log', ['--format=%s', 'HEAD~0..HEAD', '--', 'a.txt']],
+      ['show', ['-s', '--format=%s', 'HEAD']],
+    ] as const) {
+      const response = await bridge.exec(sub, [...args], sub === 'remote' ? 'write' : 'read');
+      expect(response.status, `${sub} ${args.join(' ')}`).toBe(200);
+    }
   });
 
   it('git-file: file vắng → 204; ngoài danh sách cho phép → 403', async () => {

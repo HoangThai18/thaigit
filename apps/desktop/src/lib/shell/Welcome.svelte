@@ -39,7 +39,7 @@
       <p class="empty">{vi.welcome.recentEmpty}</p>
     {:else}
       <ul class="recent">
-        {#each recent.slice(0, 8) as repo (repo.id)}
+        {#each recent.slice(0, 8) as repo, index (index)}
           <li>
             <button type="button" class="item" disabled={opening} onclick={() => onrecent(repo)}>
               <span class="glyph"><Icon name="folder" size={18} /></span>

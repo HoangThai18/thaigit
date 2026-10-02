@@ -1,12 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import vectors from '../git-policy.vectors.json' with { type: 'json' };
-import { buildGitArgv, buildGitEnv, gitPolicy, validateGitCommand } from '../src/policy.ts';
+import {
+  buildGitArgv,
+  buildGitEnv,
+  effectiveKind,
+  gitPolicy,
+  matchesReadForm,
+  validateGitCommand,
+  type ExecKind,
+} from '../src/policy.ts';
 
 interface VectorCase {
   sub: string;
   args: string[];
   env?: Record<string, string>;
   reject: string | null;
+}
+
+interface KindCase {
+  sub: string;
+  args: string[];
+  kind: ExecKind | null;
 }
 
 describe('validateGitCommand (ca dùng chung với Rust)', () => {
@@ -17,6 +31,30 @@ describe('validateGitCommand (ca dùng chung với Rust)', () => {
       expect(result?.code ?? null).toBe(vector.reject);
     });
   }
+});
+
+describe('effectiveKind (ca dùng chung với Rust: khớp theo TOÀN BỘ hình dạng args)', () => {
+  for (const vector of (vectors as unknown as { kinds: KindCase[] }).kinds) {
+    it(`${vector.kind ?? 'không có trong chính sách'}: ${vector.sub} ${JSON.stringify(vector.args)}`, () => {
+      expect(effectiveKind(vector.sub, vector.args) ?? null).toBe(vector.kind);
+    });
+  }
+
+  it('dạng chỉ-đọc chỉ áp dụng cho subcommand `write`; thiếu args thì chỉ xét subcommand', () => {
+    expect(effectiveKind('stash')).toBe('write');
+    expect(effectiveKind('remote')).toBe('read');
+    expect(effectiveKind('log')).toBe('read');
+    expect(matchesReadForm(gitPolicy.subcommands.log!, ['list'])).toBe(false);
+    expect(matchesReadForm(gitPolicy.subcommands.remote!, ['get-url', 'a', 'b'])).toBe(true);
+    expect(matchesReadForm(gitPolicy.subcommands.remote!, ['-v', 'x'])).toBe(false);
+  });
+
+  it('mọi ca `read` của subcommand `write` cũng được validator cho phép (khỏi khai báo một dạng mà lệnh bị chặn)', () => {
+    for (const vector of (vectors as unknown as { kinds: KindCase[] }).kinds) {
+      if (vector.kind !== 'read' || gitPolicy.subcommands[vector.sub]?.kind !== 'write') continue;
+      expect(validateGitCommand(vector.sub, vector.args)).toBeNull();
+    }
+  });
 });
 
 describe('buildGitArgv', () => {

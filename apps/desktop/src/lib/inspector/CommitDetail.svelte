@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
   import { commitBody, commitSummary } from '@thaigit/core';
+  import { showBidi } from '../format/bidi.ts';
   import { formatAbsolute, formatRelative } from '../format/time.ts';
   import { vi } from '../strings.vi.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
@@ -34,9 +35,9 @@
 {#if details && commit}
   <div class="detail">
     <div class="top">
-      <h2 class="summary selectable">{summary}</h2>
+      <h2 class="summary selectable"><bdi>{showBidi(summary)}</bdi></h2>
       {#if body}
-        <p class="body selectable" class:full={showFullBody && isLongBody}>{body}</p>
+        <p class="body selectable" class:full={showFullBody && isLongBody}><bdi>{showBidi(body)}</bdi></p>
         {#if isLongBody}
           <button type="button" class="link" onclick={() => (showFullBody = !showFullBody)}>
             {showFullBody ? vi.inspector.collapseBody : vi.inspector.showFullBody}
@@ -47,8 +48,8 @@
       <div class="author">
         <Avatar name={commit.authorName} size={32} />
         <div class="who">
-          <span class="name selectable">{commit.authorName}</span>
-          <span class="email selectable">{commit.authorEmail}</span>
+          <span class="name selectable"><bdi>{showBidi(commit.authorName)}</bdi></span>
+          <span class="email selectable"><bdi>{showBidi(commit.authorEmail)}</bdi></span>
         </div>
         <div class="when">
           <span>{formatAbsolute(commit.authorDate)}</span>
@@ -57,7 +58,11 @@
       </div>
       {#if differentCommitter}
         <p class="committer selectable">
-          {vi.inspector.committedBy(commit.committerName, formatAbsolute(commit.commitDate))}
+          <bdi
+            >{showBidi(
+              vi.inspector.committedBy(commit.committerName, formatAbsolute(commit.commitDate)),
+            )}</bdi
+          >
         </p>
       {/if}
 
@@ -78,7 +83,8 @@
         {#if commit.parents.length > 0}
           <dt>{vi.inspector.parent}</dt>
           <dd>
-            {#each commit.parents as parent (parent)}
+            <!-- Khoá theo vị trí: git cho phép một commit liệt kê cùng một cha hai lần (`hash-object`, repo hỏng). -->
+            {#each commit.parents as parent, index (index)}
               <button
                 type="button"
                 class="sha-link"

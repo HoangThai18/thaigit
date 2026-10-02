@@ -5,6 +5,7 @@
 <script lang="ts">
   import type { GitRef } from '@thaigit/core';
   import type { Snippet } from 'svelte';
+  import { showBidi } from '../format/bidi.ts';
   import { vi } from '../strings.vi.ts';
   import Icon from '../ui/Icon.svelte';
   import BranchTree from './BranchTree.svelte';
@@ -45,7 +46,7 @@
           ><Icon name={open ? 'chevron-down' : 'chevron-right'} size={11} strokeWidth={2.4} /></span
         >
         <span class="sb-icon"><Icon name="folder" size={15} /></span>
-        <span class="sb-title">{node.name}</span>
+        <span class="sb-title"><bdi>{showBidi(node.name)}</bdi></span>
         {#if !open}<span class="sb-count">{node.leafCount}</span>{/if}
       </button>
       {#if open}

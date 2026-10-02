@@ -106,7 +106,13 @@
 
   async function enter(port: RepoPort): Promise<void> {
     if (view.kind === 'repo') await view.store.dispose();
-    const store = new RepoStore(port, { onUntrusted: () => void trust(port) });
+    const store: RepoStore = new RepoStore(port, {
+      // Chỉ tác động khi repo này vẫn là repo đang mở: nút bấm trễ trên toast của repo đã đóng không được hỏi tin tưởng lại rồi
+      // đá văng repo hiện tại (`trust` → `enter` thay luôn cửa sổ).
+      onUntrusted: () => {
+        if (view.kind === 'repo' && view.store === store) void trust(port);
+      },
+    });
     view = { kind: 'repo', store };
     void store.start();
   }

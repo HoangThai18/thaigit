@@ -1,6 +1,7 @@
 <!-- Chi tiết stash (port StashDetailView): lời nhắn, nhánh gốc, thời điểm và file thay đổi. Apply/Pop/Xoá ở bản sau (ghi). -->
 <script lang="ts">
   import { stashBranchName, stashDisplayMessage } from '@thaigit/core';
+  import { showBidi } from '../format/bidi.ts';
   import { formatAbsolute } from '../format/time.ts';
   import { vi } from '../strings.vi.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
@@ -28,11 +29,17 @@
         <h2>{vi.inspector.stash}</h2>
         <code class="selector selectable">{stash.selector}</code>
       </div>
-      <p class="message selectable">{message === '' ? vi.sidebar.stashNoMessage : message}</p>
+      <p class="message selectable">
+        <bdi>{showBidi(message === '' ? vi.sidebar.stashNoMessage : message)}</bdi>
+      </p>
       <p class="meta">
-        {[branch === null ? null : vi.inspector.stashFromBranch(branch), formatAbsolute(stash.date)]
-          .filter((part) => part !== null)
-          .join(' · ')}
+        <bdi
+          >{showBidi(
+            [branch === null ? null : vi.inspector.stashFromBranch(branch), formatAbsolute(stash.date)]
+              .filter((part) => part !== null)
+              .join(' · '),
+          )}</bdi
+        >
       </p>
       <p class="note">{vi.inspector.stashActionsLater}</p>
     </div>

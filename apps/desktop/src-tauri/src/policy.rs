@@ -43,6 +43,21 @@ impl EnvProfile {
     }
 }
 
+/// Dạng chỉ-đọc của một subcommand `write`: khớp khi args BẮT ĐẦU bằng đúng dãy `args` và, trừ khi `rest`, không còn đối số nào
+/// sau đó (`remote -v` là dạng chỉ-đọc, `remote -v update` thì không). Bản port của `ReadForm`/`matchesReadForm` (policy.ts).
+#[derive(Debug, Clone, Deserialize)]
+pub struct ReadForm {
+    pub args: Vec<String>,
+    #[serde(default)]
+    pub rest: bool,
+}
+
+impl ReadForm {
+    pub fn matches(&self, args: &[String]) -> bool {
+        args.len() >= self.args.len() && self.args.iter().zip(args).all(|(want, got)| want == got) && (self.rest || args.len() == self.args.len())
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubcommandRule {
@@ -56,6 +71,11 @@ pub struct SubcommandRule {
     pub typed_second: Vec<String>,
     #[serde(default)]
     pub reject_second: Vec<String>,
+    /// Đối số đầu thuộc danh sách này phải là đối số DUY NHẤT (`remote -v` ok, `remote -v add …` bị chặn).
+    #[serde(default)]
+    pub alone_second: Vec<String>,
+    #[serde(default)]
+    pub read_forms: Vec<ReadForm>,
     pub require_any: Option<Vec<String>>,
     #[serde(default)]
     pub reject_extra_long: Vec<String>,
@@ -194,12 +214,6 @@ impl std::fmt::Display for Violation {
 static URL_SCHEME: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([a-z][a-z0-9+.-]*)::").expect("regex scheme hợp lệ"));
 
-/// Dạng chỉ-đọc của subcommand mà chính sách xếp `write` (`stash list`, `remote -v`…): không cần khoá độc quyền.
-const READ_FORMS: &[(&str, &[&str])] = &[
-    ("stash", &["list", "show"]),
-    ("remote", &["", "-v", "--verbose", "get-url", "show"]),
-];
-
 /// Tuỳ chọn đọc nội dung từ file: chỉ nhận stdin (`-`) để không biến lệnh thành đọc file tuỳ ý trên máy.
 /// Số thứ hai: độ dài ngắn nhất của dạng viết tắt mà git còn coi là duy nhất (`--fil` = `--file`; `--path=` của
 /// `hash-object` là tuỳ chọn khác nên không bị nhầm). 0 = chỉ khớp nguyên tên.
@@ -257,6 +271,10 @@ impl GitPolicy {
                 return Some(Violation::TypedOnly { sub: sub_owned(), detail: format!("{sub} {second}") });
             }
             return Some(Violation::SecondNotAllowed { sub: sub_owned(), detail: second.to_string() });
+        }
+        // `remote -v add …` / `remote -v update`: git nhận `-v` đứng trước subcommand nên chỉ xét đối số đầu là chưa đủ.
+        if args.len() > 1 && rule.alone_second.iter().any(|s| s == second) {
+            return Some(Violation::SecondNotAllowed { sub: sub_owned(), detail: args[..2].join(" ") });
         }
         if let Some(required) = &rule.require_any
             && !args.iter().any(|a| required.iter().any(|r| r == a))
@@ -408,13 +426,13 @@ impl GitPolicy {
         if self.derived_kind(sub, args) != Some(ExecKind::Read) {
             return false;
         }
-        let second = args.first().map(String::as_str).unwrap_or("");
         let listed = match sub {
             "rev-parse" | "rev-list" | "for-each-ref" | "merge-base" | "check-ref-format" | "version" | "config" | "log" | "show"
             | "diff-tree" | "cat-file" | "ls-files" => true,
-            // `remote show` hỏi máy chủ nên không nằm trong đây. Không có `stash`: `stash list -p` sinh diff mà chính sách chỉ
-            // thêm `--no-textconv` cho `stash show`, nên textconv của repo có thể chạy.
-            "remote" => matches!(second, "" | "-v" | "--verbose" | "get-url"),
+            // Chỉ các dạng chỉ-đọc đã khai báo (`remote`, `-v`, `get-url …`) mới tới được đây (`derived_kind` ở trên): `remote show`
+            // hỏi máy chủ, `remote -v update` fetch — đều không phải dạng chỉ-đọc. Không có `stash`: `stash list -p` sinh diff mà
+            // chính sách chỉ thêm `--no-textconv` cho `stash show`, nên textconv của repo có thể chạy.
+            "remote" => true,
             _ => false,
         };
         if !listed {
@@ -436,14 +454,12 @@ impl GitPolicy {
         })
     }
 
-    /// Loại thao tác hiệu lực của lệnh: `read` cho dạng chỉ-đọc của subcommand `write` (xem `READ_FORMS`).
+    /// Loại thao tác hiệu lực của lệnh: `read` cho dạng chỉ-đọc của subcommand `write` (`readForms` trong git-policy.json, khớp
+    /// theo TOÀN BỘ hình dạng args). Bản port của `effectiveKind` (policy.ts).
     pub fn derived_kind(&self, sub: &str, args: &[String]) -> Option<ExecKind> {
         let rule = self.rule(sub)?;
-        if rule.kind == ExecKind::Write {
-            let second = args.first().map(String::as_str).unwrap_or("");
-            if READ_FORMS.iter().any(|(s, forms)| *s == sub && forms.contains(&second)) {
-                return Some(ExecKind::Read);
-            }
+        if rule.kind == ExecKind::Write && rule.read_forms.iter().any(|form| form.matches(args)) {
+            return Some(ExecKind::Read);
         }
         Some(rule.kind)
     }
@@ -664,8 +680,16 @@ mod tests {
     }
 
     #[derive(Deserialize)]
+    struct KindVector {
+        sub: String,
+        args: Vec<String>,
+        kind: Option<String>,
+    }
+
+    #[derive(Deserialize)]
     struct Vectors {
         cases: Vec<Vector>,
+        kinds: Vec<KindVector>,
     }
 
     fn strings(items: &[&str]) -> Vec<String> {
@@ -691,6 +715,30 @@ mod tests {
             }
         }
         assert!(failures.is_empty(), "lệch bản tham chiếu TS:\n{}", failures.join("\n"));
+    }
+
+    #[test]
+    fn kinds_match_reference() {
+        let vectors: Vectors = serde_json::from_str(VECTORS_JSON).unwrap();
+        assert!(vectors.kinds.len() >= 30, "thiếu ca loại thao tác dùng chung");
+        let mut failures = Vec::new();
+        for case in &vectors.kinds {
+            let got = policy().derived_kind(&case.sub, &case.args).map(|kind| format!("{kind:?}").to_lowercase());
+            if got != case.kind {
+                failures.push(format!("{} {:?}: mong {:?}, được {:?}", case.sub, case.args, case.kind, got));
+            }
+        }
+        assert!(failures.is_empty(), "lệch bản tham chiếu TS (effectiveKind):\n{}", failures.join("\n"));
+    }
+
+    #[test]
+    fn every_read_form_of_a_write_subcommand_passes_validation() {
+        let vectors: Vectors = serde_json::from_str(VECTORS_JSON).unwrap();
+        for case in vectors.kinds.iter().filter(|c| c.kind.as_deref() == Some("read")) {
+            if policy().rule(&case.sub).is_some_and(|rule| rule.kind == ExecKind::Write) {
+                assert_eq!(policy().validate(&case.sub, &case.args, &BTreeMap::new()), None, "{} {:?}", case.sub, case.args);
+            }
+        }
     }
 
     #[test]
@@ -864,6 +912,12 @@ mod tests {
         assert!(p.resolve_kind("stash", &strings(&["pop"]), ExecKind::Read).is_err());
         assert_eq!(p.resolve_kind("remote", &strings(&["-v"]), ExecKind::Read), Ok(ExecKind::Read));
         assert!(p.resolve_kind("remote", &strings(&["remove", "x"]), ExecKind::Read).is_err());
+        // `-v` đứng trước một subcommand khác không còn là dạng chỉ-đọc; `remote show` liên lạc máy chủ nên cũng không.
+        assert!(p.resolve_kind("remote", &strings(&["-v", "update"]), ExecKind::Read).is_err());
+        assert!(p.resolve_kind("remote", &strings(&["--verbose", "add", "x", "u"]), ExecKind::Read).is_err());
+        assert!(p.resolve_kind("remote", &strings(&["show", "origin"]), ExecKind::Read).is_err());
+        assert_eq!(p.resolve_kind("remote", &strings(&["show", "origin"]), ExecKind::Write), Ok(ExecKind::Write));
+        assert_eq!(p.resolve_kind("remote", &strings(&["get-url", "origin"]), ExecKind::Read), Ok(ExecKind::Read));
         assert!(p.resolve_kind("nope", &args, ExecKind::Read).is_err());
     }
 
@@ -956,6 +1010,9 @@ mod tests {
             ("push", vec![]),
             ("ls-remote", vec!["origin"]),
             ("remote", vec!["show", "origin"]),
+            ("remote", vec!["-v", "update"]),
+            ("remote", vec!["--verbose", "add", "x", "u"]),
+            ("remote", vec!["-v", "prune", "origin"]),
             ("remote", vec!["prune", "origin"]),
             ("remote", vec!["remove", "origin"]),
             ("no-such-sub", vec![]),

@@ -3,6 +3,7 @@
   chọn. "Mở ở chế độ hạn chế" + nhãn trên thanh công cụ thuộc 4b.
 -->
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { vi } from '../strings.vi.ts';
   import Icon from '../ui/Icon.svelte';
 
@@ -16,6 +17,11 @@
   }
 
   let { name, path, findings, busy, ontrust, oncancel }: Props = $props();
+
+  let cancelButton = $state<HTMLButtonElement>();
+
+  // Hộp thoại chặn mọi thao tác khác: đưa focus vào nút an toàn (Huỷ) để bàn phím/trình đọc màn hình ở trong hộp thoại ngay từ đầu.
+  onMount(() => cancelButton?.focus());
 </script>
 
 <main class="trust" data-tauri-drag-region>
@@ -28,14 +34,17 @@
     {#if findings.length > 0}
       <h2>{vi.trust.findings}</h2>
       <ul class="findings selectable">
-        {#each findings as finding (finding)}
+        <!-- Không khoá theo nội dung: hai dòng giống hệt là chuyện hợp lệ (danh sách tĩnh, giữ nguyên thứ tự). -->
+        {#each findings as finding, index (index)}
           <li>{finding}</li>
         {/each}
       </ul>
     {/if}
 
     <div class="actions">
-      <button type="button" class="secondary" disabled={busy} onclick={oncancel}>{vi.trust.cancel}</button>
+      <button type="button" class="secondary" bind:this={cancelButton} disabled={busy} onclick={oncancel}>
+        {vi.trust.cancel}
+      </button>
       <button type="button" class="primary" disabled={busy} onclick={ontrust}>{vi.trust.trust}</button>
     </div>
   </div>

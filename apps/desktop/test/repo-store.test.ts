@@ -1,8 +1,9 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ExecRequest, ExecResult } from '@thaigit/core';
 import type { RepoPort } from '../src/lib/platform/host.ts';
-import { PrefsStore } from '../src/lib/stores/prefs.svelte.ts';
+import { COMMIT_LIMIT_MAX, PrefsStore } from '../src/lib/stores/prefs.svelte.ts';
 import { RepoStore, Scope, makeFingerprint, sameSelection } from '../src/lib/stores/repo.svelte.ts';
 import { ToastStore } from '../src/lib/stores/toasts.svelte.ts';
 import { fastImportLinear, openTestPort, type TestPort } from './helpers/node-port.ts';
@@ -21,6 +22,21 @@ async function until(condition: () => boolean, what: string, timeoutMs = 8000): 
   }
 }
 
+/** Như `openStore` nhưng dùng chung một `ToastStore` do test cấp (nhiều repo cùng hiện toast). */
+async function openStoreWith(
+  toasts: ToastStore,
+  setup: Parameters<typeof openTestPort>[0],
+  commitLimit?: number,
+): Promise<{ test: TestPort; store: RepoStore }> {
+  const test = await openTestPort(setup);
+  cleanups.push(() => test.cleanup());
+  const prefs = new PrefsStore(null);
+  if (commitLimit !== undefined) prefs.update({ commitLimit });
+  const store = new RepoStore(test.port, { prefs, toasts, detailsDelayMs: 0, clipboard: async () => {} });
+  cleanups.push(() => store.dispose());
+  return { test, store };
+}
+
 async function openStore(
   setup: Parameters<typeof openTestPort>[0],
   options: { commitLimit?: number } = {},
@@ -34,6 +50,21 @@ async function openStore(
   cleanups.push(() => store.dispose());
   return { test, store, toasts, prefs };
 }
+
+/** Bọc `exec` của port để chèn lỗi / ghi lại lệnh (các test lỗi hạ tầng). `inner` chạy lệnh thật. */
+function withExec(
+  port: RepoPort,
+  wrap: (request: ExecRequest, inner: (request: ExecRequest) => Promise<ExecResult>) => Promise<ExecResult>,
+  info: Partial<RepoPort['info']> = {},
+): RepoPort {
+  return {
+    ...port,
+    info: { ...port.info, ...info },
+    exec: { run: (request) => wrap(request, (next) => port.exec.run(next)) },
+  };
+}
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** main: A ← B ← M (merge feature/x) ; feature/x: A ← F ; tag v1.0 trên B ; một stash. */
 function setupBranchy(git: (...args: string[]) => string, root: string): void {
@@ -308,6 +339,218 @@ describe('RepoStore: tải thêm lịch sử', () => {
     expect(toasts.items[0]?.actions.map((action) => action.title)).toEqual(['Tải thêm']);
     toasts.items[0]?.actions[0]?.run();
     await until(() => store.entries.length === 300, 'đã tải thêm');
+  });
+});
+
+describe('RepoStore: tải thêm lịch sử bị lỗi', () => {
+  async function openFlaky(count: number, commitLimit: number) {
+    const test = await openTestPort((git, root) => fastImportLinear(git, root, count));
+    cleanups.push(() => test.cleanup());
+    const flaky = { failLog: false, limits: [] as string[] };
+    const port = withExec(test.port, (request, inner) => {
+      if (request.sub === 'log') {
+        flaky.limits.push(request.args.find((arg) => arg.startsWith('--max-count=')) ?? '(không giới hạn)');
+        if (flaky.failLog) return Promise.reject(new Error('giả lập: git log thất bại'));
+      }
+      return inner(request);
+    });
+    const prefs = new PrefsStore(null);
+    prefs.update({ commitLimit });
+    const toasts = new ToastStore();
+    const store = new RepoStore(port, { prefs, toasts, detailsDelayMs: 0 });
+    cleanups.push(() => store.dispose());
+    await store.start();
+    await until(() => store.hasLoaded && !store.isLoadingHistory, 'nạp xong');
+    return { store, toasts, flaky };
+  }
+
+  it('lỗi: trả commitLimit về cũ, đặt loadMoreFailed và dừng tải thêm tự động; chỉ người dùng mới thử lại được', async () => {
+    const { store, toasts, flaky } = await openFlaky(450, 200);
+    expect(store.entries).toHaveLength(200);
+    flaky.failLog = true;
+    store.loadMoreHistory();
+    await until(() => !store.isLoadingHistory, 'lần tải thêm hỏng xong');
+
+    expect(store.commitLimit).toBe(200);
+    expect(store.loadMoreFailed).toBe(true);
+    expect(store.entries).toHaveLength(200);
+    expect(store.mayHaveMoreCommits).toBe(true);
+    const errors = toasts.items.filter((toast) => toast.style === 'error');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.actions.map((action) => action.title)).toEqual(['Tải thêm']);
+
+    // Tự động (cuộn tới cuối) gọi lại bao nhiêu lần cũng không chạy thêm lệnh git nào.
+    const before = flaky.limits.length;
+    for (let index = 0; index < 20; index++) store.loadMoreHistory();
+    await sleep(60);
+    expect(flaky.limits).toHaveLength(before);
+    expect(store.isLoadingHistory).toBe(false);
+
+    // Người dùng bấm "Tải thêm" trên thông báo: thử lại thật, thành công thì cờ được xoá.
+    flaky.failLog = false;
+    errors[0]?.actions[0]?.run();
+    await until(() => store.entries.length === 450, 'thử lại thành công');
+    expect(store.loadMoreFailed).toBe(false);
+    expect(store.commitLimit).toBe(2200);
+  });
+
+  it('thử lại do người dùng mà vẫn lỗi: giữ nguyên giới hạn cũ, cờ lỗi bật lại', async () => {
+    const { store, flaky } = await openFlaky(450, 200);
+    flaky.failLog = true;
+    store.loadMoreHistory();
+    await until(() => store.loadMoreFailed, 'lỗi lần đầu');
+    store.loadMoreHistory(true);
+    expect(store.isLoadingHistory).toBe(true);
+    await until(() => !store.isLoadingHistory, 'lần thử lại xong');
+    expect(store.loadMoreFailed).toBe(true);
+    expect(store.commitLimit).toBe(200);
+    expect(flaky.limits.filter((limit) => limit === '--max-count=2200')).toHaveLength(2);
+  });
+
+  it('commitLimit không bao giờ vượt COMMIT_LIMIT_MAX (không còn --max-count=Infinity)', async () => {
+    const { store, flaky } = await openFlaky(450, 200);
+    store.commitLimit = COMMIT_LIMIT_MAX - 10;
+    store.mayHaveMoreCommits = true;
+    store.loadMoreHistory();
+    await until(() => !store.isLoadingHistory, 'tải tới trần');
+    expect(store.commitLimit).toBe(COMMIT_LIMIT_MAX);
+    expect(flaky.limits.at(-1)).toBe(`--max-count=${COMMIT_LIMIT_MAX}`);
+
+    // Đã chạm trần: không chạy thêm lệnh nào dù cờ "còn commit" vẫn bật, và không có nút "Tải thêm" vô dụng.
+    const before = flaky.limits.length;
+    store.mayHaveMoreCommits = true;
+    expect(store.canLoadMore).toBe(false);
+    for (let index = 0; index < 10; index++) store.loadMoreHistory(true);
+    await sleep(60);
+    expect(flaky.limits).toHaveLength(before);
+    expect(store.commitLimit).toBe(COMMIT_LIMIT_MAX);
+    expect(Number.isFinite(store.commitLimit)).toBe(true);
+  });
+});
+
+describe('RepoStore: toast của repo đã đóng và lỗi trùng', () => {
+  const untrusted = (): Error => Object.assign(new Error('repo chưa được tin tưởng'), { code: 'untrusted' });
+  const notFound = (): Error => Object.assign(new Error('không thấy thư mục'), { code: 'not-found' });
+
+  async function openWith(
+    toasts: ToastStore,
+    repoId: string,
+    fail: ((request: ExecRequest) => Error | null) | null,
+    onUntrusted?: () => void,
+  ): Promise<RepoStore> {
+    const test = await openTestPort((git, root) => {
+      writeFileSync(join(root, 'a.txt'), 'a\n');
+      git('add', 'a.txt');
+      git('commit', '-qm', 'đầu tiên');
+    });
+    cleanups.push(() => test.cleanup());
+    const port = withExec(
+      test.port,
+      (request, inner) => {
+        const error = fail?.(request) ?? null;
+        return error ? Promise.reject(error) : inner(request);
+      },
+      { repoId },
+    );
+    const store = new RepoStore(port, {
+      prefs: new PrefsStore(null),
+      toasts,
+      detailsDelayMs: 0,
+      onUntrusted,
+    });
+    cleanups.push(() => store.dispose());
+    return store;
+  }
+
+  it('dispose gỡ toast của chính store đó (kể cả nút bấm), không đụng toast của repo khác hay của ứng dụng', async () => {
+    const toasts = new ToastStore();
+    const reviewA = vi.fn();
+    const reviewB = vi.fn();
+    const storeA = await openWith(toasts, 'repo-a', () => untrusted(), reviewA);
+    await storeA.start();
+    await until(() => toasts.items.some((toast) => toast.style === 'warning'), 'cảnh báo của A');
+    const staleToast = toasts.items.find((toast) => toast.style === 'warning')!;
+    const storeB = await openWith(toasts, 'repo-b', () => untrusted(), reviewB);
+    await storeB.start();
+    await until(
+      () => toasts.items.filter((toast) => toast.style === 'warning').length === 2,
+      'cảnh báo của B',
+    );
+    toasts.info('của ứng dụng');
+
+    await storeA.dispose();
+    expect(toasts.items.map((toast) => toast.title)).toEqual([
+      'Cấu hình repo vừa thay đổi — Thaigit tạm dừng chạy lệnh cho tới khi bạn xem lại.',
+      'của ứng dụng',
+    ]);
+    expect(toasts.items.some((toast) => toast.id === staleToast.id)).toBe(false);
+    toasts.items[0]?.actions[0]?.run();
+    expect(reviewB).toHaveBeenCalledOnce();
+    expect(reviewA).not.toHaveBeenCalled();
+  });
+
+  it('toast "Tải thêm" của repo đã đóng cũng bị gỡ; đóng rồi thì store không đẩy thêm toast nào', async () => {
+    const toasts = new ToastStore();
+    const { store } = await openStoreWith(toasts, (git, root) => fastImportLinear(git, root, 300), 200);
+    await store.start();
+    await until(() => store.hasLoaded, 'nạp xong');
+    store.reveal('f'.repeat(40));
+    expect(toasts.items).toHaveLength(1);
+    await store.dispose();
+    expect(toasts.items).toEqual([]);
+    store.reveal('f'.repeat(40));
+    await store.copy('x', 'SHA');
+    expect(toasts.items).toEqual([]);
+  });
+
+  it('lỗi làm mới của hai repo không đè / xoá nhầm nhau (mỗi repo một tag)', async () => {
+    const toasts = new ToastStore();
+    const broken = await openWith(toasts, 'repo-hong', () => untrusted());
+    await broken.start();
+    await until(() => toasts.items.length > 0, 'cảnh báo của repo hỏng');
+    const healthy = await openWith(toasts, 'repo-tot', null);
+    await healthy.start();
+    await until(() => healthy.hasLoaded, 'repo tốt nạp xong');
+    await healthy.refreshAndWait(Scope.status);
+    expect(toasts.items.filter((toast) => toast.style === 'warning')).toHaveLength(1);
+  });
+
+  it('mọi lệnh bị từ chối `untrusted` (status, refs, lịch sử): đúng MỘT cảnh báo, không kèm lỗi git thô', async () => {
+    const toasts = new ToastStore();
+    const store = await openWith(toasts, 'repo-u', () => untrusted(), vi.fn());
+    await store.start();
+    await until(() => store.hasLoaded, 'nạp xong');
+    expect(toasts.items.map((toast) => toast.style)).toEqual(['warning']);
+    expect(store.historyError).toBe('repo chưa được tin tưởng');
+  });
+
+  it('mọi lệnh báo `not-found` (thư mục repo mất): đúng MỘT thông báo "không tìm thấy thư mục"', async () => {
+    const toasts = new ToastStore();
+    const store = await openWith(toasts, 'repo-m', () => notFound());
+    await store.start();
+    await until(() => store.hasLoaded, 'nạp xong');
+    expect(toasts.items.map((toast) => toast.title)).toEqual(['Không tìm thấy thư mục repository']);
+  });
+
+  it('chi tiết commit bị từ chối `untrusted`: dùng chung cảnh báo (không thêm lỗi git thô); lỗi thường vẫn hiện nguyên văn', async () => {
+    const toasts = new ToastStore();
+    let mode: 'untrusted' | 'io' = 'untrusted';
+    const store = await openWith(toasts, 'repo-d', (request) =>
+      request.sub === 'diff-tree' ? (mode === 'untrusted' ? untrusted() : new Error('đĩa lỗi')) : null,
+    );
+    await store.start();
+    await until(() => store.hasLoaded, 'nạp xong');
+    await until(() => toasts.items.length === 1, 'cảnh báo chi tiết');
+    expect(toasts.items.map((toast) => toast.style)).toEqual(['warning']);
+
+    mode = 'io';
+    store.select({ kind: 'none' });
+    store.select({ kind: 'commit', sha: store.headOid! });
+    await until(() => toasts.items.some((toast) => toast.style === 'error'), 'lỗi thường');
+    expect(toasts.items.find((toast) => toast.style === 'error')).toMatchObject({
+      title: 'Không tải được chi tiết commit',
+      message: 'đĩa lỗi',
+    });
   });
 });
 

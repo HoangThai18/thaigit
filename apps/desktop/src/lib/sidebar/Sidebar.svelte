@@ -15,6 +15,7 @@
     type Stash,
   } from '@thaigit/core';
   import { untrack } from 'svelte';
+  import { showBidi } from '../format/bidi.ts';
   import { containsFolded, foldText } from '../format/natural.ts';
   import { formatAbsolute } from '../format/time.ts';
   import { vi } from '../strings.vi.ts';
@@ -62,20 +63,35 @@
     sections.tags ? (filtering ? store.tags.filter((ref) => matches(refName(ref))) : store.tags) : [],
   );
 
+  // Tên remote có thể chứa "/" (`team/a`): mỗi nhánh thuộc remote KHỚP DÀI NHẤT với phần đầu tên ref, và tên ngắn cắt theo remote đó.
+  const remoteNames = $derived(store.remotes.map((remote) => remote.name));
+  const remoteGroups = $derived.by(() => {
+    const groups = new Map<string, GitRef[]>();
+    for (const ref of store.remoteBranches) {
+      const owner = refRemoteName(ref, remoteNames);
+      if (owner === null) continue;
+      const group = groups.get(owner);
+      if (group) group.push(ref);
+      else groups.set(owner, [ref]);
+    }
+    return groups;
+  });
+  const shortName = (ref: GitRef): string => refShortBranchName(ref, remoteNames);
+
   function remoteBranches(remote: Remote): GitRef[] {
-    return store.remoteBranches.filter(
-      (ref) => refRemoteName(ref) === remote.name && matches(refShortBranchName(ref)),
-    );
+    return (remoteGroups.get(remote.name) ?? []).filter((ref) => matches(shortName(ref)));
   }
 
   // --- chọn ---
+  // Chỉ đánh dấu ô sáng khi graph THỰC SỰ chọn được commit: ref trỏ vào commit chưa tải thì `revealRef` chỉ báo "Tải thêm"
+  // (trả `false`), không có gì được chọn nên ô cũng không được sáng.
   function selectRef(ref: GitRef): void {
-    selectedId = `ref:${ref.fullName}`;
-    store.revealRef(ref);
+    if (store.revealRef(ref)) selectedId = `ref:${ref.fullName}`;
   }
 
+  // Định danh theo `selector` (stash@{n}), không theo sha: hai mục stash có thể trùng sha (`git stash store` cùng một commit).
   function selectStash(stash: Stash): void {
-    selectedId = `stash:${stash.sha}`;
+    selectedId = `stash:${stash.selector}`;
     store.select({ kind: 'stash', sha: stash.sha });
   }
 
@@ -89,7 +105,10 @@
       if (!(selection.kind === 'commit' && ref !== undefined && ref.target === selection.sha))
         selectedId = null;
     } else if (current.startsWith('stash:')) {
-      if (!(selection.kind === 'stash' && current === `stash:${selection.sha}`)) selectedId = null;
+      const selector = current.slice('stash:'.length);
+      const stash = store.stashes.find((candidate) => candidate.selector === selector);
+      if (!(selection.kind === 'stash' && stash !== undefined && stash.sha === selection.sha))
+        selectedId = null;
     }
   });
 </script>
@@ -123,7 +142,7 @@
     class="sb-row"
     class:selected={selectedId === `ref:${ref.fullName}`}
     style:padding-left="{10 + depth * 14}px"
-    title={ref.upstream ? `${refName(ref)} → ${ref.upstream}` : refName(ref)}
+    title={showBidi(ref.upstream ? `${refName(ref)} → ${ref.upstream}` : refName(ref))}
     onclick={() => selectRef(ref)}
   >
     <span class="sb-icon">
@@ -133,7 +152,7 @@
         <Icon name={ref.kind === 'remoteBranch' ? 'cloud' : 'branch'} size={15} />
       {/if}
     </span>
-    <span class="sb-title" class:current>{title}</span>
+    <span class="sb-title" class:current><bdi>{showBidi(title)}</bdi></span>
     {#if ref.upstreamGone}
       <span class="gone" title={vi.sidebar.upstreamGone}><Icon name="warning" size={13} /></span>
     {/if}
@@ -202,14 +221,14 @@
             type="button"
             class="sb-row"
             aria-expanded={open}
-            title={remote.fetchUrl}
+            title={showBidi(remote.fetchUrl)}
             onclick={() => (remoteOpen[remote.name] = !open)}
           >
             <span class="sb-chevron"
               ><Icon name={open ? 'chevron-down' : 'chevron-right'} size={11} strokeWidth={2.4} /></span
             >
             <span class="sb-icon"><Icon name="cloud" size={15} /></span>
-            <span class="sb-title">{remote.name}</span>
+            <span class="sb-title"><bdi>{showBidi(remote.name)}</bdi></span>
           </button>
           {#if open}
             {@const branches = remoteBranches(remote)}
@@ -221,11 +240,11 @@
                 indent={24}
               >
                 {#snippet row(ref: GitRef)}
-                  {@render branchRow(ref, refShortBranchName(ref), 1)}
+                  {@render branchRow(ref, shortName(ref), 1)}
                 {/snippet}
               </LimitedRows>
             {:else}
-              <BranchTree nodes={buildBranchTree(branches, refShortBranchName)} depth={1} leaf={branchRow} />
+              <BranchTree nodes={buildBranchTree(branches, shortName)} depth={1} leaf={branchRow} />
             {/if}
           {/if}
         {/each}
@@ -249,7 +268,7 @@
                 onclick={() => selectRef(ref)}
               >
                 <span class="sb-icon"><Icon name="tag" size={15} /></span>
-                <span class="sb-title">{refName(ref)}</span>
+                <span class="sb-title"><bdi>{showBidi(refName(ref))}</bdi></span>
               </button>
             {/snippet}
           </LimitedRows>
@@ -264,18 +283,18 @@
         {#if store.stashes.length === 0}
           <p class="placeholder">{vi.sidebar.noStashes}</p>
         {:else}
-          <LimitedRows items={store.stashes} noun={vi.sidebar.nounStash} keyOf={(stash) => stash.sha}>
+          <LimitedRows items={store.stashes} noun={vi.sidebar.nounStash} keyOf={(stash) => stash.selector}>
             {#snippet row(stash: Stash)}
               {@const message = stashDisplayMessage(stash)}
               <button
                 type="button"
                 class="sb-row"
-                class:selected={selectedId === `stash:${stash.sha}`}
-                title={[stash.message, formatAbsolute(stash.date)].join('\n')}
+                class:selected={selectedId === `stash:${stash.selector}`}
+                title={showBidi([stash.message, formatAbsolute(stash.date)].join('\n'))}
                 onclick={() => selectStash(stash)}
               >
                 <span class="sb-icon"><Icon name="archive" size={15} /></span>
-                <span class="sb-title">{message === '' ? stash.selector : message}</span>
+                <span class="sb-title"><bdi>{showBidi(message === '' ? stash.selector : message)}</bdi></span>
               </button>
             {/snippet}
           </LimitedRows>

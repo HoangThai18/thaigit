@@ -48,6 +48,20 @@ describe('buildRefLabels', () => {
     expect(labelsAt(two, 'a').map((label) => label.text)).toEqual(['origin/dev']);
   });
 
+  it('remote có "/" trong tên (team/a): nhãn là "main" (không phải "a/main") và vẫn gộp với nhánh local cùng tên', () => {
+    const refs = [local('main', 'a'), remote('team/a/main', 'a'), remote('team/a/dev', 'b')];
+    const labels = buildRefLabels(refs, branch('main'), { ...ON, remoteNames: ['team/a'] });
+    expect(labelsAt(labels, 'a').map((label) => label.text)).toEqual(['main']);
+    expect(labelsAt(labels, 'a')[0]).toMatchObject({ hasLocal: true, remoteCount: 1 });
+    expect(labelsAt(labels, 'b').map((label) => label.text)).toEqual(['dev']);
+    // Hai remote (một cái có "/"): nhãn remote-only dùng tên đầy đủ.
+    const two = buildRefLabels([remote('team/a/dev', 'b'), remote('origin/dev', 'c')], branch('x'), {
+      ...ON,
+      remoteNames: ['origin', 'team/a'],
+    });
+    expect(labelsAt(two, 'b').map((label) => label.text)).toEqual(['team/a/dev']);
+  });
+
   it('thứ tự: nhánh hiện tại, local, remote, tag', () => {
     const refs = [tag('v1', 'a'), remote('origin/z', 'a'), local('b', 'a'), local('a-current', 'a')];
     const labels = labelsAt(buildRefLabels(refs, branch('a-current'), ON), 'a');

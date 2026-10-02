@@ -1,5 +1,5 @@
 {
-  "$comment": "Chính sách chạy git của Thaigit — một nguồn sự thật cho Rust (thực thi trong app, include_str!) và adapter Node (test). Ý nghĩa từng mục: packages/contracts/README.md.",
+  "$comment": "Chính sách chạy git của Thaigit — một nguồn sự thật cho Rust (thực thi trong app, include_str!) và adapter Node (test). Ý nghĩa từng mục: packages/contracts/README.md. Với subcommand `write`: `readForms` liệt kê các DẠNG chỉ-đọc (không cần khoá độc quyền theo repo) — một dạng khớp khi args BẮT ĐẦU bằng đúng dãy `args` của nó và, trừ khi có `rest: true`, không còn đối số nào sau đó (nên `remote -v update` KHÔNG phải `remote -v`); `aloneSecond` là các đối số đầu chỉ được đứng MỘT MÌNH (`remote -v add …` bị chặn). Cả hai do TS (`effectiveKind`, `validateGitCommand`) và Rust (`derived_kind`, `validate`) đọc chung; ca kiểm thử ở git-policy.vectors.json.",
   "version": 1,
   "globalConfig": [
     "core.quotepath=false",
@@ -211,7 +211,14 @@
     "remote": {
       "kind": "write",
       "allowSecond": ["", "-v", "--verbose", "get-url", "remove", "rename", "prune", "set-head", "show"],
-      "typedSecond": ["add", "set-url"]
+      "typedSecond": ["add", "set-url"],
+      "aloneSecond": ["", "-v", "--verbose"],
+      "readForms": [
+        { "args": [] },
+        { "args": ["-v"] },
+        { "args": ["--verbose"] },
+        { "args": ["get-url"], "rest": true }
+      ]
     },
     "reset": {
       "kind": "write"
@@ -238,7 +245,11 @@
     },
     "stash": {
       "kind": "write",
-      "allowShort": ["-u"]
+      "allowShort": ["-u"],
+      "readForms": [
+        { "args": ["list"], "rest": true },
+        { "args": ["show"], "rest": true }
+      ]
     },
     "status": {
       "kind": "read",

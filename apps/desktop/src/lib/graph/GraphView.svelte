@@ -6,6 +6,7 @@
 <script lang="ts">
   import { isMergeCommit, isWorkingTreeCommit, shortSha } from '@thaigit/core';
   import { untrack } from 'svelte';
+  import { showBidi } from '../format/bidi.ts';
   import { formatAbsolute, formatCommitTime } from '../format/time.ts';
   import { vi } from '../strings.vi.ts';
   import type { GraphEntry, RepoStore } from '../stores/repo.svelte.ts';
@@ -22,6 +23,7 @@
     type ColumnId,
     type SizedColumn,
   } from './columns.ts';
+  import { autoLoadMore } from './autoLoadMore.svelte.ts';
   import GraphCanvasLayer from './GraphCanvasLayer.svelte';
   import { measurePillText } from './measure.ts';
   import { layoutPills, pillAppearance, pillIcons, pillTooltip, PILL } from './pills.ts';
@@ -40,9 +42,16 @@
   const laneColors = readLaneColors(document.documentElement);
   const fontFamily = getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim();
 
+  /** Hàng dựng thêm ngoài vùng thấy ở mỗi phía (truyền cho VirtualList; cũng để biết hàng nào đang có trong DOM). */
+  const OVERSCAN = 14;
+  // `id` hàng phải duy nhất trong tài liệu (nhiều GraphView có thể cùng tồn tại): lấy tiền tố riêng của component.
+  const uid = $props.id();
+  const rowId = (index: number): string => `${uid}-row-${index}`;
+
   let list = $state<VirtualList<GraphEntry>>();
   let graphElement = $state<HTMLDivElement>();
   let rowsWidth = $state(0);
+  let rangeStart = $state(0);
   let rangeEnd = $state(0);
 
   // --- cột ---
@@ -63,6 +72,15 @@
   );
 
   const selectedRow = $derived(store.selectedRow);
+  // `aria-activedescendant` chỉ được trỏ vào phần tử có trong DOM: danh sách ảo hoá gỡ hàng ngoài vùng dựng, nên hàng đang chọn
+  // mà ở ngoài vùng đó thì bỏ thuộc tính (quay về hộp listbox) thay vì để một id treo.
+  const activeDescendant = $derived(
+    selectedRow !== null &&
+      selectedRow >= Math.max(0, rangeStart - OVERSCAN) &&
+      selectedRow < Math.min(store.entries.length, rangeEnd + OVERSCAN)
+      ? rowId(selectedRow)
+      : undefined,
+  );
   const relative = $derived(prefs.value.relativeDates);
   const wipSummary = $derived(workingTreeSummary(store.status));
   const showLoading = $derived(!store.hasLoaded);
@@ -129,17 +147,11 @@
     untrack(() => target.scrollToIndex(request.row, 'center'));
   });
 
-  // Tải thêm khi cuộn gần cuối (như Swift: còn ≤ 30 hàng).
-  $effect(() => {
-    if (
-      store.mayHaveMoreCommits &&
-      !store.isLoadingHistory &&
-      rangeEnd >= store.entries.length - 30 &&
-      rangeEnd > 0
-    ) {
-      store.loadMoreHistory();
-    }
-  });
+  // Tải thêm khi cuộn gần cuối (như Swift: còn ≤ 30 hàng); chống lặp khi lỗi: xem `autoLoadMore`.
+  autoLoadMore(
+    () => store,
+    () => rangeEnd,
+  );
 
   // --- kéo đổi độ rộng cột ---
   interface Drag {
@@ -170,6 +182,8 @@
   }
 
   function resizeKey(id: SizedColumn, event: KeyboardEvent): void {
+    // Phím trên thanh đổi rộng là của thanh đó: không để lan lên các bộ xử lý phím bao quanh (vd. Home/End/↑/↓ chọn hàng).
+    event.stopPropagation();
     const step = event.shiftKey ? 30 : 10;
     const current = columns.widths[id] ?? DEFAULT_WIDTHS[id];
     if (event.key === 'ArrowLeft') setWidth(id, current - step);
@@ -217,8 +231,11 @@
     class="g-row"
     class:selected={index === selectedRow}
     class:wip={isWip}
+    id={rowId(index)}
     role="option"
     aria-selected={index === selectedRow}
+    aria-posinset={index + 1}
+    aria-setsize={store.entries.length}
     tabindex="-1"
     onclick={() => {
       selectRow(index);
@@ -228,7 +245,9 @@
   >
     <div class="cell refs">
       {#if entry.labels.length > 0}
-        {@const placement = layoutPills(entry.labels, refsWidth, (text) => measurePillText(text, fontFamily))}
+        {@const placement = layoutPills(entry.labels, refsWidth, (text) =>
+          measurePillText(showBidi(text), fontFamily),
+        )}
         {@const lane = laneColor(laneColors, entry.row.color, '#8a93a3')}
         {#each placement.pills as pill (pill.index)}
           {@const label = entry.labels[pill.index]}
@@ -244,12 +263,12 @@
               style:--pill-rim={look.rim}
               style:--pill-rim-width="{look.rimWidth}px"
               style:--pill-edge={look.edge}
-              title={pillTooltip(label)}
+              title={showBidi(pillTooltip(label))}
             >
               {#each pillIcons(label) as icon (icon)}
                 <Icon name={icon} size={PILL.iconSize} strokeWidth={2.6} />
               {/each}
-              <span class="pill-text">{label.text}</span>
+              <span class="pill-text"><bdi>{showBidi(label.text)}</bdi></span>
             </span>
           {/if}
         {/each}
@@ -257,10 +276,12 @@
           <span
             class="more"
             style:left="{placement.more.x}px"
-            title={entry.labels
-              .slice(entry.labels.length - placement.more.count)
-              .map((label) => label.text)
-              .join('\n')}
+            title={showBidi(
+              entry.labels
+                .slice(entry.labels.length - placement.more.count)
+                .map((label) => label.text)
+                .join('\n'),
+            )}
           >
             {vi.graph.pillMore(placement.more.count)}
           </span>
@@ -269,17 +290,22 @@
       {/if}
     </div>
     <div class="cell graph-cell"></div>
-    <div class="cell message" title={isWip ? vi.graph.wipTooltip : commit.subject}>
+    <div class="cell message" title={isWip ? vi.graph.wipTooltip : showBidi(commit.subject)}>
       {#if isWip}
         <span class="wip-label">{vi.graph.wip}</span>
         {#if wipSummary}<span class="wip-summary">{wipSummary}</span>{/if}
       {:else}
-        <span class="subject selectable" class:merge={isMergeCommit(commit)}>{commit.subject}</span>
+        <span class="subject selectable" class:merge={isMergeCommit(commit)}
+          ><bdi>{showBidi(commit.subject)}</bdi></span
+        >
       {/if}
     </div>
     {#if visible.has('author')}
-      <div class="cell author" title={isWip ? undefined : `${commit.authorName} <${commit.authorEmail}>`}>
-        {#if !isWip}<span class="selectable">{commit.authorName}</span>{/if}
+      <div
+        class="cell author"
+        title={isWip ? undefined : showBidi(`${commit.authorName} <${commit.authorEmail}>`)}
+      >
+        {#if !isWip}<span class="selectable"><bdi>{showBidi(commit.authorName)}</bdi></span>{/if}
       </div>
     {/if}
     {#if visible.has('date')}
@@ -308,15 +334,8 @@
   />
 {/snippet}
 
-<div
-  bind:this={graphElement}
-  class="graph-table"
-  role="listbox"
-  aria-label={vi.graph.ariaLabel}
-  tabindex="0"
-  onkeydown={onKeydown}
-  style={tableStyle}
->
+<div class="graph-table" style={tableStyle}>
+  <!-- Tiêu đề cột nằm NGOÀI listbox: listbox chỉ chứa các hàng (option) để trình đọc màn hình đếm đúng "mục x / tổng". -->
   <div class="header" role="presentation" style:width="{rowsWidth}px">
     {#each columns.visible as id (id)}
       <div class="hcell col-{id}" role="presentation">
@@ -327,17 +346,30 @@
   </div>
 
   <div class="body">
-    <VirtualList
-      bind:this={list}
-      bind:contentWidth={rowsWidth}
-      items={store.entries}
-      rowHeight={ROW}
-      overscan={14}
-      key={(entry) => entry.commit.id}
-      {row}
-      {overlay}
-      onrange={(range) => (rangeEnd = range.end)}
-    />
+    <div
+      bind:this={graphElement}
+      class="rows"
+      role="listbox"
+      aria-label={vi.graph.ariaLabel}
+      aria-activedescendant={activeDescendant}
+      tabindex="0"
+      onkeydown={onKeydown}
+    >
+      <VirtualList
+        bind:this={list}
+        bind:contentWidth={rowsWidth}
+        items={store.entries}
+        rowHeight={ROW}
+        overscan={OVERSCAN}
+        key={(entry) => entry.commit.id}
+        {row}
+        {overlay}
+        onrange={(range) => {
+          rangeStart = range.start;
+          rangeEnd = range.end;
+        }}
+      />
+    </div>
     {#if showLoading}
       <div class="state" role="status">{vi.graph.loading}</div>
     {:else if showError}
@@ -360,12 +392,12 @@
     flex-direction: column;
     height: 100%;
     min-width: 0;
-    outline: none;
     position: relative;
   }
 
-  /* Viền lấy nét khi cả bảng có focus bàn phím (hàng được chọn đổi sang màu nhấn). */
-  .graph-table:focus-visible {
+  /* Hộp listbox (nhận focus bàn phím) phủ kín vùng thân; không vẽ viền focus: hàng được chọn đổi sang màu nhấn khi bảng có focus. */
+  .rows {
+    height: 100%;
     outline: none;
   }
 

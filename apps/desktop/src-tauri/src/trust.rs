@@ -196,7 +196,8 @@ fn truncate(text: &str) -> String {
     }
 }
 
-/// Mục cấu hình do repo kiểm soát khớp khoá chạy lệnh + hook.
+/// Mục cấu hình do repo kiểm soát khớp khoá chạy lệnh + hook. Dòng hiển thị nào trùng thì chỉ giữ lần xuất hiện đầu (giữ thứ
+/// tự): khoá đa trị hoặc cùng giá trị ở nhiều file include cho ra các dòng giống hệt, mà giao diện dùng dòng đó làm khoá danh sách.
 pub fn find_findings(entries: &[ConfigEntry], hooks: &[HookFile]) -> Vec<Finding> {
     let mut findings: Vec<Finding> = entries
         .iter()
@@ -215,6 +216,8 @@ pub fn find_findings(entries: &[ConfigEntry], hooks: &[HookFile]) -> Vec<Finding
         kind: None,
         display: format!("hook: {}", h.name),
     }));
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    findings.retain(|finding| seen.insert(finding.display.clone()));
     findings
 }
 
@@ -515,6 +518,33 @@ mod tests {
         assert_eq!(labels, ["core.fsmonitor", "filter.x.clean", "hook:pre-commit"]);
         assert!(findings[0].display.contains("touch /tmp/pwned"));
         assert!(find_findings(&[entry("global", "core.fsmonitor", "x")], &[]).is_empty());
+    }
+
+    #[test]
+    fn findings_are_deduplicated_keeping_first_appearance_order() {
+        // Khoá đa trị (`core.fsmonitor` đặt hai lần giống hệt, hoặc cùng giá trị ở hai file include) cho ra cùng một dòng hiển thị:
+        // giao diện dùng dòng đó làm khoá `{#each}` nên trùng sẽ làm đứng cả hộp thoại tin tưởng.
+        let entries = vec![
+            entry("local", "core.fsmonitor", "touch /tmp/pwned"),
+            entry("local", "filter.x.clean", "evil"),
+            entry("local", "core.fsmonitor", "touch /tmp/pwned"),
+            entry("worktree", "core.fsmonitor", "touch /tmp/pwned"),
+            entry("local", "filter.x.clean", "evil"),
+        ];
+        let hooks = vec![HookFile { name: "pre-commit".into(), digest: "a".into() }, HookFile { name: "pre-commit".into(), digest: "b".into() }];
+        let findings = find_findings(&entries, &hooks);
+        let shown: Vec<_> = findings.iter().map(|f| f.display.as_str()).collect();
+        assert_eq!(
+            shown,
+            [
+                "core.fsmonitor = touch /tmp/pwned  (local, file:.git/config)",
+                "filter.x.clean = evil  (local, file:.git/config)",
+                "core.fsmonitor = touch /tmp/pwned  (worktree, file:.git/config)",
+                "hook: pre-commit",
+            ]
+        );
+        let unique: BTreeSet<_> = shown.iter().collect();
+        assert_eq!(unique.len(), shown.len());
     }
 
     #[test]

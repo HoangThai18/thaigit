@@ -139,6 +139,34 @@ describe('Parsers (port ParserTests.swift)', () => {
     expect(isAnnotatedTag(main)).toBe(false);
   });
 
+  it('remote có "/" trong tên (team/a): nhận đúng remote khi biết danh sách remote, khớp dài nhất khi lồng nhau', () => {
+    const ref = (fullName: string) => ({ fullName, kind: 'remoteBranch' as const });
+    const nested = ref('refs/remotes/team/a/feature/x');
+    // Không biết danh sách remote: cắt ở "/" đầu tiên (hành vi cũ, đúng với remote thường).
+    expect(refRemoteName(nested)).toBe('team');
+    expect(refShortBranchName(nested)).toBe('a/feature/x');
+    expect(refRemoteName(nested, ['origin', 'team/a'])).toBe('team/a');
+    expect(refShortBranchName(nested, ['origin', 'team/a'])).toBe('feature/x');
+    expect(refRemoteName(ref('refs/remotes/team/a/main'), ['team/a'])).toBe('team/a');
+    // Cả `team` lẫn `team/a`: mỗi ref thuộc đúng MỘT remote, khớp dài nhất thắng.
+    expect(refRemoteName(nested, ['team', 'team/a'])).toBe('team/a');
+    expect(refRemoteName(nested, ['team/a', 'team'])).toBe('team/a');
+    expect(refRemoteName(ref('refs/remotes/team/b'), ['team', 'team/a'])).toBe('team');
+    expect(refShortBranchName(ref('refs/remotes/team/b'), ['team', 'team/a'])).toBe('b');
+    // Chỉ khớp theo ranh giới "/" và cần có phần tên nhánh; remote thường vẫn đúng.
+    expect(refRemoteName(ref('refs/remotes/teammate/x'), ['team'])).toBe('teammate');
+    expect(refRemoteName(ref('refs/remotes/team/'), ['team'])).toBe('team');
+    expect(refRemoteName(ref('refs/remotes/origin/main'), ['origin', 'team/a'])).toBe('origin');
+    expect(refShortBranchName(ref('refs/remotes/origin/main'), ['origin', 'team/a'])).toBe('main');
+    // Remote không có trong danh sách: quay về cách cắt cũ.
+    expect(refRemoteName(ref('refs/remotes/ghost/main'), ['origin'])).toBe('ghost');
+    // Không phải nhánh remote.
+    expect(refRemoteName({ fullName: 'refs/heads/team/a/x', kind: 'localBranch' }, ['team/a'])).toBeNull();
+    expect(refShortBranchName({ fullName: 'refs/heads/team/a/x', kind: 'localBranch' }, ['team/a'])).toBe(
+      'team/a/x',
+    );
+  });
+
   it('parsesLogRecords', () => {
     const record1 = [
       '1111111111',

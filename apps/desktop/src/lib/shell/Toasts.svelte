@@ -37,7 +37,7 @@
         {/if}
         {#if toast.actions.length > 0}
           <div class="actions">
-            {#each toast.actions as action (action.title)}
+            {#each toast.actions as action, index (index)}
               <button type="button" class="action" onclick={() => run(toast, action.run)}
                 >{action.title}</button
               >

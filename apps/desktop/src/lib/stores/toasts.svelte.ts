@@ -18,12 +18,18 @@ export interface Toast {
   readonly actions: readonly ToastAction[];
   /** Nhóm để gỡ cùng lúc khi không còn đúng; push cùng `tag` sẽ thay cái cũ (khỏi chồng lỗi lặp). */
   readonly tag: string | null;
+  /**
+   * Chủ sở hữu (vd. một repo đang mở): nút hành động của toast gọi vào đối tượng đó nên khi nó biến mất thì toast cũng phải gỡ
+   * theo (`dismissOwner`), không để lại thông báo bấm được mà tác động lên thứ không còn nữa.
+   */
+  readonly owner: string | null;
 }
 
 export interface ToastOptions {
   message?: string | null;
   actions?: readonly ToastAction[];
   tag?: string;
+  owner?: string;
 }
 
 export const MAX_TOASTS = 4;
@@ -53,6 +59,7 @@ export class ToastStore {
       message: options.message ?? null,
       actions: options.actions ?? [],
       tag: options.tag ?? null,
+      owner: options.owner ?? null,
     };
     let next = toast.tag === null ? [...this.items] : this.items.filter((item) => item.tag !== toast.tag);
     next.push(toast);
@@ -90,6 +97,11 @@ export class ToastStore {
 
   dismissTag(tag: string): void {
     this.replace(this.items.filter((item) => item.tag !== tag));
+  }
+
+  /** Gỡ mọi toast của một chủ sở hữu (vd. khi đóng repo). */
+  dismissOwner(owner: string): void {
+    this.replace(this.items.filter((item) => item.owner !== owner));
   }
 
   clear(): void {

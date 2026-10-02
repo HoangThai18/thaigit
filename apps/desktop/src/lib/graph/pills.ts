@@ -30,6 +30,8 @@ export interface RefLabel {
 export interface LabelOptions {
   showRemotes: boolean;
   showTags: boolean;
+  /** Tên các remote đã cấu hình: để nhận đúng remote có `/` trong tên (`team/a`); thiếu thì cắt ở `/` đầu tiên. */
+  remoteNames?: readonly string[];
 }
 
 function byName(a: GitRef, b: GitRef): number {
@@ -52,12 +54,13 @@ export function buildRefLabels(
   head: HeadState,
   options: LabelOptions,
 ): Map<string, RefLabel[]> {
-  const remoteNames = new Set<string>();
+  const configured = options.remoteNames ?? [];
+  const usedRemoteNames = new Set<string>();
   for (const ref of refs) {
-    const remote = refRemoteName(ref);
-    if (remote !== null) remoteNames.add(remote);
+    const remote = refRemoteName(ref, configured);
+    if (remote !== null) usedRemoteNames.add(remote);
   }
-  const singleRemote = remoteNames.size <= 1;
+  const singleRemote = usedRemoteNames.size <= 1;
   const current = headBranchName(head);
 
   const byTarget = new Map<string, GitRef[]>();
@@ -78,7 +81,7 @@ export function buildRefLabels(
       const merged: GitRef[] = [local];
       for (const remote of remoteRefs) {
         if (usedRemotes.has(remote.fullName)) continue;
-        if (refName(remote) === local.upstream || refShortBranchName(remote) === name) {
+        if (refName(remote) === local.upstream || refShortBranchName(remote, configured) === name) {
           merged.push(remote);
           usedRemotes.add(remote.fullName);
         }
@@ -97,7 +100,7 @@ export function buildRefLabels(
     if (options.showRemotes) {
       for (const remote of remoteRefs) {
         if (usedRemotes.has(remote.fullName)) continue;
-        const text = singleRemote ? refShortBranchName(remote) : refName(remote);
+        const text = singleRemote ? refShortBranchName(remote, configured) : refName(remote);
         labels.push({
           key: `ref:${text}`,
           text,

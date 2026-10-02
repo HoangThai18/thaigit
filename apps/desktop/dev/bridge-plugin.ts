@@ -29,7 +29,7 @@ import {
   type BridgeExecBody,
   type BridgeInfo,
 } from '../src/lib/platform/dev-bridge-protocol.ts';
-import { checkReadOnly } from './read-only-gate.ts';
+import { checkReadOnly, type KindOf } from './read-only-gate.ts';
 
 type CoreNode = typeof import('@thaigit/core/node');
 type Core = typeof import('@thaigit/core');
@@ -160,7 +160,8 @@ async function createRuntime(
   // Nạp qua bộ nạp SSR của Vite: các package workspace này là TS thuần (có "parameter property") nên Node gốc không chạy được.
   const nodeCore = (await server.ssrLoadModule('@thaigit/core/node')) as CoreNode;
   const core = (await server.ssrLoadModule('@thaigit/core')) as Core;
-  const { gitPolicy } = (await server.ssrLoadModule('@thaigit/contracts')) as Contracts;
+  const { effectiveKind, gitPolicy } = (await server.ssrLoadModule('@thaigit/contracts')) as Contracts;
+  const kindOf: KindOf = (sub, args) => effectiveKind(sub, args, gitPolicy);
 
   const location = await nodeCore.locateRepository(options.repo);
   const exec = new nodeCore.NodeExec({ cwd: location.root, gitDir: location.gitDir });
@@ -244,7 +245,7 @@ async function createRuntime(
       }
       case 'POST /exec': {
         const body = parseExecBody(await readJson(req));
-        const verdict = checkReadOnly(gitPolicy, body.kind, body.sub, body.args);
+        const verdict = checkReadOnly(kindOf, body.kind, body.sub, body.args);
         if (!verdict.ok) throw new HttpError(403, 'policy', verdict.message);
         try {
           const result = await exec.run({

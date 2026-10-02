@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import { operationTitle } from '@thaigit/core';
+  import { showBidi } from '../format/bidi.ts';
   import GraphView from '../graph/GraphView.svelte';
   import Inspector from '../inspector/Inspector.svelte';
   import Sidebar from '../sidebar/Sidebar.svelte';
@@ -67,11 +68,11 @@
       {/if}
       <div class="branch" title={vi.window.branchLabel}>
         <Icon name="branch" size={15} />
-        <span class="branch-name">{store.headDescription || vi.window.noBranch}</span>
+        <span class="branch-name"><bdi>{showBidi(store.headDescription || vi.window.noBranch)}</bdi></span>
       </div>
       <div class="titles" data-tauri-drag-region>
-        <strong class="repo-name" data-tauri-drag-region>{store.name}</strong>
-        <span class="subtitle" data-tauri-drag-region>{store.branchSubtitle}</span>
+        <strong class="repo-name" data-tauri-drag-region><bdi>{showBidi(store.name)}</bdi></strong>
+        <span class="subtitle" data-tauri-drag-region><bdi>{showBidi(store.branchSubtitle)}</bdi></span>
       </div>
       <span class="grow" data-tauri-drag-region></span>
       <button
