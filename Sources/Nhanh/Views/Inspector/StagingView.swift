@@ -268,6 +268,7 @@ struct CommitComposer: View {
     private var commitTitle: String {
         if model.amendLastCommit { return "Sửa commit trước" }
         if model.operation == .merging { return "Hoàn tất merge" }
+        if model.operation == .reverting { return "Hoàn tất revert" }
         let count = model.status.staged.count
         return count > 0 ? "Commit \(count) file vào \(model.currentBranch ?? "HEAD")" : "Commit"
     }
@@ -317,6 +318,23 @@ struct CommitComposer: View {
             .frame(height: 70)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .textBackgroundColor).opacity(0.75)))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.1)))
+
+            if let hint = model.commitIdentityHint {
+                // Gợi ý nhẹ: email commit khác tài khoản GitHub của owner repo này.
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "person.crop.circle.badge.exclamationmark")
+                        .foregroundStyle(.orange)
+                    Text("Repo của \(hint.owner) dùng @\(hint.profile.login), nhưng commit đang ký \(hint.current.email ?? "(chưa đặt email)").")
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    // Mở hộp "Tài khoản GitHub cho repo này" để xác nhận trước khi ghi config local.
+                    Button("Dùng của @\(hint.profile.login)…") { model.sheet = .githubAccount(owner: nil) }
+                        .buttonStyle(.link)
+                        .help("Ghi \(hint.profile.commitName) <\(hint.profile.commitEmail)> vào config local của repo này")
+                }
+                .font(.caption)
+            }
 
             if suggestsStageAll {
                 Button {

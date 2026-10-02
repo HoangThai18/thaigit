@@ -45,6 +45,8 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Thaigit — Git client cho macOS và Windows</string>
+	<key>ThaigitGitHubClientID</key>
+	<string></string>
 	<key>ThaigitUpdateFeedURL</key>
 	<string>https://github.com/HoangThai18/thaigit/releases/latest/download/update.json</string>
 	<key>ThaigitUpdatePublicKey</key>

@@ -86,7 +86,7 @@ private struct DetailContent: View {
                     messageBody
                 }
                 HStack(spacing: 10) {
-                    AvatarView(name: commit.authorName, size: 32)
+                    AvatarView(name: commit.authorName, email: commit.authorEmail, repo: model.githubRepo, size: 32)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(commit.authorName).font(.callout.weight(.semibold))
                         Text(commit.authorEmail).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
@@ -170,7 +170,7 @@ private struct DetailContent: View {
             .disabled(commit.id == model.headOID)
             QuickButton(symbol: "leaf", help: "Cherry-pick vào nhánh hiện tại") { model.cherryPick(commit) }
                 .disabled(commit.id == model.headOID)
-            QuickButton(symbol: "arrow.uturn.backward", help: "Revert commit này") { model.revert(commit) }
+            QuickButton(symbol: "arrow.uturn.backward", help: "Revert commit này…") { model.revert(commit) }
             Spacer()
             if let url = model.webURL(forCommit: commit.id) {
                 QuickButton(symbol: "safari", help: "Mở trên web") { NSWorkspace.shared.open(url) }

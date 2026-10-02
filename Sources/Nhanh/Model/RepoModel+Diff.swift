@@ -246,11 +246,22 @@ extension RepoModel {
             }
         }
 
-        // Đang merge: gợi ý sẵn message từ MERGE_MSG.
-        if operation == .merging, commitSummary.isEmpty, commitBody.isEmpty, let message = repository.pendingCommitMessage() {
-            let parts = message.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
-            commitSummary = parts.first.map(String.init) ?? ""
-            commitBody = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        // Đang merge / revert (kể cả "Revert, chưa commit"): gợi ý sẵn message từ MERGE_MSG.
+        if operation == .merging || operation == .reverting {
+            if commitSummary.isEmpty, commitBody.isEmpty, let message = repository.pendingCommitMessage() {
+                let parts = message.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+                commitSummary = parts.first.map(String.init) ?? ""
+                commitBody = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespacesAndNewlines) : ""
+                prefilledCommitMessage = (commitSummary, commitBody)
+            }
+        } else if let prefilled = prefilledCommitMessage {
+            // Thao tác đã xong / đã huỷ ngoài ô commit ("Tiếp tục", "Hoàn tác", terminal): bỏ message gợi ý còn sót
+            // nếu người dùng chưa sửa.
+            prefilledCommitMessage = nil
+            if operation == nil, commitSummary == prefilled.summary, commitBody == prefilled.body {
+                commitSummary = ""
+                commitBody = ""
+            }
         }
     }
 

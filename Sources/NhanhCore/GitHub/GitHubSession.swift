@@ -1,0 +1,228 @@
+import Foundation
+import Security
+
+/// Nơi cất token GitHub (mỗi tài khoản một mục theo login). App dùng `KeychainTokenStore`; test dùng bản trong bộ nhớ
+/// (không đụng Keychain thật).
+public protocol GitHubTokenStore: Sendable {
+    func readToken(account login: String) throws -> String?
+    func saveToken(_ token: String, account login: String) throws
+    func deleteToken(account login: String) throws
+}
+
+/// Token trong Keychain của macOS: mật khẩu chung (generic password), service `com.phanthai.thaigit.github`,
+/// account = login, chỉ đọc được sau lần mở khoá đầu tiên, không đồng bộ iCloud.
+public struct KeychainTokenStore: GitHubTokenStore {
+    public static let defaultService = "com.phanthai.thaigit.github"
+    public let service: String
+
+    public init(service: String = KeychainTokenStore.defaultService) {
+        self.service = service
+    }
+
+    public func readToken(account login: String) throws -> String? {
+        var query = baseQuery(login)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        switch status {
+        case errSecSuccess:
+            guard let data = result as? Data, let token = String(data: data, encoding: .utf8), !token.isEmpty else { return nil }
+            return token
+        case errSecItemNotFound:
+            return nil
+        default:
+            throw GitHubError.keychain(status)
+        }
+    }
+
+    public func saveToken(_ token: String, account login: String) throws {
+        let data = Data(token.utf8)
+        let query = baseQuery(login)
+        var status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if status == errSecItemNotFound {
+            var item = query
+            item[kSecValueData as String] = data
+            item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            item[kSecAttrLabel as String] = "Thaigit — GitHub (\(login))"
+            status = SecItemAdd(item as CFDictionary, nil)
+        }
+        guard status == errSecSuccess else { throw GitHubError.keychain(status) }
+    }
+
+    public func deleteToken(account login: String) throws {
+        let status = SecItemDelete(baseQuery(login) as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw GitHubError.keychain(status) }
+    }
+
+    private func baseQuery(_ login: String) -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: login,
+            kSecAttrSynchronizable as String: kCFBooleanFalse as Any,
+        ]
+    }
+}
+
+/// Nơi lưu phần không bí mật (UserDefaults trong app, bộ nhớ khi test — test không ghi file cài đặt nào).
+public protocol GitHubSettingsStorage: Sendable {
+    func data(forKey key: String) -> Data?
+    func setData(_ data: Data?, forKey key: String)
+}
+
+public struct UserDefaultsSettingsStorage: GitHubSettingsStorage, @unchecked Sendable {
+    // UserDefaults an toàn đa luồng; @unchecked chỉ vì SDK chưa đánh dấu Sendable.
+    private let defaults: UserDefaults
+
+    public init(_ defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    public func data(forKey key: String) -> Data? { defaults.data(forKey: key) }
+
+    public func setData(_ data: Data?, forKey key: String) {
+        if let data { defaults.set(data, forKey: key) } else { defaults.removeObject(forKey: key) }
+    }
+}
+
+/// Lưu các tài khoản GitHub: danh sách, mặc định, owner đã gán, danh tính commit trong `storage` (UserDefaults);
+/// token từng tài khoản trong `tokens` (Keychain) theo login — token không bao giờ nằm trong UserDefaults.
+public struct GitHubAccountStore: Sendable {
+    public static let stateKey = "githubAccounts"
+    public let storage: any GitHubSettingsStorage
+    public let tokens: any GitHubTokenStore
+
+    public init(storage: any GitHubSettingsStorage = UserDefaultsSettingsStorage(), tokens: any GitHubTokenStore = KeychainTokenStore()) {
+        self.storage = storage
+        self.tokens = tokens
+    }
+
+    public func loadState() -> GitHubAccountsState {
+        guard let data = storage.data(forKey: Self.stateKey),
+              let state = try? JSONDecoder().decode(GitHubAccountsState.self, from: data) else { return GitHubAccountsState() }
+        return state
+    }
+
+    public func saveState(_ state: GitHubAccountsState) {
+        storage.setData(state.isEmpty && state.ownerAssignments.isEmpty ? nil : try? JSONEncoder().encode(state), forKey: Self.stateKey)
+    }
+
+    /// Thêm (hoặc đăng nhập lại) một tài khoản: lưu token của tài khoản đó — không đụng token của tài khoản khác.
+    @discardableResult
+    public func addAccount(_ account: GitHubAccount, token: String, organizations: [String]?,
+                           to state: GitHubAccountsState) throws -> GitHubAccountsState {
+        guard GitHubCredential(login: account.login, token: token) != nil else { throw GitHubError.invalidResponse }
+        try tokens.saveToken(token, account: account.login)
+        var updated = state
+        updated.upsert(account, organizations: organizations)
+        saveState(updated)
+        return updated
+    }
+
+    /// Xoá một tài khoản: chỉ xoá token của tài khoản đó; tài khoản mặc định chuyển sang tài khoản còn lại.
+    /// Danh sách luôn được cập nhật; lỗi xoá token khỏi Keychain được trả về để báo người dùng.
+    /// Token vẫn còn hiệu lực trên GitHub tới khi người dùng thu hồi (OAuth App không tự thu hồi được nếu không có
+    /// client secret).
+    public func removeAccount(login: String, from state: GitHubAccountsState) -> (state: GitHubAccountsState, tokenError: (any Error)?) {
+        var updated = state
+        updated.remove(login: login)
+        saveState(updated)
+        do {
+            try tokens.deleteToken(account: login)
+            return (updated, nil)
+        } catch {
+            return (updated, error)
+        }
+    }
+}
+
+/// Tài khoản + token GitHub dùng chung giữa các luồng: lệnh git (qua `GitEnvironmentStore`) và API (ảnh đại diện…)
+/// chọn token theo owner bằng cùng một bảng (`GitHubCredentialSet`). Token chưa nạp thì đọc Keychain khi cần — giữ khoá
+/// trong lúc đọc để không hỏi Keychain trùng lặp từ nhiều luồng.
+public final class GitHubTokenProvider: @unchecked Sendable {
+    private let lock = NSLock()
+    private let tokenStore: any GitHubTokenStore
+    private var state: GitHubAccountsState
+    private var tokens: [String: String] = [:]
+    /// Login đã đọc Keychain mà không có token (hoặc lỗi) — không đọc lại liên tục.
+    private var unavailable: Set<String> = []
+
+    public init(state: GitHubAccountsState = GitHubAccountsState(), tokenStore: any GitHubTokenStore) {
+        self.state = state
+        self.tokenStore = tokenStore
+    }
+
+    /// Cập nhật danh sách tài khoản (giữ token đã nạp của tài khoản còn trong danh sách).
+    public func update(state newState: GitHubAccountsState) {
+        lock.lock()
+        defer { lock.unlock() }
+        state = newState
+        let logins = Set(newState.profiles.map(\.login))
+        tokens = tokens.filter { logins.contains($0.key) }
+        unavailable.formIntersection(logins)
+    }
+
+    /// Token vừa nhận khi đăng nhập (nil: quên token của tài khoản).
+    public func setToken(_ token: String?, for login: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        tokens[login] = token
+        if token == nil { unavailable.insert(login) } else { unavailable.remove(login) }
+    }
+
+    /// Nạp token của mọi tài khoản chưa nạp (gọi ở luồng nền lúc mở app). Trả về lỗi Keychain theo login.
+    @discardableResult
+    public func loadTokens() -> [String: any Error] {
+        lock.lock()
+        defer { lock.unlock() }
+        return loadMissingLocked()
+    }
+
+    public func hasToken(for login: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return tokens[login] != nil
+    }
+
+    /// Token của đúng tài khoản `login` (nạp từ Keychain nếu chưa nạp). Gọi được từ mọi luồng.
+    public func token(login: String) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        loadMissingLocked()
+        return tokens[login]
+    }
+
+    /// Token cho owner (người dùng / tổ chức trên github.com) theo đúng bảng mà lệnh git dùng. Gọi được từ mọi luồng.
+    public func token(forOwner owner: String?) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        loadMissingLocked()
+        return GitHubCredentialSet(helperPath: "", state: state, tokens: tokens)?.credential(forOwner: owner).token
+    }
+
+    /// Bảng cho credential helper của lệnh git (chỉ gồm tài khoản đã nạp token). nil nếu chưa có tài khoản nào.
+    public func credentialSet(helperPath: String) -> GitHubCredentialSet? {
+        lock.lock()
+        defer { lock.unlock() }
+        return GitHubCredentialSet(helperPath: helperPath, state: state, tokens: tokens)
+    }
+
+    @discardableResult
+    private func loadMissingLocked() -> [String: any Error] {
+        var errors: [String: any Error] = [:]
+        for profile in state.profiles where tokens[profile.login] == nil && !unavailable.contains(profile.login) {
+            do {
+                if let token = try tokenStore.readToken(account: profile.login), GitHubCredential(login: profile.login, token: token) != nil {
+                    tokens[profile.login] = token
+                } else {
+                    unavailable.insert(profile.login)
+                }
+            } catch {
+                unavailable.insert(profile.login)
+                errors[profile.login] = error
+            }
+        }
+        return errors
+    }
+}

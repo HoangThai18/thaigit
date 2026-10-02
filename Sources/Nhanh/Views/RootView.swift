@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Nội dung một cửa sổ/tab: màn hình chào khi chưa mở repo, hoặc giao diện repo.
+/// Nội dung một cửa sổ/tab: màn hình chào khi chưa mở repo, giao diện repo, hoặc tab đặc biệt ("Có gì mới").
 struct RootView: View {
     @Binding var repoPath: String?
     @Environment(AppState.self) private var appState
@@ -17,7 +17,9 @@ struct RootView: View {
         // ZStack (không dùng Group): modifier .task/.onAppear phải gắn vào một view cố định,
         // nếu không SwiftUI chạy lại chúng mỗi khi nội dung đổi (chào → đang tải → repo).
         ZStack {
-            if let model {
+            if repoPath == SpecialTab.releaseNotes {
+                ReleaseNotesView()
+            } else if let model {
                 RepoWindowView(model: model)
             } else if isLoading || repoPath != nil {
                 ProgressView("Đang mở repository…")
@@ -43,13 +45,16 @@ struct RootView: View {
         .task(id: repoPath) { await load() }
         .onAppear {
             configureWindowActions()
+            TabActions.openNewTab = { [openWindow] in openWindow(id: "repo") }
             consumePendingOpens()
+            showReleaseNotesIfJustUpdated()
             if model == nil && repoPath == nil {
                 AutomationHarness.welcomeActions = windowActions
                 AutomationHarness.attachWelcome()
             }
         }
         .onChange(of: appState.pendingOpenPaths) { consumePendingOpens() }
+        .onChange(of: AppUpdater.shared.justUpdated) { showReleaseNotesIfJustUpdated() }
         .sheet(isPresented: $showClone) {
             CloneSheet { path in open(path) }
                 .environment(appState)
@@ -58,6 +63,7 @@ struct RootView: View {
 
     private func configureWindowActions() {
         windowActions.openPath = { path in open(path) }
+        windowActions.closeRepository = { repoPath = nil }
         windowActions.showClone = { showClone = true }
         windowActions.showInit = { initializeRepository() }
     }
@@ -69,6 +75,13 @@ struct RootView: View {
         } else if path != model?.rootPath {
             openWindow(id: "repo", value: path)
         }
+    }
+
+    /// Lần mở đầu tiên sau khi cập nhật: tự mở tab "Có gì mới" (như Release Notes của GitKraken), một lần.
+    private func showReleaseNotesIfJustUpdated() {
+        guard AppUpdater.shared.justUpdated != nil, !TabActions.didAutoShowReleaseNotes else { return }
+        TabActions.didAutoShowReleaseNotes = true
+        openWindow(id: "repo", value: SpecialTab.releaseNotes)
     }
 
     private func consumePendingOpens() {
@@ -87,7 +100,7 @@ struct RootView: View {
     }
 
     private func load() async {
-        guard let path = repoPath else {
+        guard let path = repoPath, !SpecialTab.isSpecial(path) else {
             model?.stop()
             model = nil
             return
@@ -131,7 +144,8 @@ struct RootView: View {
     }
 }
 
-/// Cấu hình NSWindow bên dưới: mở repo mới thành tab.
+/// Cấu hình NSWindow bên dưới: mở repo mới thành tab, thanh tab luôn hiện (kể cả khi chỉ có một tab) như
+/// GitKraken / Chrome — có nút + mở tab mới và nút × trên từng tab.
 struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = ConfiguratorView()
@@ -141,11 +155,28 @@ struct WindowConfigurator: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 
     final class ConfiguratorView: NSView {
+        private var keyObserver: NSObjectProtocol?
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
+            if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
+            keyObserver = nil
             guard let window else { return }
             window.tabbingMode = .preferred
             window.tabbingIdentifier = "nhanh.repository"
+            DispatchQueue.main.async { [weak window] in
+                MainActor.assumeIsolated { window.map(Self.showTabBar) }
+            }
+            // Tab bị kéo ra thành cửa sổ riêng: nhóm tab mới mặc định ẩn thanh tab.
+            keyObserver = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window,
+                                                                 queue: .main) { [weak window] _ in
+                MainActor.assumeIsolated { window.map(Self.showTabBar) }
+            }
+        }
+
+        private static func showTabBar(_ window: NSWindow) {
+            guard let group = window.tabGroup, !group.isTabBarVisible else { return }
+            window.toggleTabBar(nil)
         }
     }
 }

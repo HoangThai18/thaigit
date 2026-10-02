@@ -1,9 +1,10 @@
 import AppKit
 import NhanhCore
 
-/// Ô vẽ graph: các đường làn, đường cong rẽ/nhập nhánh và node commit (vòng tròn chữ cái đầu).
+/// Ô vẽ graph: các đường làn, đường cong rẽ/nhập nhánh và node commit (ảnh đại diện tác giả, chưa có ảnh thì chữ cái đầu).
 final class GraphCellView: NSTableCellView {
     var entry: GraphEntry? { didSet { needsDisplay = true } }
+    var avatar: NSImage? { didSet { if avatar !== oldValue { needsDisplay = true } } }
     var isHead = false { didSet { needsDisplay = true } }
     var dimmed = false { didSet { needsDisplay = true } }
 
@@ -114,7 +115,7 @@ final class GraphCellView: NSTableCellView {
             let radius = GraphStyle.nodeRadius
             let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
             if isHead {
-                let ring = rect.insetBy(dx: -3.5, dy: -3.5)
+                let ring = rect.insetBy(dx: -3, dy: -3)
                 context.saveGState()
                 context.setShadow(offset: .zero, blur: 4, color: baseColor.withAlphaComponent(0.6 * alpha).cgColor)
                 context.setStrokeColor(baseColor.withAlphaComponent(alpha).cgColor)
@@ -122,8 +123,12 @@ final class GraphCellView: NSTableCellView {
                 context.strokeEllipse(in: ring)
                 context.restoreGState()
             }
-            drawGlassPearl(in: rect, color: baseColor, alpha: alpha, context: context)
-            drawInitials(GraphStyle.initials(entry.commit.authorName), in: rect, alpha: alpha)
+            if let avatar {
+                drawAvatar(avatar, in: rect, ring: baseColor, alpha: alpha, context: context)
+            } else {
+                drawGlassPearl(in: rect, color: baseColor, alpha: alpha, context: context)
+                drawInitials(GraphStyle.initials(entry.commit.authorName), in: rect, alpha: alpha)
+            }
         }
         context.restoreGState()
     }
@@ -156,6 +161,24 @@ final class GraphCellView: NSTableCellView {
                                width: rect.width * 0.4, height: rect.height * 0.26)
         context.setFillColor(NSColor.white.withAlphaComponent(0.5).cgColor)
         context.fillEllipse(in: highlight)
+        context.restoreGState()
+    }
+
+    /// Ảnh đại diện tròn trong viền màu của làn (như GitKraken).
+    private func drawAvatar(_ image: NSImage, in rect: CGRect, ring color: NSColor, alpha: CGFloat, context: CGContext) {
+        context.saveGState()
+        context.setAlpha(alpha)
+        context.setShadow(offset: CGSize(width: 0, height: 1), blur: 2.5, color: NSColor.black.withAlphaComponent(0.28).cgColor)
+        context.setFillColor(color.cgColor)
+        context.fillEllipse(in: rect)
+        context.setShadow(offset: .zero, blur: 0, color: nil)
+        let inner = rect.insetBy(dx: 2, dy: 2)
+        context.addEllipse(in: inner)
+        context.clip()
+        NSColor.windowBackgroundColor.setFill()
+        inner.fill()
+        image.draw(in: inner, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true,
+                   hints: [.interpolation: NSImageInterpolation.high.rawValue])
         context.restoreGState()
     }
 

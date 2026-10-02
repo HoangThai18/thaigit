@@ -103,10 +103,11 @@ public struct GitEnvironment: Sendable, Equatable {
 }
 
 /// Lưu môi trường git hiện tại; mọi GitRunner đọc giá trị mới nhất mỗi lần chạy lệnh,
-/// nên khi PATH từ login shell được nạp xong thì các repo đang mở dùng ngay.
+/// nên khi PATH từ login shell được nạp xong (hay khi đăng nhập / đăng xuất GitHub) thì các repo đang mở dùng ngay.
 public final class GitEnvironmentStore: @unchecked Sendable {
     private let lock = NSLock()
     private var current: GitEnvironment
+    private var github: GitHubCredentialSet?
 
     public init(_ environment: GitEnvironment) {
         current = environment
@@ -122,6 +123,28 @@ public final class GitEnvironmentStore: @unchecked Sendable {
         lock.lock()
         current = environment
         lock.unlock()
+    }
+
+    /// Các tài khoản GitHub đã đăng nhập + bảng owner → tài khoản (nil: chưa đăng nhập) — dùng cho lệnh mạng tới
+    /// https://github.com.
+    public var githubCredentials: GitHubCredentialSet? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return github
+        }
+        set {
+            lock.lock()
+            github = newValue
+            lock.unlock()
+        }
+    }
+
+    /// Môi trường + tài khoản GitHub đọc trong cùng một lần khoá, cho một lệnh git.
+    func snapshot() -> (environment: GitEnvironment, github: GitHubCredentialSet?) {
+        lock.lock()
+        defer { lock.unlock() }
+        return (current, github)
     }
 }
 

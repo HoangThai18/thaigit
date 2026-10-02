@@ -91,6 +91,9 @@ struct Confirmation: Identifiable {
     var confirmTitle: String
     var isDestructive: Bool = false
     var action: () -> Void
+    /// Nút thứ hai (không mặc định) giữa nút xác nhận và "Huỷ", ví dụ "Revert, chưa commit".
+    var secondaryTitle: String? = nil
+    var secondaryAction: (() -> Void)? = nil
 }
 
 struct PushRequest: Identifiable {
@@ -132,6 +135,12 @@ enum RepoSheet: Identifiable {
     case commandLog
     case fileHistory(String)
     case switchBranch
+    /// Merge nhánh của repository khác; `target` là nhánh đích chọn sẵn (nil: tự chọn).
+    case mergeFromRepository(target: String?)
+    /// Đăng nhập GitHub (từ gợi ý khi fetch / pull / push bị từ chối xác thực).
+    case githubLogin
+    /// Chọn tài khoản GitHub cho một owner (nil: owner của remote origin — "Tài khoản GitHub cho repo này").
+    case githubAccount(owner: String?)
 
     var id: String {
         switch self {
@@ -145,6 +154,9 @@ enum RepoSheet: Identifiable {
         case .commandLog: return "command-log"
         case .fileHistory(let path): return "history-\(path)"
         case .switchBranch: return "switch-branch"
+        case .mergeFromRepository(let target): return "merge-from-repo-\(target ?? "")"
+        case .githubLogin: return "github-login"
+        case .githubAccount(let owner): return "github-account-\(owner ?? "")"
         }
     }
 }

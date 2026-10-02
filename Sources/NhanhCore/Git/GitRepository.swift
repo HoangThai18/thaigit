@@ -248,6 +248,11 @@ public struct GitRepository: Sendable {
         return nil
     }
 
+    /// Thay message gợi ý (MERGE_MSG) của thao tác dở: `revert --continue` / `cherry-pick --continue` commit bằng message này.
+    public func setPendingCommitMessage(_ message: String) throws {
+        try Data((message + "\n").utf8).write(to: gitDir.appendingPathComponent("MERGE_MSG"), options: .atomic)
+    }
+
     /// Message gợi ý khi đang merge (MERGE_MSG/SQUASH_MSG), đã bỏ các dòng chú thích; xuống dòng luôn là "\n".
     public func pendingCommitMessage() -> String? {
         for name in ["MERGE_MSG", "SQUASH_MSG"] {
@@ -440,8 +445,11 @@ public struct GitRepository: Sendable {
         try await runner.run(["cherry-pick"] + (mainline.map { ["-m", String($0)] } ?? []) + [sha])
     }
 
-    public func revert(_ sha: String, mainline: Int? = nil) async throws {
-        try await runner.run(["revert", "--no-edit"] + (mainline.map { ["-m", String($0)] } ?? []) + [sha])
+    /// Revert `sha` (commit merge cần `mainline`, thường là 1 = cha thứ nhất). `commit: false` (`--no-commit`) chỉ
+    /// stage thay đổi đảo ngược: git để lại REVERT_HEAD (thao tác "Đang revert") và message gợi ý trong MERGE_MSG,
+    /// người dùng xem lại rồi tự commit (hoặc `revert --continue`, huỷ bằng `revert --abort`).
+    public func revert(_ sha: String, mainline: Int? = nil, commit: Bool = true) async throws {
+        try await runner.run(["revert", commit ? "--no-edit" : "--no-commit"] + (mainline.map { ["-m", String($0)] } ?? []) + [sha])
     }
 
     public func reset(to rev: String, mode: ResetMode) async throws {

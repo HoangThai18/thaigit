@@ -188,6 +188,7 @@ final class AppUpdater {
 /// Thẻ kính ở góc dưới bên trái cửa sổ: bản mới đã tải xong, hoặc vừa cập nhật xong.
 struct UpdateBanner: View {
     private let updater = AppUpdater.shared
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         if !updater.bannerHidden {
@@ -198,6 +199,8 @@ struct UpdateBanner: View {
                     title: "Đã cập nhật lên Thaigit \(done.version)",
                     detail: done.notes
                 ) {
+                    Button("Có gì mới") { openWindow(id: "repo", value: SpecialTab.releaseNotes) }
+                        .glassButtonStyle(prominent: true)
                     Button("Đóng") { updater.bannerHidden = true }
                         .glassButtonStyle()
                 }

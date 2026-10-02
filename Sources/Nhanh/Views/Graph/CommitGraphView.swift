@@ -83,6 +83,11 @@ private enum Column {
     static let author = NSUserInterfaceItemIdentifier("author")
     static let date = NSUserInterfaceItemIdentifier("date")
     static let sha = NSUserInterfaceItemIdentifier("sha")
+
+    /// Cột phụ bật/tắt bằng chuột phải lên tiêu đề cột. Mặc định tắt cả, như GitKraken: tác giả là ảnh đại diện
+    /// trên graph, tên và thời gian xem ở panel bên phải.
+    static let optional: [(id: NSUserInterfaceItemIdentifier, title: String)] = [(author, "Tác giả"), (date, "Thời gian"), (sha, "SHA")]
+    static let enabledOptionalKey = "graphOptionalColumns"
 }
 
 private struct CommitTable: NSViewRepresentable {
@@ -143,6 +148,10 @@ private struct CommitTable: NSViewRepresentable {
         menu.autoenablesItems = false
         menu.delegate = context.coordinator
         table.menu = menu
+        let headerMenu = context.coordinator.headerMenu
+        headerMenu.autoenablesItems = false
+        headerMenu.delegate = context.coordinator
+        table.headerView?.menu = headerMenu
         table.onReturn = { [weak coordinator = context.coordinator] in coordinator?.activateSelectedRow() }
         // Kéo nhãn nhánh thả lên nhánh khác để merge/rebase/push (giống GitKraken).
         table.registerForDraggedTypes([.string])
@@ -167,6 +176,7 @@ private struct CommitTable: NSViewRepresentable {
         let coordinator = context.coordinator
         guard let table = coordinator.table else { return }
         coordinator.model = model
+        coordinator.githubRepo = model.githubRepo
         coordinator.headOID = headOID
         coordinator.workingTreeSummary = workingTreeSummary
 
@@ -252,6 +262,12 @@ private struct CommitTable: NSViewRepresentable {
         private var preferredWidths: [NSUserInterfaceItemIdentifier: CGFloat] = [:]
         private var isFittingColumns = false
         private var fitScheduled = false
+        /// Cột phụ người dùng đã bật; cột chưa bật luôn ẩn.
+        private var enabledOptional: Set<NSUserInterfaceItemIdentifier>
+        let headerMenu = NSMenu()
+        /// Repo GitHub của remote mặc định — giúp tìm ảnh đại diện qua API commit.
+        var githubRepo: GitHubRepoRef?
+        private var avatarObserver: NSObjectProtocol?
 
         private static let messageFont = NSFont.systemFont(ofSize: 13)
         private static let secondaryFont = NSFont.systemFont(ofSize: 12)
@@ -269,6 +285,41 @@ private struct CommitTable: NSViewRepresentable {
             for (id, width) in Self.defaultWidths {
                 preferredWidths[id] = saved[id.rawValue].map { CGFloat($0) } ?? width
             }
+            enabledOptional = Set((UserDefaults.standard.stringArray(forKey: Column.enabledOptionalKey) ?? [])
+                .map { NSUserInterfaceItemIdentifier($0) })
+            super.init()
+            avatarObserver = NotificationCenter.default.addObserver(forName: AvatarStore.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshAvatars() }
+            }
+        }
+
+        /// Ảnh đại diện vừa tải xong: vẽ lại cột graph của các dòng đang hiện.
+        private func refreshAvatars() {
+            guard let table, let column = table.tableColumns.firstIndex(where: { $0.identifier == Column.graph }) else { return }
+            let visible = table.rows(in: table.visibleRect)
+            guard visible.length > 0 else { return }
+            table.reloadData(forRowIndexes: IndexSet(integersIn: visible.location..<(visible.location + visible.length)),
+                             columnIndexes: IndexSet(integer: column))
+        }
+
+        private func toggleColumn(_ id: NSUserInterfaceItemIdentifier) {
+            if enabledOptional.contains(id) { enabledOptional.remove(id) } else { enabledOptional.insert(id) }
+            UserDefaults.standard.set(enabledOptional.map(\.rawValue).sorted(), forKey: Column.enabledOptionalKey)
+            scheduleColumnFit()
+        }
+
+        private func buildHeaderMenu(_ menu: NSMenu) {
+            menu.addItem(.sectionHeader(title: "Hiện cột"))
+            for column in Column.optional {
+                let item = MenuActionTarget.item(title: column.title) { [weak self] in self?.toggleColumn(column.id) }
+                item.state = enabledOptional.contains(column.id) ? .on : .off
+                menu.addItem(item)
+            }
+            menu.addItem(.separator())
+            let avatars = MenuActionTarget.item(title: "Ảnh đại diện thật (GitHub / Gravatar)") { AvatarStore.shared.isEnabled.toggle() }
+            avatars.state = AvatarStore.shared.isEnabled ? .on : .off
+            avatars.toolTip = "Tắt thì graph chỉ hiện chữ viết tắt và app không gửi gì ra mạng để tìm ảnh."
+            menu.addItem(avatars)
         }
 
         func observeScrolling(_ scrollView: NSScrollView) {
@@ -298,7 +349,7 @@ private struct CommitTable: NSViewRepresentable {
         }
 
         /// Cột Commit lấp phần còn lại. Thiếu chỗ thì co tạm các cột phụ, hẹp quá nữa thì ẩn bớt
-        /// SHA → Thời gian → Tác giả (hiện lại khi cửa sổ rộng ra) thay vì bắt cuộn ngang.
+        /// SHA → Thời gian → Tác giả (hiện lại khi cửa sổ rộng ra) thay vì bắt cuộn ngang. Cột phụ chưa bật thì luôn ẩn.
         private func fitColumns() {
             guard let table, let clip = table.enclosingScrollView?.contentView, clip.bounds.width > 0,
                   let message = table.tableColumn(withIdentifier: Column.message) else { return }
@@ -308,7 +359,10 @@ private struct CommitTable: NSViewRepresentable {
             let shrinkable: [(id: NSUserInterfaceItemIdentifier, floor: CGFloat)] = [
                 (Column.author, 90), (Column.date, 116), (Column.refs, 110),
             ]
-            let hideOrder = [Column.sha, Column.date, Column.author]
+            for column in Column.optional where !enabledOptional.contains(column.id) {
+                if let tableColumn = table.tableColumn(withIdentifier: column.id), !tableColumn.isHidden { tableColumn.isHidden = true }
+            }
+            let hideOrder = [Column.sha, Column.date, Column.author].filter { enabledOptional.contains($0) }
             func othersWidth() -> CGFloat {
                 table.tableColumns.filter { $0 !== message && !$0.isHidden }.reduce(0) { $0 + $1.width }
             }
@@ -386,6 +440,8 @@ private struct CommitTable: NSViewRepresentable {
                 }()
                 cell.isHead = entry.commit.id == headOID
                 cell.dimmed = dimmed
+                cell.avatar = entry.commit.isWorkingTree || entry.commit.isMerge ? nil
+                    : AvatarStore.shared.image(email: entry.commit.authorEmail, repo: githubRepo)
                 cell.entry = entry
                 return cell
             case Column.message:
@@ -577,6 +633,10 @@ private struct CommitTable: NSViewRepresentable {
 
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems()
+            if menu === headerMenu {
+                buildHeaderMenu(menu)
+                return
+            }
             guard let table, entries.indices.contains(table.clickedRow) else { return }
             let entry = entries[table.clickedRow]
             for item in Self.makeItems(model.menu(for: entry)) {

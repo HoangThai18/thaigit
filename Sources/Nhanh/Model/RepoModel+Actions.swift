@@ -225,6 +225,7 @@ extension RepoModel {
             try await repo.setConfig("user.name", name, global: true)
             try await repo.setConfig("user.email", email, global: true)
         } onSuccess: { [weak self] in
+            self?.loadCommitterIdentity()
             self?.toast(.success, "Đã lưu tên & email cho Git")
         }
     }
@@ -433,6 +434,8 @@ extension RepoModel {
                         }
                     },
                 ])
+            } onError: { [weak self] error in
+                self?.handleGitHubAuthError(error, operation: "Xoá \(ref.name)") ?? false
             }
         }
     }
@@ -546,10 +549,54 @@ extension RepoModel {
         }
     }
 
+    /// Hỏi trước như GitKraken ("Do you want to immediately commit the revert?"): revert & commit ngay, hoặc chỉ stage
+    /// thay đổi đảo ngược để xem lại / sửa rồi tự commit.
     func revert(_ commit: Commit) {
+        var message = "Tạo một commit mới trên \(currentBranch ?? "HEAD") đảo ngược thay đổi của \(commit.shortSHA). Lịch sử cũ giữ nguyên."
+        if commit.isMerge, let firstParent = commit.parents.first {
+            message += "\n\nĐây là commit merge: thay đổi được đảo ngược so với cha thứ nhất (\(firstParent.prefix(7)))."
+        }
+        message += "\n\n“Revert, chưa commit” chỉ stage thay đổi đảo ngược để bạn xem lại hoặc sửa trước khi tự commit."
+        confirmation = Confirmation(
+            title: "Revert commit “\(commit.subject)”?",
+            message: message,
+            confirmTitle: "Revert & commit",
+            action: { [weak self] in self?.performRevert(commit, commitImmediately: true) },
+            secondaryTitle: "Revert, chưa commit",
+            secondaryAction: { [weak self] in self?.performRevert(commit, commitImmediately: false) }
+        )
+    }
+
+    private func performRevert(_ commit: Commit, commitImmediately: Bool) {
+        let mainline = commit.isMerge ? 1 : nil
+        guard commitImmediately else {
+            // `revert --no-commit` gộp thay đổi đã stage sẵn vào revert, và "Hoàn tác" (revert --abort) sẽ xoá luôn
+            // chúng — chặn như git chặn "Revert & commit" khi index bẩn.
+            guard status.staged.isEmpty else {
+                toast(.warning, "Revert bị chặn vì có thay đổi đã stage",
+                      message: "Commit hoặc stash chúng trước, nếu không chúng sẽ lẫn vào commit revert.",
+                      actions: [ToastAction(title: "Stash thay đổi") { [weak self] in self?.quickStash() }])
+                return
+            }
+            perform("Revert \(commit.shortSHA) (chưa commit)") { repo in
+                try await repo.revert(commit.id, mainline: mainline, commit: false)
+            } onSuccess: { [weak self] in
+                guard let self else { return }
+                // Banner "Đang revert" + ô commit điền sẵn message từ MERGE_MSG (sau khi làm mới).
+                select(.workingTree, reveal: true)
+                toast(.success, "Đã revert “\(commit.subject)” — chưa commit", message: nil, actions: [
+                    ToastAction(title: "Hoàn tác") { [weak self] in
+                        self?.perform("Hoàn tác revert") { repo in try await repo.abort(.reverting) }
+                    },
+                ])
+            } onError: { [weak self] error in
+                self?.handleConflictError(error, operation: "Revert") ?? false
+            }
+            return
+        }
         let previousHead = headOID
         perform("Revert \(commit.shortSHA)") { repo in
-            try await repo.revert(commit.id, mainline: commit.isMerge ? 1 : nil)
+            try await repo.revert(commit.id, mainline: mainline)
         } onSuccess: { [weak self] in
             self?.toast(.success, "Đã tạo commit revert “\(commit.subject)”", actions: previousHead.map { head in
                 [ToastAction(title: "Hoàn tác") { [weak self] in
@@ -590,7 +637,7 @@ extension RepoModel {
         }
     }
 
-    private func handleConflictError(_ error: any Error, operation name: String) -> Bool {
+    func handleConflictError(_ error: any Error, operation name: String) -> Bool {
         guard let gitError = error as? GitError else { return false }
         if gitError.contains("CONFLICT") || gitError.contains("conflict") || gitError.contains("Resolve all conflicts") {
             toast(.warning, "\(name) gặp xung đột", message: "Mở các file xung đột ở panel bên phải để chọn bản giữ lại, rồi bấm “Tiếp tục”.",
@@ -624,10 +671,24 @@ extension RepoModel {
             commit()
             return
         }
+        // Ô commit được điền sẵn từ MERGE_MSG rồi người dùng sửa: `revert --continue` phải dùng bản đã sửa.
+        let editedMessage: String?
+        if operation == .reverting, hasCommitMessage, let prefilled = prefilledCommitMessage,
+           commitSummary != prefilled.summary || commitBody != prefilled.body {
+            editedMessage = composedCommitMessage
+        } else {
+            editedMessage = nil
+        }
         perform("Tiếp tục \(operation.shortName)") { repo in
+            if let editedMessage { try repo.setPendingCommitMessage(editedMessage) }
             try await repo.continueOperation(operation)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã tiếp tục")
+            guard let self else { return }
+            if editedMessage != nil {
+                commitSummary = ""
+                commitBody = ""
+            }
+            toast(.success, "Đã tiếp tục")
         } onError: { [weak self] error in
             self?.handleConflictError(error, operation: operation.title) ?? false
         }
@@ -675,6 +736,8 @@ extension RepoModel {
         } onSuccess: { [weak self] in
             self?.lastFetch = Date()
             self?.toast(.success, "Đã fetch xong")
+        } onError: { [weak self] error in
+            self?.handleGitHubAuthError(error, operation: "Fetch") ?? false
         }
     }
 
@@ -710,6 +773,7 @@ extension RepoModel {
             }
         } onError: { [weak self] error in
             guard let self, let gitError = error as? GitError else { return false }
+            if handleGitHubAuthError(error, operation: "Pull") { return true }
             if gitError.contains("Not possible to fast-forward") || gitError.contains("divergent") {
                 showError("Nhánh local và remote đã tách nhau", error, actions: [
                     ToastAction(title: "Pull (merge)") { [weak self] in self?.pull(mode: .merge) },
@@ -763,6 +827,7 @@ extension RepoModel {
             self?.toast(.success, "Đã push \(request.localBranch) → \(request.remote)/\(request.remoteBranch)")
         } onError: { [weak self] error in
             guard let self, let gitError = error as? GitError else { return false }
+            if handleGitHubAuthError(error, operation: "Push") { return true }
             if gitError.contains("[rejected]") || gitError.contains("non-fast-forward") || gitError.contains("fetch first") {
                 var forced = request
                 forced.force = true
@@ -920,6 +985,8 @@ extension RepoModel {
                     self?.perform("Xoá tag \(name)", refresh: [.refs]) { repo in try await repo.deleteTag(name) }
                 },
             ])
+        } onError: { [weak self] error in
+            self?.handleGitHubAuthError(error, operation: "Push tag \(name)") ?? false
         }
     }
 
@@ -952,6 +1019,8 @@ extension RepoModel {
             try await repo.pushTag(remote: remote, tag: ref.name, onProgress: progress)
         } onSuccess: { [weak self] in
             self?.toast(.success, "Đã push tag \(ref.name) lên \(remote)")
+        } onError: { [weak self] error in
+            self?.handleGitHubAuthError(error, operation: "Push tag \(ref.name)") ?? false
         }
     }
 
@@ -1051,7 +1120,7 @@ extension RepoModel {
             },
             .separator,
             .action("Cherry-pick vào \(branchLabel)", systemImage: "leaf", enabled: !isHead) { [weak self] in self?.cherryPick(commit) },
-            .action("Revert commit này", systemImage: "arrow.uturn.backward", enabled: headOID != nil) { [weak self] in self?.revert(commit) },
+            .action("Revert commit này…", systemImage: "arrow.uturn.backward", enabled: headOID != nil) { [weak self] in self?.revert(commit) },
             .submenu("Reset \(branchLabel) về đây", systemImage: "clock.arrow.circlepath", items: [
                 .action("Soft — giữ mọi thay đổi ở trạng thái đã stage") { [weak self] in self?.reset(to: commit, mode: .soft) },
                 .action("Mixed — giữ thay đổi, bỏ stage") { [weak self] in self?.reset(to: commit, mode: .mixed) },
@@ -1105,6 +1174,9 @@ extension RepoModel {
             if ref.upstream != nil, ref.behind > 0, ref.ahead == 0 {
                 items.append(.action("Fast-forward theo \(ref.upstream ?? "")", systemImage: "forward") { [weak self] in self?.fastForward(ref) })
             }
+            items.append(.action("Merge từ repository khác vào \(ref.name)…", systemImage: "arrow.triangle.merge") { [weak self] in
+                self?.beginMergeFromRepository(into: ref.name)
+            })
             items.append(.separator)
             items.append(.action("Tạo nhánh từ \(ref.name)…", systemImage: "arrow.triangle.branch") { [weak self] in
                 self?.sheet = .createBranch(startPoint: ref.target, label: ref.name)

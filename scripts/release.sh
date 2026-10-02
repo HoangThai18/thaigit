@@ -33,6 +33,11 @@ if [ "$VERSION" != "$CURRENT" ]; then
   plist "Set :CFBundleVersion $((BUILD + 1))"
 fi
 
+# Mục "## Chưa phát hành" trong CHANGELOG.md thành "## <phiên bản> — <ngày>" (tab "Có gì mới" trong app đọc file này).
+if grep -q '^## Chưa phát hành' CHANGELOG.md; then
+  sed -i '' "s/^## Chưa phát hành.*/## $VERSION — $(date +%Y-%m-%d)/" CHANGELOG.md
+fi
+
 # Như build-app.sh: chỉ có Command Line Tools thì dùng SDK macOS 26 để chạy swift script.
 if ! xcode-select -p 2>/dev/null | grep -q "Xcode.app"; then
   for sdk in MacOSX26.sdk MacOSX26.5.sdk MacOSX15.sdk; do
@@ -66,4 +71,4 @@ else
   echo "Đăng lên GitHub:"
   echo "  gh release create v$VERSION \"$ZIP\" \"$OUT/update.json\" --repo $REPO --title \"Thaigit $VERSION\" --notes-file \"$NOTES_FILE\""
 fi
-echo "Nhớ commit Resources/Info.plist (phiên bản $VERSION)."
+echo "Nhớ commit Resources/Info.plist và CHANGELOG.md (phiên bản $VERSION)."

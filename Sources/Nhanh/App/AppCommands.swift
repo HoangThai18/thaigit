@@ -7,6 +7,8 @@ final class WindowActions {
     var openPath: (String) -> Void = { _ in }
     var showClone: () -> Void = {}
     var showInit: () -> Void = {}
+    /// Đóng repo của tab này, quay về màn hình chọn repository (tab vẫn giữ).
+    var closeRepository: () -> Void = {}
 }
 
 struct AppCommands: Commands {
@@ -14,11 +16,22 @@ struct AppCommands: Commands {
     @FocusedValue(RepoModel.self) private var model
     @FocusedValue(WindowActions.self) private var windowActions
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
+    private let github = GitHubAccountManager.shared
 
     var body: some Commands {
         CommandGroup(after: .appInfo) {
             Button("Kiểm tra cập nhật…") {
                 Task { await AppUpdater.shared.check(userInitiated: true) }
+            }
+            Button("Có gì mới…") { openWindow(id: "repo", value: SpecialTab.releaseNotes) }
+        }
+
+        CommandGroup(after: .appSettings) {
+            // Mở thẻ Tài khoản trong Cài đặt; chưa đăng nhập thì hiện luôn hộp đăng nhập ở đó.
+            Button(github.accounts.isEmpty ? "Đăng nhập GitHub…" : "Tài khoản GitHub…") {
+                github.prepareSettings()
+                openSettings()
             }
         }
 
@@ -39,6 +52,9 @@ struct AppCommands: Commands {
                 }
             }
             .disabled(appState.recentRepositories.isEmpty)
+            Divider()
+            Button("Đóng repository") { windowActions?.closeRepository() }
+                .disabled(model == nil)
         }
 
         CommandGroup(after: .sidebar) {
@@ -57,6 +73,8 @@ struct AppCommands: Commands {
                 .keyboardShortcut("l", modifiers: [.command, .shift])
             Button("Push") { model?.push() }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
+            Button("Merge từ repository khác…") { model?.beginMergeFromRepository() }
+                .disabled(model == nil)
             Divider()
             Button("Chuyển nhánh…") { model?.sheet = .switchBranch }
                 .keyboardShortcut("b", modifiers: [.command])
@@ -80,6 +98,8 @@ struct AppCommands: Commands {
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("Mở bằng VS Code") { model?.openInEditor() }
             Divider()
+            Button("Tài khoản GitHub cho repo này…") { model?.sheet = .githubAccount(owner: nil) }
+                .disabled(model == nil)
             Button("Nhật ký lệnh git…") { model?.sheet = .commandLog }
         }
     }

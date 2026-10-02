@@ -28,6 +28,12 @@ struct SheetContent: View {
             FileHistorySheet(model: model, path: path)
         case .switchBranch:
             SwitchBranchSheet(model: model)
+        case .mergeFromRepository(let target):
+            MergeFromRepositorySheet(model: model, initialTarget: target)
+        case .githubLogin:
+            GitHubLoginSheet()
+        case .githubAccount(let owner):
+            GitHubRepoAccountSheet(model: model, owner: owner)
         }
     }
 }
@@ -347,7 +353,7 @@ private struct FileHistorySheet: View {
             } else {
                 List(commits) { commit in
                     HStack(spacing: 10) {
-                        AvatarView(name: commit.authorName, size: 24)
+                        AvatarView(name: commit.authorName, email: commit.authorEmail, repo: model.githubRepo, size: 24)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(commit.subject).lineLimit(1)
                             Text("\(commit.authorName) · \(VietnameseDate.absolute(commit.authorDate))")

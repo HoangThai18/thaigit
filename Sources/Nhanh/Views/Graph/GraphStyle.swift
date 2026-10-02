@@ -7,7 +7,8 @@ enum GraphStyle {
     static let laneWidth: CGFloat = 20
     static let leftPadding: CGFloat = 8
     static let lineWidth: CGFloat = 2
-    static let nodeRadius: CGFloat = 9.5
+    /// Node đủ lớn để nhìn rõ ảnh đại diện (dòng cao 30).
+    static let nodeRadius: CGFloat = 10.5
     static let mergeNodeRadius: CGFloat = 5
 
     /// Màu làn (đủ tươi để đọc được trên nền sáng lẫn tối). Hai làn đầu là màu logo:

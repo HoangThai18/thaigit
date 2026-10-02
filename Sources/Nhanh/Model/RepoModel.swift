@@ -22,6 +22,8 @@ final class RepoModel {
     private(set) var stashes: [Stash] = []
     private(set) var remotes: [Remote] = []
     private(set) var operation: RepoOperation?
+    /// Tên / email commit đang có hiệu lực (đọc khi mở repo và khi đổi danh tính).
+    var committerIdentity: CommitterIdentity?
     private(set) var entries: [GraphEntry] = []
     private(set) var graphVersion = 0
     private(set) var graphWidth = 1
@@ -87,6 +89,9 @@ final class RepoModel {
     @ObservationIgnored private var isActive = false
     @ObservationIgnored private var didChooseInitialSelection = false
     @ObservationIgnored var savedSummaryBeforeAmend: (String, String)?
+    /// Message app tự điền từ MERGE_MSG khi đang merge/revert — để dọn đi khi thao tác kết thúc ngoài ô commit
+    /// (nút "Tiếp tục", terminal) mà người dùng chưa sửa gì.
+    @ObservationIgnored var prefilledCommitMessage: (summary: String, body: String)?
 
     init(repository: GitRepository, commandLog: CommandLog) {
         self.repository = repository
@@ -113,6 +118,7 @@ final class RepoModel {
         watcher.start()
         self.watcher = watcher
         scheduleAutoFetch()
+        loadCommitterIdentity()
     }
 
     func stop() {

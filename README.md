@@ -89,6 +89,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 
 **Graph lịch sử**
 - Graph nhiều làn, mỗi làn một màu; nhãn nhánh / tag ở cột trái (💻 local, ☁️ remote).
+- Node commit là ảnh đại diện của tác giả như GitKraken (GitHub / Gravatar theo email, chưa có ảnh thì chữ viết tắt). Bảng gọn chỉ còn Nhánh / Tag │ Graph │ Commit — tên tác giả và thời gian xem ở panel bên phải; chuột phải lên tiêu đề cột để bật lại cột Tác giả / Thời gian / SHA hoặc tắt ảnh đại diện.
 - Dòng `// WIP` trên cùng là thay đổi chưa commit — bấm vào để stage và commit.
 - Tìm commit theo nội dung, tác giả, SHA. Tải dần khi cuộn (2.000 commit mỗi lần).
 
@@ -99,11 +100,14 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 **Nhánh, remote, stash, tag**
 - Checkout bằng nhấp đúp; ⌘B để tìm & chuyển nhánh.
 - Tạo / đổi tên / xoá nhánh, đặt upstream; fetch / pull (merge, rebase hoặc chỉ fast-forward) / push — bị từ chối thì đề xuất pull hoặc force-with-lease.
-- Cherry-pick, revert, reset (soft / mixed / hard), tag, push tag.
+- Cherry-pick, revert (hỏi commit ngay hay chỉ stage để xem lại, như GitKraken), reset (soft / mixed / hard), tag, push tag.
+- **Merge từ repository khác** (menu Pull, menu Repository hoặc chuột phải vào nhánh): lấy nhánh của một repo khác — thư mục trên máy (không cần đăng nhập) hoặc URL — merge vào nhánh của repo đang mở, không thêm remote. App nhớ nguồn đã dùng, lần sau chỉ cần bấm *Merge lại*. Hai repo tạo riêng (không chung commit) thì hỏi trước rồi mới merge với `--allow-unrelated-histories`.
 - Stash kèm lời nhắn, apply, pop, xoá; checkout bị chặn vì có thay đổi thì có nút "Stash rồi checkout".
 
 **Khác**
-- Nhiều repo trong nhiều tab, mở gần đây, clone có tiến trình, tạo repo mới.
+- Nhiều repo trong nhiều tab như GitKraken / Chrome: thanh tab luôn hiện, **+** mở tab mới (màn hình chọn repo gần đây), **×** đóng tab, kéo để đổi chỗ hoặc tách ra cửa sổ riêng. *File → Đóng repository* đưa tab về màn hình chọn repo.
+- Tab **Có gì mới** (menu *Thaigit → Có gì mới…*) đọc nhật ký thay đổi; tự mở một lần sau mỗi lần cập nhật.
+- Mở gần đây, clone có tiến trình, tạo repo mới.
 - Tự làm mới khi file đổi bên ngoài (sửa trong editor, commit từ terminal…), tự fetch định kỳ.
 - Mở repo trong Terminal / Finder / VS Code (hoặc Cursor, Zed, Sublime), lịch sử một file, nhật ký lệnh git đã chạy.
 - An toàn khi mở repo lạ: app không chạy lệnh `core.fsmonitor` hay `diff.*.textconv` do repo tự đặt.
@@ -130,6 +134,24 @@ Ghi chú:
 - **HTTPS**: dùng credential helper của git (thường là Keychain — `git config --global credential.helper osxkeychain`). Git cần mật khẩu / token thì app hiện hộp thoại hỏi.
 - **SSH**: dùng khoá trong `~/.ssh` và ssh-agent như terminal; passphrase hoặc câu hỏi xác nhận host hiện thành hộp thoại.
 
+### Đăng nhập GitHub
+
+Menu **Thaigit → Đăng nhập GitHub…** (hoặc Cài đặt → Tài khoản): app hiện một mã, bấm **Mở GitHub để xác nhận** (mã đã được sao chép sẵn), dán mã trên github.com rồi bấm *Authorize*. Không cần tự tạo token; Thaigit không bao giờ thấy mật khẩu GitHub.
+
+- Fetch / pull / push / clone tới repo **HTTPS trên github.com** dùng tài khoản GitHub; host khác (GitLab…) và SSH giữ nguyên cách cũ. Hộp Clone liệt kê repo của từng tài khoản, gõ để lọc theo tên.
+- **Nhiều tài khoản** (cá nhân, công ty…): Cài đặt → Tài khoản → *Thêm tài khoản…* (trên trình duyệt, chuyển sang đúng tài khoản GitHub đó trước khi nhập mã). Mỗi lệnh git chọn token theo **owner** trong URL `github.com/<owner>/…`: owner bạn tự gán → owner là chính tài khoản → tổ chức mà tài khoản là thành viên → tài khoản mặc định. Repo bị GitHub từ chối thì thông báo có nút *Dùng tài khoản khác cho &lt;owner&gt;…*.
+- **Tài khoản cho repo này** (menu Repository): gán owner của `origin` cho một tài khoản và — sau khi bạn xác nhận — ghi tên / email commit của tài khoản đó vào config local của repo (mặc định: tên GitHub + email `id+login@users.noreply.github.com`, sửa được trong Cài đặt). Ô commit nhắc khi email đang dùng khác tài khoản của repo.
+- Quyền xin: `repo`, `workflow` (để push được thay đổi trong `.github/workflows`) và `read:org` (biết tài khoản thuộc tổ chức nào).
+- Token mỗi tài khoản nằm riêng trong Keychain (mục `com.phanthai.thaigit.github`, theo login) và chỉ được đưa cho tiến trình git qua biến môi trường khi chạy lệnh mạng, qua script `~/Library/Application Support/Thaigit/github-credential.sh` — không ghi vào cấu hình git, không hiện trong nhật ký lệnh.
+- Xoá một tài khoản chỉ xoá token của tài khoản đó; muốn vô hiệu hẳn token, thu hồi ở [github.com/settings/applications](https://github.com/settings/applications).
+
+Người duy trì — bản build chưa có Client ID thì mục này hiện *Chưa cấu hình*. Tạo OAuth App một lần:
+
+1. GitHub → Settings → Developer settings → OAuth Apps → **New OAuth App**.
+2. Homepage URL `https://git.thaipro.store`; Authorization callback URL `https://git.thaipro.store` (Device Flow không dùng tới).
+3. Tick **Enable Device Flow**.
+4. Chép **Client ID** vào `ThaigitGitHubClientID` trong `Resources/Info.plist`. Device Flow không cần client secret — đừng đưa secret vào app.
+
 ## Phát hành bản mới (cho người duy trì)
 
 ```bash
@@ -146,7 +168,8 @@ Script tăng phiên bản trong `Resources/Info.plist`, build, nén `Thaigit-mac
 | Phím | Việc |
 | --- | --- |
 | ⌘O / ⇧⌘O / ⌥⌘N | Mở / clone / tạo repository |
-| ⌘T | Tab mới |
+| ⌘T / ⌘W | Tab mới / đóng tab |
+| ⌃Tab / ⌃⇧Tab | Sang tab sau / trước |
 | ⌘R | Làm mới |
 | ⌥⌘F / ⇧⌘L / ⇧⌘P | Fetch / Pull / Push |
 | ⌘B | Tìm & chuyển nhánh |
@@ -167,6 +190,7 @@ Bản Windows dùng Ctrl thay cho ⌘.
 - Diff: số dòng ngữ cảnh, mặc định hiển thị tách đôi.
 - Cập nhật: tự kiểm tra & tải bản mới, kiểm tra ngay.
 - Git: đường dẫn `git` riêng, kiểu Pull mặc định, prune khi fetch, chu kỳ tự fetch.
+- Tài khoản: thêm / xoá tài khoản GitHub, chọn tài khoản mặc định, sửa tên & email commit, owner đã gán.
 
 ## Sắp có (bản Thaigit đa nền tảng)
 
@@ -178,6 +202,8 @@ Bản Windows dùng Ctrl thay cho ⌘.
 ### Quyền riêng tư
 
 - **Tự cập nhật** chỉ tải `update.json` và file zip từ GitHub Releases — không gửi thông tin gì về máy hay repo của bạn (GitHub vẫn thấy địa chỉ IP như mọi lượt tải).
+- **Đăng nhập GitHub** (nếu dùng): app nói chuyện thẳng với github.com / api.github.com; token chỉ nằm trong Keychain trên máy bạn, không gửi tới server Thaigit.
+- **Ảnh đại diện trên graph**: để tìm ảnh, app gửi mã băm SHA-256 của email người commit tới Gravatar, và với repo nằm trên GitHub thì hỏi API GitHub "tài khoản nào đã commit bằng email này" (GitHub vốn đã có các commit đó). Ảnh được cache trên máy 7 ngày. Tắt bằng chuột phải lên tiêu đề cột graph → bỏ chọn *Ảnh đại diện thật*: khi đó app không gửi gì.
 - **AI** (sắp có) chỉ chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu. App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file nhị phân) tới server Thaigit, nơi model Hermes chạy ngay trên máy chủ của dự án — không gửi cho bên thứ ba, không lưu nội dung code hay message.
 - **Thống kê** (sắp có) chỉ gửi khi bạn đồng ý: mã cài đặt ngẫu nhiên, phiên bản app, hệ điều hành. Không gửi tên repo, đường dẫn, code hay email.
 
@@ -197,6 +223,7 @@ Sources/NhanhCore/       Lõi không phụ thuộc giao diện (có test)
   Diff/                  Parse diff, tạo patch để stage từng dòng, parse & giải conflict
   Graph/                 Thuật toán xếp làn cho graph
   Update/                Kiểm tra, tải, kiểm chữ ký và cài bản cập nhật
+  GitHub/                Đăng nhập GitHub (Device Flow), token trong Keychain, đưa token cho lệnh git mạng
   Support/               Chạy tiến trình, theo dõi file (FSEvents), nhật ký lệnh
 Sources/Nhanh/           Ứng dụng macOS (SwiftUI + AppKit)
 Tests/NhanhCoreTests/    Test parser, diff/patch, graph, tự cập nhật, thao tác trên repo thật tạm thời

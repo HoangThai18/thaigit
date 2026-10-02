@@ -48,4 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
+
+    /// Nút + trên thanh tab: mở tab mới với màn hình chọn repository (như GitKraken).
+    @objc func newWindowForTab(_ sender: Any?) {
+        TabActions.openNewTab?()
+    }
 }

@@ -97,13 +97,17 @@ public struct GitRunner: Sendable {
         environment extra: [String: String] = [:],
         onProgress: (@Sendable (String) -> Void)? = nil
     ) async throws -> ProcessOutput {
-        let environment = environmentStore.value
+        let (environment, github) = environmentStore.snapshot()
+        // Đã đăng nhập GitHub + lệnh mạng: thêm credential helper chọn token theo owner, đọc token từ biến môi trường
+        // của riêng tiến trình này. Nhật ký lệnh và GitError chỉ giữ `arguments` của người gọi — không bao giờ chứa token.
+        let credentials = GitCredentialInjection.additions(for: arguments, credentials: github)
         var variables = environment.variables
+        for (key, value) in credentials.environment { variables[key] = value }
         for (key, value) in extra { variables[key] = value }
         let start = Date()
         let output = try await ProcessRunner.run(
             executable: environment.executable,
-            arguments: Self.globalArguments + arguments,
+            arguments: Self.globalArguments + credentials.arguments + arguments,
             currentDirectory: workingDirectory,
             environment: variables,
             input: input,

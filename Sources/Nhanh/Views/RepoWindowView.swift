@@ -36,8 +36,12 @@ struct RepoWindowView: View {
             isPresented: Binding(get: { model.confirmation != nil }, set: { if !$0 { model.confirmation = nil } }),
             presenting: model.confirmation
         ) { confirmation in
+            // Nút đầu tiên là nút mặc định (↩).
             Button(confirmation.confirmTitle, role: confirmation.isDestructive ? .destructive : nil) {
                 confirmation.action()
+            }
+            if let secondaryTitle = confirmation.secondaryTitle, let secondaryAction = confirmation.secondaryAction {
+                Button(secondaryTitle, action: secondaryAction)
             }
             Button("Huỷ", role: .cancel) {}
         } message: { confirmation in
@@ -142,6 +146,11 @@ struct RepoToolbar: ToolbarContent {
                 Button("Pull (chỉ fast-forward)") { model.pull(mode: .fastForwardOnly) }
                 Divider()
                 Button("Chỉ fetch") { model.fetch() }
+                Divider()
+                ForEach(model.savedForeignMergeSources.prefix(3)) { item in
+                    Button("Merge lại \(item.label) → \(item.target)") { model.mergeFromRepository(item) }
+                }
+                Button("Merge từ repository khác…") { model.beginMergeFromRepository() }
             } label: {
                 Label(model.status.behind > 0 ? "Pull ↓\(model.status.behind)" : "Pull", systemImage: "arrow.down.circle")
                     .labelStyle(.titleAndIcon)
@@ -242,6 +251,9 @@ struct OperationBanner: View {
                 Text(operation.title).font(.headline)
                 Text(conflicts > 0
                      ? "Còn \(conflicts) file xung đột — bấm vào từng file ở panel bên phải để chọn bản giữ lại."
+                     : operation == .reverting
+                     // Revert chưa commit: thay đổi đảo ngược đã stage, message gợi ý đã điền sẵn trong ô commit.
+                     ? "Thay đổi đảo ngược đã được stage — xem lại, rồi commit ở panel bên phải hoặc bấm “Tiếp tục”."
                      : "Đã giải quyết hết xung đột. Bấm “Tiếp tục” để hoàn tất.")
                     .font(.callout)
                     .foregroundStyle(.secondary)

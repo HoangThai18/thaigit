@@ -22,6 +22,12 @@ struct CloneSheet: View {
     @State private var progress = CloneProgress()
     @State private var errorMessage: String?
     @State private var task: Task<Void, Never>?
+    @State private var showGitHubLogin = false
+    /// Clone thất bại vì GitHub từ chối xác thực: hiện nút đăng nhập cạnh lỗi.
+    @State private var suggestGitHubLogin = false
+    /// Repo vừa chọn trong danh sách của một tài khoản (để clone bằng đúng tài khoản đó).
+    @State private var picked: PickedRepository?
+    private let github = GitHubAccountManager.shared
 
     private var destination: URL {
         URL(fileURLWithPath: (parentDirectory as NSString).expandingTildeInPath).appendingPathComponent(folderName)
@@ -35,6 +41,24 @@ struct CloneSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             Label("Clone repository", systemImage: "arrow.down.circle.fill")
                 .font(.title2.bold())
+
+            if !github.accounts.isEmpty {
+                GitHubRepositoryPicker(url: $url, picked: $picked) { showGitHubLogin = true }
+            } else if github.isConfigured {
+                HStack(spacing: 10) {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.title3)
+                        .foregroundStyle(Brand.blue)
+                    Text("Đăng nhập GitHub để chọn nhanh repo của bạn và clone repo riêng tư qua HTTPS.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Đăng nhập GitHub…") { showGitHubLogin = true }
+                }
+                .padding(12)
+                .glassSurface(in: RoundedRectangle(cornerRadius: 14), tint: Brand.blue.opacity(0.08))
+            }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Địa chỉ repository").font(.subheadline.weight(.medium))
@@ -86,12 +110,18 @@ struct CloneSheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxHeight: 90)
+                if suggestGitHubLogin {
+                    Button(github.accounts.isEmpty ? "Đăng nhập GitHub…" : "Đăng nhập / thêm tài khoản GitHub…") {
+                        showGitHubLogin = true
+                    }
+                }
             }
 
             HStack {
-                Text("Repo riêng tư: Thaigit dùng SSH key / Keychain của máy, sẽ hỏi mật khẩu/token nếu cần.")
+                Text(footnote)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 Button("Huỷ") {
                     task?.cancel()
@@ -106,6 +136,25 @@ struct CloneSheet: View {
         .padding(24)
         .frame(width: 600)
         .onAppear(perform: prefillFromClipboard)
+        .sheet(isPresented: $showGitHubLogin) {
+            GitHubLoginSheet()
+        }
+    }
+
+    /// Repo HTTPS trên github.com: cho biết tài khoản nào sẽ được dùng (theo owner của địa chỉ).
+    private var footnote: String {
+        let remote = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        if GitHubRemoteURL.isHTTPS(remote), let owner = GitHubRemoteURL.owner(of: remote) {
+            if let picked, picked.cloneURL == remote, picked.owner.caseInsensitiveCompare(owner) == .orderedSame {
+                return "Clone bằng tài khoản @\(picked.login)."
+            }
+            if let resolution = github.resolution(forOwner: owner) {
+                return "Clone bằng tài khoản @\(resolution.profile.login) (owner \(owner))."
+            }
+        }
+        return github.accounts.isEmpty
+            ? "Repo riêng tư: Thaigit dùng SSH key / Keychain của máy, sẽ hỏi mật khẩu/token nếu cần."
+            : "Repo HTTPS trên github.com dùng tài khoản GitHub theo owner; repo khác dùng SSH key / Keychain của máy."
     }
 
     private func prefillFromClipboard() {
@@ -134,9 +183,15 @@ struct CloneSheet: View {
             return
         }
         errorMessage = nil
+        suggestGitHubLogin = false
         isCloning = true
         UserDefaults.standard.set(parentDirectory, forKey: Prefs.lastCloneDirectory)
         let remoteURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Repo chọn từ danh sách của một tài khoản: owner chưa khớp tài khoản nào thì gán cho tài khoản đó, để clone
+        // (và fetch / push sau này) dùng đúng token.
+        if let picked, picked.cloneURL == remoteURL {
+            github.noteCloneSelection(owner: picked.owner, login: picked.login)
+        }
         let environment = appState.environment
         let progress = progress
         task = Task {
@@ -154,7 +209,171 @@ struct CloneSheet: View {
                 isCloning = false
                 if !Task.isCancelled {
                     errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    suggestGitHubLogin = github.isConfigured && (error as? GitError).flatMap(GitHubAuthFailure.detect) != nil
                 }
+            }
+        }
+    }
+}
+
+/// "Repo GitHub của bạn" trong hộp Clone: lọc theo tên, chọn một repo để điền địa chỉ clone (HTTPS).
+/// Repo chọn trong danh sách của một tài khoản GitHub.
+struct PickedRepository: Equatable {
+    let cloneURL: String
+    let owner: String
+    let login: String
+}
+
+private struct GitHubRepositoryPicker: View {
+    @Binding var url: String
+    @Binding var picked: PickedRepository?
+    var onLogin: () -> Void
+
+    private let github = GitHubAccountManager.shared
+    @State private var login = ""
+    @State private var loadedLogin = ""
+    @State private var repositories: [GitHubRepository] = []
+    @State private var query = ""
+    @State private var selection: GitHubRepository.ID?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var tokenRejected = false
+
+    private var filtered: [GitHubRepository] {
+        let text = query.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return repositories }
+        return repositories.filter { $0.name.localizedStandardContains(text) || $0.fullName.localizedStandardContains(text) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text("Repo GitHub của bạn").font(.subheadline.weight(.medium))
+                Spacer()
+                if let profile = github.state.profile(login: login) {
+                    GitHubAvatar(account: profile.account, size: 18)
+                }
+                if github.accounts.count > 1 {
+                    // Nhiều tài khoản (cá nhân, công ty…): chọn tài khoản để xem repo của nó.
+                    Picker("Tài khoản", selection: $login) {
+                        ForEach(github.accounts) { Text("@\($0.login)").tag($0.login) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } else {
+                    Text("@\(login)").font(.caption).foregroundStyle(.secondary)
+                }
+                Button {
+                    Task { await load() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .disabled(isLoading)
+                .help("Tải lại danh sách repo")
+            }
+            TextField("", text: $query, prompt: Text("Lọc theo tên repo…"))
+                .textFieldStyle(.roundedBorder)
+            list
+                .frame(height: 180)
+        }
+        .onAppear {
+            if github.state.profile(login: login) == nil { login = github.defaultAccount?.login ?? "" }
+        }
+        .task(id: login) { await load() }
+        .onChange(of: selection) { _, id in
+            guard let repository = repositories.first(where: { $0.id == id }) else { return }
+            url = repository.cloneURL
+            let owner = repository.fullName.split(separator: "/").first.map(String.init) ?? ""
+            picked = PickedRepository(cloneURL: repository.cloneURL, owner: owner, login: login)
+        }
+    }
+
+    @ViewBuilder
+    private var list: some View {
+        if isLoading && repositories.isEmpty {
+            ProgressView("Đang tải danh sách repo…")
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let errorMessage {
+            VStack(spacing: 8) {
+                Text(errorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                if tokenRejected {
+                    Button("Đăng nhập lại…", action: onLogin)
+                } else {
+                    Button("Thử lại") { Task { await load() } }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if filtered.isEmpty {
+            Text(repositories.isEmpty ? "Tài khoản này chưa có repo nào." : "Không có repo nào khớp “\(query)”.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List(filtered, selection: $selection) { repository in
+                GitHubRepositoryRow(repository: repository)
+                    .tag(repository.id)
+            }
+            .listStyle(.inset)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private func load() async {
+        guard !login.isEmpty else { return }
+        let account = login
+        if loadedLogin != account {
+            // Đổi tài khoản: không để danh sách của tài khoản trước hiện trong lúc tải.
+            repositories = []
+            loadedLogin = account
+        }
+        isLoading = true
+        defer { isLoading = false }
+        selection = nil
+        do {
+            repositories = try await github.repositories(for: account)
+            errorMessage = nil
+            tokenRejected = false
+        } catch is CancellationError {
+            return
+        } catch {
+            tokenRejected = error as? GitHubError == .unauthorized
+            errorMessage = tokenRejected
+                ? "Token GitHub của @\(account) không còn hợp lệ — đăng nhập lại."
+                : "Không tải được danh sách repo: " + GitHubAccountManager.describe(error)
+        }
+    }
+}
+
+private struct GitHubRepositoryRow: View {
+    let repository: GitHubRepository
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: repository.isPrivate ? "lock.fill" : "book.closed")
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+                .help(repository.isPrivate ? "Repo riêng tư" : "Repo công khai")
+            VStack(alignment: .leading, spacing: 1) {
+                Text(repository.fullName)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if let description = repository.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            if let updated = repository.updatedAt {
+                Text(VietnameseDate.relative(updated))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }

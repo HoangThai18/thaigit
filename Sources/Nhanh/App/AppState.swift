@@ -21,6 +21,7 @@ enum Prefs {
     static let autoUpdate = "autoUpdate"
     static let lastLaunchedVersion = "lastLaunchedVersion"
     static let pendingUpdateNotes = "pendingUpdateNotes"
+    static let settingsTab = "settingsTab"
 
     static func register() {
         UserDefaults.standard.register(defaults: [
@@ -76,6 +77,8 @@ final class AppState {
         gitExecutablePath = environment.executable.path
         recentRepositories = UserDefaults.standard.stringArray(forKey: Prefs.recentRepositories) ?? []
         pendingOpenPaths = Self.launchArgumentPaths()
+        // Nạp tài khoản GitHub trước khi repo nào kịp chạy lệnh mạng (token đi qua `environment`).
+        GitHubAccountManager.shared.bind(to: self.environment)
         Task { await self.loadShellEnvironment() }
     }
 

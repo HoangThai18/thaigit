@@ -92,21 +92,35 @@ struct FileRow: View {
     }
 }
 
-/// Vòng tròn chữ cái đầu của tác giả.
+/// Ảnh đại diện của tác giả (GitHub / Gravatar theo `email`); chưa có ảnh thì vòng tròn chữ cái đầu.
 struct AvatarView: View {
     let name: String
+    var email: String?
+    /// Repo GitHub giúp tìm ảnh qua API commit.
+    var repo: GitHubRepoRef?
     var size: CGFloat = 28
 
     var body: some View {
-        let initials = GraphStyle.initials(name)
-        Circle()
-            .fill(color)
-            .frame(width: size, height: size)
-            .overlay(
-                Text(initials)
-                    .font(.system(size: size * 0.38, weight: .bold))
-                    .foregroundStyle(.white)
-            )
+        // Đọc `version` để vẽ lại khi ảnh tải xong.
+        let _ = AvatarStore.shared.version
+        if let email, let image = AvatarStore.shared.image(email: email, repo: repo) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFill()
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+                .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 0.5))
+        } else {
+            Circle()
+                .fill(color)
+                .frame(width: size, height: size)
+                .overlay(
+                    Text(GraphStyle.initials(name))
+                        .font(.system(size: size * 0.38, weight: .bold))
+                        .foregroundStyle(.white)
+                )
+        }
     }
 
     private var color: Color {
