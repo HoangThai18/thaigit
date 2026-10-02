@@ -1,0 +1,47 @@
+# Build bản cài Windows (thử nghiệm) của Thaigit đa nền tảng trên máy Windows của GitHub.
+# Tải file: tab Actions → lượt "Bản Windows" → mục Artifacts → Thaigit-Windows (trong đó có ...-setup.exe).
+# Bản chưa ký số nên Windows SmartScreen sẽ cảnh báo lần đầu ("More info" → "Run anyway").
+name: Bản Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - apps/**
+      - packages/**
+      - pnpm-lock.yaml
+      - .github/workflows/build-windows.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build bản cài (NSIS)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      # Không bật cache npm: file tạo ra được đưa cho người dùng cài.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: Cài phụ thuộc (chỉ app desktop)
+        run: pnpm install --frozen-lockfile --filter @thaigit/desktop...
+      - name: Build bản cài
+        run: pnpm --filter @thaigit/desktop tauri build --bundles nsis
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Thaigit-Windows
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 30
