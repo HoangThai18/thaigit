@@ -30,7 +30,20 @@ final class RepoModel {
     private(set) var mayHaveMoreCommits = false
     private(set) var isLoadingHistory = false
     private(set) var hasLoaded = false
-    var lastFetch: Date?
+    var lastFetch: Date? {
+        didSet { loadPullRequests() }
+    }
+    /// Nhánh ẩn / solo trên graph, nhớ riêng cho từng repo (xem RepoModel+GraphFilter.swift).
+    var graphFilter = GraphRefFilter() {
+        didSet {
+            guard graphFilter != oldValue else { return }
+            saveGraphFilter()
+            requestRefresh(.history)
+        }
+    }
+    /// Pull Request đang mở trên GitHub (xem RepoModel+PullRequests.swift).
+    var pullRequests = PullRequestList()
+    @ObservationIgnored var pullRequestsTask: Task<Void, Never>?
 
     @ObservationIgnored private var rowIndex: [String: Int] = [:]
     @ObservationIgnored private var rawCommits: [Commit] = []
@@ -113,6 +126,7 @@ final class RepoModel {
     func start() {
         guard !isActive else { return }
         isActive = true
+        loadGraphFilter()
         requestRefresh(.all)
         let watcher = RepoWatcher(root: repository.root, gitDir: repository.gitDir, commonDir: repository.commonDir) { [weak self] change in
             Task { @MainActor in self?.handleFileSystemChange(change) }
@@ -256,7 +270,10 @@ final class RepoModel {
             stashes = value
             if case .stash(let sha) = selection, !value.contains(where: { $0.sha == sha }) { select(.none) }
         }
-        if case .success(let value)? = newRemotes, value != remotes { remotes = value }
+        if case .success(let value)? = newRemotes, value != remotes {
+            remotes = value
+            loadPullRequests()
+        }
         let newOperation = repository.operationState()
         if newOperation != operation { operation = newOperation }
         // Hết xung đột thì ẩn các cảnh báo xung đột cũ.
@@ -307,9 +324,10 @@ final class RepoModel {
         let showWIP = shouldShowWorkingTree
         let includeRemotes = Prefs.showRemoteBranchesValue
         let includeTags = Prefs.showTagsValue
+        let filter = graphFilter.keeping(Set(refs.map(\.fullName)))
         do {
             let history = try await repo.history(limit: limit, order: order, head: head, showWorkingTree: showWIP,
-                                                 includeRemotes: includeRemotes, includeTags: includeTags)
+                                                 includeRemotes: includeRemotes, includeTags: includeTags, filter: filter)
             rawCommits = showWIP ? Array(history.commits.dropFirst()) : history.commits
             mayHaveMoreCommits = history.mayHaveMore
             applyGraph(commits: history.commits, rows: history.rows)
@@ -354,7 +372,7 @@ final class RepoModel {
         validateSelection()
     }
 
-    private func refreshLabels() {
+    func refreshLabels() {
         let labels = labelsByCommit()
         var changed = false
         for position in entries.indices {
@@ -394,7 +412,10 @@ final class RepoModel {
         let singleRemote = Set(refs.compactMap(\.remoteName)).count <= 1
         let current = status.head.branchName
         var byTarget: [String: [GitRef]] = [:]
-        for ref in refs { byTarget[ref.target, default: []].append(ref) }
+        // Nhánh đang ẩn (hoặc ngoài nhóm solo) không có nhãn; nhánh đang checkout và tag luôn hiện.
+        for ref in refs where ref.kind == .tag || graphFilter.isVisible(ref.fullName) || (ref.kind == .localBranch && ref.name == current) {
+            byTarget[ref.target, default: []].append(ref)
+        }
 
         var result: [String: [RefLabel]] = [:]
         for (target, group) in byTarget {
@@ -422,6 +443,7 @@ final class RepoModel {
                 }
             }
             labels.sort { rank($0) < rank($1) }
+            markPullRequests(in: &labels)
             if !labels.isEmpty { result[target] = labels }
         }
         if case .detached(let oid) = status.head {

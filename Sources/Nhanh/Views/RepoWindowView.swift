@@ -89,6 +89,12 @@ struct CenterArea: View {
                 CommitGraphView(model: model)
                     .opacity(model.openFile == nil ? 1 : 0)
                     .allowsHitTesting(model.openFile == nil)
+                    .overlay(alignment: .bottom) {
+                        if model.openFile == nil, let summary = model.graphFilterSummary {
+                            GraphFilterBar(summary: summary) { model.showAllBranchesOnGraph() }
+                                .padding(.bottom, 14)
+                        }
+                    }
                 if model.openFile != nil {
                     DiffPane(model: model)
                         .transition(.opacity)
@@ -509,5 +515,25 @@ struct AnyLabelStyle: LabelStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         make(configuration)
+    }
+}
+
+/// Dải báo đang ẩn / solo nhánh trên graph, kèm nút hiện lại tất cả.
+private struct GraphFilterBar: View {
+    let summary: String
+    let showAll: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "eye.slash")
+                .foregroundStyle(.secondary)
+            Text(summary)
+                .font(.callout)
+            Button("Hiện tất cả", action: showAll)
+                .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .glassSurface(in: Capsule())
     }
 }

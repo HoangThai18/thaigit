@@ -1232,6 +1232,16 @@ extension RepoModel {
                 self?.deleteRemoteTag(ref)
             })
         }
+        let pullItems = pullRequestMenuItems(for: ref)
+        if !pullItems.isEmpty {
+            items.append(.separator)
+            items += pullItems
+        }
+        let filterItems = graphFilterMenuItems(for: ref)
+        if !filterItems.isEmpty {
+            items.append(.separator)
+            items += filterItems
+        }
         items.append(.separator)
         items.append(.action("Sao chép tên", systemImage: "doc.on.doc") { [weak self] in self?.copy(ref.name, label: "tên") })
         return items

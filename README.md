@@ -97,6 +97,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - Diff gộp hoặc tách đôi, diff ảnh; stage / bỏ stage / huỷ theo file, hunk hoặc từng dòng.
 - Commit, amend, ⌘↩ để commit nhanh, "Stage tất cả & commit".
 - **So sánh** hai commit bất kỳ (giữ ⌘ và bấm 2 commit trên graph) hoặc một nhánh với nhánh hiện tại (chuột phải vào nhánh → *So sánh với …*): panel bên phải liệt kê các commit nằm giữa và các file khác nhau, bấm file để xem diff.
+- **Ẩn / solo nhánh trên graph** như GitKraken: rê chuột vào nhánh ở sidebar, bấm con mắt để ẩn (hoặc chuột phải → *Ẩn khỏi graph*); *Chỉ hiện nhánh này (solo)* để graph chỉ còn các nhánh đã chọn và nhánh đang checkout. Ẩn nhánh local thì nhánh remote nó theo dõi cũng ẩn theo; app nhớ riêng cho từng repo; dải báo ở đáy graph có nút *Hiện tất cả*.
 - **Blame** (chuột phải vào file → *Blame — ai sửa từng dòng*): mỗi dòng kèm tác giả, thời gian và commit đã sửa nó; theo dấu cả khi đoạn code được chuyển từ file khác sang.
 
 **Nhánh, remote, stash, tag**
@@ -106,6 +107,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - **Interactive rebase** (chuột phải vào commit → *Interactive rebase … từ đây*): kéo để đổi thứ tự, chọn pick / reword / squash / fixup / drop cho từng commit, sửa lời commit ngay trong bảng; thay đổi chưa commit được tự cất và trả lại sau khi rebase.
 - **Merge từ repository khác** (menu Pull, menu Repository hoặc chuột phải vào nhánh): lấy nhánh của một repo khác — thư mục trên máy (không cần đăng nhập) hoặc URL — merge vào nhánh của repo đang mở, không thêm remote. App nhớ nguồn đã dùng, lần sau chỉ cần bấm *Merge lại*. Hai repo tạo riêng (không chung commit) thì hỏi trước rồi mới merge với `--allow-unrelated-histories`.
 - Stash kèm lời nhắn, apply, pop, xoá; checkout bị chặn vì có thay đổi thì có nút "Stash rồi checkout".
+- **Pull Request (GitHub)**: mục *PULL REQUESTS* ở sidebar liệt kê PR đang mở (repo riêng tư cần đăng nhập GitHub); nhãn nhánh trên graph có biểu tượng PR. Bấm PR để tới commit mới nhất, nhấp đúp để checkout (PR từ fork được lấy về nhánh `pr/<số>`), chuột phải để mở trên GitHub hoặc xem thay đổi so với nhánh đích. *Tạo Pull Request…* (nút + của mục, hoặc chuột phải vào nhánh): chọn nhánh đích, tiêu đề / mô tả điền sẵn từ các commit, tạo dạng nháp được; nhánh chưa push thì push trước rồi tạo.
 
 **Khác**
 - Nhiều repo trong nhiều tab như GitKraken: thanh tab ở hàng trên cùng cạnh 3 nút đỏ/vàng/xanh. Đầu hàng là tab **Trang chủ** (🏠, mở / clone / tạo repo, danh sách repo gần đây), cuối hàng là nút ✨ **Có gì mới**; **+** mở tab mới (màn hình chọn repo gần đây), **×** đóng tab, kéo tab để đổi chỗ, chuột phải để đóng các tab khác. Mỗi tab giữ nguyên repo của nó; mở lại app thì các tab của lần trước được mở lại. *File → Đóng repository* đưa tab về màn hình chọn repo. Hàng công cụ của repo (Fetch, Pull, Push…) nằm ngay dưới thanh tab, cửa sổ hẹp thì chỉ còn biểu tượng.
@@ -244,7 +246,7 @@ Trang chủ (`site/`) cần Node 24 và pnpm: `pnpm install`, rồi `pnpm --filt
 
 ## Chưa có
 
-Giao diện cho submodule và Git LFS, ký commit GPG / SSH, tích hợp Pull Request của GitHub / GitLab.
+Giao diện cho submodule và Git LFS, ký commit GPG / SSH, Pull Request của GitLab / Bitbucket.
 
 ## English
 

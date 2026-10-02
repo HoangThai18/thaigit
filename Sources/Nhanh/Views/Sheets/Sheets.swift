@@ -38,6 +38,8 @@ struct SheetContent: View {
             InteractiveRebaseSheet(model: model, base: base, baseLabel: label)
         case .blame(let path, let rev):
             BlameSheet(model: model, path: path, rev: rev)
+        case .createPullRequest(let head):
+            CreatePullRequestSheet(model: model, head: head)
         }
     }
 }

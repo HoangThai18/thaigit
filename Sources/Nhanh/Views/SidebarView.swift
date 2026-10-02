@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Sidebar: LOCAL / REMOTE / TAGS / STASHES như GitKraken. Bấm để nhảy tới commit, double-click để
+/// Sidebar: LOCAL / REMOTE / PULL REQUESTS / TAGS / STASHES như GitKraken. Bấm để nhảy tới commit, double-click để
 /// checkout, kéo một nhánh thả lên nhánh khác để merge/rebase/push.
 struct SidebarView: View {
     @Bindable var model: RepoModel
@@ -12,6 +12,7 @@ struct SidebarView: View {
     @AppStorage("sidebar.showRemote") private var showRemote = true
     @AppStorage("sidebar.showTags") private var showTags = false
     @AppStorage("sidebar.showStashes") private var showStashes = true
+    @AppStorage("sidebar.showPullRequests") private var showPullRequests = true
 
     private var trimmedFilter: String { filter.trimmingCharacters(in: .whitespaces) }
     private var filtering: Bool { !trimmedFilter.isEmpty }
@@ -37,6 +38,16 @@ struct SidebarView: View {
             } header: {
                 SidebarHeader(title: "REMOTE", count: model.remoteBranches.count, systemImage: "cloud") {
                     model.sheet = .addRemote
+                }
+            }
+
+            if model.pullRequests.state != .notGitHub, model.githubRemote != nil {
+                Section(isExpanded: $showPullRequests) {
+                    if showPullRequests { pullRequestRows }
+                } header: {
+                    SidebarHeader(title: "PULL REQUESTS", count: model.pullRequests.items.count, systemImage: "arrow.triangle.pull") {
+                        model.beginCreatePullRequest()
+                    }
                 }
             }
 
@@ -82,6 +93,8 @@ struct SidebarView: View {
                 model.checkout(ref)
             } else if let stash = stash(for: id) {
                 model.applyStash(stash)
+            } else if let pull = pullRequest(for: id) {
+                model.checkoutPullRequest(pull)
             }
         }
         .onChange(of: selection) { _, newValue in
@@ -90,6 +103,8 @@ struct SidebarView: View {
                 model.reveal(ref: ref)
             } else if let stash = stash(for: newValue) {
                 model.select(.stash(stash.sha))
+            } else if let pull = pullRequest(for: newValue) {
+                model.revealPullRequest(pull)
             }
         }
         .background {
@@ -134,6 +149,44 @@ struct SidebarView: View {
     }
 
     @ViewBuilder
+    private var pullRequestRows: some View {
+        let list = model.pullRequests
+        let pulls = list.items.filter { matches("#\($0.number) \($0.title) \($0.headBranch) \($0.author)") }
+        switch list.state {
+        case .needsLogin:
+            if GitHubAccountManager.shared.isConfigured {
+                Button {
+                    model.sheet = .githubLogin
+                } label: {
+                    Label("Đăng nhập GitHub để xem PR", systemImage: "person.crop.circle.badge.plus")
+                }
+                .buttonStyle(.borderless)
+                .help("Repo riêng tư: cần tài khoản GitHub có quyền xem repo này")
+            } else {
+                PlaceholderRow(text: "Repo riêng tư — cần đăng nhập GitHub")
+            }
+        case .failed(let message) where pulls.isEmpty:
+            Button {
+                model.loadPullRequests(force: true)
+            } label: {
+                Label("Không tải được PR — thử lại", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .help(message)
+        case .loading where pulls.isEmpty, .idle:
+            PlaceholderRow(text: "Đang tải…")
+        default:
+            if pulls.isEmpty {
+                PlaceholderRow(text: filtering ? "Không có PR khớp" : "Không có PR nào đang mở")
+            }
+            LimitedRows(items: pulls, noun: "PR") { pull in
+                PullRequestRow(pull: pull, isCurrent: model.currentBranchRef.flatMap { model.pullRequest(for: $0) }?.number == pull.number)
+                    .tag("pr:\(pull.number)")
+            }
+        }
+    }
+
+    @ViewBuilder
     private var tagRows: some View {
         let tags = model.tags.filter { matches($0.name) }
         if tags.isEmpty {
@@ -160,7 +213,10 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func branchRow(_ ref: GitRef, title: String) -> some View {
-        BranchRow(ref: ref, title: title, isCurrent: ref.kind == .localBranch && ref.isHead)
+        BranchRow(ref: ref, title: title, isCurrent: ref.kind == .localBranch && ref.isHead,
+                  visibility: model.graphVisibility(of: ref), canHide: model.canHideOnGraph(ref)) {
+            model.toggleHidden(ref)
+        }
             .tag("ref:" + ref.fullName)
             .draggable(ref.fullName) {
                 Label(ref.name, systemImage: ref.kind == .remoteBranch ? "cloud" : "arrow.triangle.branch")
@@ -194,9 +250,15 @@ struct SidebarView: View {
         return model.stashes.first { $0.sha == sha }
     }
 
+    private func pullRequest(for id: String) -> GitHubPullRequest? {
+        guard id.hasPrefix("pr:"), let number = Int(id.dropFirst(3)) else { return nil }
+        return model.pullRequests.items.first { $0.number == number }
+    }
+
     private func menuItems(for id: String) -> [MenuItemSpec] {
         if let ref = ref(for: id) { return model.menu(for: ref) }
         if let stash = stash(for: id) { return model.stashMenu(stash) }
+        if let pull = pullRequest(for: id) { return model.pullRequestMenu(pull) }
         return []
     }
 }
@@ -232,6 +294,13 @@ private struct BranchRow: View {
     let ref: GitRef
     let title: String
     let isCurrent: Bool
+    let visibility: GraphVisibility
+    let canHide: Bool
+    let toggleHidden: () -> Void
+    @State private var hovering = false
+
+    /// Mờ đi khi nhánh không hiện trên graph.
+    private var isDimmed: Bool { visibility == .hidden || (visibility == .outsideSolo && !isCurrent) }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -242,7 +311,22 @@ private struct BranchRow: View {
                 .fontWeight(isCurrent ? .semibold : .regular)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .opacity(isDimmed ? 0.45 : 1)
             Spacer(minLength: 4)
+            if visibility == .solo {
+                Image(systemName: "scope")
+                    .foregroundStyle(Color.accentColor)
+                    .help("Đang chỉ hiện nhánh này (solo)")
+            }
+            // Như GitKraken: rê chuột vào nhánh hiện nút con mắt để ẩn / hiện nhánh trên graph.
+            if visibility == .hidden || (hovering && canHide && visibility != .solo && visibility != .outsideSolo) {
+                Button(action: toggleHidden) {
+                    Image(systemName: visibility == .hidden ? "eye.slash" : "eye")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help(visibility == .hidden ? "Hiện lại nhánh trên graph" : "Ẩn nhánh khỏi graph")
+            }
             if ref.upstreamGone {
                 Image(systemName: "exclamationmark.icloud")
                     .foregroundStyle(.orange)
@@ -262,6 +346,34 @@ private struct BranchRow: View {
             }
         }
         .help(ref.upstream.map { "\(ref.name) → \($0)" } ?? ref.name)
+        .onHover { hovering = $0 }
+    }
+}
+
+private struct PullRequestRow: View {
+    let pull: GitHubPullRequest
+    /// PR của nhánh đang đứng.
+    let isCurrent: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.triangle.pull")
+                .foregroundStyle(pull.isDraft ? Color.secondary : Color.green)
+                .frame(width: 16)
+            Text("#\(pull.number)")
+                .font(.callout.monospacedDigit())
+                .foregroundStyle(.secondary)
+            Text(pull.title)
+                .fontWeight(isCurrent ? .semibold : .regular)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+        }
+        .help([
+            "#\(pull.number) \(pull.title)" + (pull.isDraft ? " (nháp)" : ""),
+            "\(pull.headRepository.map { $0.split(separator: "/").first.map(String.init) ?? $0 }.map { "\($0):" } ?? "")\(pull.headBranch) → \(pull.baseBranch)",
+            "Tác giả: @\(pull.author)" + (pull.updatedAt.map { " · cập nhật \(VietnameseDate.relative($0))" } ?? ""),
+        ].joined(separator: "\n"))
     }
 }
 

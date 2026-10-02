@@ -160,6 +160,8 @@ enum RepoSheet: Identifiable {
     case interactiveRebase(base: String, label: String)
     /// Blame một file; `rev` nil là bản trong working tree.
     case blame(path: String, rev: String?)
+    /// Tạo Pull Request trên GitHub từ nhánh `head` (tên nhánh trên remote GitHub).
+    case createPullRequest(head: String)
 
     var id: String {
         switch self {
@@ -178,6 +180,7 @@ enum RepoSheet: Identifiable {
         case .githubAccount(let owner): return "github-account-\(owner ?? "")"
         case .interactiveRebase(let base, _): return "interactive-rebase-\(base)"
         case .blame(let path, let rev): return "blame-\(rev ?? "")-\(path)"
+        case .createPullRequest(let head): return "create-pr-\(head)"
         }
     }
 }
@@ -200,12 +203,19 @@ struct RefLabel: Hashable, Identifiable {
     var isTag = false
     var isDetachedHead = false
     var refs: [GitRef] = []
+    /// Pull Request đang mở từ nhánh này (số và tiêu đề) — vẽ biểu tượng PR trên nhãn.
+    var pullRequest: PullRequestBadge?
 
     var id: String { (isTag ? "tag:" : "ref:") + text }
 
     var localRef: GitRef? { refs.first { $0.kind == .localBranch } }
     var remoteRefs: [GitRef] { refs.filter { $0.kind == .remoteBranch } }
     var tagRef: GitRef? { refs.first { $0.kind == .tag } }
+}
+
+struct PullRequestBadge: Hashable {
+    let number: Int
+    let title: String
 }
 
 struct GraphEntry: Identifiable {

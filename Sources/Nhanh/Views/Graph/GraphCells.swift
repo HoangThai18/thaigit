@@ -217,7 +217,8 @@ final class RefsCellView: NSTableCellView {
             needsDisplay = true
             toolTip = labels.isEmpty ? nil : labels.flatMap { label -> [String] in
                 if label.isDetachedHead { return ["HEAD (tách rời)"] }
-                return label.refs.map { ref in
+                let pull = label.pullRequest.map { ["Pull Request #\($0.number): \($0.title)"] } ?? []
+                return pull + label.refs.map { ref in
                     switch ref.kind {
                     case .localBranch: return "Nhánh local: \(ref.name)" + (ref.upstream.map { " → \($0)" } ?? "")
                     case .remoteBranch: return "Nhánh remote: \(ref.name)"
@@ -395,6 +396,7 @@ final class RefsCellView: NSTableCellView {
         if label.isCurrentBranch { icons.append("checkmark") }
         if label.hasLocal { icons.append("laptopcomputer") }
         if label.remoteCount > 0 { icons.append("cloud.fill") }
+        if label.pullRequest != nil { icons.append("arrow.triangle.pull") }
         return icons
     }
 

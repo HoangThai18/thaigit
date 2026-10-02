@@ -8,6 +8,8 @@ import SwiftUI
 ///     NHANH_STEPS="wait:2,snap:graph,select:wip,snap:wip,open:first,snap:diff,quit" Thaigit.app/Contents/MacOS/Thaigit
 enum AutomationHarness {
     private static var started = false
+    /// Đang chạy kịch bản chụp ảnh: không gọi API GitHub thật (dùng dữ liệu giả qua `act:fakeprs`).
+    static var isActive: Bool { ProcessInfo.processInfo.environment["NHANH_SNAPSHOT_DIR"] != nil }
     /// Mốc thời gian khởi động (đặt trong applicationDidFinishLaunching) để đo tốc độ tải.
     private static var launchTime = Date()
 
@@ -203,6 +205,10 @@ enum AutomationHarness {
             }
         case "summary":
             model.commitSummary = argument
+        case "dump":
+            // Ghi các dòng đang có trên graph (kiểm tra khi ảnh chụp không đủ rõ).
+            log("graph: " + model.entries.map { $0.commit.subject + ($0.labels.isEmpty ? "" : " [" + $0.labels.map(\.text).joined(separator: ",") + "]") }
+                .joined(separator: " | "))
         case "act":
             let pieces = argument.split(separator: ":", maxSplits: 1).map(String.init)
             let value = pieces.count > 1 ? pieces[1] : ""
@@ -240,6 +246,34 @@ enum AutomationHarness {
             case "irebase":
                 // Interactive rebase từ commit ở dòng n của graph: act:irebase:4
                 if let entry = model.entry(at: Int(value) ?? 3) { model.beginInteractiveRebase(from: entry.commit) }
+            case "fakeprs":
+                // PR giả cho mọi nhánh của remote GitHub (trừ main) và một PR từ fork — không gọi mạng.
+                if let github = model.githubRemote {
+                    var pulls = model.remoteBranches
+                        .filter { $0.remoteName == github.name && $0.shortBranchName != "main" && $0.shortBranchName != "HEAD" }
+                        .enumerated().map { index, ref in
+                            GitHubPullRequest(number: 12 + index * 3, title: model.commit(for: ref.target)?.subject ?? ref.shortBranchName,
+                                              isDraft: index == 1,
+                                              webURL: URL(string: "https://github.com/\(github.repo.owner)/\(github.repo.name)/pull/\(12 + index * 3)"),
+                                              author: index == 0 ? "tuan-bui" : "ngoc-anh", headBranch: ref.shortBranchName, headSHA: ref.target,
+                                              headRepository: "\(github.repo.owner)/\(github.repo.name)", baseBranch: "main",
+                                              updatedAt: Date().addingTimeInterval(Double(-3600 * (index + 1))))
+                        }
+                    pulls.append(GitHubPullRequest(number: 9, title: "Sửa lỗi hiển thị giá trên điện thoại", author: "ban-dong-gop",
+                                                   headBranch: "sua-gia", headSHA: String(repeating: "a", count: 40),
+                                                   headRepository: "ban-dong-gop/\(github.repo.name)", baseBranch: "main"))
+                    model.pullRequestsTask?.cancel()
+                    model.pullRequests = PullRequestList(state: .loaded, items: pulls, repo: github.repo, remoteName: github.name,
+                                                         loadedAt: Date())
+                    model.refreshLabels()
+                }
+            case "hide", "solo":
+                // Ẩn / solo nhánh theo tên: act:hide:thu-nghiem, act:solo:main
+                if let ref = model.refs.first(where: { $0.kind != .tag && $0.name == value }) {
+                    if pieces[0] == "hide" { model.toggleHidden(ref) } else { model.toggleSolo(ref) }
+                }
+            case "createpr":
+                model.beginCreatePullRequest(from: model.localBranches.first { $0.name == value } ?? model.currentBranchRef)
             case "addremote":
                 model.sheet = .addRemote
             case "switchbranch":
@@ -363,8 +397,20 @@ enum AutomationHarness {
         let includingWindow: UInt32 = 1 << 3
         let ignoreFramingBestResolution: UInt32 = (1 << 0) | (1 << 3)
         guard let image = create(.null, includingWindow, UInt32(window.windowNumber), ignoreFramingBestResolution)?.takeRetainedValue(),
-              image.width > 1 else { return nil }
+              image.width > 1, !isBlank(image) else { return nil }
         return image
+    }
+
+    /// Màn hình đang khoá / tắt thì window server trả về ảnh một màu: khi đó dùng `cacheDisplay`.
+    private static func isBlank(_ image: CGImage) -> Bool {
+        let side = 24
+        var pixels = [UInt8](repeating: 0, count: side * side * 4)
+        guard let context = CGContext(data: &pixels, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
+        let first = Array(pixels[0..<4])
+        return stride(from: 0, to: pixels.count, by: 4).allSatisfy { Array(pixels[$0..<$0 + 4]) == first }
     }
 
     private static func composedImage(of window: NSWindow, overlays: [NSWindow]) -> CGImage? {

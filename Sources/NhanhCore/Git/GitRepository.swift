@@ -114,13 +114,12 @@ public struct GitRepository: Sendable {
         GitParsers.parseRemotes(try await runner.output(["remote", "-v"]))
     }
 
-    public func log(limit: Int, order: LogOrder, includeHEAD: Bool, includeRemotes: Bool = true, includeTags: Bool = true) async throws -> [Commit] {
+    public func log(limit: Int, order: LogOrder, includeHEAD: Bool, includeRemotes: Bool = true, includeTags: Bool = true,
+                    filter: GraphRefFilter = GraphRefFilter()) async throws -> [Commit] {
         var args = ["log", "-z", "--format=\(GitParsers.logFormat)",
                     order == .topo ? "--topo-order" : "--date-order",
-                    "--max-count=\(max(1, limit))", "--branches"]
-        if includeRemotes { args.append("--remotes") }
-        if includeTags { args.append("--tags") }
-        if includeHEAD { args.append("HEAD") }
+                    "--max-count=\(max(1, limit))"]
+        args += filter.revisionArguments(includeHEAD: includeHEAD, includeRemotes: includeRemotes, includeTags: includeTags)
         args.append("--")
         do {
             let output = try await runner.run(args)
@@ -134,9 +133,10 @@ public struct GitRepository: Sendable {
     /// Tải lịch sử và xếp làn (chạy ở luồng nền).
     @concurrent
     public func history(limit: Int, order: LogOrder, head: HeadState, showWorkingTree: Bool,
-                        includeRemotes: Bool = true, includeTags: Bool = true) async throws -> History {
+                        includeRemotes: Bool = true, includeTags: Bool = true,
+                        filter: GraphRefFilter = GraphRefFilter()) async throws -> History {
         var commits = try await log(limit: limit, order: order, includeHEAD: head.oid != nil,
-                                    includeRemotes: includeRemotes, includeTags: includeTags)
+                                    includeRemotes: includeRemotes, includeTags: includeTags, filter: filter)
         let loaded = commits.count
         if showWorkingTree { commits.insert(.workingTree(parent: head.oid), at: 0) }
         let rows = GraphLayout.compute(commits)
