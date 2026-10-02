@@ -150,6 +150,10 @@ enum AutomationHarness {
                 }
             case .commit(let sha):
                 if let change = model.commitDetails?.files.first { model.openDiff(change, source: .commit(sha)) }
+            case .compare(let from, let to):
+                if let change = model.comparison?.files.first(where: { $0.path == argument }) ?? model.comparison?.files.first {
+                    model.openDiff(change, source: .compare(from: from, to: to))
+                }
             default:
                 break
             }
@@ -224,6 +228,12 @@ enum AutomationHarness {
                 }
             case "newbranch":
                 model.beginCreateBranchAtHead()
+            case "compare":
+                // So sánh commit ở dòng a (gốc) với dòng b: act:compare:5:1
+                let rows = value.split(separator: ":").compactMap { Int($0) }
+                if rows.count == 2, let from = model.entry(at: rows[0]), let to = model.entry(at: rows[1]) {
+                    model.select(.compare(from: from.commit.id, to: to.commit.id))
+                }
             case "blame":
                 // Blame file trong working tree: act:blame:đường/dẫn
                 model.sheet = .blame(path: value, rev: nil)

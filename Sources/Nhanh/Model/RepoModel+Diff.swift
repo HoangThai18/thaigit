@@ -149,6 +149,8 @@ extension RepoModel {
             diff = try await repo.workingDiff(change, kind: .staged, context: context)
         case .commit(let sha):
             diff = try await repo.diff(commit: sha, parent: commitParent, file: change, context: context)
+        case .compare(let from, let to):
+            diff = try await repo.diff(commit: to, parent: from, file: change, context: context)
         case .stash:
             guard let stash else { return .message("Stash không còn tồn tại.") }
             diff = try await repo.stashDiff(stash, file: change)
@@ -193,6 +195,8 @@ extension RepoModel {
             var before: Data?
             if let commitParent { before = await blob("\(commitParent):\(oldPath)") }
             return (before, await blob("\(sha):\(path)"))
+        case .compare(let from, let to):
+            return (await blob("\(from):\(oldPath)"), await blob("\(to):\(path)"))
         case .stash:
             guard let stash else { return (nil, nil) }
             if file.change.kind == .untracked, stash.parents.count >= 3 {

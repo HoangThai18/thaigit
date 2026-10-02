@@ -96,11 +96,14 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 **Thay đổi & commit**
 - Diff gộp hoặc tách đôi, diff ảnh; stage / bỏ stage / huỷ theo file, hunk hoặc từng dòng.
 - Commit, amend, ⌘↩ để commit nhanh, "Stage tất cả & commit".
+- **So sánh** hai commit bất kỳ (giữ ⌘ và bấm 2 commit trên graph) hoặc một nhánh với nhánh hiện tại (chuột phải vào nhánh → *So sánh với …*): panel bên phải liệt kê các commit nằm giữa và các file khác nhau, bấm file để xem diff.
+- **Blame** (chuột phải vào file → *Blame — ai sửa từng dòng*): mỗi dòng kèm tác giả, thời gian và commit đã sửa nó; theo dấu cả khi đoạn code được chuyển từ file khác sang.
 
 **Nhánh, remote, stash, tag**
 - Checkout bằng nhấp đúp; ⌘B để tìm & chuyển nhánh.
 - Tạo / đổi tên / xoá nhánh, đặt upstream; fetch / pull (merge, rebase hoặc chỉ fast-forward) / push — bị từ chối thì đề xuất pull hoặc force-with-lease.
 - Cherry-pick, revert (hỏi commit ngay hay chỉ stage để xem lại, như GitKraken), reset (soft / mixed / hard), tag, push tag.
+- **Interactive rebase** (chuột phải vào commit → *Interactive rebase … từ đây*): kéo để đổi thứ tự, chọn pick / reword / squash / fixup / drop cho từng commit, sửa lời commit ngay trong bảng; thay đổi chưa commit được tự cất và trả lại sau khi rebase.
 - **Merge từ repository khác** (menu Pull, menu Repository hoặc chuột phải vào nhánh): lấy nhánh của một repo khác — thư mục trên máy (không cần đăng nhập) hoặc URL — merge vào nhánh của repo đang mở, không thêm remote. App nhớ nguồn đã dùng, lần sau chỉ cần bấm *Merge lại*. Hai repo tạo riêng (không chung commit) thì hỏi trước rồi mới merge với `--allow-unrelated-histories`.
 - Stash kèm lời nhắn, apply, pop, xoá; checkout bị chặn vì có thay đổi thì có nút "Stash rồi checkout".
 
@@ -241,7 +244,7 @@ Trang chủ (`site/`) cần Node 24 và pnpm: `pnpm install`, rồi `pnpm --filt
 
 ## Chưa có
 
-Interactive rebase, blame, giao diện cho submodule và Git LFS, ký commit GPG / SSH, tích hợp Pull Request của GitHub / GitLab.
+Giao diện cho submodule và Git LFS, ký commit GPG / SSH, tích hợp Pull Request của GitHub / GitLab.
 
 ## English
 

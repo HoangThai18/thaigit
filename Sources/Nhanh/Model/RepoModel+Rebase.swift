@@ -7,7 +7,7 @@ extension RepoModel {
     func blameSheet(for file: OpenFile) -> RepoSheet? {
         guard file.change.kind != .deleted else { return nil }
         switch file.source {
-        case .commit(let sha): return .blame(path: file.change.path, rev: sha)
+        case .commit(let sha), .compare(_, let sha): return .blame(path: file.change.path, rev: sha)
         case .unstaged, .staged, .conflict: return file.change.kind == .untracked ? nil : .blame(path: file.change.path, rev: nil)
         case .stash: return nil
         }

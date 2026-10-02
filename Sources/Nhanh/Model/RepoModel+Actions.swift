@@ -1182,6 +1182,9 @@ extension RepoModel {
                     items.append(.action("Rebase \(current) lên \(ref.name)", systemImage: "arrow.triangle.swap") { [weak self] in
                         self?.rebaseCurrent(onto: ref.name, label: ref.name)
                     })
+                    items.append(.action("So sánh với \(current) — \(ref.name) có gì mới", systemImage: "arrow.left.arrow.right") { [weak self] in
+                        self?.compareWithCurrent(ref)
+                    })
                 }
                 items.append(.action("Push \(ref.name)", systemImage: "arrow.up") { [weak self] in self?.pushBranch(ref) })
             }
@@ -1207,6 +1210,9 @@ extension RepoModel {
                 })
                 items.append(.action("Rebase \(current) lên \(ref.name)", systemImage: "arrow.triangle.swap") { [weak self] in
                     self?.rebaseCurrent(onto: ref.name, label: ref.name)
+                })
+                items.append(.action("So sánh với \(current) — \(ref.name) có gì mới", systemImage: "arrow.left.arrow.right") { [weak self] in
+                    self?.compareWithCurrent(ref)
                 })
             }
             items.append(.separator)

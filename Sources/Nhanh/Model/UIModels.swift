@@ -8,12 +8,27 @@ enum RepoSelection: Hashable {
     case workingTree
     case commit(String)
     case stash(String)
+    /// So sánh hai bản (commit / nhánh): `from` là bản gốc, `to` là bản đem so.
+    case compare(from: String, to: String)
+}
+
+/// Kết quả so sánh hai bản: các commit ở giữa và các file khác nhau.
+struct Comparison: Equatable {
+    var from: String
+    var to: String
+    var fromLabel: String
+    var toLabel: String
+    var files: [FileChange]
+    /// Commit có ở `to` mà không có ở `from`, mới trước.
+    var commits: [Commit]
 }
 
 /// Nguồn của file đang mở diff.
 nonisolated enum DiffSource: Hashable, Sendable {
     case commit(String)
     case stash(String)
+    /// Diff của file giữa hai bản đang so sánh.
+    case compare(from: String, to: String)
     case unstaged
     case staged
     case conflict

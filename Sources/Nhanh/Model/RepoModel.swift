@@ -41,6 +41,8 @@ final class RepoModel {
 
     private(set) var selection: RepoSelection = .none
     private(set) var commitDetails: CommitDetails?
+    /// Kết quả khi đang so sánh hai commit / nhánh (`selection == .compare`).
+    private(set) var comparison: Comparison?
     private(set) var isLoadingDetails = false
     var openFile: OpenFile?
     var diffState: DiffState = .idle
@@ -568,6 +570,28 @@ final class RepoModel {
                 } catch {
                     guard !Task.isCancelled else { return }
                     showError("Không tải được nội dung stash", error)
+                }
+                isLoadingDetails = false
+            }
+        case .compare(let from, let to):
+            commitDetails = nil
+            if comparison?.from == from, comparison?.to == to { return }
+            comparison = nil
+            isLoadingDetails = true
+            let repo = repository
+            let fromLabel = compareLabel(for: from)
+            let toLabel = compareLabel(for: to)
+            detailsTask = Task {
+                do {
+                    async let files = repo.changedFiles(commit: to, parent: from)
+                    async let commits = repo.commits(from: from, to: to)
+                    let result = Comparison(from: from, to: to, fromLabel: fromLabel, toLabel: toLabel,
+                                            files: try await files, commits: try await commits)
+                    guard !Task.isCancelled else { return }
+                    comparison = result
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    showError("Không so sánh được", error)
                 }
                 isLoadingDetails = false
             }

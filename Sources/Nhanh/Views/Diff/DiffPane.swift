@@ -82,6 +82,7 @@ private struct DiffHeader: View {
         case .unstaged: return ("Chưa stage", .orange)
         case .staged: return ("Đã stage", .green)
         case .commit(let sha): return ("Commit \(sha.prefix(7))", .blue)
+        case .compare: return ("So sánh", .teal)
         case .stash: return ("Stash", .purple)
         case .conflict: return ("Xung đột", .red)
         }
@@ -93,28 +94,32 @@ private struct DiffHeader: View {
                 model.closeFile()
             } label: {
                 Label("Graph", systemImage: "chevron.left")
+                    .fixedSize()
             }
             .glassButtonStyle()
             .keyboardShortcut(.cancelAction)
             .help("Quay lại graph (Esc)")
 
             ChangeIcon(kind: file.change.kind)
+            // Nhãn nguồn nằm ở dòng dưới cùng đường dẫn: khi pane hẹp, tên file vẫn còn chỗ thay vì bị nhãn chiếm hết.
             VStack(alignment: .leading, spacing: 1) {
+                Text(file.change.fileName).font(.headline).lineLimit(1)
                 HStack(spacing: 6) {
-                    Text(file.change.fileName).font(.headline).lineLimit(1)
                     Text(sourceLabel.0)
                         .font(.caption2.weight(.semibold))
+                        .lineLimit(1)
+                        .fixedSize()
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 1)
                         .background(Capsule().fill(sourceLabel.1.opacity(0.18)))
                         .foregroundStyle(sourceLabel.1)
+                    Text(file.change.oldPath.map { "\($0) → \(file.change.path)" } ?? file.change.path)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
                 }
-                Text(file.change.oldPath.map { "\($0) → \(file.change.path)" } ?? file.change.path)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
             }
             Spacer(minLength: 8)
 
@@ -124,6 +129,7 @@ private struct DiffHeader: View {
                     Text("−\(presentation.diff.deletions)").foregroundStyle(.red)
                 }
                 .font(.callout.monospacedDigit().weight(.semibold))
+                .fixedSize()
 
                 Picker("", selection: $split) {
                     Image(systemName: "rectangle.grid.1x2").tag(false).help("Gộp (unified)")

@@ -14,6 +14,7 @@ struct CommitGraphView: View {
                 version: model.graphVersion,
                 graphWidth: model.graphWidth,
                 selectedRow: model.selectedRow,
+                compareRows: model.compareRows,
                 scrollRequest: model.scrollRequest,
                 searchMatches: model.searchMatchSet,
                 isSearching: !model.searchText.trimmingCharacters(in: .whitespaces).isEmpty,
@@ -96,6 +97,8 @@ private struct CommitTable: NSViewRepresentable {
     let version: Int
     let graphWidth: Int
     let selectedRow: Int?
+    /// Hai dòng đang so sánh (giữ ⌘ bấm 2 commit) — khi đó bảng chọn cả hai dòng.
+    let compareRows: IndexSet?
     let scrollRequest: ScrollRequest?
     let searchMatches: Set<Int>
     let isSearching: Bool
@@ -113,7 +116,8 @@ private struct CommitTable: NSViewRepresentable {
         table.rowHeight = GraphStyle.rowHeight
         table.intercellSpacing = NSSize(width: 0, height: 0)
         table.gridStyleMask = []
-        table.allowsMultipleSelection = false
+        // Giữ ⌘ bấm commit thứ hai để so sánh hai commit (như GitKraken).
+        table.allowsMultipleSelection = true
         table.allowsColumnReordering = true
         table.allowsColumnResizing = true
         table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
@@ -216,13 +220,11 @@ private struct CommitTable: NSViewRepresentable {
             coordinator.scheduleColumnFit()
         }
 
-        if coordinator.pendingSelection == nil, table.selectedRow != (selectedRow ?? -1) {
+        let wantedRows = (compareRows ?? selectedRow.map { IndexSet(integer: $0) } ?? IndexSet())
+            .filteredIndexSet { $0 < table.numberOfRows }
+        if coordinator.pendingSelection == nil, table.selectedRowIndexes != wantedRows {
             coordinator.isUpdatingSelection = true
-            if let selectedRow, selectedRow < table.numberOfRows {
-                table.selectRowIndexes(IndexSet(integer: selectedRow), byExtendingSelection: false)
-            } else {
-                table.deselectAll(nil)
-            }
+            table.selectRowIndexes(wantedRows, byExtendingSelection: false)
             coordinator.isUpdatingSelection = false
         }
 
@@ -519,6 +521,20 @@ private struct CommitTable: NSViewRepresentable {
 
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !isUpdatingSelection, let table else { return }
+            // Chọn từ 2 commit trở lên: so sánh commit cũ nhất (dưới) với commit mới nhất (trên).
+            let commits = table.selectedRowIndexes.filter { entries.indices.contains($0) && !entries[$0].commit.isWorkingTree }
+            if commits.count >= 2, let newest = commits.min(), let oldest = commits.max() {
+                let from = entries[oldest].commit.id
+                let to = entries[newest].commit.id
+                let marker = "compare:\(from):\(to)"
+                pendingSelection = marker
+                Task { @MainActor [weak self] in
+                    guard let self, pendingSelection == marker else { return }
+                    pendingSelection = nil
+                    model.select(.compare(from: from, to: to))
+                }
+                return
+            }
             let row = table.selectedRow
             guard entries.indices.contains(row) else { return }
             let id = entries[row].commit.id
