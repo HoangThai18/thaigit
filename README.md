@@ -112,6 +112,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 **Khác**
 - Nhiều repo trong nhiều tab như GitKraken: thanh tab ở hàng trên cùng cạnh 3 nút đỏ/vàng/xanh. Đầu hàng là tab **Trang chủ** (🏠, mở / clone / tạo repo, danh sách repo gần đây), cuối hàng là nút ✨ **Có gì mới**; **+** mở tab mới (màn hình chọn repo gần đây), **×** đóng tab, kéo tab để đổi chỗ, chuột phải để đóng các tab khác. Mỗi tab giữ nguyên repo của nó; mở lại app thì các tab của lần trước được mở lại. *File → Đóng repository* đưa tab về màn hình chọn repo. Hàng công cụ của repo (Fetch, Pull, Push…) nằm ngay dưới thanh tab, cửa sổ hẹp thì chỉ còn biểu tượng.
 - Tab **Có gì mới** (nút ✨ cuối thanh tab, hoặc menu *Thaigit → Có gì mới…*) đọc nhật ký thay đổi; tự mở một lần sau mỗi lần cập nhật.
+- **Bảng lệnh ⌘P** như GitKraken: gõ để tìm mọi thao tác (fetch, pull, stash, tạo nhánh, tạo PR…), checkout nhánh, so sánh nhánh, chuyển tab, mở repo gần đây; gõ không dấu vẫn ra ("nhanh" → "nhánh"), ↑↓ chọn, ↩ chạy.
 - Mở gần đây, clone có tiến trình, tạo repo mới.
 - Tự làm mới khi file đổi bên ngoài (sửa trong editor, commit từ terminal…), tự fetch định kỳ.
 - Mở repo trong Terminal / Finder / VS Code (hoặc Cursor, Zed, Sublime), lịch sử một file, nhật ký lệnh git đã chạy.

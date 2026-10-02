@@ -12,6 +12,7 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Interactive rebase: chuột phải vào commit → "Interactive rebase … từ đây", kéo để đổi thứ tự, chọn pick / reword / squash / fixup / drop, sửa lời commit ngay trong bảng; tự cất thay đổi chưa commit rồi trả lại
 - Blame: chuột phải vào file → "Blame — ai sửa từng dòng", mỗi dòng kèm tác giả, thời gian, commit; theo dấu code chuyển từ file khác
 - So sánh: giữ ⌘ và bấm 2 commit trên graph, hoặc chuột phải vào nhánh → "So sánh với …" để xem nhánh đó có gì mới so với nhánh hiện tại; panel bên phải liệt kê commit nằm giữa và các file khác nhau, bấm file để xem diff
+- Bảng lệnh ⌘P: tìm và chạy mọi thao tác, checkout / so sánh nhánh, mở Pull Request, chuyển tab, mở repo gần đây; tìm không dấu
 - Ẩn / solo nhánh trên graph: nút con mắt khi rê chuột vào nhánh ở sidebar, menu "Ẩn khỏi graph" / "Chỉ hiện nhánh này (solo)", nhớ theo từng repo, dải "Hiện tất cả" ở đáy graph
 - Pull Request GitHub: mục PULL REQUESTS ở sidebar (PR đang mở, tự tải lại sau mỗi lần fetch), biểu tượng PR trên nhãn nhánh của graph; checkout nhánh của PR (kể cả PR từ fork), xem thay đổi so với nhánh đích, mở trên GitHub; tạo PR từ nhánh với tiêu đề / mô tả điền sẵn từ commit, tạo dạng nháp, tự push nhánh trước nếu cần
 - Revert như GitKraken: hỏi "Revert & commit" hay "Revert, chưa commit" — chọn cách sau thì thay đổi đảo ngược chỉ được stage, ô commit điền sẵn message, xem lại rồi commit (hoặc "Hoàn tác"); commit merge được revert so với cha thứ nhất

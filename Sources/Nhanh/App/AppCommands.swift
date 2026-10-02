@@ -7,6 +7,7 @@ final class WindowActions {
     var openPath: (String) -> Void = { _ in }
     var showClone: () -> Void = {}
     var showInit: () -> Void = {}
+    var showPalette: () -> Void = {}
 }
 
 struct AppCommands: Commands {
@@ -60,6 +61,12 @@ struct AppCommands: Commands {
             Divider()
             Button("Đóng repository") { if let tabs { tabs.closeRepository(in: tabs.selected) } }
                 .disabled(tabs?.selected.model == nil)
+        }
+
+        // ⌘P như GitKraken: bảng lệnh (app không in ấn gì nên thay mục Print).
+        CommandGroup(replacing: .printItem) {
+            Button("Bảng lệnh…") { windowAction { $0.showPalette() } }
+                .keyboardShortcut("p")
         }
 
         CommandGroup(replacing: .saveItem) {

@@ -68,6 +68,9 @@ enum AutomationHarness {
     }
 
     static var welcomeActions: WindowActions?
+    static weak var windowActions: WindowActions?
+    /// Chữ gõ sẵn vào bảng lệnh ⌘P khi chụp ảnh (bước palette:<chữ>).
+    static var paletteQuery: String?
     /// Các tab của cửa sổ đang chạy kịch bản (bước newtab / tab:<đường dẫn> / notes / selecttab:<n>).
     static weak var tabs: TabsModel?
 
@@ -173,6 +176,9 @@ enum AutomationHarness {
             tabs?.open(path: argument)
         case "notes":
             tabs?.openReleaseNotes()
+        case "palette":
+            paletteQuery = argument.isEmpty ? nil : argument
+            windowActions?.showPalette()
         case "selecttab":
             tabs?.select(number: Int(argument) ?? 1)
         case "selectlines":

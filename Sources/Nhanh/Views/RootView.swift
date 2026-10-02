@@ -9,6 +9,7 @@ struct RootView: View {
     @State private var tabs = TabsModel()
     @State private var windowActions = WindowActions()
     @State private var showClone = false
+    @State private var showPalette = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -40,6 +41,7 @@ struct RootView: View {
             consumePendingOpens()
             showReleaseNotesIfJustUpdated()
             AutomationHarness.tabs = tabs
+            AutomationHarness.windowActions = windowActions
             if tabs.selected.kind == .home || tabs.selected.kind == .welcome {
                 AutomationHarness.welcomeActions = windowActions
                 AutomationHarness.attachWelcome()
@@ -52,12 +54,17 @@ struct RootView: View {
             CloneSheet { path in tabs.open(path: path) }
                 .environment(appState)
         }
+        .sheet(isPresented: $showPalette) {
+            CommandPaletteSheet(tabs: tabs, windowActions: windowActions)
+                .environment(appState)
+        }
     }
 
     private func configureWindowActions() {
         windowActions.openPath = { [tabs] path in tabs.open(path: path) }
         windowActions.showClone = { showClone = true }
         windowActions.showInit = { initializeRepository() }
+        windowActions.showPalette = { showPalette = true }
     }
 
     /// Lần mở đầu tiên sau khi cập nhật: tự mở tab "Có gì mới" (như Release Notes của GitKraken), một lần.
