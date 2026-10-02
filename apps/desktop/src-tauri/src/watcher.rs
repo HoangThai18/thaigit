@@ -206,7 +206,7 @@ impl Classifier {
 
     pub fn classify(&self, path: &Path) -> Change {
         if let Some(relative) = relative_to(path, &self.git_dir).or_else(|| relative_to(path, &self.common_dir)) {
-            let text = relative.to_string_lossy().replace('\\', "/");
+            let text = crate::pathutil::path_to_slash(&relative);
             if text == "info/exclude" {
                 self.ignore.reload_exclude();
                 return Change::WORKING_TREE;

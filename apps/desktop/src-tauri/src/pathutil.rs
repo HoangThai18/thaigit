@@ -32,6 +32,23 @@ pub fn relative_to(path: &Path, base: &Path) -> Option<PathBuf> {
     Some(path_parts.as_path().to_path_buf())
 }
 
+/// Quy ước cho MỌI đường dẫn tương đối đi qua ranh giới IPC (UI nhận, manifest thùng rác, phân loại sự kiện watcher…): luôn dùng
+/// `/` làm dấu phân tách, như git và `packages/contracts` (`checkRelativePath`). `windows` = hệ điều hành dùng `\` làm dấu
+/// phân tách (trên Unix `\` là ký tự tên file hợp lệ nên giữ nguyên).
+pub fn slash_relative(text: &str, windows: bool) -> String {
+    if windows { text.replace('\\', "/") } else { text.to_string() }
+}
+
+/// `slash_relative` cho đường dẫn của hệ điều hành đang chạy.
+pub fn path_to_slash(path: &Path) -> String {
+    slash_relative(&path.to_string_lossy(), cfg!(windows))
+}
+
+/// Phần còn lại của `path` bên dưới `base` dưới dạng chuỗi tương đối dùng `/` (`None` nếu nằm ngoài).
+pub fn relative_slash(path: &Path, base: &Path) -> Option<String> {
+    relative_to(path, base).map(|rest| path_to_slash(&rest))
+}
+
 /// Khoá so sánh/băm cho đường dẫn (chữ thường trên ổ không phân biệt hoa thường).
 pub fn path_key(path: &Path) -> String {
     let text = path.to_string_lossy();
@@ -110,6 +127,24 @@ mod tests {
         assert_eq!(relative_to(Path::new("/Users/a/repo2/x"), Path::new("/Users/a/repo")), None);
         assert_eq!(relative_to(Path::new("/Users/a"), Path::new("/Users/a/repo")), None);
         assert_eq!(relative_to(Path::new("/Users/a/Tài liệu/x"), Path::new("/Users/a/Tài liệu")), Some(PathBuf::from("x")));
+    }
+
+    #[test]
+    fn relative_paths_crossing_ipc_always_use_forward_slashes() {
+        // Chạy trên mọi nền tảng: dạng Windows kiểm bằng cờ `windows = true`.
+        assert_eq!(slash_relative(r"refs\heads\feature\x.lock", true), "refs/heads/feature/x.lock");
+        assert_eq!(slash_relative("refs/heads/main.lock", true), "refs/heads/main.lock", "đã là `/` thì giữ nguyên");
+        assert_eq!(slash_relative(r"Tài liệu\ghi chú.md", true), "Tài liệu/ghi chú.md");
+        assert_eq!(slash_relative("", true), "");
+        // Unix: `\` là một ký tự của tên file, không phải dấu phân tách.
+        assert_eq!(slash_relative(r"dir/a\b.txt", false), r"dir/a\b.txt");
+        // Với đường dẫn thật của nền tảng hiện tại (Windows: `\` do `join` sinh ra) kết quả vẫn là `/`.
+        let base = std::env::temp_dir().join("thaigit-pathutil");
+        let nested = base.join("refs").join("heads").join("main.lock");
+        assert_eq!(relative_slash(&nested, &base).as_deref(), Some("refs/heads/main.lock"));
+        assert_eq!(relative_slash(&base, &base).as_deref(), Some(""));
+        assert_eq!(relative_slash(&std::env::temp_dir().join("thaigit-other").join("x"), &base), None);
+        assert_eq!(path_to_slash(&PathBuf::from("a").join("b").join("c.txt")), "a/b/c.txt");
     }
 
     #[test]

@@ -9,6 +9,7 @@ use serde::Serialize;
 
 use crate::core::Core;
 use crate::errors::{AppError, Result};
+use crate::pathutil::relative_slash;
 use crate::registry::RepoEntry;
 
 /// Khoá trẻ hơn mức này có thể đang được một git bên ngoài (terminal) giữ — chưa coi là mồ côi.
@@ -19,9 +20,21 @@ const MAX_REF_DEPTH: usize = 16;
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct LockFile {
-    /// Đường dẫn tuyệt đối (hiển thị cho người dùng và là định danh cho `remove_stale_lock`).
+    /// Đường dẫn tuyệt đối theo kiểu của hệ điều hành (là định danh cho `remove_stale_lock`).
     pub path: String,
+    /// Đường dẫn tương đối so với thư mục git chứa nó (`index.lock`, `refs/heads/main.lock`) — để hiển thị; luôn dùng `/`
+    /// (cả trên Windows) như mọi đường dẫn tương đối khác qua IPC.
+    pub relative_path: String,
     pub age_secs: u64,
+}
+
+/// Một file khoá tìm thấy trong repo.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScannedLock {
+    pub path: PathBuf,
+    /// Tương đối so với thư mục git chứa khoá, dùng `/`.
+    pub relative: String,
+    pub age: Duration,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -92,20 +105,26 @@ fn ref_locks(dir: &Path, depth: usize, budget: &mut usize, out: &mut Vec<PathBuf
 }
 
 /// Mọi file khoá của repo kèm tuổi: `*.lock` ở gốc gitDir/commonDir, `refs/**/*.lock`.
-pub fn scan_lock_files(git_dir: &Path, common_dir: &Path) -> Vec<(PathBuf, Duration)> {
+pub fn scan_lock_files(git_dir: &Path, common_dir: &Path) -> Vec<ScannedLock> {
+    // Mỗi đường dẫn đi kèm thư mục gốc để tính đường dẫn tương đối hiển thị.
+    let mut found: Vec<(PathBuf, &Path)> = Vec::new();
     let mut paths = Vec::new();
     top_level_locks(git_dir, &mut paths);
+    found.extend(paths.drain(..).map(|path| (path, git_dir)));
     if common_dir != git_dir {
         top_level_locks(common_dir, &mut paths);
+        found.extend(paths.drain(..).map(|path| (path, common_dir)));
     }
     let mut budget = MAX_REF_ENTRIES;
     ref_locks(&common_dir.join("refs"), 0, &mut budget, &mut paths);
+    found.extend(paths.drain(..).map(|path| (path, common_dir)));
     let now = SystemTime::now();
-    paths
+    found
         .into_iter()
-        .filter_map(|path| {
+        .filter_map(|(path, base)| {
             let modified = std::fs::symlink_metadata(&path).ok()?.modified().ok()?;
-            Some((path, now.duration_since(modified).unwrap_or_default()))
+            let relative = relative_slash(&path, base)?;
+            Some(ScannedLock { age: now.duration_since(modified).unwrap_or_default(), relative, path })
         })
         .collect()
 }
@@ -123,8 +142,8 @@ impl Core {
         } else {
             scan_lock_files(&entry.git_dir, &entry.common_dir)
                 .into_iter()
-                .filter(|(_, age)| *age >= MIN_STALE_AGE)
-                .map(|(path, age)| LockFile { path: path.to_string_lossy().into_owned(), age_secs: age.as_secs() })
+                .filter(|lock| lock.age >= MIN_STALE_AGE)
+                .map(|lock| LockFile { path: lock.path.to_string_lossy().into_owned(), relative_path: lock.relative, age_secs: lock.age.as_secs() })
                 .collect()
         };
         Ok(RepoHealth { stale_locks, operation: detect_operation(&entry.git_dir), busy })
@@ -138,11 +157,11 @@ impl Core {
         }
         let found = scan_lock_files(&entry.git_dir, &entry.common_dir)
             .into_iter()
-            .find(|(candidate, age)| *age >= MIN_STALE_AGE && candidate.to_string_lossy() == path);
-        let Some((lock, _)) = found else {
+            .find(|lock| lock.age >= MIN_STALE_AGE && lock.path.to_string_lossy() == path);
+        let Some(lock) = found else {
             return Err(AppError::OutOfScope("Đây không phải khoá mồ côi do repo_health báo".into()));
         };
-        std::fs::remove_file(&lock).map_err(|e| AppError::io("Gỡ file khoá", &e))
+        std::fs::remove_file(&lock.path).map_err(|e| AppError::io("Gỡ file khoá", &e))
     }
 }
 
@@ -194,10 +213,28 @@ mod tests {
             }
             std::fs::write(path, "").unwrap();
         }
-        let mut found: Vec<String> =
-            scan_lock_files(git, git).into_iter().map(|(p, _)| p.strip_prefix(git).unwrap().to_string_lossy().into_owned()).collect();
+        let locks = scan_lock_files(git, git);
+        let mut found: Vec<String> = locks.iter().map(|lock| lock.relative.clone()).collect();
         found.sort();
+        // Đường dẫn tương đối trả cho UI luôn dùng `/` (kể cả Windows, nơi `PathBuf` dùng `\`).
         assert_eq!(found, ["HEAD.lock", "config.lock", "index.lock", "packed-refs.lock", "refs/heads/feature/x.lock", "refs/heads/main.lock"]);
+        // và khớp đường dẫn tuyệt đối tương ứng
+        assert!(locks.iter().all(|lock| lock.path.starts_with(git) && lock.path.is_file()));
+    }
+
+    #[test]
+    fn linked_worktree_locks_are_relative_to_the_directory_that_holds_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let common = dir.path().join("common");
+        let git = common.join("worktrees").join("wt");
+        std::fs::create_dir_all(&git).unwrap();
+        std::fs::create_dir_all(common.join("refs").join("heads")).unwrap();
+        for path in [git.join("index.lock"), common.join("config.lock"), common.join("refs").join("heads").join("main.lock")] {
+            std::fs::write(path, "").unwrap();
+        }
+        let mut found: Vec<String> = scan_lock_files(&git, &common).into_iter().map(|lock| lock.relative).collect();
+        found.sort();
+        assert_eq!(found, ["config.lock", "index.lock", "refs/heads/main.lock"]);
     }
 
     #[tokio::test]
@@ -216,6 +253,7 @@ mod tests {
         let health = core.repo_health(&opened.repo_id).unwrap();
         assert_eq!(health.stale_locks.len(), 1);
         assert!(health.stale_locks[0].path.ends_with("index.lock"));
+        assert_eq!(health.stale_locks[0].relative_path, "index.lock");
         assert!(health.stale_locks[0].age_secs >= 29);
         assert!(!health.busy);
 

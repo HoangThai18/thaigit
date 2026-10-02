@@ -40,20 +40,31 @@ fn harness() -> Harness {
     })
 }
 
-fn request(cmd: &str, body: InvokeBody, headers: tauri::http::HeaderMap) -> InvokeRequest {
+/// URL trang của webview do CHÍNH Tauri tính (`webview.url()`), không hard-code: origin "local" của ACL khác nhau theo nền tảng —
+/// `tauri://localhost` trên macOS/Linux, `http(s)://tauri.localhost` trên Windows/Android — và `devUrl` khi build dev.
+fn page_url(window: &WebviewWindow<MockRuntime>) -> String {
+    window.url().expect("cửa sổ giả có URL").to_string()
+}
+
+fn request_at(url: &str, cmd: &str, body: InvokeBody, headers: tauri::http::HeaderMap) -> InvokeRequest {
     InvokeRequest {
         cmd: cmd.into(),
         callback: CallbackFn(0),
         error: CallbackFn(1),
-        url: "tauri://localhost".parse().unwrap(),
+        url: url.parse().unwrap(),
         body,
         headers,
         invoke_key: INVOKE_KEY.to_string(),
     }
 }
 
+/// Yêu cầu IPC đến từ chính trang của cửa sổ (origin local).
+fn request(window: &WebviewWindow<MockRuntime>, cmd: &str, body: InvokeBody, headers: tauri::http::HeaderMap) -> InvokeRequest {
+    request_at(&page_url(window), cmd, body, headers)
+}
+
 fn json_call(window: &WebviewWindow<MockRuntime>, cmd: &str, args: Value) -> Result<Value, Value> {
-    get_ipc_response(window, request(cmd, InvokeBody::Json(args), Default::default())).map(|body| match body {
+    get_ipc_response(window, request(window, cmd, InvokeBody::Json(args), Default::default())).map(|body| match body {
         InvokeResponseBody::Json(text) => serde_json::from_str(&text).unwrap(),
         InvokeResponseBody::Raw(bytes) => panic!("mong JSON, nhận {} byte thô", bytes.len()),
     })
@@ -64,7 +75,7 @@ fn raw_call(window: &WebviewWindow<MockRuntime>, cmd: &str, bytes: Vec<u8>, head
     for (name, value) in headers {
         map.insert(tauri::http::HeaderName::from_bytes(name.as_bytes()).unwrap(), tauri::http::HeaderValue::from_str(value).unwrap());
     }
-    get_ipc_response(window, request(cmd, InvokeBody::Raw(bytes), map))
+    get_ipc_response(window, request(window, cmd, InvokeBody::Raw(bytes), map))
 }
 
 fn code(error: &Value) -> String {
@@ -165,7 +176,7 @@ fn raw_file_io_carries_bytes_and_percent_encoded_headers() {
     }
     assert_eq!(h.repo.read(rel), payload, "byte giữ nguyên qua IPC (BOM, CRLF, Latin-1, NUL)");
     // đọc lại: thân trả về là byte thô
-    let read = get_ipc_response(&h.main, request("fs_read_worktree_file", InvokeBody::Json(json!({ "repoId": id, "rel": rel, "maxBytes": null })), Default::default())).unwrap();
+    let read = get_ipc_response(&h.main, request(&h.main, "fs_read_worktree_file", InvokeBody::Json(json!({ "repoId": id, "rel": rel, "maxBytes": null })), Default::default())).unwrap();
     assert!(matches!(&read, InvokeResponseBody::Raw(bytes) if *bytes == payload), "{read:?}");
     // CAS: ghi đè với băm sai → conflict; băm đúng → ok
     let wrong = write(&"0".repeat(64), b"x".to_vec()).unwrap_err();
@@ -250,6 +261,28 @@ fn capability_only_allows_the_main_window_and_app_commands() {
     // sự kiện: cửa sổ main được listen, nhưng không được emit tuỳ ý tới backend (core:event:allow-emit không được cấp)
     assert!(json_call(&h.main, "plugin:event|emit", json!({ "event": "x", "payload": 1 })).is_err());
     assert!(json_call(&h.main, "plugin:event|listen", json!({ "event": "repo-changed", "target": { "kind": "Any" }, "handler": 1 })).is_ok());
+}
+
+/// Origin "local" của app trong bản chạy thật (đúng như Tauri tính: `cfg!(windows | android)` → `http://tauri.localhost`).
+fn production_origin() -> &'static str {
+    if cfg!(any(windows, target_os = "android")) { "http://tauri.localhost/" } else { "tauri://localhost/" }
+}
+
+#[test]
+fn the_production_origin_is_allowed_by_both_the_acl_and_navigation_and_foreign_origins_are_not() {
+    let h = harness();
+    let origin = production_origin();
+    // Điều hướng của app (lib.rs) và ACL phải cùng coi origin này là local — trên Windows là `http://tauri.localhost`.
+    assert!(crate::allowed_navigation(&origin.parse().unwrap(), None), "{origin}");
+    let ok = get_ipc_response(&h.main, request_at(origin, "list_recent_repos", InvokeBody::Json(json!({})), Default::default()));
+    assert!(ok.is_ok(), "{origin}: {ok:?}");
+    // Trang từ origin ngoài không được gọi lệnh nào của app, dù cùng cửa sổ `main`.
+    for remote in ["https://evil.example/", "http://tauri.localhost.evil.example/", "https://tauri.localhost.evil.example/", "http://localhost:9999/"] {
+        let denied = get_ipc_response(&h.main, request_at(remote, "list_recent_repos", InvokeBody::Json(json!({})), Default::default()));
+        let message = denied.expect_err(remote).to_string().to_lowercase();
+        assert!(message.contains("not allowed"), "{remote}: {message}");
+        assert!(!crate::allowed_navigation(&remote.parse().unwrap(), None), "{remote}");
+    }
 }
 
 #[test]

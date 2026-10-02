@@ -20,8 +20,10 @@ export interface RecentRepo {
 }
 
 export interface LockFile {
-  /** Đường dẫn tuyệt đối — cũng là định danh để gỡ (`removeStaleLock`). */
+  /** Đường dẫn tuyệt đối theo kiểu của hệ điều hành — cũng là định danh để gỡ (`removeStaleLock`). */
   path: string;
+  /** Tương đối so với thư mục git chứa khoá (`index.lock`, `refs/heads/main.lock`), luôn dùng `/` (cả trên Windows). */
+  relativePath: string;
   ageSecs: number;
 }
 

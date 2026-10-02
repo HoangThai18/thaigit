@@ -274,6 +274,22 @@ mod contract_tests {
         assert_eq!(conf["app"]["windows"][0]["create"], serde_json::json!(false), "cửa sổ dựng trong code để gắn chốt chặn điều hướng");
     }
 
+    /// Windows/Android: trang là `http(s)://tauri.localhost` và IPC đi qua `http(s)://ipc.localhost` — scheme do `useHttpsScheme` của
+    /// cửa sổ quyết định, nên CSP (`connect-src`) và điều hướng phải cùng theo scheme đó.
+    #[test]
+    fn csp_and_navigation_follow_the_window_scheme_on_windows() {
+        let conf: serde_json::Value = serde_json::from_str(TAURI_CONF).unwrap();
+        let uses_https = conf["app"]["windows"][0]["useHttpsScheme"].as_bool().unwrap_or(false);
+        let scheme = if uses_https { "https" } else { "http" };
+        for key in ["csp", "devCsp"] {
+            let csp = conf["app"]["security"][key].as_str().unwrap();
+            assert!(csp.contains(&format!("connect-src ipc: {scheme}://ipc.localhost")), "{key}: IPC trên Windows là {scheme}://ipc.localhost: {csp}");
+        }
+        let page = url::Url::parse(&format!("{scheme}://tauri.localhost/index.html")).unwrap();
+        assert!(allowed_navigation(&page, None), "{page}");
+        assert!(allowed_navigation(&url::Url::parse("tauri://localhost/index.html").unwrap(), None));
+    }
+
     #[test]
     fn navigation_is_limited_to_the_app_origin() {
         let url = |s: &str| url::Url::parse(s).unwrap();
