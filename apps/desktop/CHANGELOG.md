@@ -15,9 +15,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 Bản chính thức đầu tiên cho Windows 10 / 11.
 
-- AI viết commit message (nút ✨ Viết bằng AI, Ctrl+Shift+G): chữ hiện dần, Dừng / Tạo lại / Hoàn tác, chọn ngôn ngữ, độ dài, Conventional Commits; hỏi đồng ý và cho xem đúng dữ liệu sẽ gửi trước lần đầu, tự bỏ file nhạy cảm và đoạn trông như mật khẩu / token
-- Giải thích commit và viết mô tả Pull Request bằng AI
-- Màn Cài đặt (Ctrl+,): giao diện, lịch sử, đồng bộ, diff, AI, quyền riêng tư, kênh cập nhật Beta / Ổn định
+- Màn Cài đặt (Ctrl+,): giao diện, lịch sử, đồng bộ, diff, quyền riêng tư, kênh cập nhật Beta / Ổn định
 - Thống kê ẩn danh mặc định tắt — chỉ gửi khi bạn bật
 - Clone và Tạo repo mới ngay ở màn hình chính
 - Diff tách đôi (cũ | mới), xem ảnh cũ / mới cạnh nhau
