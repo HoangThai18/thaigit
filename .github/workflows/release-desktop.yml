@@ -104,12 +104,12 @@ jobs:
             --notes-file out/notes.md \
             --prerelease --latest=false --verify-tag \
             "out/Thaigit_${VERSION}_x64-setup.exe" "out/Thaigit_${VERSION}_x64-setup.exe.sig" out/latest.json
+      # Release `desktop-beta` phải có sẵn (tạo một lần bằng tài khoản người: token của Actions không được tạo tag mới trỏ vào
+      # commit có đổi file workflow — GitHub trả 403). Ở đây chỉ thay `latest.json` + file cài.
       - name: Kênh beta (latest.json + link tải cố định)
         run: |
           if ! gh release view desktop-beta > /dev/null 2>&1; then
-            gh release create desktop-beta \
-              --title "Thaigit cho Windows — kênh beta" \
-              --notes "Bản Windows mới nhất của kênh beta. Bộ cập nhật trong app đọc latest.json ở đây; tải bản cài: Thaigit-Windows-setup.exe." \
-              --prerelease --latest=false --target "$GITHUB_SHA"
+            echo "::error::Chưa có release desktop-beta — tạo một lần bằng: gh release create desktop-beta --prerelease --latest=false --target main --title 'Thaigit cho Windows — kênh beta' --notes '…'"
+            exit 1
           fi
           gh release upload desktop-beta out/latest.json out/Thaigit-Windows-setup.exe --clobber

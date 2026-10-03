@@ -1,5 +1,6 @@
 //! Cập nhật tự động: `tauri-plugin-updater` kiểm `latest.json` của kênh (release cố định `desktop-<kênh>` trên GitHub), chữ ký
-//! minisign của bản cài kiểm bằng khoá công khai trong `tauri.conf.json`. Kiểm lúc khởi động (sau 20 giây) rồi mỗi 6 giờ, có
+//! minisign của bản cài kiểm bằng khoá công khai trong `tauri.conf.json` (`requireSignedVersion`: phiên bản ghi trong chữ ký phải
+//! khớp manifest — không tráo được bản cũ có chữ ký thật vào số phiên bản mới). Kiểm lúc khởi động (sau 20 giây) rồi mỗi 6 giờ, có
 //! bản mới thì phát `update-available`; cài khi người dùng bấm (chờ các lệnh git đang chạy xong), phát `update-progress`.
 //! Webview chỉ gọi `update_check` / `update_install` / `update_set_channel` và nghe sự kiện — kênh nào, bản nào hợp lệ, khi nào
 //! cài đều quyết ở đây. Plugin KHÔNG được cấp quyền cho webview (capability không có `updater:*`).
@@ -310,5 +311,6 @@ mod tests {
         let text = String::from_utf8(decoded).expect("utf-8");
         assert!(text.starts_with("untrusted comment: minisign public key"), "{text}");
         assert_eq!(config["bundle"]["createUpdaterArtifacts"], serde_json::json!(true));
+        assert_eq!(config["plugins"]["updater"]["requireSignedVersion"], serde_json::json!(true));
     }
 }
