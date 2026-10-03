@@ -1,4 +1,3 @@
-import { AiDemo } from '@/components/AiDemo';
 import { Compare } from '@/components/Compare';
 import { CopyCode } from '@/components/CopyCode';
 import { Effects } from '@/components/Effects';
@@ -221,29 +220,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* AI */}
-      <section id="ai" className="section container">
-        <div className="ai-ring" data-reveal>
-          <div className="ai">
-            <div className="ai-copy">
-              <span className="gradient-badge">Mới trên Windows</span>
-              <h2>AI viết commit message cho bạn</h2>
-              <p>
-                Bấm một nút, Thaigit đọc phần thay đổi đã stage và đề xuất message rõ ràng. Bản macOS dùng
-                Apple Intelligence ngay trên máy; bản Windows dùng model Hermes chạy trên máy chủ của Thaigit.
-              </p>
-              <ul className="check-list">
-                <li>Không cần API key, không tốn phí</li>
-                <li>Không gửi cho bên thứ ba, không lưu code hay message</li>
-                <li>Tự bỏ .env, khoá bí mật, file nhị phân trước khi gửi</li>
-                <li>Chỉ chạy khi bạn bấm và đã đồng ý</li>
-              </ul>
-            </div>
-            <AiDemo />
-          </div>
-        </div>
-      </section>
-
       {/* Tải về */}
       <section id="tai-ve" className="section container">
         <div className="section-head" data-reveal>
@@ -382,7 +358,7 @@ export default async function HomePage() {
             Thaigit is a free, visual Git GUI with a Liquid Glass look: a colorful commit graph, drag-and-drop
             to merge, rebase or push, line-by-line staging and a friendly conflict resolver. The native macOS
             app updates itself from GitHub Releases. The Windows app (Tauri 2, Windows 10/11) also updates
-            itself and can write commit messages with a self-hosted AI model. The UI is Vietnamese for now.
+            itself. The UI is Vietnamese for now.
           </p>
         </div>
       </section>

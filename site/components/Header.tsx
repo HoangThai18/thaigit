@@ -10,7 +10,6 @@ export function Header() {
         </Link>
         <nav className="nav" aria-label="Mục chính">
           <a href="/#tinh-nang">Tính năng</a>
-          <a href="/#ai">AI</a>
           <a href="/#tai-ve">Tải về</a>
           <a href="/#hoi-dap">Hỏi đáp</a>
         </nav>

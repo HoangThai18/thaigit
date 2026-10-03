@@ -24,6 +24,9 @@ const SOURCES: readonly { platform: Platform; file: string }[] = [
   { platform: 'macOS', file: path.join('..', 'CHANGELOG.md') },
 ];
 
+/** Tính năng AI (đang tạm tắt) — không đưa lên trang. */
+const AI_MENTION = /\bAI\b|Apple Intelligence|Hermes/;
+
 /** Độ dài tối đa của tên và câu mô tả hiện trên trang (nhật ký gốc viết rất chi tiết cho người dùng app). */
 const TITLE_MAX = 64;
 const DETAIL_MAX = 110;
@@ -96,8 +99,13 @@ function parse(text: string, platform: Platform): ChangelogEntry[] {
       continue;
     }
     if (!current || !line) continue;
-    if (line.startsWith('- ')) current.items.push(condense(line.slice(2)));
-    else if (!current.summary) current.summary = line;
+    if (line.startsWith('- ')) {
+      const item = condense(line.slice(2));
+      // Tính năng AI đang tạm tắt trong app: chưa giới thiệu trên trang.
+      if (!AI_MENTION.test(item.title)) {
+        current.items.push({ ...item, detail: item.detail.replace(/,\s*AI(?=,)/g, '') });
+      }
+    } else if (!current.summary) current.summary = line;
   }
   return entries;
 }
