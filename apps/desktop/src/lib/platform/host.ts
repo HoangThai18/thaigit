@@ -7,13 +7,15 @@
 import type { OpenedRepo, RepoChangedEvent } from '@thaigit/contracts';
 import type { Exec, RepoFs, TypedGit } from '@thaigit/core';
 import {
+  createGitHost,
   listRecentRepos,
   forgetRecentRepo,
   openRepo,
   pickAndOpenRepo,
   takeLaunchFolders,
 } from '../core-tauri.ts';
-import type { RecentRepo } from '../ipc/types.ts';
+import { pickRepoFolder } from '../ipc/host.ts';
+import type { PickedFolder, RecentRepo } from '../ipc/types.ts';
 
 /** Phần của một repo đã mở mà giao diện dùng. `TauriRepo` thoả sẵn kiểu này. */
 export interface RepoPort {
@@ -36,6 +38,17 @@ export interface Host {
   forgetRecentRepo(id: string): Promise<void>;
   /** Thư mục hệ điều hành đưa vào lúc khởi động (argv, "Mở bằng…"): mở cái đầu tiên, `null` nếu không có. */
   openLaunchRepo(): Promise<RepoPort | null>;
+  /** Hộp thoại chọn thư mục (nơi đặt repo clone / tạo mới); `null` = Huỷ. */
+  pickFolder(): Promise<PickedFolder | null>;
+  /** Clone `url` vào thư mục con `name` của `folder`, xong thì mở (tin sẵn). Huỷ bằng `signal`. */
+  cloneRepo(
+    url: string,
+    folder: PickedFolder,
+    name: string,
+    options: { onProgress?: (line: string) => void; signal?: AbortSignal },
+  ): Promise<RepoPort>;
+  /** Tạo repo mới trong thư mục con `name` của `folder` rồi mở. */
+  initRepo(folder: PickedFolder, name: string): Promise<RepoPort>;
 }
 
 export function hasTauriInternals(): boolean {
@@ -62,6 +75,10 @@ export function createTauriHost(): Host {
       const [first] = await takeLaunchFolders();
       return first ? openRepo({ kind: 'picked', token: first.token }) : null;
     },
+    pickFolder: () => pickRepoFolder(),
+    cloneRepo: (url, folder, name, options) =>
+      createGitHost().cloneRepo(url, `${folder.token}/${name}`, options),
+    initRepo: (folder, name) => createGitHost().initRepo(`${folder.token}/${name}`),
   };
 }
 

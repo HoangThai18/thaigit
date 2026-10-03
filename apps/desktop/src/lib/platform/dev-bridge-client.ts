@@ -133,5 +133,9 @@ export function createDevBridgeHost(): Host | null {
       // Danh sách "gần đây" của cầu nối là repo cố định: không có gì để quên.
     },
     openLaunchRepo: async () => (autoOpen ? openDevRepo() : null),
+    // Cầu nối chỉ-đọc: không tạo / clone repo.
+    pickFolder: refuse,
+    cloneRepo: refuse,
+    initRepo: refuse,
   };
 }

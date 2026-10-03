@@ -28,6 +28,8 @@
   import TrustPrompt from './lib/shell/TrustPrompt.svelte';
   import CrashPanel from './lib/shell/CrashPanel.svelte';
   import Welcome from './lib/shell/Welcome.svelte';
+  import CloneDialog from './lib/shell/CloneDialog.svelte';
+  import { dialogs, textValue } from './lib/stores/dialogs.svelte.ts';
   import { vi } from './lib/strings.vi.ts';
   import { app } from './lib/stores/app.svelte.ts';
   import { prefs } from './lib/stores/prefs.svelte.ts';
@@ -43,6 +45,7 @@
 
   let view = $state.raw<View>({ kind: 'boot' });
   let busy = $state(false);
+  let showClone = $state(false);
   /** Chạy ngoài Tauri và không có cầu nối dev: không có lõi Rust để mở repo. */
   let unavailable = $state<string | undefined>(undefined);
 
@@ -201,6 +204,32 @@
     void app.refreshRecent();
   }
 
+  /** Tạo repo mới: chọn thư mục cha, đặt tên, `git init`, mở luôn. */
+  async function createRepo(): Promise<void> {
+    const host = app.host;
+    if (!host || busy) return;
+    try {
+      const folder = await host.pickFolder();
+      if (!folder) return;
+      const values = await dialogs.form({
+        title: vi.welcome.initTitle,
+        message: vi.welcome.initMessage(folder.path),
+        fields: [{ kind: 'text', id: 'name', label: vi.welcome.initName, value: 'repo-moi' }],
+        confirmTitle: vi.welcome.initConfirm,
+        validate: (current) => {
+          const name = textValue(current, 'name');
+          return name === '' || name === '.' || name === '..' || /[/\\:*?"<>|]/.test(name)
+            ? vi.welcome.cloneInvalidName
+            : null;
+        },
+      });
+      if (!values) return;
+      await guarded(() => host.initRepo(folder, textValue(values, 'name')));
+    } catch (error) {
+      toasts.error(vi.welcome.initFailed, error);
+    }
+  }
+
   const openFolder = (): Promise<void> => guarded(() => app.host?.pickAndOpenRepo() ?? Promise.resolve(null));
   const openRecent = (repo: RecentRepo): Promise<void> =>
     guarded(() => app.host?.openRecent(repo.id) ?? Promise.resolve(null), {
@@ -237,7 +266,19 @@
     onopen={openFolder}
     onrecent={openRecent}
     onforget={(repo) => app.forgetRecent(repo.id)}
+    onclone={app.host?.kind === 'tauri' ? () => (showClone = true) : undefined}
+    oninit={app.host?.kind === 'tauri' ? () => void createRepo() : undefined}
   />
+  {#if showClone && app.host}
+    <CloneDialog
+      host={app.host}
+      onclose={() => (showClone = false)}
+      onopened={(port) => {
+        showClone = false;
+        void show(port);
+      }}
+    />
+  {/if}
 {/if}
 
 <Toasts />

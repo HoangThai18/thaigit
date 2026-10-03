@@ -65,6 +65,9 @@ async function openUntrustedApp(): Promise<{ port: RepoPort; trust: ReturnType<t
     listRecentRepos: async () => [],
     forgetRecentRepo: async () => {},
     openLaunchRepo: async () => port,
+    pickFolder: async () => null,
+    cloneRepo: async () => port,
+    initRepo: async () => port,
   };
   const target = document.createElement('div');
   document.body.append(target);

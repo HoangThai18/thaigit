@@ -133,6 +133,13 @@ describe('AppStore', () => {
         throw new Error('không dùng');
       },
       listRecentRepos: async () => [repo('cũ', 1), repo('mới', 3), repo('giữa', 2)],
+      pickFolder: async () => null,
+      cloneRepo: async () => {
+        throw new Error('không dùng');
+      },
+      initRepo: async () => {
+        throw new Error('không dùng');
+      },
       forgetRecentRepo: async () => {},
       openLaunchRepo: async () => null,
       ...overrides,

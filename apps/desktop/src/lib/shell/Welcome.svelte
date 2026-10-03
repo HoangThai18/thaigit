@@ -21,9 +21,12 @@
     onopen: () => void;
     onrecent: (repo: RecentRepo) => void;
     onforget: (repo: RecentRepo) => void;
+    /** Clone / tạo repo mới (không có khi chạy ngoài app). */
+    onclone?: () => void;
+    oninit?: () => void;
   }
 
-  let { recent, opening, unavailable, onopen, onrecent, onforget }: Props = $props();
+  let { recent, opening, unavailable, onopen, onrecent, onforget, onclone, oninit }: Props = $props();
 
   const version = import.meta.env.VITE_APP_VERSION ?? '';
   const inApp = hasTauriInternals();
@@ -39,6 +42,17 @@
       <Icon name="folder-open" size={17} />
       {opening ? vi.welcome.opening : vi.welcome.openFolder}
     </button>
+
+    {#if onclone || oninit}
+      <div class="secondary">
+        {#if onclone}
+          <button type="button" class="link" disabled={opening} onclick={onclone}>{vi.welcome.clone}</button>
+        {/if}
+        {#if oninit}
+          <button type="button" class="link" disabled={opening} onclick={oninit}>{vi.welcome.init}</button>
+        {/if}
+      </div>
+    {/if}
 
     {#if unavailable}
       <p class="notice" role="status">{unavailable}</p>
@@ -109,6 +123,13 @@
 </main>
 
 <style>
+  .secondary {
+    display: flex;
+    gap: 18px;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+
   .ask {
     width: 100%;
     margin-top: 16px;
