@@ -1,7 +1,7 @@
 // Fetch / pull / push (port phần Remote của RepoModel+Actions.swift). Thao tác mạng hiện thanh bận có tiến độ và nút Huỷ;
 // lỗi quen thuộc (bị từ chối, tách nhánh, xung đột, đăng nhập) thành thông báo dễ hiểu kèm nút xử lý.
 
-import { isValidRefName, type PullMode } from '@thaigit/core';
+import { isValidRefName, refName, type GitRef, type PullMode } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
 import { dialogs as globalDialogs, textValue, type DialogStore } from '../stores/dialogs.svelte.ts';
 import type { PullModePref } from '../stores/prefs.svelte.ts';
@@ -135,15 +135,24 @@ export function pull(store: RepoStore, mode?: PullMode): Promise<void> {
   );
 }
 
-/** Push nhánh hiện tại: có upstream thì đẩy lên đó, chưa có thì hỏi remote + tên nhánh rồi đặt upstream. */
-export async function push(store: RepoStore, options: { force?: boolean; dialogs?: DialogStore } = {}): Promise<void> {
+/** Push nhánh hiện tại (xem `pushBranch`). */
+export function push(store: RepoStore, options: { force?: boolean; dialogs?: DialogStore } = {}): Promise<void> {
   const branch = store.currentBranchRef;
   if (!branch) {
     store.notify('warning', vi.remote.needBranchToPush);
-    return;
+    return Promise.resolve();
   }
+  return pushBranch(store, branch, options);
+}
+
+/** Push một nhánh local: có upstream thì đẩy lên đó, chưa có thì hỏi remote + tên nhánh rồi đặt upstream. */
+export async function pushBranch(
+  store: RepoStore,
+  branch: GitRef,
+  options: { force?: boolean; dialogs?: DialogStore } = {},
+): Promise<void> {
   if (noRemote(store)) return;
-  const name = branch.fullName.slice('refs/heads/'.length);
+  const name = refName(branch);
   const target = branch.upstream !== null && !branch.upstreamGone ? store.splitUpstream(branch.upstream) : null;
   if (target) {
     await performPush(store, {

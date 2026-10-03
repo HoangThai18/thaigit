@@ -59,6 +59,8 @@
         return vi.staging.sourceCommit(source.sha.slice(0, 7));
       case 'stash':
         return vi.staging.sourceStash;
+      case 'conflict':
+        return vi.staging.conflictsTitle;
     }
   }
 

@@ -1,11 +1,19 @@
 // Đổi nhánh / tạo nhánh (port phần Checkout + Nhánh của RepoModel+Actions.swift). Có "Hoàn tác" (quay lại HEAD cũ) và
 // "Stash rồi checkout" khi thay đổi chưa commit chặn việc đổi nhánh.
 
-import { isValidRefName, refName, refShortBranchName, type GitRef, type GitRepository, type HeadState } from '@thaigit/core';
+import {
+  isValidRefName,
+  refName,
+  refRemoteName,
+  refShortBranchName,
+  type GitRef,
+  type GitRepository,
+  type HeadState,
+} from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
 import { dialogs as globalDialogs, flagValue, textValue, type DialogStore } from '../stores/dialogs.svelte.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
-import { gitErrorContains } from './errors.ts';
+import { gitErrorContains, handleNetworkError } from './errors.ts';
 import { popLatestStash } from './stash.ts';
 
 type Work = (git: GitRepository) => Promise<void>;
@@ -178,4 +186,145 @@ export function createBranch(store: RepoStore, name: string, startPoint: string,
     onError: (error) =>
       handleCheckoutError(store, error, () => void stashThen(store, vi.branches.createTitleNamed(name), work)),
   });
+}
+
+// MARK: - Xoá / đổi tên / fast-forward
+
+export async function deleteBranch(store: RepoStore, ref: GitRef, dialogs?: DialogStore): Promise<void> {
+  const name = refName(ref);
+  if (name === store.currentBranch) {
+    store.notify('warning', vi.branches.cannotDeleteCurrent);
+    return;
+  }
+  const confirmed = await (dialogs ?? globalDialogs).confirm({
+    title: vi.branches.deleteConfirmTitle(name),
+    message: vi.branches.deleteConfirmMessage,
+    confirmTitle: vi.branches.deleteBranch,
+    destructive: true,
+  });
+  if (confirmed) await performDeleteBranch(store, ref, false);
+}
+
+function performDeleteBranch(store: RepoStore, ref: GitRef, force: boolean): Promise<void> {
+  const name = refName(ref);
+  return store.perform(vi.branches.deleteTitle(name), (git) => git.deleteBranch(name, force), {
+    refresh: Scope.refs | Scope.history,
+    onSuccess: () =>
+      store.notify('success', vi.branches.deleted(name), {
+        actions: [
+          {
+            title: vi.staging.undo,
+            run: () =>
+              void store.perform(vi.branches.restoreBranch(name), (git) => git.updateRef(ref.fullName, ref.target), {
+                refresh: Scope.refs | Scope.history,
+                onSuccess: () => store.notify('success', vi.staging.undone),
+              }),
+          },
+        ],
+      }),
+    onError: (error) => {
+      if (!gitErrorContains(error, 'not fully merged')) return false;
+      store.showError(vi.branches.notMerged(name), error, [
+        { title: vi.branches.deleteAnyway, run: () => void performDeleteBranch(store, ref, true) },
+      ]);
+      return true;
+    },
+  });
+}
+
+/** Xoá nhánh trên remote (cho mọi người — hỏi trước). "Hoàn tác" đẩy lại đúng commit cũ. */
+export async function deleteRemoteBranch(store: RepoStore, ref: GitRef, dialogs?: DialogStore): Promise<void> {
+  const remotes = store.remotes.map((remote) => remote.name);
+  const remote = refRemoteName(ref, remotes);
+  if (remote === null) return;
+  const branch = refShortBranchName(ref, remotes);
+  const name = refName(ref);
+  const confirmed = await (dialogs ?? globalDialogs).confirm({
+    title: vi.branches.deleteRemoteConfirmTitle(name),
+    message: vi.branches.deleteRemoteConfirmMessage(branch, remote),
+    confirmTitle: vi.branches.deleteOnRemote,
+    destructive: true,
+  });
+  if (!confirmed) return;
+  const progress = store.progressReporter();
+  await store.perform(
+    vi.branches.deleteRemoteTitle(name),
+    (git, signal) => git.deleteRemoteBranch(remote, branch, { onProgress: progress, signal }),
+    {
+      showsProgress: true,
+      cancellable: true,
+      refresh: Scope.refs | Scope.status | Scope.history,
+      onSuccess: () =>
+        store.notify('success', vi.branches.deletedRemote(name), {
+          actions: [
+            {
+              title: vi.staging.undo,
+              run: () => {
+                const restoreProgress = store.progressReporter();
+                void store.perform(
+                  vi.branches.restoreRemote(name),
+                  (git, signal) => git.pushCommit(ref.target, remote, branch, { onProgress: restoreProgress, signal }),
+                  {
+                    showsProgress: true,
+                    cancellable: true,
+                    refresh: Scope.refs | Scope.history,
+                    onSuccess: () => store.notify('success', vi.staging.undone),
+                    onError: (error) => handleNetworkError(store, error, vi.branches.restoreRemote(name)),
+                  },
+                );
+              },
+            },
+          ],
+        }),
+      onError: (error) => handleNetworkError(store, error, vi.branches.deleteRemoteTitle(name)),
+    },
+  );
+}
+
+export async function beginRenameBranch(store: RepoStore, ref: GitRef, dialogs?: DialogStore): Promise<void> {
+  const oldName = refName(ref);
+  const existing = new Set(store.localBranches.map((candidate) => refName(candidate)));
+  const values = await (dialogs ?? globalDialogs).form({
+    title: vi.branches.renameTitle(oldName),
+    confirmTitle: vi.branches.rename,
+    fields: [{ kind: 'text', id: 'name', label: vi.branches.renameLabel, value: oldName, monospace: true }],
+    validate: (current) => {
+      const name = textValue(current, 'name');
+      if (name === '') return vi.branches.nameRequired;
+      if (!isValidRefName(name)) return vi.branches.nameInvalid;
+      if (name !== oldName && existing.has(name)) return vi.branches.nameExists(name);
+      return null;
+    },
+  });
+  if (!values) return;
+  const newName = textValue(values, 'name');
+  if (newName === oldName) return;
+  await store.perform(vi.branches.renameRunning, (git) => git.renameBranch(oldName, newName), {
+    refresh: Scope.all,
+    onSuccess: () =>
+      store.notify('success', vi.branches.renamed(oldName, newName), {
+        actions: [
+          {
+            title: vi.staging.undo,
+            run: () =>
+              void store.perform(vi.branches.renameRunning, (git) => git.renameBranch(newName, oldName), {
+                refresh: Scope.all,
+                onSuccess: () => store.notify('success', vi.staging.undone),
+              }),
+          },
+        ],
+      }),
+  });
+}
+
+/** Đưa nhánh local lên ngang upstream (chỉ khi chỉ có "sau", không có "trước"). */
+export function fastForward(store: RepoStore, ref: GitRef): Promise<void> {
+  const upstream = ref.upstream;
+  if (upstream === null) return Promise.resolve();
+  const name = refName(ref);
+  return store.perform(
+    vi.branches.fastForwardTitle(name),
+    (git) => (name === store.currentBranch ? git.merge(upstream, 'fastForwardOnly') : git.fastForward(name, upstream)),
+    { refresh: Scope.all, onSuccess: () => store.notify('success', vi.branches.fastForwarded(name)) },
+  );
 }

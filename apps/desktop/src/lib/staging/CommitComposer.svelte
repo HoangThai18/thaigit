@@ -3,7 +3,9 @@
   Ctrl/⌘ + Enter để commit. Chưa stage gì mà có thay đổi thì nút thành "Stage tất cả & commit".
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { canCommit, commit, setAmend } from '../actions/commit.ts';
+  import { prefillPendingMessage } from '../actions/history.ts';
   import { vi } from '../strings.vi.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
@@ -17,7 +19,11 @@
   const draft = $derived(store.commitDraft);
   const remaining = $derived(72 - [...draft.summary].length);
   const suggestsStageAll = $derived(
-    store.status.staged.length === 0 && store.status.unstaged.length > 0 && !draft.amend && store.operation === null,
+    store.status.staged.length === 0 &&
+      store.status.unstaged.length > 0 &&
+      store.status.conflicts.length === 0 &&
+      !draft.amend &&
+      store.operation === null,
   );
   const check = $derived(canCommit(store));
   const enabled = $derived(
@@ -31,6 +37,12 @@
         : vi.staging.commitButton(store.status.staged.length, store.currentBranch ?? 'HEAD'),
   );
   let savedBeforeAmend: { summary: string; body: string } | null = null;
+
+  // Mở repo đang merge / revert dở (hoặc thao tác vừa dừng vì xung đột): điền sẵn message git đã soạn.
+  $effect(() => {
+    if (store.operation === null) return;
+    untrack(() => void prefillPendingMessage(store));
+  });
 
   function submit(): void {
     if (!enabled) return;

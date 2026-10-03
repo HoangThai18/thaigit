@@ -11,6 +11,8 @@
   import Icon from '../ui/Icon.svelte';
   import Avatar from './Avatar.svelte';
   import FileList from './FileList.svelte';
+  import { fileMenu } from '../actions/menus.ts';
+  import { menus } from '../stores/menus.svelte.ts';
 
   interface Props {
     store: RepoStore;
@@ -108,6 +110,7 @@
       emptyText={vi.inspector.noFiles}
       selectedPath={openPath}
       onopen={(change) => store.diff.open(change, { kind: 'commit', sha, parent: details.commit.parents[0] ?? null })}
+      onmenu={(event, change) => menus.openAt(event, fileMenu(store, change, { kind: 'commit', sha, parent: details.commit.parents[0] ?? null }))}
     />
   </div>
 {:else if store.isLoadingDetails}

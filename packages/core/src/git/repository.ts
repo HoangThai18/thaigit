@@ -660,9 +660,13 @@ export class GitRepository {
     await this.runner.run('cherry-pick', [...this.mainlineArgs(mainline), sha]);
   }
 
-  async revert(sha: string, mainline: number | null = null): Promise<void> {
+  /**
+   * Tạo commit đảo ngược `sha`. `commit: false` (`--no-commit`) chỉ stage thay đổi đảo ngược để xem lại / sửa: git để lại
+   * REVERT_HEAD nên repo ở trạng thái "Đang revert" tới khi commit (hoặc `abort`).
+   */
+  async revert(sha: string, mainline: number | null = null, commit = true): Promise<void> {
     assertArgument(sha);
-    await this.runner.run('revert', ['--no-edit', ...this.mainlineArgs(mainline), sha]);
+    await this.runner.run('revert', [commit ? '--no-edit' : '--no-commit', ...this.mainlineArgs(mainline), sha]);
   }
 
   private mainlineArgs(mainline: number | null): string[] {

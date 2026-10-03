@@ -28,6 +28,7 @@ export interface CommitCheck {
 export function canCommit(store: RepoStore): CommitCheck {
   const draft = store.commitDraft;
   if (draft.summary.trim() === '') return { ok: false, reason: vi.staging.needSummary };
+  if (store.status.conflicts.length > 0) return { ok: false, reason: vi.staging.conflictsFirst(store.status.conflicts.length) };
   // Amend chỉ sửa message thì không cần gì đã stage; đang merge / revert thì commit hoàn tất thao tác.
   if (store.status.staged.length === 0 && !draft.amend && store.operation === null) {
     return { ok: false, reason: vi.staging.needStaged };

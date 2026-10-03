@@ -1,0 +1,274 @@
+// Nội dung menu chuột phải (port phần "Menu ngữ cảnh" của RepoModel+Actions.swift): commit trên graph, dòng WIP, nhánh / tag,
+// stash, file thay đổi. Chỉ dựng dữ liệu (MenuItem) — vẽ ở MenuHost.
+
+import {
+  isWorkingTreeCommit,
+  refName,
+  refShortBranchName,
+  shortSha,
+  type FileChange,
+  type GitRef,
+  type Stash,
+} from '@thaigit/core';
+import type { GraphEntry } from '../stores/repo.svelte.ts';
+import type { RepoStore } from '../stores/repo.svelte.ts';
+import type { DiffSource } from '../stores/diff.svelte.ts';
+import { tidyMenu, type MenuItem } from '../stores/menus.svelte.ts';
+import { vi } from '../strings.vi.ts';
+import {
+  beginCreateBranch,
+  beginRenameBranch,
+  checkout,
+  checkoutDetached,
+  deleteBranch,
+  deleteRemoteBranch,
+  fastForward,
+} from './branches.ts';
+import { cherryPick, discardAll, ignore, merge, rebaseCurrent, reset, revert } from './history.ts';
+import { pull, push, pushBranch } from './remote.ts';
+import { discardFiles, stageAll, stageFiles, unstageAll, unstageFiles } from './staging.ts';
+import { applyStash, beginStash, dropStash, popStash, quickStash } from './stash.ts';
+import { beginCreateTag, deleteRemoteTag, deleteTag, pushTag } from './tags.ts';
+import type { IconName } from '../ui/icons.ts';
+
+function refIcon(ref: GitRef): IconName {
+  return ref.kind === 'localBranch' ? 'laptop' : ref.kind === 'remoteBranch' ? 'cloud' : 'tag';
+}
+
+/** Menu của một hàng trên graph: các nhánh / tag trỏ vào commit (menu con), rồi thao tác trên commit. */
+export function commitMenu(store: RepoStore, entry: GraphEntry): MenuItem[] {
+  const commit = entry.commit;
+  if (isWorkingTreeCommit(commit)) return workingTreeMenu(store);
+  const refItems: MenuItem[] = [];
+  for (const label of entry.labels) {
+    if (label.isDetachedHead) continue;
+    for (const ref of label.refs) {
+      refItems.push({ kind: 'submenu', title: refName(ref), icon: refIcon(ref), items: refMenu(store, ref) });
+    }
+  }
+  const isHead = commit.id === store.headOid;
+  const branch = store.currentBranch ?? 'HEAD';
+  const sha = shortSha(commit);
+  return tidyMenu([
+    ...refItems,
+    { kind: 'separator' },
+    {
+      title: vi.branches.menuCreateBranchHere,
+      icon: 'branch',
+      run: () => void beginCreateBranch(store, { sha: commit.id, label: sha }),
+    },
+    { title: vi.branches.menuCreateTagHere, icon: 'tag', run: () => void beginCreateTag(store, commit.id, sha) },
+    {
+      title: vi.branches.menuCheckoutCommit,
+      icon: 'checkout',
+      disabled: isHead,
+      run: () => void checkoutDetached(store, commit.id, vi.branches.commitLabel(sha)),
+    },
+    { kind: 'separator' },
+    {
+      title: vi.branches.menuCherryPick(branch),
+      icon: 'cherry-pick',
+      disabled: isHead || store.headOid === null,
+      run: () => void cherryPick(store, commit),
+    },
+    {
+      title: vi.branches.menuRevert,
+      icon: 'revert',
+      disabled: store.headOid === null,
+      run: () => void revert(store, commit),
+    },
+    {
+      kind: 'submenu',
+      title: vi.branches.menuReset(branch),
+      icon: 'reset',
+      disabled: store.headOid === null,
+      items: [
+        { title: vi.branches.resetSoft, run: () => void reset(store, commit, 'soft') },
+        { title: vi.branches.resetMixed, run: () => void reset(store, commit, 'mixed') },
+        { title: vi.branches.resetHardMenu, destructive: true, run: () => void reset(store, commit, 'hard') },
+      ],
+    },
+    { kind: 'separator' },
+    { title: vi.branches.menuCopySha, icon: 'hash', run: () => void store.copy(commit.id, 'SHA') },
+    {
+      title: vi.branches.menuCopyMessage,
+      icon: 'copy',
+      run: () => void store.copy(commit.subject, vi.branches.copyMessageLabel),
+    },
+  ]);
+}
+
+export function workingTreeMenu(store: RepoStore): MenuItem[] {
+  return [
+    {
+      title: vi.branches.menuStageAll,
+      icon: 'stage',
+      disabled: store.status.unstaged.length === 0,
+      run: () => void stageAll(store),
+    },
+    {
+      title: vi.branches.menuUnstageAll,
+      icon: 'unstage',
+      disabled: store.status.staged.length === 0,
+      run: () => void unstageAll(store),
+    },
+    { kind: 'separator' },
+    { title: vi.branches.menuStashAll, icon: 'stash', run: () => void quickStash(store) },
+    { title: vi.branches.stashWithMessage, icon: 'pencil', run: () => void beginStash(store) },
+    { kind: 'separator' },
+    {
+      title: vi.branches.menuDiscardAll,
+      icon: 'trash',
+      destructive: true,
+      disabled: store.operation !== null,
+      run: () => void discardAll(store),
+    },
+  ];
+}
+
+/** Menu của một nhánh local / nhánh remote / tag (sidebar, viên nhãn trên graph). */
+export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
+  const current = store.currentBranch;
+  const name = refName(ref);
+  const items: (MenuItem | null)[] = [];
+  switch (ref.kind) {
+    case 'localBranch': {
+      const isCurrent = name === current;
+      if (isCurrent) {
+        items.push({ title: vi.branches.menuPull, icon: 'pull', run: () => void pull(store) });
+        items.push({ title: vi.branches.menuPush, icon: 'push', run: () => void push(store) });
+      } else {
+        items.push({ title: vi.branches.menuCheckout(name), icon: 'checkout', run: () => void checkout(store, ref) });
+        if (current !== null) {
+          items.push({
+            title: vi.branches.menuMergeInto(name, current),
+            icon: 'merge',
+            run: () => void merge(store, name, name),
+          });
+          items.push({
+            title: vi.branches.menuRebaseOnto(current, name),
+            icon: 'rebase',
+            run: () => void rebaseCurrent(store, name, name),
+          });
+        }
+        items.push({ title: vi.branches.menuPushBranch(name), icon: 'push', run: () => void pushBranch(store, ref) });
+      }
+      if (ref.upstream !== null && ref.behind > 0 && ref.ahead === 0) {
+        items.push({
+          title: vi.branches.menuFastForward(ref.upstream),
+          icon: 'fast-forward',
+          run: () => void fastForward(store, ref),
+        });
+      }
+      items.push({ kind: 'separator' });
+      items.push({
+        title: vi.branches.menuCreateBranchFrom(name),
+        icon: 'branch',
+        run: () => void beginCreateBranch(store, { sha: ref.target, label: name }),
+      });
+      items.push({ title: vi.branches.menuRename, icon: 'pencil', run: () => void beginRenameBranch(store, ref) });
+      items.push({
+        title: vi.branches.menuDeleteBranch,
+        icon: 'trash',
+        destructive: true,
+        disabled: isCurrent,
+        run: () => void deleteBranch(store, ref),
+      });
+      break;
+    }
+    case 'remoteBranch': {
+      const short = refShortBranchName(ref, store.remotes.map((remote) => remote.name));
+      items.push({ title: vi.branches.menuCheckout(short), icon: 'checkout', run: () => void checkout(store, ref) });
+      if (current !== null) {
+        items.push({ title: vi.branches.menuMergeInto(name, current), icon: 'merge', run: () => void merge(store, name, name) });
+        items.push({
+          title: vi.branches.menuRebaseOnto(current, name),
+          icon: 'rebase',
+          run: () => void rebaseCurrent(store, name, name),
+        });
+      }
+      items.push({ kind: 'separator' });
+      items.push({
+        title: vi.branches.menuCreateBranchFrom(name),
+        icon: 'branch',
+        run: () => void beginCreateBranch(store, { sha: ref.target, label: name }),
+      });
+      items.push({
+        title: vi.branches.menuDeleteOnRemote,
+        icon: 'trash',
+        destructive: true,
+        run: () => void deleteRemoteBranch(store, ref),
+      });
+      break;
+    }
+    case 'tag':
+      items.push({ title: vi.branches.menuCheckoutTag(name), icon: 'checkout', run: () => void checkout(store, ref) });
+      items.push({
+        title: vi.branches.menuPushTag,
+        icon: 'push',
+        disabled: store.remotes.length === 0,
+        run: () => void pushTag(store, ref),
+      });
+      items.push({
+        title: vi.branches.menuCreateBranchFromTag,
+        icon: 'branch',
+        run: () => void beginCreateBranch(store, { sha: ref.target, label: name }),
+      });
+      items.push({ kind: 'separator' });
+      items.push({ title: vi.branches.menuDeleteTag, icon: 'trash', destructive: true, run: () => void deleteTag(store, ref) });
+      items.push({
+        title: vi.branches.menuDeleteRemoteTag,
+        icon: 'trash',
+        destructive: true,
+        disabled: store.remotes.length === 0,
+        run: () => void deleteRemoteTag(store, ref),
+      });
+      break;
+  }
+  items.push({ kind: 'separator' });
+  items.push({ title: vi.branches.menuCopyName, icon: 'copy', run: () => void store.copy(name, vi.branches.copyNameLabel) });
+  return tidyMenu(items);
+}
+
+export function stashMenu(store: RepoStore, entry: Stash): MenuItem[] {
+  return [
+    { title: vi.branches.stashApplyKeep, icon: 'download', run: () => void applyStash(store, entry) },
+    { title: vi.branches.stashPopDrop, icon: 'stash', run: () => void popStash(store, entry) },
+    { kind: 'separator' },
+    { title: vi.branches.dropStashMenu, icon: 'trash', destructive: true, run: () => void dropStash(store, entry) },
+  ];
+}
+
+/** Menu của một file thay đổi (danh sách WIP, file trong commit / stash). */
+export function fileMenu(store: RepoStore, change: FileChange, source: DiffSource): MenuItem[] {
+  const items: (MenuItem | null)[] = [
+    { title: vi.branches.menuOpenDiff, icon: 'compare', run: () => store.diff.open(change, source) },
+  ];
+  if (source.kind === 'unstaged') {
+    items.push({ title: vi.branches.menuStageFile, icon: 'stage', run: () => void stageFiles(store, [change]) });
+    items.push({
+      title: vi.branches.menuDiscardFile,
+      icon: 'discard',
+      destructive: true,
+      run: () => void discardFiles(store, [change]),
+    });
+    if (change.kind === 'untracked') {
+      const slash = change.path.lastIndexOf('/');
+      const folder = slash > 0 ? change.path.slice(0, slash) : '';
+      const base = change.path.slice(slash + 1);
+      const dot = base.lastIndexOf('.');
+      const extension = dot > 0 ? base.slice(dot + 1) : '';
+      const ignoreItems: (MenuItem | null)[] = [
+        { title: vi.branches.menuIgnoreFile, run: () => void ignore(store, `/${change.path}`) },
+        extension !== '' ? { title: vi.branches.menuIgnoreExtension(extension), run: () => void ignore(store, `*.${extension}`) } : null,
+        folder !== '' ? { title: vi.branches.menuIgnoreFolder(folder), run: () => void ignore(store, `/${folder}/`) } : null,
+      ];
+      items.push({ kind: 'submenu', title: vi.branches.menuIgnore, icon: 'filter', items: tidyMenu(ignoreItems) });
+    }
+  } else if (source.kind === 'staged') {
+    items.push({ title: vi.branches.menuUnstageFile, icon: 'unstage', run: () => void unstageFiles(store, [change]) });
+  }
+  items.push({ kind: 'separator' });
+  items.push({ title: vi.branches.menuCopyPath, icon: 'copy', run: () => void store.copy(change.path, vi.branches.copyPathLabel) });
+  return tidyMenu(items);
+}

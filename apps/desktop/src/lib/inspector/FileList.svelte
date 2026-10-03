@@ -14,9 +14,11 @@
     onopen?: (change: FileChange) => void;
     /** Đường dẫn file đang mở diff (tô hàng). */
     selectedPath?: string | null;
+    /** Chuột phải vào hàng. */
+    onmenu?: (event: MouseEvent, change: FileChange) => void;
   }
 
-  let { files, title, emptyText = '', onopen, selectedPath = null }: Props = $props();
+  let { files, title, emptyText = '', onopen, selectedPath = null, onmenu }: Props = $props();
 
   const summary = $derived(summarizeChanges(files));
 </script>
@@ -49,6 +51,7 @@
             tabindex={onopen ? 0 : -1}
             title={showBidi(change.oldPath ? `${change.oldPath} → ${change.path}` : change.path)}
             onclick={() => onopen?.(change)}
+            oncontextmenu={(event) => onmenu?.(event, change)}
             onkeydown={(event) => {
               if (onopen && (event.key === 'Enter' || event.key === ' ')) {
                 event.preventDefault();

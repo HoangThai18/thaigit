@@ -230,6 +230,22 @@ describe('merge / cherry-pick / revert / reset', () => {
       );
     }));
 
+  it('revert chưa commit: chỉ stage thay đổi đảo ngược, repo ở trạng thái "Đang revert"', () =>
+    withTestRepo(async (t) => {
+      await twoBranches(t);
+      await t.repo.merge('feature');
+      const tip = await t.repo.resolveCommit('HEAD');
+      await t.repo.revert(tip, null, false);
+      expect(await t.repo.resolveCommit('HEAD')).toBe(tip);
+      expect(await t.exists('f.txt')).toBe(false);
+      expect((await t.repo.status()).staged.map((change) => [change.path, change.kind])).toEqual([['f.txt', 'deleted']]);
+      expect(await t.repo.operationState()).toEqual({ kind: 'reverting' });
+      expect(await t.repo.pendingCommitMessage()).toMatch(/^Revert "feature"/);
+      await t.repo.abort({ kind: 'reverting' });
+      expect(await t.repo.operationState()).toBeNull();
+      expect(await t.read('f.txt')).toBe('f\n');
+    }));
+
   it('commit merge: phải nêu cha (mainline) cho cherry-pick và revert', () =>
     withTestRepo(async (t) => {
       await twoBranches(t);

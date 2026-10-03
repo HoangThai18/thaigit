@@ -4,10 +4,12 @@
   Thanh công cụ ở 4a chỉ có tên repo/nhánh và hai nút (ẩn/hiện panel, đóng); Fetch/Pull/Push/Branch… thuộc 4b.
 -->
 <script lang="ts">
-  import { operationTitle } from '@thaigit/core';
+  import { operationCanContinue, operationCanSkip, operationTitle } from '@thaigit/core';
+  import { abortOperation, continueOperation, skipOperation } from '../actions/history.ts';
   import { beginCreateBranch } from '../actions/branches.ts';
   import { startAutoFetch } from '../actions/autoFetch.ts';
   import { fetch, pull, push } from '../actions/remote.ts';
+  import ConflictPane from '../diff/ConflictPane.svelte';
   import DiffPane from '../diff/DiffPane.svelte';
   import { showBidi } from '../format/bidi.ts';
   import GraphView from '../graph/GraphView.svelte';
@@ -135,11 +137,32 @@
             <span class="banner-detail"
               >{conflicts > 0 ? vi.window.operationConflicts(conflicts) : vi.window.operationResolved}</span
             >
+            <span class="grow"></span>
+            <button type="button" class="banner-button" onclick={() => void abortOperation(store)}>
+              {vi.branches.abortOperation}
+            </button>
+            {#if operationCanSkip(store.operation)}
+              <button type="button" class="banner-button" onclick={() => void skipOperation(store)}>
+                {vi.branches.skipOperation}
+              </button>
+            {/if}
+            {#if operationCanContinue(store.operation)}
+              <button
+                type="button"
+                class="banner-button primary"
+                disabled={conflicts > 0}
+                onclick={() => void continueOperation(store)}
+              >
+                {vi.branches.continueOperation}
+              </button>
+            {/if}
           </div>
         {/if}
         <!-- Graph giữ nguyên khi mở diff (ẩn đi) để quay lại không phải dựng lại / mất vị trí cuộn. -->
         <div class="graph-area" class:hidden={store.diff.file !== null}><GraphView {store} /></div>
-        {#if store.diff.file !== null}
+        {#if store.diff.file?.source.kind === 'conflict'}
+          <div class="graph-area"><ConflictPane {store} /></div>
+        {:else if store.diff.file !== null}
           <div class="graph-area"><DiffPane {store} /></div>
         {/if}
       </div>
@@ -334,5 +357,28 @@
 
   .banner-detail {
     color: var(--text-secondary);
+  }
+
+  .banner-button {
+    flex: none;
+    padding: 4px 12px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+    color: var(--text);
+    font: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+
+  .banner-button.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .banner-button:disabled {
+    opacity: 0.45;
+    cursor: default;
   }
 </style>

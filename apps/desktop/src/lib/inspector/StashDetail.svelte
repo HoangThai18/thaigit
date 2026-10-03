@@ -7,6 +7,8 @@
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
   import FileList from './FileList.svelte';
+  import { fileMenu } from '../actions/menus.ts';
+  import { menus } from '../stores/menus.svelte.ts';
 
   interface Props {
     store: RepoStore;
@@ -54,6 +56,7 @@
         emptyText={vi.inspector.noFiles}
         selectedPath={openPath}
         onopen={(change) => store.diff.open(change, { kind: 'stash', sha })}
+        onmenu={(event, change) => menus.openAt(event, fileMenu(store, change, { kind: 'stash', sha }))}
       />
     {:else}
       <div class="loading" role="status">{vi.inspector.loadingDetails}</div>

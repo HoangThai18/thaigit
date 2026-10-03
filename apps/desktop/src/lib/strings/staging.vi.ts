@@ -80,6 +80,7 @@ export const staging = {
   stageAllAndCommit: 'Stage tất cả & commit',
   needSummary: 'Nhập tóm tắt để commit',
   needStaged: 'Stage thay đổi trước khi commit',
+  conflictsFirst: (count: number) => `Giải quyết ${count} file xung đột trước khi commit`,
   committing: 'Commit',
   committed: (branch: string) => `Đã commit vào ${branch}`,
   amended: 'Đã sửa commit trước',

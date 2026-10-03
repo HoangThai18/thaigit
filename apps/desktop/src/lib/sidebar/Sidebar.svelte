@@ -15,10 +15,13 @@
     type Stash,
   } from '@thaigit/core';
   import { untrack } from 'svelte';
+  import { checkout } from '../actions/branches.ts';
+  import { refMenu, stashMenu } from '../actions/menus.ts';
   import { showBidi } from '../format/bidi.ts';
   import { containsFolded, foldText } from '../format/natural.ts';
   import { formatAbsolute } from '../format/time.ts';
   import { vi } from '../strings.vi.ts';
+  import { menus } from '../stores/menus.svelte.ts';
   import { prefs } from '../stores/prefs.svelte.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
@@ -144,6 +147,8 @@
     style:padding-left="{10 + depth * 14}px"
     title={showBidi(ref.upstream ? `${refName(ref)} → ${ref.upstream}` : refName(ref))}
     onclick={() => selectRef(ref)}
+    ondblclick={() => void checkout(store, ref)}
+    oncontextmenu={(event) => menus.openAt(event, refMenu(store, ref))}
   >
     <span class="sb-icon">
       {#if current}
@@ -266,6 +271,7 @@
                 class:selected={selectedId === `ref:${ref.fullName}`}
                 title={isAnnotatedTag(ref) ? vi.sidebar.annotatedTag : vi.sidebar.tag}
                 onclick={() => selectRef(ref)}
+                oncontextmenu={(event) => menus.openAt(event, refMenu(store, ref))}
               >
                 <span class="sb-icon"><Icon name="tag" size={15} /></span>
                 <span class="sb-title"><bdi>{showBidi(refName(ref))}</bdi></span>
@@ -292,6 +298,7 @@
                 class:selected={selectedId === `stash:${stash.selector}`}
                 title={showBidi([stash.message, formatAbsolute(stash.date)].join('\n'))}
                 onclick={() => selectStash(stash)}
+                oncontextmenu={(event) => menus.openAt(event, stashMenu(store, stash))}
               >
                 <span class="sb-icon"><Icon name="archive" size={15} /></span>
                 <span class="sb-title"><bdi>{showBidi(message === '' ? stash.selector : message)}</bdi></span>

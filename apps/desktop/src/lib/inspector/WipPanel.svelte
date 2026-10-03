@@ -4,11 +4,14 @@
 -->
 <script lang="ts">
   import { conflictAsChange, type FileChange } from '@thaigit/core';
+  import { resolveWhole } from '../actions/conflicts.ts';
+  import { fileMenu } from '../actions/menus.ts';
   import { discardFiles, stageAll, stageFiles, unstageAll, unstageFiles } from '../actions/staging.ts';
   import { showBidi } from '../format/bidi.ts';
   import ChangeList from '../staging/ChangeList.svelte';
   import CommitComposer from '../staging/CommitComposer.svelte';
   import { vi } from '../strings.vi.ts';
+  import { menus } from '../stores/menus.svelte.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
 
@@ -24,6 +27,12 @@
   const open = $derived(store.diff.file);
   const openUnstaged = $derived(open?.source.kind === 'unstaged' ? open.change.path : null);
   const openStaged = $derived(open?.source.kind === 'staged' ? open.change.path : null);
+  const openConflict = $derived(open?.source.kind === 'conflict' ? open.change.path : null);
+
+  function resolveFor(change: FileChange, useOurs: boolean): void {
+    const entry = status.conflicts.find((candidate) => candidate.path === change.path);
+    if (entry) void resolveWhole(store, entry, useOurs);
+  }
 </script>
 
 <div class="wip">
@@ -42,7 +51,12 @@
       <ChangeList
         files={conflicts}
         title={vi.staging.conflictsTitle}
-        selectedPath={null}
+        actions={[
+          { icon: 'checkout', title: vi.branches.useAllCurrent, run: (change) => resolveFor(change, true) },
+          { icon: 'download', title: vi.branches.useAllIncoming, run: (change) => resolveFor(change, false) },
+        ]}
+        selectedPath={openConflict}
+        onopen={(change) => store.diff.open(change, { kind: 'conflict' })}
       />
     </div>
   {/if}
@@ -60,6 +74,7 @@
       emptyText={vi.staging.noUnstaged}
       onopen={(change) => store.diff.open(change, { kind: 'unstaged' })}
       onprimary={(change) => void stageFiles(store, [change])}
+      onmenu={(event, change) => menus.openAt(event, fileMenu(store, change, { kind: 'unstaged' }))}
     />
   </div>
 
@@ -73,6 +88,7 @@
       emptyText={vi.staging.noStaged}
       onopen={(change) => store.diff.open(change, { kind: 'staged' })}
       onprimary={(change) => void unstageFiles(store, [change])}
+      onmenu={(event, change) => menus.openAt(event, fileMenu(store, change, { kind: 'staged' }))}
     />
   </div>
 

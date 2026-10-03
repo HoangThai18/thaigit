@@ -2,7 +2,7 @@
 
 import { isStatusClean, stashDisplayMessage, type Stash } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
-import { dialogs as globalDialogs, type DialogStore } from '../stores/dialogs.svelte.ts';
+import { dialogs as globalDialogs, flagValue, textValue, type DialogStore } from '../stores/dialogs.svelte.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { handleConflictError } from './errors.ts';
 
@@ -13,6 +13,24 @@ export function quickStash(store: RepoStore): Promise<void> {
     return Promise.resolve();
   }
   return stash(store, '', true);
+}
+
+/** Hỏi lời nhắn (+ có gồm file mới không) rồi stash. */
+export async function beginStash(store: RepoStore, dialogs?: DialogStore): Promise<void> {
+  if (isStatusClean(store.status)) {
+    store.notify('info', vi.branches.nothingToStash);
+    return;
+  }
+  const values = await (dialogs ?? globalDialogs).form({
+    title: vi.branches.stashMessageTitle,
+    confirmTitle: vi.branches.stashTitle,
+    fields: [
+      { kind: 'text', id: 'message', label: vi.branches.stashMessageLabel, value: '' },
+      { kind: 'checkbox', id: 'untracked', label: vi.branches.stashIncludeUntracked, value: true },
+    ],
+  });
+  if (!values) return;
+  await stash(store, textValue(values, 'message'), flagValue(values, 'untracked'));
 }
 
 export function stash(store: RepoStore, message: string, includeUntracked: boolean): Promise<void> {

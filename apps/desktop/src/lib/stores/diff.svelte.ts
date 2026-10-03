@@ -4,9 +4,14 @@
 
 import {
   buildPresentation,
+  conflictHasMarkers,
   diffLineCount,
+  parseConflictFile,
   parseDiff,
+  sha256Hex,
   supportsPartialStaging,
+  type ConflictEntry,
+  type ConflictFile,
   type DiffPresentation,
   type FileChange,
   type FileDiff,
@@ -19,7 +24,9 @@ export type DiffSource =
   | { readonly kind: 'unstaged' }
   | { readonly kind: 'staged' }
   | { readonly kind: 'commit'; readonly sha: string; readonly parent: string | null }
-  | { readonly kind: 'stash'; readonly sha: string };
+  | { readonly kind: 'stash'; readonly sha: string }
+  /** File đang xung đột: mở trình giải xung đột thay vì diff. */
+  | { readonly kind: 'conflict' };
 
 export interface OpenFile {
   readonly source: DiffSource;
@@ -33,7 +40,11 @@ export type DiffState =
   | { readonly kind: 'binary' }
   | { readonly kind: 'tooLarge'; readonly diff: FileDiff }
   | { readonly kind: 'empty' }
-  | { readonly kind: 'failed'; readonly message: string };
+  | { readonly kind: 'failed'; readonly message: string }
+  /** File xung đột có dấu <<<<<<< (giải từng đoạn được); `sha256` của byte đã đọc để ghi lại có kiểm tra. */
+  | { readonly kind: 'conflict'; readonly entry: ConflictEntry; readonly file: ConflictFile; readonly sha256: string }
+  /** Xung đột không giải từng đoạn được (xoá ở một phía, không phải UTF-8, không thấy dấu): chỉ chọn cả file. */
+  | { readonly kind: 'conflictWhole'; readonly entry: ConflictEntry; readonly reason: 'no-markers' | 'not-utf8' };
 
 /** Quá số dòng này thì hỏi trước khi vẽ (Swift: 20 000). */
 export const LARGE_DIFF_LINES = 20_000;
@@ -144,6 +155,12 @@ export class DiffStore {
    */
   statusDidChange(): void {
     const file = this.file;
+    if (file?.source.kind === 'conflict') {
+      // Đã giải xong (không còn trong danh sách xung đột) thì đóng; còn thì nạp lại (file có thể vừa đổi trên đĩa).
+      if (!this.host.status.conflicts.some((entry) => entry.path === file.change.path)) this.close();
+      else void this.load();
+      return;
+    }
     if (!file || !isWorkingTreeSource(file.source)) return;
     const list = file.source.kind === 'staged' ? this.host.status.staged : this.host.status.unstaged;
     const current = list.find((change) => change.path === file.change.path);
@@ -162,6 +179,10 @@ export class DiffStore {
     const file = this.file;
     if (!file) return;
     const token = ++this.token;
+    if (file.source.kind === 'conflict') {
+      await this.loadConflict(file, token);
+      return;
+    }
     try {
       const bytes = await this.fetchBytes(file);
       if (token !== this.token) return;
@@ -175,6 +196,45 @@ export class DiffStore {
       else if (diff.hunks.length === 0) this.state = { kind: 'empty' };
       else if (diffLineCount(diff) > LARGE_DIFF_LINES) this.state = { kind: 'tooLarge', diff };
       else this.state = { kind: 'text', presentation: buildPresentation(diff) };
+    } catch (error) {
+      if (token !== this.token) return;
+      this.state = { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  private async loadConflict(file: OpenFile, token: number): Promise<void> {
+    const entry = this.host.status.conflicts.find((candidate) => candidate.path === file.change.path);
+    if (!entry) {
+      this.close();
+      return;
+    }
+    try {
+      if (!conflictHasMarkers(entry.kind)) {
+        this.state = { kind: 'conflictWhole', entry, reason: 'no-markers' };
+        return;
+      }
+      const bytes = await this.host.git.readWorkingFile(entry.path);
+      if (token !== this.token) return;
+      if (bytes === null) {
+        this.state = { kind: 'conflictWhole', entry, reason: 'no-markers' };
+        return;
+      }
+      const unchanged = this.lastBytes !== null && equalBytes(this.lastBytes, bytes);
+      this.lastBytes = bytes;
+      // Nạp lại ra đúng nội dung cũ (status đổi vì lý do khác): giữ nguyên, khỏi mất các lựa chọn đang làm dở.
+      if (unchanged && this.state.kind === 'conflict') return;
+      const parsed = parseConflictFile(bytes);
+      if (!parsed.ok) {
+        this.state = { kind: 'conflictWhole', entry, reason: 'not-utf8' };
+        return;
+      }
+      if (parsed.file.blocks.length === 0) {
+        this.state = { kind: 'conflictWhole', entry, reason: 'no-markers' };
+        return;
+      }
+      const sha256 = await sha256Hex(bytes);
+      if (token !== this.token) return;
+      this.state = { kind: 'conflict', entry, file: parsed.file, sha256 };
     } catch (error) {
       if (token !== this.token) return;
       this.state = { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
@@ -197,6 +257,8 @@ export class DiffStore {
         if (!stash) throw new Error('Stash không còn tồn tại');
         return git.stashDiffBytes(stash, file.change, context);
       }
+      case 'conflict':
+        throw new Error('Xung đột được nạp riêng (loadConflict)');
     }
   }
 }

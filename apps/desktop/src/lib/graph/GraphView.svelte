@@ -6,9 +6,11 @@
 <script lang="ts">
   import { isMergeCommit, isWorkingTreeCommit, shortSha } from '@thaigit/core';
   import { untrack } from 'svelte';
+  import { commitMenu } from '../actions/menus.ts';
   import { showBidi } from '../format/bidi.ts';
   import { formatAbsolute, formatCommitTime } from '../format/time.ts';
   import { vi } from '../strings.vi.ts';
+  import { menus } from '../stores/menus.svelte.ts';
   import type { GraphEntry, RepoStore } from '../stores/repo.svelte.ts';
   import { prefs } from '../stores/prefs.svelte.ts';
   import { theme } from '../theme/theme.svelte.ts';
@@ -242,6 +244,10 @@
       graphElement?.focus({ preventScroll: true });
     }}
     ondblclick={() => onactivate?.(entry)}
+    oncontextmenu={(event) => {
+      selectRow(index);
+      menus.openAt(event, commitMenu(store, entry));
+    }}
   >
     <div class="cell refs">
       {#if entry.labels.length > 0}

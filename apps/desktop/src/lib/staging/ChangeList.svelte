@@ -34,6 +34,8 @@
     onopen?: (change: FileChange) => void;
     /** Nhấp đúp (stage / bỏ stage nhanh). */
     onprimary?: (change: FileChange) => void;
+    /** Chuột phải vào hàng. */
+    onmenu?: (event: MouseEvent, change: FileChange) => void;
   }
 
   let {
@@ -45,6 +47,7 @@
     emptyText = '',
     onopen,
     onprimary,
+    onmenu,
   }: Props = $props();
 </script>
 
@@ -74,6 +77,7 @@
             title={showBidi(change.oldPath ? `${change.oldPath} → ${change.path}` : change.path)}
             onclick={() => onopen?.(change)}
             ondblclick={() => onprimary?.(change)}
+            oncontextmenu={(event) => onmenu?.(event, change)}
             onkeydown={(event) => {
               if (event.key === 'Enter') onopen?.(change);
               else if (event.key === ' ') {

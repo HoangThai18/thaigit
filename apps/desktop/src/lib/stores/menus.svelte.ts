@@ -16,8 +16,22 @@ export type MenuItem =
       /** Dấu ✓ (mục đang chọn). */
       readonly checked?: boolean;
     }
+  | {
+      readonly kind: 'submenu';
+      readonly title: string;
+      readonly items: readonly MenuItem[];
+      readonly icon?: IconName;
+      readonly disabled?: boolean;
+    }
   | { readonly kind: 'separator' }
   | { readonly kind: 'header'; readonly title: string };
+
+/** Mục chạy được (không phải vách ngăn / tiêu đề / menu con). */
+export type MenuAction = Extract<MenuItem, { run: () => void }>;
+
+export function isMenuAction(item: MenuItem): item is MenuAction {
+  return item.kind === undefined || item.kind === 'item';
+}
 
 export interface OpenMenu {
   readonly id: number;
@@ -70,7 +84,7 @@ export class MenuStore {
 
   /** Chạy một mục: đóng menu trước (mục có thể mở hộp thoại). */
   run(item: MenuItem): void {
-    if (item.kind === 'separator' || item.kind === 'header' || item.disabled) return;
+    if (!isMenuAction(item) || item.disabled) return;
     this.close();
     item.run();
   }
