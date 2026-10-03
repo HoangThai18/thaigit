@@ -41,6 +41,17 @@ export const remote = {
   fetched: 'Đã fetch xong',
   autoFetchFailed: 'Tự fetch không thành công',
 
+  // Repo thiếu nhánh / lịch sử của remote (clone --single-branch / --depth)
+  historyGapsTitle: (missingBranches: boolean) =>
+    missingBranches ? 'Repo chưa có đủ nhánh từ remote' : 'Repo chưa có đủ lịch sử từ remote',
+  historyGapsNarrow: (remotes: readonly string[]) =>
+    `Repo chỉ đang lấy một vài nhánh của ${remotes.join(', ')} nên các nhánh khác trên remote không hiện, kể cả khi Fetch.`,
+  historyGapsShallow: 'Đây là bản clone nông nên còn thiếu các commit cũ.',
+  completeHistory: 'Lấy đầy đủ từ remote',
+  completeHistoryTip: 'Theo dõi mọi nhánh của remote, tải các commit còn thiếu rồi fetch',
+  historyCompleted: 'Đã lấy đủ nhánh và lịch sử từ remote',
+  later: 'Để sau',
+
   // Pull
   needBranchToPull: 'Cần đứng trên một nhánh để pull',
   noUpstream: (branch: string) => `Nhánh ${branch} chưa có nhánh tương ứng trên remote`,

@@ -45,6 +45,36 @@ export function fetch(store: RepoStore): Promise<void> {
 }
 
 /**
+ * "Lấy đầy đủ từ remote" (thanh báo khi repo thiếu nhánh / lịch sử): remote chỉ theo dõi vài nhánh thì thêm refspec mọi
+ * nhánh (giữ refspec cũ), clone nông thì lấy nốt commit cũ, rồi fetch để các nhánh như `main` hiện ra.
+ */
+export function completeHistory(store: RepoStore): Promise<void> {
+  if (noRemote(store)) return Promise.resolve();
+  const { shallow, narrowRemotes } = store.historyGaps;
+  const source = store.defaultRemote;
+  const progress = store.progressReporter();
+  const prune = store.preferences.fetchPrune;
+  return store.perform(
+    vi.remote.completeHistory,
+    async (git, signal) => {
+      for (const remote of narrowRemotes) await git.trackAllBranches(remote);
+      if (shallow && source !== null) await git.unshallow(source, { onProgress: progress, signal });
+      await git.fetch({ prune, onProgress: progress, signal });
+    },
+    {
+      showsProgress: true,
+      cancellable: true,
+      refresh: Scope.all,
+      onSuccess: () => {
+        store.lastFetch = Date.now();
+        store.notify('success', vi.remote.historyCompleted);
+      },
+      onError: (error) => handleNetworkError(store, error, vi.remote.completeHistory),
+    },
+  );
+}
+
+/**
  * Tự fetch nền (theo cài đặt): không thanh bận, không hộp đăng nhập (profile `background`), lỗi chỉ hiện MỘT cảnh báo
  * (tag cố định, lần sau thay lần trước) để mất mạng lâu không chồng thông báo.
  */

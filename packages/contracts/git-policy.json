@@ -210,7 +210,18 @@
     },
     "remote": {
       "kind": "write",
-      "allowSecond": ["", "-v", "--verbose", "get-url", "remove", "rename", "prune", "set-head", "show"],
+      "allowSecond": [
+        "",
+        "-v",
+        "--verbose",
+        "get-url",
+        "remove",
+        "rename",
+        "prune",
+        "set-head",
+        "set-branches",
+        "show"
+      ],
       "typedSecond": ["add", "set-url"],
       "aloneSecond": ["", "-v", "--verbose"],
       "readForms": [

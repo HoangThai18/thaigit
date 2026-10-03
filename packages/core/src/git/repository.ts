@@ -107,6 +107,38 @@ export interface FetchOptions extends NetworkOptions {
   prune?: boolean;
 }
 
+/**
+ * Repo thiếu lịch sử / nhánh của remote: clone nông (`--depth`) hoặc remote chỉ fetch vài nhánh (`--single-branch`, refspec
+ * sửa tay). Khi đó nhánh như `main` trên remote không bao giờ về máy, kể cả khi bấm Fetch.
+ */
+export interface HistoryGaps {
+  /** Clone nông: thiếu commit cũ (`git rev-parse --is-shallow-repository`). */
+  shallow: boolean;
+  /** Remote có refspec fetch nhưng không cái nào lấy `refs/heads/*`. */
+  narrowRemotes: string[];
+}
+
+/** Refspec fetch có lấy mọi nhánh của remote không (`[+]refs/heads/*:…`; bỏ qua refspec loại trừ `^…`). */
+export function tracksAllBranches(refspecs: readonly string[]): boolean {
+  return refspecs.some((spec) => spec.replace(/^\+/, '').split(':', 1)[0] === 'refs/heads/*');
+}
+
+/** Output `git config -z --get-regexp '^remote\..+\.fetch$'` ("khoá\ngiá trị\0"…) → refspec theo tên remote. */
+export function parseFetchRefspecs(output: string): Map<string, string[]> {
+  const byRemote = new Map<string, string[]>();
+  for (const entry of output.split('\0')) {
+    const newline = entry.indexOf('\n');
+    if (newline < 0) continue;
+    const key = entry.slice(0, newline);
+    // Tên section/biến git viết thường; tên remote (subsection) giữ nguyên hoa thường và có thể chứa dấu chấm.
+    if (!key.toLowerCase().startsWith('remote.') || !key.toLowerCase().endsWith('.fetch')) continue;
+    const name = key.slice('remote.'.length, -'.fetch'.length);
+    if (name === '') continue;
+    byRemote.set(name, [...(byRemote.get(name) ?? []), entry.slice(newline + 1)]);
+  }
+  return byRemote;
+}
+
 export interface PushOptions extends NetworkOptions {
   remote: string;
   localBranch: string;
@@ -818,6 +850,42 @@ export class GitRepository {
       args.push('--all');
     }
     await this.runner.run('fetch', args, networkRunOptions(options));
+  }
+
+  /** Xem `HistoryGaps`. Chỉ đọc (rev-parse + config), rẻ — gọi lại mỗi lần refs đổi được. */
+  async historyGaps(): Promise<HistoryGaps> {
+    const [shallow, refspecs, remotes] = await Promise.all([
+      // git quá cũ không hiểu cờ này thì in lại nguyên chữ → không phải "true" → coi như đủ lịch sử.
+      this.runner.text('rev-parse', ['--is-shallow-repository']).then((out) => out.trim() === 'true'),
+      this.runner
+        .text('config', ['-z', '--get-regexp', '^remote\\..+\\.fetch$'])
+        .then(parseFetchRefspecs)
+        .catch((error: unknown) => {
+          // Không có khoá nào khớp: git thoát mã 1.
+          if (error instanceof GitError) return new Map<string, string[]>();
+          throw error;
+        }),
+      this.remotes(),
+    ]);
+    const narrowRemotes = remotes
+      .map((remote) => remote.name)
+      .filter((name) => {
+        const specs = refspecs.get(name) ?? [];
+        return specs.length > 0 && !tracksAllBranches(specs);
+      });
+    return { shallow, narrowRemotes };
+  }
+
+  /** Cho `remote` theo dõi mọi nhánh: THÊM `+refs/heads/*:refs/remotes/<remote>/*`, giữ refspec cũ (`remote set-branches --add`). */
+  async trackAllBranches(remote: string): Promise<void> {
+    assertArgument(remote);
+    await this.runner.run('remote', ['set-branches', '--add', remote, '*']);
+  }
+
+  /** Lấy phần lịch sử còn thiếu của clone nông từ `remote` (`fetch --unshallow`). */
+  async unshallow(remote: string, options: NetworkOptions = {}): Promise<void> {
+    assertArgument(remote);
+    await this.runner.run('fetch', ['--progress', '--unshallow', remote], networkRunOptions(options));
   }
 
   /**

@@ -196,6 +196,9 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.writeWorkingFile(FILE.path, enc.encode('x'), null);
     await r.fetch();
     await r.fetch({ remote: 'origin', prune: true, ...network });
+    await r.historyGaps();
+    await r.trackAllBranches('origin');
+    await r.unshallow('origin', network);
     for (const mode of ['merge', 'rebase', 'fastForwardOnly'] as const) await r.pull(mode, network);
     await r.push({
       remote: 'origin',

@@ -32,10 +32,13 @@ export {
 export {
   GitRepository,
   RepositoryError,
+  parseFetchRefspecs,
+  tracksAllBranches,
   type ApplyPatchOptions,
   type CommitOptions,
   type FetchOptions,
   type GitRepositoryOptions,
+  type HistoryGaps,
   type LogOptions,
   type NetworkOptions,
   type PushOptions,

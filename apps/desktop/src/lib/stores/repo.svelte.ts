@@ -25,6 +25,7 @@ import {
   type GitRef,
   type GraphRow,
   type HeadState,
+  type HistoryGaps,
   type Remote,
   type RepoOperation,
   type Stash,
@@ -133,6 +134,8 @@ export function makeFingerprint(
 
 // MARK: - Store
 
+const NO_HISTORY_GAPS: HistoryGaps = { shallow: false, narrowRemotes: [] };
+
 export class RepoStore {
   readonly port: RepoPort;
   readonly git: GitRepository;
@@ -153,6 +156,10 @@ export class RepoStore {
   stashes = $state.raw<readonly Stash[]>([]);
   remotes = $state.raw<readonly Remote[]>([]);
   operation = $state.raw<RepoOperation | null>(null);
+  /** Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Lấy đầy đủ từ remote". */
+  historyGaps = $state.raw<HistoryGaps>(NO_HISTORY_GAPS);
+  /** Người dùng bấm "Để sau" trên thanh báo đó (chỉ trong phiên này). */
+  historyGapsDismissed = $state(false);
   entries = $state.raw<readonly GraphEntry[]>([]);
   graphVersion = $state(0);
   graphLanes = $state(1);
@@ -421,13 +428,15 @@ export class RepoStore {
     // Lần đầu: lịch sử chạy song song với refs/status. HEAD chưa biết nên luôn thêm `HEAD` vào log; repo mà HEAD chưa có
     // commit nhưng vẫn có nhánh khác được xử lý bên dưới.
     const firstLog = first ? settle(this.fetchLog(true)) : null;
-    const [statusResult, refsResult, stashResult, remoteResult, operationResult] = await Promise.all([
-      wantsStatus ? settle(git.status()) : null,
-      wantsRefs ? settle(git.refs()) : null,
-      wantsRefs ? settle(git.stashes()) : null,
-      wantsRefs ? settle(git.remotes()) : null,
-      wantsStatus ? settle(git.operationState()) : null,
-    ]);
+    const [statusResult, refsResult, stashResult, remoteResult, operationResult, gapsResult] =
+      await Promise.all([
+        wantsStatus ? settle(git.status()) : null,
+        wantsRefs ? settle(git.refs()) : null,
+        wantsRefs ? settle(git.stashes()) : null,
+        wantsRefs ? settle(git.remotes()) : null,
+        wantsStatus ? settle(git.operationState()) : null,
+        wantsRefs ? settle(git.historyGaps()) : null,
+      ]);
     if (this.disposed) return;
 
     if (statusResult) {
@@ -455,6 +464,8 @@ export class RepoStore {
       }
     }
     if (remoteResult?.ok && !jsonEqual(remoteResult.value, this.remotes)) this.remotes = remoteResult.value;
+    // Lỗi khi kiểm (git quá cũ…) không đáng báo: chỉ là không hiện thanh gợi ý.
+    if (gapsResult?.ok && !jsonEqual(gapsResult.value, this.historyGaps)) this.historyGaps = gapsResult.value;
     if (operationResult?.ok && !jsonEqual(operationResult.value, this.operation)) {
       this.operation = operationResult.value;
     }

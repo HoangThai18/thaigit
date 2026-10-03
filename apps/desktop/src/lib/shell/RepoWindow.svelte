@@ -8,7 +8,7 @@
   import { abortOperation, continueOperation, skipOperation } from '../actions/history.ts';
   import { beginCreateBranch } from '../actions/branches.ts';
   import { startAutoFetch } from '../actions/autoFetch.ts';
-  import { fetch, pull, push } from '../actions/remote.ts';
+  import { completeHistory, fetch, pull, push } from '../actions/remote.ts';
   import ConflictPane from '../diff/ConflictPane.svelte';
   import DiffPane from '../diff/DiffPane.svelte';
   import { showBidi } from '../format/bidi.ts';
@@ -43,6 +43,12 @@
   const showSidebar = $derived(prefs.value.showSidebar);
   const showInspector = $derived(prefs.value.showInspector);
   const conflicts = $derived(store.status.conflicts.length);
+  const gaps = $derived(store.historyGaps);
+  const showGaps = $derived(
+    !store.historyGapsDismissed &&
+      store.remotes.length > 0 &&
+      (gaps.shallow || gaps.narrowRemotes.length > 0),
+  );
   let showLog = $state(false);
   const search = untrack(() => new GraphSearch(store));
 
@@ -160,6 +166,31 @@
 
     <div class="content">
       <div class="center">
+        {#if showGaps}
+          <div class="banner info" role="status">
+            <span class="banner-icon"><Icon name="info" size={18} /></span>
+            <span class="banner-text">
+              <strong>{vi.remote.historyGapsTitle(gaps.narrowRemotes.length > 0)}</strong>
+              <span class="banner-detail">
+                {gaps.narrowRemotes.length > 0 ? vi.remote.historyGapsNarrow(gaps.narrowRemotes) : ''}
+                {gaps.shallow ? vi.remote.historyGapsShallow : ''}
+              </span>
+            </span>
+            <span class="grow"></span>
+            <button type="button" class="banner-button" onclick={() => (store.historyGapsDismissed = true)}>
+              {vi.remote.later}
+            </button>
+            <button
+              type="button"
+              class="banner-button primary"
+              title={vi.remote.completeHistoryTip}
+              disabled={store.busy !== null}
+              onclick={() => void completeHistory(store)}
+            >
+              {vi.remote.completeHistory}
+            </button>
+          </div>
+        {/if}
         {#if store.operation}
           <div class="banner" role="status">
             <span class="banner-icon"><Icon name="warning" size={18} /></span>
@@ -387,6 +418,22 @@
   .banner-icon {
     display: grid;
     color: var(--warning);
+  }
+
+  .banner.info {
+    box-shadow: inset 4px 0 0 var(--accent);
+  }
+
+  .banner.info .banner-icon {
+    color: var(--accent);
+  }
+
+  .banner-text {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    min-width: 0;
   }
 
   .banner-detail {

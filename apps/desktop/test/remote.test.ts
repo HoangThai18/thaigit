@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { shouldAutoFetch } from '../src/lib/actions/autoFetch.ts';
 import { beginCreateBranch, checkout, switchToBranch } from '../src/lib/actions/branches.ts';
-import { backgroundFetch, fetch, pull, push } from '../src/lib/actions/remote.ts';
+import { backgroundFetch, completeHistory, fetch, pull, push } from '../src/lib/actions/remote.ts';
 import { popLatestStash, quickStash } from '../src/lib/actions/stash.ts';
 import { DialogStore } from '../src/lib/stores/dialogs.svelte.ts';
 import { PrefsStore } from '../src/lib/stores/prefs.svelte.ts';
@@ -268,5 +268,24 @@ describe('nhánh / stash từ thanh công cụ', () => {
     expect(store.status.unstaged).toHaveLength(0);
     action(toasts, 'Hoàn tác')();
     await until(() => store.stashes.length === 0 && store.status.unstaged.length === 1, 'pop lại');
+  });
+
+  it('remote chỉ theo dõi một nhánh: báo thiếu nhánh, "Lấy đầy đủ từ remote" đưa nhánh khác về', async () => {
+    const { test, store, toasts, other } = await openWithRemote();
+    rawGit(other, ['switch', '-q', '-c', 'feature/x']);
+    pushFromOther(other, 'x.txt', 'x\n', 'Nhánh feature');
+    rawGit(other, ['push', '-q', 'origin', 'feature/x']);
+    // Như `git clone --single-branch`: chỉ lấy main.
+    test.git('config', 'remote.origin.fetch', '+refs/heads/main:refs/remotes/origin/main');
+    await store.refreshAndWait(7);
+    expect(store.historyGaps).toEqual({ shallow: false, narrowRemotes: ['origin'] });
+
+    await fetch(store);
+    expect(store.remoteBranches.map((ref) => ref.fullName)).not.toContain('refs/remotes/origin/feature/x');
+
+    await completeHistory(store);
+    expect(lastToast(toasts)).toBe('Đã lấy đủ nhánh và lịch sử từ remote');
+    expect(store.historyGaps).toEqual({ shallow: false, narrowRemotes: [] });
+    expect(store.remoteBranches.map((ref) => ref.fullName)).toContain('refs/remotes/origin/feature/x');
   });
 });
