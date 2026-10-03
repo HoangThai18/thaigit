@@ -1,4 +1,5 @@
-// Màn Cài đặt dựng bằng Svelte thật: Ctrl/⌘+, mở/đóng, đổi lựa chọn áp ngay vào prefs / AI / thống kê, số ngoài khoảng bị kẹp.
+// Màn Cài đặt dựng bằng Svelte thật: Ctrl/⌘+, mở/đóng, đổi lựa chọn áp ngay vào prefs / thống kê, số ngoài khoảng bị kẹp;
+// mục AI ẩn khi AI đang tạm tắt.
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 import SettingsPanel from '../../src/lib/settings/SettingsPanel.svelte';
@@ -6,6 +7,7 @@ import { AiStore } from '../../src/lib/stores/ai.svelte.ts';
 import { PrefsStore } from '../../src/lib/stores/prefs.svelte.ts';
 import { SettingsStore } from '../../src/lib/stores/settings.svelte.ts';
 import { TelemetryStore } from '../../src/lib/stores/telemetry.svelte.ts';
+import { vi } from '../../src/lib/strings.vi.ts';
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
@@ -57,7 +59,7 @@ describe('SettingsPanel', () => {
   });
 
   it('đổi lựa chọn áp ngay; số ngoài khoảng bị kẹp', () => {
-    const { settings, prefs, ai, telemetry, target } = setup();
+    const { settings, prefs, telemetry, target } = setup();
     settings.open();
     flushSync();
     const selects = [...target.querySelectorAll('select')];
@@ -66,11 +68,12 @@ describe('SettingsPanel', () => {
     const numbers = [...target.querySelectorAll('input[type=number]')];
     change(numbers[0] ?? null, '5');
     expect(prefs.value.commitLimit).toBe(200);
+    // AI đang tạm tắt (AI_ENABLED = false): mục AI không có trong Cài đặt.
     const conventional = [...target.querySelectorAll('label.check')].find((label) =>
       label.textContent?.includes('Conventional'),
     );
-    change(conventional?.querySelector('input') ?? null, true);
-    expect(ai.saved.options.conventional).toBe(true);
+    expect(conventional).toBeUndefined();
+    expect(target.textContent).not.toContain(vi.settings.ai);
     const stats = [...target.querySelectorAll('label.check')].find((label) =>
       label.textContent?.includes('thống kê'),
     );

@@ -13,6 +13,7 @@
   import FileList from './FileList.svelte';
   import { fileMenu } from '../actions/menus.ts';
   import { explainCommit } from '../ai/actions.ts';
+  import { AI_ENABLED } from '../ai/enabled.ts';
   import { menus } from '../stores/menus.svelte.ts';
 
   interface Props {
@@ -104,15 +105,17 @@
           </dd>
         {/if}
       </dl>
-      <button
-        type="button"
-        class="ai-explain"
-        title={vi.ai.explainTip}
-        onclick={() => explainCommit(store, commit)}
-      >
-        <Icon name="sparkles" size={13} />
-        <span>{vi.ai.explain}</span>
-      </button>
+      {#if AI_ENABLED}
+        <button
+          type="button"
+          class="ai-explain"
+          title={vi.ai.explainTip}
+          onclick={() => explainCommit(store, commit)}
+        >
+          <Icon name="sparkles" size={13} />
+          <span>{vi.ai.explain}</span>
+        </button>
+      {/if}
     </div>
     <FileList
       files={details.files}

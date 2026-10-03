@@ -8,6 +8,7 @@
   import { canCommit, commit, setAmend } from '../actions/commit.ts';
   import { prefillPendingMessage } from '../actions/history.ts';
   import { CommitWriter } from '../ai/commitWriter.svelte.ts';
+  import { AI_ENABLED } from '../ai/enabled.ts';
   import { commitContext } from '../ai/context.ts';
   import { vi } from '../strings.vi.ts';
   import { ai } from '../stores/ai.svelte.ts';
@@ -55,7 +56,7 @@
 
   // Đã đồng ý dùng AI: đọc lượt còn lại để hiện cạnh nút (không gửi nội dung gì).
   $effect(() => {
-    if (ai.consented) untrack(() => void ai.refreshQuota());
+    if (AI_ENABLED && ai.consented) untrack(() => void ai.refreshQuota());
   });
 
   // Mở repo đang merge / revert dở (hoặc thao tác vừa dừng vì xung đột): điền sẵn message git đã soạn.
@@ -77,7 +78,7 @@
   }
 
   function onwindowkeydown(event: KeyboardEvent): void {
-    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'g') {
+    if (AI_ENABLED && (event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'g') {
       event.preventDefault();
       if (writer.running) writer.stop();
       else void writer.start();
@@ -158,34 +159,36 @@
   <div class="top">
     <strong>{vi.staging.commitTitle}</strong>
     <span class="grow"></span>
-    <div class="ai" class:running={writer.running}>
-      {#if writer.running}
-        <button type="button" class="ai-main" onclick={() => writer.stop()} title={vi.ai.stop}>
-          <Icon name="stop" size={13} />
-          <span>{vi.ai.stop}</span>
-        </button>
-      {:else}
+    {#if AI_ENABLED}
+      <div class="ai" class:running={writer.running}>
+        {#if writer.running}
+          <button type="button" class="ai-main" onclick={() => writer.stop()} title={vi.ai.stop}>
+            <Icon name="stop" size={13} />
+            <span>{vi.ai.stop}</span>
+          </button>
+        {:else}
+          <button
+            type="button"
+            class="ai-main"
+            onclick={() => void writer.start()}
+            disabled={store.busy !== null}
+            title={vi.ai.writeTip}
+          >
+            <Icon name="sparkles" size={14} />
+            <span>{vi.ai.write}</span>
+          </button>
+        {/if}
         <button
           type="button"
-          class="ai-main"
-          onclick={() => void writer.start()}
-          disabled={store.busy !== null}
-          title={vi.ai.writeTip}
+          class="ai-more"
+          aria-label={vi.ai.options}
+          title={vi.ai.options}
+          onclick={openAiOptions}
         >
-          <Icon name="sparkles" size={14} />
-          <span>{vi.ai.write}</span>
+          <Icon name="chevron-down" size={12} />
         </button>
-      {/if}
-      <button
-        type="button"
-        class="ai-more"
-        aria-label={vi.ai.options}
-        title={vi.ai.options}
-        onclick={openAiOptions}
-      >
-        <Icon name="chevron-down" size={12} />
-      </button>
-    </div>
+      </div>
+    {/if}
     <label class="amend" title={vi.staging.amendTip}>
       <input
         type="checkbox"
@@ -216,7 +219,7 @@
     aria-label={vi.staging.bodyPlaceholder}
     bind:value={draft.body}
     {onkeydown}></textarea>
-  {#if aiStatus || writer.previous || (ai.consented && remainingAi !== null)}
+  {#if AI_ENABLED && (aiStatus || writer.previous || (ai.consented && remainingAi !== null))}
     <div class="ai-status" aria-live="polite">
       {#if aiStatus}
         <Icon name="spinner" size={12} />

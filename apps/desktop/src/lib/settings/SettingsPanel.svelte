@@ -7,6 +7,7 @@
   import { updateSetChannel } from '../ipc/update.ts';
   import { hasTauriInternals } from '../platform/host.ts';
   import { vi } from '../strings.vi.ts';
+  import { AI_ENABLED } from '../ai/enabled.ts';
   import { ai as defaultAi, type AiStore } from '../stores/ai.svelte.ts';
   import {
     AUTO_FETCH_MINUTES_MAX,
@@ -236,52 +237,54 @@
           </label>
         </section>
 
-        <section>
-          <h3>{vi.settings.ai}</h3>
-          <p class="help">{ai.consented ? vi.settings.aiOn : vi.settings.aiOff}</p>
-          <label class="row">
-            <span>{vi.settings.aiLanguage}</span>
-            <select
-              value={ai.saved.options.language}
-              onchange={(event) =>
-                ai.setOptions({ language: event.currentTarget.value as 'auto' | 'vi' | 'en' })}
-            >
-              <option value="auto">{vi.ai.languageAuto}</option>
-              <option value="vi">{vi.ai.languageVi}</option>
-              <option value="en">{vi.ai.languageEn}</option>
-            </select>
-          </label>
-          <label class="row">
-            <span>{vi.settings.aiLength}</span>
-            <select
-              value={ai.saved.options.length}
-              onchange={(event) =>
-                ai.setOptions({ length: event.currentTarget.value as 'short' | 'normal' | 'detailed' })}
-            >
-              <option value="short">{vi.ai.lengthShort}</option>
-              <option value="normal">{vi.ai.lengthNormal}</option>
-              <option value="detailed">{vi.ai.lengthDetailed}</option>
-            </select>
-          </label>
-          <label class="check">
-            <input
-              type="checkbox"
-              checked={ai.saved.options.conventional}
-              onchange={(event) => ai.setOptions({ conventional: event.currentTarget.checked })}
-            />
-            <span>{vi.settings.aiConventional}</span>
-          </label>
-          {#if ai.consented}
-            <button
-              type="button"
-              class="danger"
-              onclick={() => {
-                ai.disable();
-                toasts.info(vi.ai.disabledToast);
-              }}>{vi.settings.aiDisable}</button
-            >
-          {/if}
-        </section>
+        {#if AI_ENABLED}
+          <section>
+            <h3>{vi.settings.ai}</h3>
+            <p class="help">{ai.consented ? vi.settings.aiOn : vi.settings.aiOff}</p>
+            <label class="row">
+              <span>{vi.settings.aiLanguage}</span>
+              <select
+                value={ai.saved.options.language}
+                onchange={(event) =>
+                  ai.setOptions({ language: event.currentTarget.value as 'auto' | 'vi' | 'en' })}
+              >
+                <option value="auto">{vi.ai.languageAuto}</option>
+                <option value="vi">{vi.ai.languageVi}</option>
+                <option value="en">{vi.ai.languageEn}</option>
+              </select>
+            </label>
+            <label class="row">
+              <span>{vi.settings.aiLength}</span>
+              <select
+                value={ai.saved.options.length}
+                onchange={(event) =>
+                  ai.setOptions({ length: event.currentTarget.value as 'short' | 'normal' | 'detailed' })}
+              >
+                <option value="short">{vi.ai.lengthShort}</option>
+                <option value="normal">{vi.ai.lengthNormal}</option>
+                <option value="detailed">{vi.ai.lengthDetailed}</option>
+              </select>
+            </label>
+            <label class="check">
+              <input
+                type="checkbox"
+                checked={ai.saved.options.conventional}
+                onchange={(event) => ai.setOptions({ conventional: event.currentTarget.checked })}
+              />
+              <span>{vi.settings.aiConventional}</span>
+            </label>
+            {#if ai.consented}
+              <button
+                type="button"
+                class="danger"
+                onclick={() => {
+                  ai.disable();
+                  toasts.info(vi.ai.disabledToast);
+                }}>{vi.settings.aiDisable}</button
+              >
+            {/if}
+          </section>
+        {/if}
 
         {#if inApp}
           <AccountsSection />

@@ -8,7 +8,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Nhiều tài khoản trên cùng một máy chủ (cá nhân + công ty): app tự chọn tài khoản theo owner của repo, hoặc bạn tự gán ở menu Thêm → "Tài khoản cho repo này" (kèm đề nghị ghi tên / email commit của tài khoản đó vào repo)
 - Hộp Clone liệt kê repo của tài khoản đã đăng nhập, bấm là điền địa chỉ
 - Mục PULL REQUESTS ở sidebar: xem Pull Request / Merge Request đang mở, mở trên web, checkout nhánh của PR (cả PR từ fork trên GitHub / GitLab)
-- Tạo Pull Request từ nhánh hiện tại (menu Thêm, hoặc nút + ở mục PULL REQUESTS): chọn nhánh đích, tạo dạng nháp, viết mô tả bằng AI
+- Tạo Pull Request từ nhánh hiện tại (menu Thêm, hoặc nút + ở mục PULL REQUESTS): chọn nhánh đích, tạo dạng nháp
 - Remote từ chối đăng nhập: thông báo có nút "Tài khoản…" để đăng nhập hoặc chọn đúng tài khoản
 
 ## 2.0.0 — 2026-10-03

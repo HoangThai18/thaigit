@@ -7,6 +7,7 @@
     createPullRequest as defaultStore,
     type CreatePullRequestStore,
   } from '../forge/createPullRequest.svelte.ts';
+  import { AI_ENABLED } from '../ai/enabled.ts';
   import Icon from '../ui/Icon.svelte';
 
   interface Props {
@@ -74,15 +75,17 @@
       <div class="field">
         <div class="label-row">
           <span class="label">{text.body}</span>
-          <button
-            type="button"
-            class="ai"
-            disabled={current.writing}
-            onclick={() => void store.writeDescription()}
-          >
-            <Icon name="sparkles" size={12} />
-            <span>{current.writing ? text.writing : text.writeWithAi}</span>
-          </button>
+          {#if AI_ENABLED}
+            <button
+              type="button"
+              class="ai"
+              disabled={current.writing}
+              onclick={() => void store.writeDescription()}
+            >
+              <Icon name="sparkles" size={12} />
+              <span>{current.writing ? text.writing : text.writeWithAi}</span>
+            </button>
+          {/if}
         </div>
         <textarea
           rows="7"

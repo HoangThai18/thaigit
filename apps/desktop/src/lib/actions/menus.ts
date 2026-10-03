@@ -16,6 +16,7 @@ import type { DiffSource } from '../stores/diff.svelte.ts';
 import { tidyMenu, type MenuItem } from '../stores/menus.svelte.ts';
 import { vi } from '../strings.vi.ts';
 import { describePullRequest, explainCommit } from '../ai/actions.ts';
+import { AI_ENABLED } from '../ai/enabled.ts';
 import { assignAccountForRepo } from '../forge/assignOwner.ts';
 import { createPullRequest } from '../forge/createPullRequest.svelte.ts';
 import { targetOf } from '../forge/pullRequests.ts';
@@ -73,7 +74,7 @@ export function commitMenu(store: RepoStore, entry: GraphEntry): MenuItem[] {
       run: () => void checkoutDetached(store, commit.id, vi.branches.commitLabel(sha)),
     },
     { kind: 'separator' },
-    { title: vi.ai.explain, icon: 'sparkles', run: () => explainCommit(store, commit) },
+    AI_ENABLED && { title: vi.ai.explain, icon: 'sparkles', run: () => explainCommit(store, commit) },
     { kind: 'separator' },
     {
       title: vi.branches.menuCherryPick(branch),
@@ -179,11 +180,13 @@ export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
         });
       }
       items.push({ kind: 'separator' });
-      items.push({
-        title: vi.ai.prDescription,
-        icon: 'sparkles',
-        run: () => void describePullRequest(store, name),
-      });
+      if (AI_ENABLED) {
+        items.push({
+          title: vi.ai.prDescription,
+          icon: 'sparkles',
+          run: () => void describePullRequest(store, name),
+        });
+      }
       items.push({
         title: vi.branches.menuCreateBranchFrom(name),
         icon: 'branch',
