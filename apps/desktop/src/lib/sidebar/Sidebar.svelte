@@ -4,6 +4,7 @@
   đổi file hay đổi commit đang chọn không dựng lại cả danh sách nhánh.
 -->
 <script lang="ts">
+  import { drag, dropAttr } from '../dnd/drag.svelte.ts';
   import {
     refName,
     refRemoteName,
@@ -146,6 +147,8 @@
     class:selected={selectedId === `ref:${ref.fullName}`}
     style:padding-left="{10 + depth * 14}px"
     title={showBidi(ref.upstream ? `${refName(ref)} → ${ref.upstream}` : refName(ref))}
+    data-drop={dropAttr('ref', ref.fullName)}
+    onpointerdown={(event) => drag.begin(event, () => ({ kind: 'ref', ref, label: refName(ref) }))}
     onclick={() => selectRef(ref)}
     ondblclick={() => void checkout(store, ref)}
     oncontextmenu={(event) => menus.openAt(event, refMenu(store, ref))}
@@ -227,6 +230,7 @@
             class="sb-row"
             aria-expanded={open}
             title={showBidi(remote.fetchUrl)}
+            data-drop={dropAttr('remote', remote.name)}
             onclick={() => (remoteOpen[remote.name] = !open)}
           >
             <span class="sb-chevron"
@@ -270,6 +274,9 @@
                 class="sb-row"
                 class:selected={selectedId === `ref:${ref.fullName}`}
                 title={isAnnotatedTag(ref) ? vi.sidebar.annotatedTag : vi.sidebar.tag}
+                data-drop={dropAttr('ref', ref.fullName)}
+                onpointerdown={(event) =>
+                  drag.begin(event, () => ({ kind: 'ref', ref, label: refName(ref) }))}
                 onclick={() => selectRef(ref)}
                 oncontextmenu={(event) => menus.openAt(event, refMenu(store, ref))}
               >

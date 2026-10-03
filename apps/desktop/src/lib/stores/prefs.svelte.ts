@@ -12,6 +12,7 @@ export type ColorScheme = 'system' | 'light' | 'dark';
 
 /** Kiểu pull mặc định (cài đặt). `ff-only` ↔ `PullMode` `'fastForwardOnly'` của core (ánh xạ ở `actions/remote.ts`). */
 export type PullModePref = 'merge' | 'rebase' | 'ff-only';
+export type DiffLayout = 'unified' | 'split';
 const PULL_MODES: readonly PullModePref[] = ['merge', 'rebase', 'ff-only'];
 
 export interface PrefsData {
@@ -38,6 +39,8 @@ export interface PrefsData {
   autoFetchMinutes: number;
   /** Số dòng ngữ cảnh quanh mỗi hunk khi xem diff (`-U<n>`). */
   diffContext: number;
+  /** Diff gộp (một cột) hay tách đôi (cũ | mới). */
+  diffLayout: DiffLayout;
 }
 
 export const SIDEBAR_LIMITS = { min: 210, max: 440, ideal: 260 } as const;
@@ -67,6 +70,7 @@ export function defaultPrefs(): PrefsData {
     fetchPrune: true,
     autoFetchMinutes: 10,
     diffContext: 3,
+    diffLayout: 'unified',
   };
 }
 
@@ -117,6 +121,7 @@ export function sanitizePrefs(raw: unknown): PrefsData {
     fetchPrune: bool(source.fetchPrune, base.fetchPrune),
     autoFetchMinutes: clamp(source.autoFetchMinutes, 0, AUTO_FETCH_MINUTES_MAX, base.autoFetchMinutes),
     diffContext: clamp(source.diffContext, 0, DIFF_CONTEXT_MAX, base.diffContext),
+    diffLayout: source.diffLayout === 'split' ? 'split' : 'unified',
   };
 }
 

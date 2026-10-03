@@ -21,6 +21,9 @@
   import Icon from '../ui/Icon.svelte';
   import { dialogs } from '../stores/dialogs.svelte.ts';
   import { menus } from '../stores/menus.svelte.ts';
+  import { drag } from '../dnd/drag.svelte.ts';
+  import { canDrop, dropAction } from '../dnd/dropMenu.ts';
+  import DragGhost from '../dnd/DragGhost.svelte';
   import ActionBar from './ActionBar.svelte';
   import BranchSwitcher from './BranchSwitcher.svelte';
   import BusyBar from './BusyBar.svelte';
@@ -41,6 +44,22 @@
 
   $effect(() => startAutoFetch(store));
 
+  // Kéo-thả: nhánh / tag lên nhánh hoặc remote (menu chọn thao tác), file giữa "Chưa stage" và "Đã stage".
+  $effect(() => {
+    const repo = store;
+    drag.handler = {
+      canDrop: (payload, target) => canDrop(repo, payload, target),
+      drop: (payload, target, point) => {
+        const items = dropAction(repo, payload, target);
+        if (items && items.length > 0) menus.openAtPoint(point.x, point.y, items);
+      },
+    };
+    return () => {
+      drag.cancel();
+      drag.handler = null;
+    };
+  });
+
   /** Phím tắt của repo (Ctrl trên Windows/Linux, ⌘ trên macOS) — như menu Repository của app Swift. */
   function onwindowkeydown(event: KeyboardEvent): void {
     if (event.defaultPrevented || dialogs.current !== null || menus.current !== null || showLog) return;
@@ -56,6 +75,8 @@
 </script>
 
 <svelte:window onkeydown={onwindowkeydown} />
+
+<DragGhost />
 
 {#snippet sidebarToggle()}
   <button

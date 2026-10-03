@@ -16,6 +16,7 @@
 
 <script lang="ts">
   import { fileChangeDirectory, fileChangeName } from '@thaigit/core';
+  import { drag } from '../dnd/drag.svelte.ts';
   import { showBidi } from '../format/bidi.ts';
   import ChangeIcon from '../inspector/ChangeIcon.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -36,6 +37,10 @@
     onprimary?: (change: FileChange) => void;
     /** Chuột phải vào hàng. */
     onmenu?: (event: MouseEvent, change: FileChange) => void;
+    /** Kéo file ra khỏi danh sách này (stage / bỏ stage bằng kéo-thả). */
+    dragFrom?: 'unstaged' | 'staged';
+    /** Danh sách này nhận file thả vào. */
+    dropZone?: 'unstaged' | 'staged';
   }
 
   let {
@@ -48,10 +53,12 @@
     onopen,
     onprimary,
     onmenu,
+    dragFrom,
+    dropZone,
   }: Props = $props();
 </script>
 
-<section class="changes">
+<section class="changes" data-drop={dropZone ? `zone:${dropZone}` : undefined}>
   <header class="header">
     <span class="title">{title}</span>
     <span class="count">{files.length}</span>
@@ -80,6 +87,16 @@
             role="button"
             tabindex="0"
             title={showBidi(change.oldPath ? `${change.oldPath} → ${change.path}` : change.path)}
+            onpointerdown={(event) => {
+              const from = dragFrom;
+              if (from)
+                drag.begin(event, () => ({
+                  kind: 'files',
+                  from,
+                  changes: [change],
+                  label: fileChangeName(change),
+                }));
+            }}
             onclick={() => onopen?.(change)}
             ondblclick={() => onprimary?.(change)}
             oncontextmenu={(event) => onmenu?.(event, change)}

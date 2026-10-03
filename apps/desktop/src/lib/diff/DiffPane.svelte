@@ -2,6 +2,7 @@
   Diff của một file ở vùng giữa, thay graph (port DiffPane.swift): tiêu đề có nút quay lại graph (Esc), tên file, nguồn diff,
   nút Stage / Bỏ stage / Huỷ cả file; thân diff ảo hoá (diff 20 000 dòng vẫn mượt). Với thay đổi chưa commit: nút Stage /
   Bỏ stage / Huỷ ở từng hunk, bấm vào dòng +/− để chọn rồi stage / bỏ stage / huỷ riêng những dòng đó.
+  Hai bố cục: gộp (một cột) và tách đôi (cũ | mới, chọn dòng như nhau); file ảnh xem bản cũ / mới cạnh nhau.
 -->
 <script lang="ts">
   import {
@@ -10,6 +11,8 @@
     type PresentationHunk,
     type PresentationLine,
   } from '@thaigit/core';
+  import { prefs } from '../stores/prefs.svelte.ts';
+  import ImageDiff from './ImageDiff.svelte';
   import {
     applyToSelection,
     discardFiles,
@@ -33,7 +36,14 @@
 
   type Row =
     | { readonly kind: 'hunk'; readonly hunk: PresentationHunk }
-    | { readonly kind: 'line'; readonly hunkId: number; readonly line: PresentationLine };
+    | { readonly kind: 'line'; readonly hunkId: number; readonly line: PresentationLine }
+    | {
+        readonly kind: 'split';
+        readonly hunkId: number;
+        readonly key: number;
+        readonly left: PresentationLine | null;
+        readonly right: PresentationLine | null;
+      };
 
   const ROW_HEIGHT = 20;
 
@@ -41,18 +51,25 @@
   const file = $derived(diff.file);
   const state = $derived(diff.state);
   const presentation = $derived(state.kind === 'text' ? state.presentation : null);
+  const split = $derived(prefs.value.diffLayout === 'split');
   const rows = $derived.by<readonly Row[]>(() => {
     if (!presentation) return [];
     const result: Row[] = [];
     for (const hunk of presentation.hunks) {
       result.push({ kind: 'hunk', hunk });
-      for (const line of hunk.lines) result.push({ kind: 'line', hunkId: hunk.id, line });
+      if (split) {
+        hunk.splitRows.forEach((row, key) =>
+          result.push({ kind: 'split', hunkId: hunk.id, key, left: row.left, right: row.right }),
+        );
+      } else {
+        for (const line of hunk.lines) result.push({ kind: 'line', hunkId: hunk.id, line });
+      }
     }
     return result;
   });
   const digits = $derived(String(Math.max(presentation?.maxLineNumber ?? 0, 99)).length);
   const minWidth = $derived(
-    presentation ? `calc(${presentation.maxLineLength + 2}ch + ${digits * 2}ch + 48px)` : undefined,
+    presentation && !split ? `calc(${presentation.maxLineLength + 2}ch + ${digits * 2}ch + 48px)` : undefined,
   );
   const workingTree = $derived(file !== null && isWorkingTreeSource(file.source));
   const unstaged = $derived(file?.source.kind === 'unstaged');
@@ -120,6 +137,39 @@
   <span class="text">{@render lineText(line)}</span>
 {/snippet}
 
+{#snippet half(hunkId: number, line: PresentationLine | null, side: 'left' | 'right')}
+  {#if line === null}
+    <div class="half filler"></div>
+  {:else if pickable && isChange(line)}
+    {@const checked = diff.isSelected(hunkId, line.index)}
+    <div
+      class="half line pick {line.kind}"
+      class:selected={checked}
+      role="checkbox"
+      aria-checked={checked}
+      tabindex="0"
+      title={vi.staging.lineTip}
+      onclick={() => diff.toggleLine(hunkId, line.index)}
+      onkeydown={(event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault();
+          diff.toggleLine(hunkId, line.index);
+        }
+      }}
+    >
+      <span class="num">{(side === 'left' ? line.oldNumber : line.newNumber) ?? ''}</span>
+      <span class="marker">{marker(line)}</span>
+      <span class="text">{@render lineText(line)}</span>
+    </div>
+  {:else}
+    <div class="half line {line.kind}">
+      <span class="num">{(side === 'left' ? line.oldNumber : line.newNumber) ?? ''}</span>
+      <span class="marker">{marker(line)}</span>
+      <span class="text">{@render lineText(line)}</span>
+    </div>
+  {/if}
+{/snippet}
+
 {#if file}
   <section class="pane" aria-label={vi.staging.diffLabel}>
     <header class="header">
@@ -146,6 +196,22 @@
         >
       {/if}
       <span class="grow"></span>
+      {#if presentation}
+        <div class="layout" role="group" aria-label={vi.staging.layoutLabel}>
+          <button
+            type="button"
+            class:active={!split}
+            aria-pressed={!split}
+            onclick={() => prefs.update({ diffLayout: 'unified' })}>{vi.staging.layoutUnified}</button
+          >
+          <button
+            type="button"
+            class:active={split}
+            aria-pressed={split}
+            onclick={() => prefs.update({ diffLayout: 'split' })}>{vi.staging.layoutSplit}</button
+          >
+        </div>
+      {/if}
       {#if unstaged}
         <button
           type="button"
@@ -171,7 +237,7 @@
       {#if state.kind === 'loading' || state.kind === 'idle'}
         <p class="message">{vi.staging.loading}</p>
       {:else if state.kind === 'binary'}
-        <p class="message">{vi.staging.binary}</p>
+        <ImageDiff {store} {file} />
       {:else if state.kind === 'empty'}
         <p class="message">{vi.staging.empty}</p>
       {:else if state.kind === 'failed'}
@@ -201,7 +267,12 @@
             rowHeight={ROW_HEIGHT}
             overscan={20}
             minContentWidth={minWidth}
-            key={(row) => (row.kind === 'hunk' ? `h${row.hunk.id}` : `${row.hunkId}:${row.line.index}`)}
+            key={(row) =>
+              row.kind === 'hunk'
+                ? `h${row.hunk.id}`
+                : row.kind === 'split'
+                  ? `${row.hunkId}:s${row.key}`
+                  : `${row.hunkId}:${row.line.index}`}
             label={vi.staging.diffLabel}
           >
             {#snippet row(row: Row)}
@@ -228,6 +299,11 @@
                       {/if}
                     </span>
                   {/if}
+                </div>
+              {:else if row.kind === 'split'}
+                <div class="split-row">
+                  {@render half(row.hunkId, row.left, 'left')}
+                  {@render half(row.hunkId, row.right, 'right')}
                 </div>
               {:else if pickable && isChange(row.line)}
                 {@const checked = diff.isSelected(row.hunkId, row.line.index)}
@@ -552,6 +628,62 @@
   .line.pick:focus-visible {
     outline: 1px solid var(--accent);
     outline-offset: -1px;
+  }
+
+  .layout {
+    display: inline-flex;
+    flex: none;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    overflow: hidden;
+  }
+
+  .layout button {
+    padding: 3px 9px;
+    border: none;
+    background: var(--field-fill);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .layout button + button {
+    border-left: 1px solid var(--field-border);
+  }
+
+  .layout button.active {
+    background: var(--chip-fill);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .split-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    height: 100%;
+  }
+
+  .half {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .half + .half {
+    border-left: 1px solid var(--separator);
+  }
+
+  .half .text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .half.filler {
+    background: repeating-linear-gradient(
+      135deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--separator) 60%, transparent) 6px 7px
+    );
   }
 
   .selection {

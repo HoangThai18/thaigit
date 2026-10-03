@@ -137,8 +137,12 @@ export async function deleteTag(store: RepoStore, ref: GitRef, dialogs?: DialogS
   });
 }
 
-export function pushTag(store: RepoStore, ref: GitRef): Promise<void> {
-  const remote = store.defaultRemote;
+/** Push một tag lên `remote` (mặc định remote chính của repo). */
+export function pushTag(
+  store: RepoStore,
+  ref: GitRef,
+  remote: string | null = store.defaultRemote,
+): Promise<void> {
   if (remote === null) {
     store.notify('info', vi.remote.noRemote);
     return Promise.resolve();

@@ -65,6 +65,8 @@
     <ChangeList
       files={status.unstaged}
       title={vi.staging.unstagedTitle}
+      dragFrom="unstaged"
+      dropZone="unstaged"
       headerAction={{ title: vi.staging.stageAll, icon: 'stage', run: () => void stageAll(store) }}
       actions={[
         {
@@ -87,6 +89,8 @@
     <ChangeList
       files={status.staged}
       title={vi.staging.stagedTitle}
+      dragFrom="staged"
+      dropZone="staged"
       headerAction={{ title: vi.staging.unstageAll, icon: 'unstage', run: () => void unstageAll(store) }}
       actions={[
         {

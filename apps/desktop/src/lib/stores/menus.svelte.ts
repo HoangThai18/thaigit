@@ -75,6 +75,12 @@ export class MenuStore {
     this.show(items, event.clientX, event.clientY, 0, opener, false);
   }
 
+  /** Menu tại một điểm trên màn hình (vd. chỗ vừa thả khi kéo-thả). */
+  openAtPoint(x: number, y: number, items: readonly MenuItem[]): void {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.show(items, x, y, 0, opener, false);
+  }
+
   close(restoreFocus = true): void {
     const menu = this.current;
     if (!menu) return;

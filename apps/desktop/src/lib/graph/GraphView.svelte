@@ -4,6 +4,7 @@
   tải thêm khi cuộn gần cuối.
 -->
 <script lang="ts">
+  import { drag as dragDrop, dropAttr, parseDropTarget } from '../dnd/drag.svelte.ts';
   import { isMergeCommit, isWorkingTreeCommit, shortSha } from '@thaigit/core';
   import { untrack } from 'svelte';
   import { commitMenu } from '../actions/menus.ts';
@@ -90,6 +91,18 @@
   const showEmpty = $derived(store.hasLoaded && store.historyError === null && store.entries.length === 0);
 
   // --- chọn hàng, bàn phím ---
+  /** Bấm giữ lên nhãn nhánh / tag rồi kéo: thả lên nhánh khác để merge / rebase, lên remote để push. */
+  function beginPillDrag(event: PointerEvent, entry: GraphEntry): void {
+    const pill = event.target instanceof Element ? event.target.closest('.pill[data-drop]') : null;
+    const target = parseDropTarget(pill?.getAttribute('data-drop'));
+    if (target?.kind !== 'ref') return;
+    const fullName = target.fullName;
+    const label = entry.labels.find((item) => item.refs.some((ref) => ref.fullName === fullName));
+    const ref = label?.refs.find((item) => item.fullName === fullName);
+    if (!label || !ref) return;
+    dragDrop.begin(event, () => ({ kind: 'ref', ref, label: label.text }));
+  }
+
   function selectRow(index: number): void {
     const entry = store.entryAt(index);
     if (!entry) return;
@@ -244,6 +257,7 @@
       graphElement?.focus({ preventScroll: true });
     }}
     ondblclick={() => onactivate?.(entry)}
+    onpointerdown={(event) => beginPillDrag(event, entry)}
     oncontextmenu={(event) => {
       selectRow(index);
       menus.openAt(event, commitMenu(store, entry));
@@ -259,9 +273,13 @@
           {@const label = entry.labels[pill.index]}
           {#if label}
             {@const look = pillAppearance(label, lane)}
+            {@const primary = label.isDetachedHead
+              ? undefined
+              : (label.refs.find((ref) => ref.kind === 'localBranch') ?? label.refs[0])}
             <span
               class="pill"
               class:current={label.isCurrentBranch}
+              data-drop={primary ? dropAttr('ref', primary.fullName) : undefined}
               style:left="{pill.x}px"
               style:width="{pill.width}px"
               style:--pill-top={look.top}
