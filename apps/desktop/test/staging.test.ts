@@ -194,6 +194,37 @@ describe('stage / huỷ theo file', () => {
   });
 });
 
+describe('duyệt diff liên tục', () => {
+  it('stage / huỷ file đang xem thì mở file kế tiếp; hết file thì đóng', async () => {
+    const { test, store } = await openStore(setupTenLines);
+    await test.write('b.txt', 'b\n');
+    await test.write('c.txt', 'c\n');
+    await test.write('d.txt', 'd\n');
+    await store.refreshAndWait(1);
+    expect(store.status.unstaged.map((item) => item.path)).toEqual(['b.txt', 'c.txt', 'd.txt']);
+
+    store.diff.open(store.status.unstaged[1]!, { kind: 'unstaged' });
+    expect(store.diff.siblings?.length).toBe(3);
+    expect(store.diff.step(1)).toBe(true);
+    expect(store.diff.file?.change.path).toBe('d.txt');
+    expect(store.diff.step(1)).toBe(false);
+    store.diff.step(-1);
+    expect(store.diff.file?.change.path).toBe('c.txt');
+
+    // Stage c → mở d (đứng đúng chỗ c); stage d (cuối danh sách) → lùi về b.
+    await stageFiles(store, [store.diff.file!.change]);
+    expect(store.diff.file?.change.path).toBe('d.txt');
+    expect(store.diff.file?.source.kind).toBe('unstaged');
+    await stageFiles(store, [store.diff.file!.change]);
+    expect(store.diff.file?.change.path).toBe('b.txt');
+
+    // Bên đã stage cũng vậy; danh sách trống thì quay về graph.
+    store.diff.open(store.status.staged[0]!, { kind: 'staged' });
+    await unstageFiles(store, store.status.staged);
+    expect(store.diff.file).toBeNull();
+  });
+});
+
 describe('commit', () => {
   it('commit phần đã stage, hoàn tác đưa thay đổi + message về lại', async () => {
     const { test, store, toasts } = await openStore(setupTenLines);

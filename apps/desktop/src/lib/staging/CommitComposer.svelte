@@ -1,11 +1,12 @@
 <!--
   Ô soạn commit (port CommitComposer của StagingView.swift): tóm tắt (đếm ngược 72 ký tự), mô tả, amend, nút commit lớn.
-  Ctrl/⌘ + Enter để commit. Chưa stage gì mà có thay đổi thì nút thành "Stage tất cả & commit".
+  Ctrl/⌘ + Enter để commit, Ctrl/⌘ + Shift + Enter (hoặc nút mũi tên cạnh nút commit) để commit rồi push luôn. Chưa stage
+  gì mà có thay đổi thì nút thành "Stage tất cả & commit". Tóm tắt + mô tả đang gõ dở được lưu theo repo (commitDrafts.ts).
   "✨ Viết bằng AI" (Ctrl/⌘ + Shift + G): AI viết message từ thay đổi đã stage, chữ hiện dần; Dừng / Hoàn tác / tuỳ chọn.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { canCommit, commit, setAmend } from '../actions/commit.ts';
+  import { canCommit, canCommitAndPush, commit, setAmend } from '../actions/commit.ts';
   import { prefillPendingMessage } from '../actions/history.ts';
   import { CommitWriter } from '../ai/commitWriter.svelte.ts';
   import { AI_ENABLED } from '../ai/enabled.ts';
@@ -65,15 +66,24 @@
     untrack(() => void prefillPendingMessage(store));
   });
 
-  function submit(): void {
-    if (!enabled) return;
-    void commit(store, { stageAllFirst: suggestsStageAll });
+  const pushable = $derived(canCommitAndPush(store));
+
+  // Lưu bản nháp theo repo mỗi khi gõ (không lưu lúc amend: khi đó ô soạn chứa message của commit cũ).
+  $effect(() => {
+    const { summary, body, amend } = draft;
+    if (amend) return;
+    untrack(() => store.drafts.save(store.rootPath, { summary, body }));
+  });
+
+  function submit(andPush = false): void {
+    if (!enabled || (andPush && !pushable)) return;
+    void commit(store, { stageAllFirst: suggestsStageAll, push: andPush });
   }
 
   function onkeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
-      submit();
+      submit(event.shiftKey);
     }
   }
 
@@ -239,10 +249,31 @@
       {/if}
     </div>
   {/if}
-  <button type="button" class="commit" disabled={!enabled} title={vi.staging.commitShortcut} onclick={submit}>
-    <Icon name="commit" size={16} />
-    <span>{buttonTitle}</span>
-  </button>
+  <div class="commit-row">
+    <button
+      type="button"
+      class="commit"
+      class:joined={pushable}
+      disabled={!enabled}
+      title={vi.staging.commitShortcut}
+      onclick={() => submit()}
+    >
+      <Icon name="commit" size={16} />
+      <span>{buttonTitle}</span>
+    </button>
+    {#if pushable}
+      <button
+        type="button"
+        class="commit push"
+        disabled={!enabled}
+        title={vi.staging.commitAndPushTip}
+        aria-label={vi.staging.commitAndPush}
+        onclick={() => submit(true)}
+      >
+        <Icon name="push" size={15} />
+      </button>
+    {/if}
+  </div>
   {#if !enabled && store.busy === null}
     <p class="hint">{check.reason ?? vi.staging.needSummary}</p>
   {/if}
@@ -405,7 +436,14 @@
     color: var(--warning);
   }
 
+  .commit-row {
+    display: flex;
+    gap: 1px;
+  }
+
   .commit {
+    flex: 1;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -419,6 +457,19 @@
     font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
+  }
+
+  .commit.joined {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .commit.push {
+    flex: none;
+    width: 38px;
+    padding: 9px 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
   }
 
   .commit:disabled {

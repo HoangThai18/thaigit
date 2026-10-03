@@ -65,6 +65,10 @@ export const staging: Translation<typeof source> = {
   layoutLabel: 'Diff layout',
   layoutUnified: 'Unified',
   layoutSplit: 'Split',
+  navLabel: 'Move between files — Alt + ↑ / ↓ jumps between hunks',
+  previousFile: 'Previous file (Alt + Shift + ↑)',
+  nextFile: 'Next file (Alt + Shift + ↓)',
+  filePosition: (index: number, total: number) => `${index}/${total}`,
   imageOld: 'Old',
   imageNew: 'New',
   imageNone: 'None',
@@ -97,5 +101,7 @@ export const staging: Translation<typeof source> = {
   committed: (branch: string) => `Committed to ${branch}`,
   amended: 'Previous commit amended',
   commitShortcut: 'Ctrl/⌘ + Enter to commit',
+  commitAndPush: 'Commit & Push',
+  commitAndPushTip: 'Commit, then push to the remote (Ctrl/⌘ + Shift + Enter)',
   undoCommit: 'Undo commit',
 };

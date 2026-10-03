@@ -67,6 +67,10 @@ export const staging = {
   layoutLabel: 'Bố cục diff',
   layoutUnified: 'Gộp',
   layoutSplit: 'Tách đôi',
+  navLabel: 'Chuyển file — Alt + ↑ / ↓ để nhảy giữa các hunk',
+  previousFile: 'File trước (Alt + Shift + ↑)',
+  nextFile: 'File sau (Alt + Shift + ↓)',
+  filePosition: (index: number, total: number) => `${index}/${total}`,
   imageOld: 'Bản cũ',
   imageNew: 'Bản mới',
   imageNone: 'Không có',
@@ -99,5 +103,7 @@ export const staging = {
   committed: (branch: string) => `Đã commit vào ${branch}`,
   amended: 'Đã sửa commit trước',
   commitShortcut: 'Ctrl/⌘ + Enter để commit',
+  commitAndPush: 'Commit & Push',
+  commitAndPushTip: 'Commit rồi push lên remote (Ctrl/⌘ + Shift + Enter)',
   undoCommit: 'Hoàn tác commit',
 } as const;

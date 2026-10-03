@@ -29,6 +29,7 @@
   import { canDrop, dropAction } from '../dnd/dropMenu.ts';
   import DragGhost from '../dnd/DragGhost.svelte';
   import ActionBar from './ActionBar.svelte';
+  import BranchPicker from './BranchPicker.svelte';
   import BranchSwitcher from './BranchSwitcher.svelte';
   import BusyBar from './BusyBar.svelte';
   import CommandLogPanel from './CommandLogPanel.svelte';
@@ -51,6 +52,7 @@
       (gaps.shallow || gaps.narrowRemotes.length > 0),
   );
   let showLog = $state(false);
+  let showBranchPicker = $state(false);
   const search = untrack(() => new GraphSearch(store));
 
   $effect(() => startAutoFetch(store));
@@ -74,7 +76,14 @@
 
   /** Phím tắt của repo (Ctrl trên Windows/Linux, ⌘ trên macOS) — như menu Repository của app Swift. */
   function onwindowkeydown(event: KeyboardEvent): void {
-    if (event.defaultPrevented || dialogs.current !== null || menus.current !== null || showLog) return;
+    if (
+      event.defaultPrevented ||
+      dialogs.current !== null ||
+      menus.current !== null ||
+      showLog ||
+      showBranchPicker
+    )
+      return;
     if (!(event.ctrlKey || event.metaKey)) return;
     const code = event.code;
     if (!event.shiftKey && !event.altKey && code === 'KeyF' && store.diff.file === null) {
@@ -82,7 +91,8 @@
       search.show();
       return;
     }
-    if (event.altKey && !event.shiftKey && code === 'KeyF') void fetch(store);
+    if (!event.shiftKey && !event.altKey && code === 'KeyB') showBranchPicker = true;
+    else if (event.altKey && !event.shiftKey && code === 'KeyF') void fetch(store);
     else if (event.shiftKey && !event.altKey && code === 'KeyL') void pull(store);
     else if (event.shiftKey && !event.altKey && code === 'KeyP') void push(store);
     else if (event.shiftKey && !event.altKey && code === 'KeyB') void beginCreateBranch(store);
@@ -134,7 +144,7 @@
         <span class="inset" data-tauri-drag-region></span>
         {@render sidebarToggle()}
       {/if}
-      <BranchSwitcher {store} />
+      <BranchSwitcher {store} onfind={() => (showBranchPicker = true)} />
       <div class="titles" data-tauri-drag-region>
         <strong class="repo-name" data-tauri-drag-region><bdi>{showBidi(store.name)}</bdi></strong>
         <span class="subtitle" data-tauri-drag-region><bdi>{showBidi(store.branchSubtitle)}</bdi></span>
@@ -248,6 +258,10 @@
     </div>
   </div>
 </div>
+
+{#if showBranchPicker}
+  <BranchPicker {store} onclose={() => (showBranchPicker = false)} />
+{/if}
 
 {#if showLog}
   <CommandLogPanel {store} onclose={() => (showLog = false)} />

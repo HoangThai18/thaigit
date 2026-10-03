@@ -1,6 +1,7 @@
 <!--
   Nút nhánh hiện tại trên thanh công cụ (port BranchSwitcher.swift): bấm để đổi nhanh sang nhánh local gần đây hoặc tạo
-  nhánh mới. Repo có hàng trăm nhánh thì menu chỉ liệt kê 15 nhánh gần nhất; còn lại tìm ở sidebar.
+  nhánh mới. Repo có hàng trăm nhánh thì menu chỉ liệt kê 15 nhánh gần nhất; còn lại tìm bằng "Tìm & chuyển nhánh…"
+  (Ctrl/⌘ + B, BranchPicker.svelte).
 -->
 <script lang="ts">
   import { refName } from '@thaigit/core';
@@ -13,9 +14,11 @@
 
   interface Props {
     store: RepoStore;
+    /** Mở hộp tìm & chuyển nhánh. */
+    onfind?: () => void;
   }
 
-  let { store }: Props = $props();
+  let { store, onfind }: Props = $props();
 
   const RECENT_LIMIT = 15;
   let button = $state<HTMLButtonElement | null>(null);
@@ -41,10 +44,16 @@
         run: () => void checkout(store, ref),
       });
     }
-    items.push(
-      { kind: 'separator' },
-      { title: vi.remote.newBranchHere, icon: 'plus', run: () => void beginCreateBranch(store) },
-    );
+    items.push({ kind: 'separator' });
+    if (onfind) {
+      items.push({
+        title: vi.branches.pickerOpen,
+        icon: 'search',
+        shortcut: vi.branches.pickerShortcut,
+        run: onfind,
+      });
+    }
+    items.push({ title: vi.remote.newBranchHere, icon: 'plus', run: () => void beginCreateBranch(store) });
     menus.openBelow(button, items, { focusFirst: event.detail === 0 });
   }
 </script>

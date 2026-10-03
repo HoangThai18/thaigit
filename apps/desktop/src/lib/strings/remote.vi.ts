@@ -70,6 +70,8 @@ export const remote = {
   pushed: (branch: string, target: string) => `Đã push ${branch} → ${target}`,
   rejected: 'Push bị từ chối — remote có commit mà máy bạn chưa có',
   pullFirst: 'Pull trước',
+  pullThenPush: 'Pull rồi Push',
+  syncBranch: 'Đồng bộ (pull rồi push)',
   forcePush: 'Force push…',
   forcePushConfirmTitle: (branch: string) => `Force push ${branch}?`,
   forcePushConfirmMessage: (target: string) =>

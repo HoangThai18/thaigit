@@ -10,6 +10,17 @@ export const branches = {
   switched: (branch: string) => `Đã chuyển sang nhánh ${branch}`,
   trackingCreated: (local: string, remote: string) => `Đã tạo nhánh ${local} theo dõi ${remote}`,
   tagLabel: (tag: string) => `tag ${tag}`,
+
+  // Hộp "Chuyển nhánh" (Ctrl/⌘ + B)
+  pickerTitle: 'Chuyển nhánh',
+  pickerOpen: 'Tìm & chuyển nhánh…',
+  pickerShortcut: 'Ctrl/⌘ + B',
+  pickerPlaceholder: 'Gõ tên nhánh…',
+  pickerRecent: 'Nhánh gần đây',
+  pickerHint: '↑↓ chọn · Enter checkout · Esc đóng',
+  pickerEmpty: 'Không có nhánh khớp',
+  pickerCurrent: 'Hiện tại',
+  pickerRemote: 'Remote',
   detachedConfirmTitle: (label: string) => `Checkout ${label}?`,
   detachedConfirmMessage:
     'Bạn sẽ ở chế độ “HEAD tách rời” (không thuộc nhánh nào). Muốn commit tiếp, hãy tạo nhánh mới tại đó.',

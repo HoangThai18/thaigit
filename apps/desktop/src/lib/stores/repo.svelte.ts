@@ -37,6 +37,7 @@ import { buildRefLabels, type RefLabel } from '../graph/pills.ts';
 import { DiffStore } from './diff.svelte.ts';
 import { TimelineStore } from '../snapshots/timeline.svelte.ts';
 import { RiskStore } from '../risk/risks.svelte.ts';
+import { commitDrafts, type CommitDrafts } from '../staging/commitDrafts.ts';
 import type { RepoPort } from '../platform/host.ts';
 import { vi } from '../strings.vi.ts';
 import { jsonEqual } from './equality.ts';
@@ -95,6 +96,8 @@ export interface RepoStoreOptions {
    * nút "Xem lại cấu hình repo" trên thông báo gọi hàm này để hỏi tin tưởng lại.
    */
   onUntrusted?: () => void;
+  /** Kho bản nháp commit theo repo (mặc định localStorage của webview). */
+  drafts?: CommitDrafts;
 }
 
 type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown };
@@ -144,6 +147,8 @@ export class RepoStore {
   readonly commandLog = new CommandLog();
   private readonly prefs: PrefsStore;
   private readonly toasts: ToastStore;
+  /** Bản nháp commit theo repo: ô soạn đọc lại khi mở repo và ghi mỗi khi người dùng gõ. */
+  readonly drafts: CommitDrafts;
   private readonly clipboard: (text: string) => Promise<void>;
   private readonly detailsDelayMs: number;
   private readonly onUntrusted: (() => void) | undefined;
@@ -231,6 +236,10 @@ export class RepoStore {
     this.ownerId = `${port.info.repoId}#${++storeSerial}`;
     this.refreshErrorTag = `${REFRESH_ERROR_TAG}:${this.ownerId}`;
     this.commitLimit = this.prefs.value.commitLimit;
+    this.drafts = options.drafts ?? commitDrafts;
+    const saved = this.drafts.load(port.info.root);
+    this.commitDraft.summary = saved.summary;
+    this.commitDraft.body = saved.body;
     this.git = new GitRepository({
       exec: port.exec,
       fs: port.fs,

@@ -5,7 +5,7 @@
 <script lang="ts">
   import { isStatusClean } from '@thaigit/core';
   import { beginCreateBranch } from '../actions/branches.ts';
-  import { fetch, pull, push } from '../actions/remote.ts';
+  import { fetch, pull, push, sync } from '../actions/remote.ts';
   import { popLatestStash, quickStash } from '../actions/stash.ts';
   import { repoForgeItems, repoOsItems } from '../actions/menus.ts';
   import { newWindow } from '../ipc/os.ts';
@@ -45,6 +45,7 @@
           run: () => void pull(store, 'fastForwardOnly'),
         },
         { kind: 'separator' },
+        { title: vi.remote.syncBranch, icon: 'push', run: () => void sync(store) },
         { title: vi.remote.fetchOnly, icon: 'fetch', run: () => void fetch(store) },
       ],
       { focusFirst: event.detail === 0 },

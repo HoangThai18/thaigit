@@ -3,6 +3,7 @@
 
 import { vi } from '../strings.vi.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
+import { push } from './remote.ts';
 
 /** Message đầy đủ từ tóm tắt + mô tả (bỏ khoảng trắng thừa hai đầu; mô tả rỗng thì chỉ có tóm tắt). */
 export function composeMessage(summary: string, body: string): string {
@@ -69,8 +70,22 @@ export async function setAmend(
   return null;
 }
 
-/** Commit với nội dung ô soạn. `stageAllFirst`: "Stage tất cả & commit". */
-export async function commit(store: RepoStore, options: { stageAllFirst?: boolean } = {}): Promise<void> {
+/**
+ * "Commit & Push" dùng được không: có remote, đang ở một nhánh, không amend (amend commit đã push thì push thường bị từ chối,
+ * "Pull trước" lại tạo merge — để người dùng tự push có cân nhắc).
+ */
+export function canCommitAndPush(store: RepoStore): boolean {
+  return store.remotes.length > 0 && store.currentBranchRef !== undefined && !store.commitDraft.amend;
+}
+
+/**
+ * Commit với nội dung ô soạn. `stageAllFirst`: "Stage tất cả & commit". `push`: commit xong thì push nhánh hiện tại luôn
+ * (commit lỗi thì không push).
+ */
+export async function commit(
+  store: RepoStore,
+  options: { stageAllFirst?: boolean; push?: boolean } = {},
+): Promise<void> {
   const draft = store.commitDraft;
   const summary = draft.summary;
   const body = draft.body;
@@ -107,6 +122,7 @@ export async function commit(store: RepoStore, options: { stageAllFirst?: boolea
       },
     },
   );
+  if (committed && options.push === true) await push(store);
 }
 
 /**

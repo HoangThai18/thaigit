@@ -66,6 +66,8 @@ export const remote: Translation<typeof source> = {
   pushed: (branch: string, target: string) => `Pushed ${branch} → ${target}`,
   rejected: "Push rejected — the remote has commits you don't have yet",
   pullFirst: 'Pull first',
+  pullThenPush: 'Pull, then push',
+  syncBranch: 'Sync (pull, then push)',
   forcePush: 'Force push…',
   forcePushConfirmTitle: (branch: string) => `Force push ${branch}?`,
   forcePushConfirmMessage: (target: string) =>

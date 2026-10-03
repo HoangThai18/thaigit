@@ -100,24 +100,26 @@ export function backgroundFetch(store: RepoStore): Promise<void> {
   );
 }
 
-export function pull(store: RepoStore, mode?: PullMode): Promise<void> {
+/** Pull nhánh hiện tại. Trả `true` khi pull xong không lỗi (để "Pull rồi Push" biết có push tiếp được không). */
+export async function pull(store: RepoStore, mode?: PullMode): Promise<boolean> {
   const branch = store.currentBranchRef;
   if (!branch) {
     store.notify('warning', vi.remote.needBranchToPull);
-    return Promise.resolve();
+    return false;
   }
   const name = branch.fullName.slice('refs/heads/'.length);
   if (branch.upstream === null || branch.upstreamGone) {
     store.notify('warning', vi.remote.noUpstream(name), {
       actions: [{ title: vi.remote.pushToRemote, run: () => void push(store) }],
     });
-    return Promise.resolve();
+    return false;
   }
   const chosen = mode ?? pullModeFromPref(store.preferences.pullMode);
   const previousHead = store.headOid;
   let newHead: string | null = null;
+  let pulled = false;
   const progress = store.progressReporter();
-  return store.perform(
+  await store.perform(
     vi.remote.pull,
     async (git, signal) => {
       await git.pull(chosen, { onProgress: progress, signal });
@@ -128,6 +130,7 @@ export function pull(store: RepoStore, mode?: PullMode): Promise<void> {
       cancellable: true,
       refresh: Scope.all,
       onSuccess: () => {
+        pulled = true;
         store.lastFetch = Date.now();
         if (previousHead !== null && newHead !== null && newHead !== previousHead) {
           const restore = previousHead;
@@ -160,6 +163,20 @@ export function pull(store: RepoStore, mode?: PullMode): Promise<void> {
       },
     },
   );
+  return pulled;
+}
+
+/**
+ * Đồng bộ nhánh hiện tại: pull (kiểu trong cài đặt) rồi push nếu pull không lỗi — dùng cho "Pull rồi Push" khi push bị từ
+ * chối và mục "Đồng bộ" ở menu Pull. Chưa có upstream thì chỉ push (đặt upstream).
+ */
+export async function sync(store: RepoStore, dialogs?: DialogStore): Promise<void> {
+  const branch = store.currentBranchRef;
+  if (branch && (branch.upstream === null || branch.upstreamGone)) {
+    await push(store, { dialogs });
+    return;
+  }
+  if (await pull(store)) await push(store, { dialogs });
 }
 
 /** Push nhánh hiện tại (xem `pushBranch`). */
@@ -260,6 +277,7 @@ export function performPush(store: RepoStore, request: PushRequest, dialogs?: Di
         if (handleNetworkError(store, error, title)) return true;
         if (gitErrorContains(error, '[rejected]', 'non-fast-forward', 'fetch first', 'stale info')) {
           store.showError(vi.remote.rejected, error, [
+            { title: vi.remote.pullThenPush, run: () => void sync(store, dialogs) },
             { title: vi.remote.pullFirst, run: () => void pull(store) },
             {
               title: vi.remote.forcePush,

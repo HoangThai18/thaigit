@@ -6,7 +6,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { shouldAutoFetch } from '../src/lib/actions/autoFetch.ts';
 import { beginCreateBranch, checkout, switchToBranch } from '../src/lib/actions/branches.ts';
-import { backgroundFetch, completeHistory, fetch, pull, push } from '../src/lib/actions/remote.ts';
+import { backgroundFetch, completeHistory, fetch, pull, push, sync } from '../src/lib/actions/remote.ts';
+import { commit } from '../src/lib/actions/commit.ts';
 import { popLatestStash, quickStash } from '../src/lib/actions/stash.ts';
 import { DialogStore } from '../src/lib/stores/dialogs.svelte.ts';
 import { PrefsStore } from '../src/lib/stores/prefs.svelte.ts';
@@ -175,7 +176,11 @@ describe('push', () => {
     await store.refreshAndWait(7);
     await push(store, { dialogs });
     expect(lastToast(toasts)).toBe('Push bị từ chối — remote có commit mà máy bạn chưa có');
-    expect(toasts.items.at(-1)?.actions.map((item) => item.title)).toEqual(['Pull trước', 'Force push…']);
+    expect(toasts.items.at(-1)?.actions.map((item) => item.title)).toEqual([
+      'Pull rồi Push',
+      'Pull trước',
+      'Force push…',
+    ]);
 
     // Force push (with-lease cần đã fetch ref remote mới nhất).
     await fetch(store);
@@ -205,6 +210,37 @@ describe('push', () => {
     expect(lastToast(toasts)).toBe('Đã push tinh-nang → origin/tinh-nang');
     expect(rawGit(bare, ['rev-parse', 'tinh-nang']).trim()).toBe(store.headOid);
     expect(store.currentBranchRef?.upstream).toBe('origin/tinh-nang');
+  });
+});
+
+describe('đồng bộ / commit & push', () => {
+  it('"Pull rồi Push" khi remote có commit mới: kéo về rồi đẩy lên trong một bước', async () => {
+    const { test, store, dialogs, bare, other } = await openWithRemote();
+    pushFromOther(other, 'b.txt', 'b\n', 'Của đồng nghiệp');
+    await test.write('c.txt', 'c\n');
+    test.git('add', '.');
+    test.git('commit', '-q', '-m', 'Của tôi');
+    await store.refreshAndWait(7);
+
+    await sync(store, dialogs);
+    expect(test.git('log', '--format=%s').split('\n')).toContain('Của đồng nghiệp');
+    expect(rawGit(bare, ['rev-parse', 'main']).trim()).toBe(store.headOid);
+    expect(store.status.ahead).toBe(0);
+  });
+
+  it('commit & push: commit xong đẩy luôn; commit lỗi thì không push', async () => {
+    const { test, store, bare } = await openWithRemote();
+    const remoteBefore = rawGit(bare, ['rev-parse', 'main']).trim();
+    store.commitDraft.summary = 'Không có gì';
+    await commit(store, { push: true });
+    expect(rawGit(bare, ['rev-parse', 'main']).trim()).toBe(remoteBefore);
+
+    await test.write('a.txt', 'một\nhai\n');
+    await store.refreshAndWait(1);
+    store.commitDraft.summary = 'Sửa a';
+    await commit(store, { stageAllFirst: true, push: true });
+    expect(test.git('log', '-1', '--format=%s').trim()).toBe('Sửa a');
+    expect(rawGit(bare, ['rev-parse', 'main']).trim()).toBe(store.headOid);
   });
 });
 

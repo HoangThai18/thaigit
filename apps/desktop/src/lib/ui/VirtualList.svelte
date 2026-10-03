@@ -63,8 +63,11 @@
     onrange?.({ start, end, scrollTop, height });
   });
 
-  /** Cuộn để hàng `index` hiện ra; `center` đặt hàng ở giữa (như chọn nhánh ở sidebar → nhảy tới commit). */
-  export function scrollToIndex(index: number, mode: 'nearest' | 'center' = 'nearest'): void {
+  /**
+   * Cuộn để hàng `index` hiện ra; `center` đặt hàng ở giữa (như chọn nhánh ở sidebar → nhảy tới commit), `top` đặt hàng lên
+   * đầu khung (nhảy tới hunk trong diff).
+   */
+  export function scrollToIndex(index: number, mode: 'nearest' | 'center' | 'top' = 'nearest'): void {
     if (!viewport || index < 0 || index >= items.length) return;
     const top = index * rowHeight;
     const bottom = top + rowHeight;
@@ -75,11 +78,13 @@
     )
       return;
     viewport.scrollTop =
-      mode === 'center'
-        ? Math.max(0, top - (viewport.clientHeight - rowHeight) / 2)
-        : top < viewport.scrollTop
-          ? top
-          : bottom - viewport.clientHeight;
+      mode === 'top'
+        ? top
+        : mode === 'center'
+          ? Math.max(0, top - (viewport.clientHeight - rowHeight) / 2)
+          : top < viewport.scrollTop
+            ? top
+            : bottom - viewport.clientHeight;
   }
 
   /** Số hàng đầy đủ nằm gọn trong khung nhìn (cho PageUp/PageDown). */

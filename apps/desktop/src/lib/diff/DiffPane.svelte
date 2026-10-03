@@ -76,6 +76,15 @@
   /** Bấm chọn được từng dòng (thay đổi chưa commit, file thường). */
   const pickable = $derived(workingTree && diff.supportsPartial);
   const selected = $derived(diff.selectedCount);
+  // Không dùng `$state` được (biến `state` ở trên che mất rune); chỉ đọc trong hàm xử lý phím nên không cần phản ứng.
+  const list: { current?: VirtualList<Row> } = {};
+  /** Hàng đầu tiên đang thấy: nhảy tới hunk trước / sau tính từ chỗ đang đọc. */
+  let firstVisible = 0;
+  const hunkRows = $derived(rows.flatMap((row, index) => (row.kind === 'hunk' ? [index] : [])));
+  const siblings = $derived(diff.siblings);
+  const filePosition = $derived(
+    file && siblings ? siblings.findIndex((change) => change.path === file.change.path) + 1 : 0,
+  );
 
   function sourceLabel(source: DiffSource): string {
     switch (source.kind) {
@@ -104,15 +113,40 @@
     return line.kind === 'addition' || line.kind === 'deletion';
   }
 
-  function onwindowkeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Escape' || event.defaultPrevented || dialogs.current !== null) return;
-    const target = event.target;
-    if (
+  function jumpHunk(direction: 1 | -1): void {
+    let target: number | undefined;
+    for (const index of hunkRows) {
+      if (direction === 1 && index > firstVisible) {
+        target = index;
+        break;
+      }
+      if (direction === -1 && index < firstVisible) target = index;
+    }
+    if (target !== undefined) list.current?.scrollToIndex(target, 'top');
+  }
+
+  function isTyping(target: EventTarget | null): boolean {
+    return (
       target instanceof HTMLElement &&
       (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+    );
+  }
+
+  function onwindowkeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented || dialogs.current !== null || isTyping(event.target)) return;
+    if (
+      event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      (event.key === 'ArrowDown' || event.key === 'ArrowUp')
     ) {
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      if (event.shiftKey) diff.step(direction);
+      else jumpHunk(direction);
       return;
     }
+    if (event.key !== 'Escape') return;
     if (selected > 0) diff.clearSelection();
     else diff.close();
   }
@@ -196,6 +230,29 @@
         >
       {/if}
       <span class="grow"></span>
+      {#if siblings && siblings.length > 1 && filePosition > 0}
+        <div class="nav" role="group" aria-label={vi.staging.navLabel} title={vi.staging.navLabel}>
+          <button
+            type="button"
+            title={vi.staging.previousFile}
+            aria-label={vi.staging.previousFile}
+            disabled={filePosition <= 1}
+            onclick={() => diff.step(-1)}
+          >
+            <Icon name="chevron-up" size={13} />
+          </button>
+          <span class="position">{vi.staging.filePosition(filePosition, siblings.length)}</span>
+          <button
+            type="button"
+            title={vi.staging.nextFile}
+            aria-label={vi.staging.nextFile}
+            disabled={filePosition >= siblings.length}
+            onclick={() => diff.step(1)}
+          >
+            <Icon name="chevron-down" size={13} />
+          </button>
+        </div>
+      {/if}
       {#if presentation}
         <div class="layout" role="group" aria-label={vi.staging.layoutLabel}>
           <button
@@ -263,6 +320,7 @@
       {:else}
         <div class="lines" style:--digits={digits}>
           <VirtualList
+            bind:this={list.current}
             items={rows}
             rowHeight={ROW_HEIGHT}
             overscan={20}
@@ -274,6 +332,7 @@
                   ? `${row.hunkId}:s${row.key}`
                   : `${row.hunkId}:${row.line.index}`}
             label={vi.staging.diffLabel}
+            onrange={(range) => (firstVisible = range.start)}
           >
             {#snippet row(row: Row)}
               {#if row.kind === 'hunk'}
@@ -447,6 +506,46 @@
 
   .grow {
     flex: 1;
+  }
+
+  .nav {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+  }
+
+  .nav button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .nav button:hover:not(:disabled) {
+    background: var(--row-hover);
+    color: var(--text);
+  }
+
+  .nav button:disabled {
+    color: var(--text-tertiary);
+    cursor: default;
+  }
+
+  .position {
+    min-width: 28px;
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
   }
 
   .action {

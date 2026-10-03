@@ -4,6 +4,7 @@
 
 import {
   buildPresentation,
+  conflictAsChange,
   conflictHasMarkers,
   diffLineCount,
   parseConflictFile,
@@ -94,6 +95,8 @@ export class DiffStore {
   private token = 0;
   /** Byte diff lần nạp gần nhất: nạp lại ra đúng byte cũ thì giữ nguyên lựa chọn dòng. */
   private lastBytes: Uint8Array | null = null;
+  /** Vị trí của file đang mở trong danh sách của nó: file biến mất (đã stage, đã huỷ…) thì mở file đứng ở chỗ này. */
+  private position = 0;
 
   constructor(host: DiffHost) {
     this.host = host;
@@ -108,6 +111,11 @@ export class DiffStore {
   /** Diff đang hiển thị (đã parse), nếu có. */
   get fileDiff(): FileDiff | null {
     return this.state.kind === 'text' ? this.state.presentation.diff : null;
+  }
+
+  /** Danh sách chứa file đang mở (chưa stage / đã stage / xung đột) — `null` với diff của commit, stash. */
+  get siblings(): readonly FileChange[] | null {
+    return this.file ? this.listFor(this.file.source) : null;
   }
 
   /** Stage / bỏ stage / huỷ từng hunk hoặc dòng được không (file thường, không nhị phân, không phải chỉ đổi quyền). */
@@ -127,14 +135,32 @@ export class DiffStore {
       return;
     }
     this.file = { source, change };
+    this.position = this.indexIn(source, change.path);
     this.selection = NO_SELECTION;
     this.lastBytes = null;
     this.state = { kind: 'loading' };
     void this.load();
   }
 
+  /**
+   * File kế (`step` = 1) / trước (−1) trong cùng danh sách với file đang mở (chưa stage, đã stage, xung đột). Hết danh sách thì
+   * đứng yên. Trả `false` khi không đổi được.
+   */
+  step(step: 1 | -1): boolean {
+    const file = this.file;
+    if (!file) return false;
+    const list = this.listFor(file.source);
+    if (!list) return false;
+    const index = list.findIndex((change) => change.path === file.change.path);
+    const next = list[index < 0 ? Math.max(0, Math.min(this.position, list.length - 1)) : index + step];
+    if (!next || next.path === file.change.path) return false;
+    this.open(next, file.source);
+    return true;
+  }
+
   close(): void {
     this.token++;
+    this.position = 0;
     this.file = null;
     this.state = { kind: 'idle' };
     this.selection = NO_SELECTION;
@@ -171,23 +197,49 @@ export class DiffStore {
    */
   statusDidChange(): void {
     const file = this.file;
-    if (file?.source.kind === 'conflict') {
-      // Đã giải xong (không còn trong danh sách xung đột) thì đóng; còn thì nạp lại (file có thể vừa đổi trên đĩa).
-      if (!this.host.status.conflicts.some((entry) => entry.path === file.change.path)) this.close();
-      else void this.load();
+    if (!file) return;
+    const list = this.listFor(file.source);
+    if (!list) return;
+    const index = list.findIndex((change) => change.path === file.change.path);
+    const current = list[index];
+    if (!current) {
+      // File vừa stage / bỏ stage / huỷ / giải xong: mở file đứng ở đúng chỗ đó trong danh sách (như GitHub Desktop) để duyệt
+      // tiếp không phải bấm lại; danh sách đã trống thì đóng, quay về graph.
+      const next = list[Math.min(this.position, list.length - 1)];
+      if (next) this.open(next, file.source);
+      else this.close();
       return;
     }
-    if (!file || !isWorkingTreeSource(file.source)) return;
-    const list = file.source.kind === 'staged' ? this.host.status.staged : this.host.status.unstaged;
-    const current = list.find((change) => change.path === file.change.path);
-    if (!current) {
-      this.close();
+    this.position = index;
+    if (file.source.kind === 'conflict') {
+      // File xung đột có thể vừa đổi trên đĩa: nạp lại (nội dung y nguyên thì `loadConflict` giữ lựa chọn đang làm dở).
+      void this.load();
       return;
     }
     if (current.kind !== file.change.kind || current.oldPath !== file.change.oldPath) {
       this.file = { source: file.source, change: current };
     }
     void this.load();
+  }
+
+  /** Danh sách chứa file của `source` (thay đổi chưa commit, xung đột); `null` với diff của commit / stash. */
+  private listFor(source: DiffSource): readonly FileChange[] | null {
+    const status = this.host.status;
+    switch (source.kind) {
+      case 'unstaged':
+        return status.unstaged;
+      case 'staged':
+        return status.staged;
+      case 'conflict':
+        return status.conflicts.map((entry) => conflictAsChange(entry));
+      default:
+        return null;
+    }
+  }
+
+  private indexIn(source: DiffSource, path: string): number {
+    const index = this.listFor(source)?.findIndex((change) => change.path === path) ?? -1;
+    return Math.max(0, index);
   }
 
   /** Nạp lại diff của file đang mở. */

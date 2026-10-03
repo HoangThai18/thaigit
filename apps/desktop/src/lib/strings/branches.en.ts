@@ -9,6 +9,16 @@ export const branches: Translation<typeof source> = {
   switched: (branch: string) => `Switched to branch ${branch}`,
   trackingCreated: (local: string, remote: string) => `Created branch ${local} tracking ${remote}`,
   tagLabel: (tag: string) => `tag ${tag}`,
+
+  pickerTitle: 'Switch branch',
+  pickerOpen: 'Find & switch branch…',
+  pickerShortcut: 'Ctrl/⌘ + B',
+  pickerPlaceholder: 'Type a branch name…',
+  pickerRecent: 'Recent branches',
+  pickerHint: '↑↓ select · Enter checkout · Esc close',
+  pickerEmpty: 'No matching branches',
+  pickerCurrent: 'Current',
+  pickerRemote: 'Remote',
   detachedConfirmTitle: (label: string) => `Checkout ${label}?`,
   detachedConfirmMessage:
     'You will be in “detached HEAD” mode (not on any branch). To keep committing, create a new branch there.',
