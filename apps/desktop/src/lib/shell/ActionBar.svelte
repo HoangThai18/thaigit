@@ -10,6 +10,7 @@
   import { vi } from '../strings.vi.ts';
   import { hasTauriInternals } from '../platform/host.ts';
   import { menus, tidyMenu } from '../stores/menus.svelte.ts';
+  import { settingsStore } from '../stores/settings.svelte.ts';
   import { updates } from '../stores/update.svelte.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
@@ -55,6 +56,12 @@
         { title: vi.remote.refresh, icon: 'reset', run: () => store.refreshEverything() },
         { title: vi.remote.commandLog, icon: 'terminal', run: onshowlog },
         { kind: 'separator' },
+        {
+          title: vi.settings.open,
+          icon: 'settings',
+          shortcut: vi.settings.shortcut,
+          run: () => settingsStore.open(),
+        },
         hasTauriInternals() &&
           (available
             ? {

@@ -15,7 +15,7 @@ Thaigit giúp làm việc với git bằng chuột: nhìn lịch sử dạng gra
 | Bản | Nền tảng | Trạng thái |
 | --- | --- | --- |
 | Thaigit cho macOS (Swift, native) | macOS 14 trở lên | **Dùng được** — build từ mã nguồn, tự cập nhật qua GitHub Releases |
-| Thaigit đa nền tảng (Tauri 2) | Windows 10/11 + macOS | **Đang phát triển** — xem [kế hoạch](plans/261002-1543-tauri-cross-platform-hermes-ai-stats/plan.md) |
+| Thaigit cho Windows (Tauri 2) | Windows 10/11 | **Bản thử (beta)** — tải ở [trang chủ](https://git.thaipro.store), tự cập nhật; bản macOS cùng code đang làm |
 
 ## Tính năng nổi bật
 
@@ -208,20 +208,21 @@ Bản Windows dùng Ctrl thay cho ⌘.
 - Git: đường dẫn `git` riêng, kiểu Pull mặc định, prune khi fetch, chu kỳ tự fetch.
 - Tài khoản: thêm / xoá tài khoản GitHub, chọn tài khoản mặc định, sửa tên & email commit, owner đã gán.
 
-## Sắp có (bản Thaigit đa nền tảng)
+## Bản Windows (Tauri, beta)
 
-- **Bản Windows**, chung một code với macOS (Tauri 2 + Svelte 5 + TypeScript).
-- **AI viết commit message** bằng model Hermes (Nous Research) chạy trên server của Thaigit — bấm một nút là có, không cần API key. Thêm: giải thích commit, viết mô tả Pull Request.
-- **Trang chủ [git.thaipro.store](https://git.thaipro.store)** để giới thiệu và tải app (đã có trong `site/`, sắp đưa lên). Thêm thống kê lượt tải và số người dùng (ẩn danh, chỉ khi bạn đồng ý).
-- Giao diện tiếng Anh.
+- Chung một code cho Windows và macOS (Tauri 2 + Svelte 5 + TypeScript); bản Windows đang thử nghiệm, tự cập nhật.
+- **AI viết commit message** bằng model Hermes (Nous Research) chạy trên máy chủ của Thaigit — bấm *✨ Viết bằng AI* là có, không cần API key. Thêm: *Giải thích bằng AI* trong chi tiết commit, *Viết mô tả PR với AI…* trong menu nhánh. Máy chủ: `server/`, cách dựng: [docs/deploy-server.md](docs/deploy-server.md).
+- Thống kê ẩn danh **chỉ khi bạn bật** (Cài đặt → Quyền riêng tư).
+- Sắp có: bản macOS từ cùng code, giao diện tiếng Anh.
 
 ### Quyền riêng tư
 
 - **Tự cập nhật** chỉ tải `update.json` và file zip từ GitHub Releases — không gửi thông tin gì về máy hay repo của bạn (GitHub vẫn thấy địa chỉ IP như mọi lượt tải).
 - **Đăng nhập GitHub** (nếu dùng): app nói chuyện thẳng với github.com / api.github.com; token chỉ nằm trong Keychain trên máy bạn, không gửi tới server Thaigit.
 - **Ảnh đại diện trên graph**: để tìm ảnh, app gửi mã băm SHA-256 của email người commit tới Gravatar, và với repo nằm trên GitHub thì hỏi API GitHub "tài khoản nào đã commit bằng email này" (GitHub vốn đã có các commit đó). Ảnh được cache trên máy 7 ngày. Tắt trong Cài đặt → Chung → *Ảnh đại diện thật*, hoặc chuột phải lên tiêu đề cột graph → bỏ chọn *Ảnh đại diện thật*: khi đó app dừng ngay hàng đợi và không gửi gì nữa.
-- **AI** (sắp có) chỉ chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu. App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file nhị phân) tới server Thaigit, nơi model Hermes chạy ngay trên máy chủ của dự án — không gửi cho bên thứ ba, không lưu nội dung code hay message.
-- **Thống kê** (sắp có) chỉ gửi khi bạn đồng ý: mã cài đặt ngẫu nhiên, phiên bản app, hệ điều hành. Không gửi tên repo, đường dẫn, code hay email.
+- **AI trên macOS** (app Swift) chạy bằng Apple Intelligence ngay trên máy — code không rời khỏi máy.
+- **AI trên Windows** (app Tauri) chỉ chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu (có nút *Xem dữ liệu sẽ gửi*). App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file sinh tự động, file nhị phân và mọi đoạn trông như mật khẩu / token) tới máy chủ Thaigit, nơi model Hermes chạy ngay trên máy chủ của dự án — không gửi cho bên thứ ba, không lưu nội dung code hay message.
+- **Thống kê** (app Windows) mặc định tắt; chỉ gửi khi bạn bật: mỗi ngày một lần một mã ngẫu nhiên, hệ điều hành, kiến trúc máy, phiên bản app. Không gửi tên repo, đường dẫn, code hay email.
 
 ## Phát triển
 
@@ -249,7 +250,7 @@ site/                    Trang chủ git.thaipro.store (Next.js, xuất trang t�
 plans/                   Kế hoạch bản đa nền tảng
 ```
 
-Bản đa nền tảng (Tauri) đang được làm và sẽ gồm `apps/desktop` (app), `packages/contracts` (chính sách lệnh git, định dạng IPC), `packages/core` (lõi TypeScript, port từ NhanhCore) và `server` (AI proxy, thống kê). Chi tiết trong [kế hoạch](plans/261002-1543-tauri-cross-platform-hermes-ai-stats/plan.md).
+Bản đa nền tảng (Tauri) gồm `apps/desktop` (app), `packages/contracts` (chính sách lệnh git, định dạng IPC, hợp đồng API), `packages/core` (lõi TypeScript, port từ NhanhCore) và `server` (AI proxy tới Hermes, thống kê — [docs/deploy-server.md](docs/deploy-server.md)). Chi tiết trong [kế hoạch](plans/261002-1543-tauri-cross-platform-hermes-ai-stats/plan.md).
 
 Trang chủ (`site/`) cần Node 24 và pnpm: `pnpm install`, rồi `pnpm --filter @thaigit/site dev` để xem thử ở http://localhost:3000. Cách đưa lên git.thaipro.store: [docs/deploy-site.md](docs/deploy-site.md).
 
@@ -259,7 +260,7 @@ Pull Request của GitLab / Bitbucket.
 
 ## English
 
-Thaigit is a free, visual Git GUI with a Liquid Glass look. The native macOS app (Swift) is usable today and updates itself from GitHub Releases (Ed25519-signed; just restart to get the new version). A cross-platform Windows + macOS app (Tauri 2) is in progress, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
+Thaigit is a free, visual Git GUI with a Liquid Glass look. The native macOS app (Swift) is usable today and updates itself from GitHub Releases (Ed25519-signed; just restart to get the new version). A cross-platform app (Tauri 2) is in beta on Windows, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
 
 ---
 

@@ -209,11 +209,11 @@ export default async function HomePage() {
       <section id="ai" className="section container">
         <div className="ai glass reveal">
           <div>
-            <span className="badge">Sắp có</span>
+            <span className="badge">Bản Windows — sắp có</span>
             <h2>AI viết commit message cho bạn</h2>
             <p style={{ color: 'var(--text-2)' }}>
-              Bấm một nút, Thaigit đọc phần thay đổi đã stage và đề xuất message rõ ràng. Model Hermes chạy
-              ngay trên máy chủ của Thaigit.
+              Bấm một nút, Thaigit đọc phần thay đổi đã stage và đề xuất message rõ ràng. Bản macOS dùng Apple
+              Intelligence ngay trên máy; bản Windows dùng model Hermes chạy trên máy chủ của Thaigit.
             </p>
             <ul className="checks">
               <li>Không cần API key, không tốn phí</li>

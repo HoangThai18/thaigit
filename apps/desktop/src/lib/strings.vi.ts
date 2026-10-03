@@ -8,6 +8,7 @@
 import { ai } from './strings/ai.vi.ts';
 import { branches } from './strings/branches.vi.ts';
 import { remote } from './strings/remote.vi.ts';
+import { settings } from './strings/settings.vi.ts';
 import { shell } from './strings/shell.vi.ts';
 import { staging } from './strings/staging.vi.ts';
 import { update } from './strings/update.vi.ts';
@@ -19,4 +20,5 @@ export const vi = {
   remote,
   update,
   ai,
+  settings,
 } as const;

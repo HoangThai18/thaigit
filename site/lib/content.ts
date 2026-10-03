@@ -141,7 +141,7 @@ export const FAQ: FaqItem[] = [
     q: 'Code của tôi có bị gửi đi đâu không?',
     a: [
       'Không. Thaigit chạy git ngay trên máy bạn. App chỉ hỏi GitHub Releases để kiểm tra bản cập nhật và không gửi thông tin gì về máy hay repo của bạn.',
-      'Tính năng AI sắp có chỉ chạy khi bạn bấm nút và đã đồng ý; model chạy trên máy chủ của Thaigit, không gửi cho bên thứ ba.',
+      'AI viết commit: bản macOS chạy bằng Apple Intelligence ngay trên máy. Bản Windows chỉ gửi khi bạn bấm nút và đã đồng ý (xem được đúng dữ liệu sẽ gửi); model Hermes chạy trên máy chủ của Thaigit, không gửi cho bên thứ ba, không lưu code.',
     ],
   },
   {

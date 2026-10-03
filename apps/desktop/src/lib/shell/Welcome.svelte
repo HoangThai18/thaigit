@@ -1,10 +1,15 @@
-<!-- Màn hình chính tối giản: mở thư mục + danh sách repo gần đây (do Rust lưu). Clone/tạo repo/cài đặt thuộc 4b. -->
+<!--
+  Màn hình chính tối giản: mở thư mục + danh sách repo gần đây (do Rust lưu), Cài đặt, và (một lần) thẻ hỏi có muốn gửi thống kê
+  ẩn danh không — mặc định là KHÔNG gửi gì.
+-->
 <script lang="ts">
   import { formatRelative } from '../format/time.ts';
   import type { RecentRepo } from '../ipc/types.ts';
   import logo from '../assets/logo.png';
   import { hasTauriInternals } from '../platform/host.ts';
   import { vi } from '../strings.vi.ts';
+  import { settingsStore } from '../stores/settings.svelte.ts';
+  import { telemetry } from '../stores/telemetry.svelte.ts';
   import { updates } from '../stores/update.svelte.ts';
   import Icon from '../ui/Icon.svelte';
 
@@ -68,8 +73,23 @@
       </ul>
     {/if}
 
+    {#if inApp && telemetry.supported && !telemetry.saved.asked}
+      <div class="ask" role="region" aria-label={vi.settings.askTitle}>
+        <strong>{vi.settings.askTitle}</strong>
+        <p>{vi.settings.askText}</p>
+        <div class="ask-buttons">
+          <button type="button" class="ask-no" onclick={() => telemetry.dismiss()}>{vi.settings.askNo}</button
+          >
+          <button type="button" class="ask-yes" onclick={() => telemetry.setEnabled(true)}
+            >{vi.settings.askYes}</button
+          >
+        </div>
+      </div>
+    {/if}
+
     <footer class="footer">
       {#if version}<span class="version">{vi.appName} {version}</span>{/if}
+      <button type="button" class="link" onclick={() => settingsStore.open()}>{vi.settings.title}</button>
       {#if inApp}
         {#if updates.available}
           <button type="button" class="link" onclick={() => void updates.install()}>
@@ -89,6 +109,46 @@
 </main>
 
 <style>
+  .ask {
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--separator);
+    border-radius: var(--radius-m);
+    background: var(--field-fill);
+    text-align: left;
+    font-size: 12.5px;
+  }
+
+  .ask p {
+    margin: 4px 0 10px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+  }
+
+  .ask-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .ask-no,
+  .ask-yes {
+    padding: 4px 12px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .ask-yes {
+    border-color: transparent;
+    background: var(--accent);
+    color: #fff;
+  }
+
   .footer {
     display: flex;
     align-items: center;

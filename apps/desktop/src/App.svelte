@@ -11,6 +11,8 @@
   import DialogHost from './lib/ui/DialogHost.svelte';
   import AiConsent from './lib/ai/AiConsent.svelte';
   import AiResultDialog from './lib/ai/AiResultDialog.svelte';
+  import SettingsPanel from './lib/settings/SettingsPanel.svelte';
+  import { telemetry } from './lib/stores/telemetry.svelte.ts';
   import MenuHost from './lib/ui/MenuHost.svelte';
   import UpdateBar from './lib/shell/UpdateBar.svelte';
   import {
@@ -89,12 +91,15 @@
         .start({ reply: askpassReply, onRequest: onAskpassRequest, onClosed: onAskpassClosed })
         .catch(() => undefined);
       void appReady().catch(() => undefined);
+      // Thống kê ẩn danh: chỉ gửi khi người dùng đã bật (mặc định tắt).
+      telemetry.start();
     }
     return () => {
       window.removeEventListener('unhandledrejection', onRejection);
       window.removeEventListener('error', onError);
       updates.stop();
       askpass.stop();
+      telemetry.stop();
       stopWatching();
       if (view.kind === 'repo') void view.store.dispose();
       prefs.flush();
@@ -236,6 +241,7 @@
 {/if}
 
 <Toasts />
+<SettingsPanel />
 <AiResultDialog />
 <DialogHost />
 <AiConsent />
