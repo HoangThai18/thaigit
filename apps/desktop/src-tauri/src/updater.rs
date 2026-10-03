@@ -295,8 +295,9 @@ mod tests {
         let data = tempfile::tempdir().unwrap();
         let app = tauri::test::mock_builder().build(crate::app_context()).expect("app giả");
         init(app.handle()).expect("plugin updater nhận cấu hình trong tauri.conf.json");
-        // Bản 2.0.0-beta.x mặc định kênh beta; đổi kênh thì lưu bền.
-        assert_eq!(*state(app.handle()).unwrap().channel.lock().unwrap(), Channel::Beta);
+        // Kênh mặc định theo phiên bản trong tauri.conf.json (bản thử → beta, bản chính thức → ổn định); đổi kênh thì lưu bền.
+        let expected = Channel::default_for(&current_version(app.handle()));
+        assert_eq!(*state(app.handle()).unwrap().channel.lock().unwrap(), expected);
         let path = data.path().join("update-channel.json");
         store::write_json(&path, &SavedChannel { channel: Channel::Stable }).unwrap();
         assert_eq!(store::read_json::<SavedChannel>(&path).map(|saved| saved.channel), Some(Channel::Stable));
