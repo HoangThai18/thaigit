@@ -4,7 +4,8 @@
     python3 site/scripts/make-shots.py
 
 Tạo public/screenshots/<tên>-1600.webp và <tên>-800.webp, rồi viết lại lib/shots.ts (kích thước + alt).
-Cần Pillow (pip install pillow). Chạy lại mỗi khi chụp lại ảnh trong docs/screenshots.
+Cần Pillow (pip install pillow). Chạy lại mỗi khi chụp lại ảnh trong docs/screenshots — site/scripts/take-shots.sh
+chụp lại toàn bộ từ app macOS (repo demo dựng bằng make-demo-repos.py) rồi tự gọi script này.
 """
 from pathlib import Path
 
