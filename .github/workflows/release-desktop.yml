@@ -1,10 +1,11 @@
-# Phát hành bản Windows (Tauri) khi đẩy tag `desktop-v<phiên bản>` (vd. desktop-v2.0.0-beta.1).
+# Phát hành bản Windows (Tauri) khi đẩy tag `desktop-v<phiên bản>` (vd. desktop-v2.0.0, desktop-v2.1.0-beta.1).
 # - Build bản cài NSIS trên máy Windows của GitHub, ký file cập nhật bằng khoá minisign (secret TAURI_SIGNING_PRIVATE_KEY +
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD; khoá công khai nằm trong tauri.conf.json).
-# - Tạo release THỬ NGHIỆM (--prerelease --latest=false): `releases/latest` vẫn là bản macOS, bộ cập nhật của app macOS không
-#   bị ảnh hưởng.
-# - Cập nhật release cố định `desktop-beta` (kênh beta): `latest.json` cho bộ cập nhật và `Thaigit-Windows-setup.exe` cho nút
-#   "Tải cho Windows" trên trang chủ (link không đổi giữa các phiên bản).
+# - Tạo release của phiên bản với --latest=false: `releases/latest` vẫn là bản macOS, bộ cập nhật của app macOS không bị
+#   ảnh hưởng. Phiên bản có hậu tố (`-beta.N`) là bản thử: thêm --prerelease.
+# - Cập nhật release cố định của kênh: `latest.json` cho bộ cập nhật và `Thaigit-Windows-setup.exe` cho nút "Tải cho Windows"
+#   (link không đổi giữa các phiên bản). Bản thử → `desktop-beta`; bản chính thức → `desktop-stable` VÀ `desktop-beta`
+#   (người ở kênh beta cũng nhận bản chính thức mới hơn).
 # Bản cài chưa ký Authenticode nên Windows SmartScreen sẽ cảnh báo lần đầu ("More info" → "Run anyway").
 name: Phát hành bản Windows
 
@@ -99,17 +100,23 @@ jobs:
           path: out
       - name: Release của phiên bản
         run: |
+          prerelease=()
+          case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
           gh release create "$GITHUB_REF_NAME" \
             --title "Thaigit cho Windows $VERSION" \
             --notes-file out/notes.md \
-            --prerelease --latest=false --verify-tag \
+            "${prerelease[@]}" --latest=false --verify-tag \
             "out/Thaigit_${VERSION}_x64-setup.exe" "out/Thaigit_${VERSION}_x64-setup.exe.sig" out/latest.json
-      # Release `desktop-beta` phải có sẵn (tạo một lần bằng tài khoản người: token của Actions không được tạo tag mới trỏ vào
-      # commit có đổi file workflow — GitHub trả 403). Ở đây chỉ thay `latest.json` + file cài.
-      - name: Kênh beta (latest.json + link tải cố định)
+      # Release cố định của kênh phải có sẵn (tạo một lần bằng tài khoản người: token của Actions không được tạo tag mới trỏ
+      # vào commit có đổi file workflow — GitHub trả 403). Ở đây chỉ thay `latest.json` + file cài.
+      - name: Kênh cập nhật (latest.json + link tải cố định)
         run: |
-          if ! gh release view desktop-beta > /dev/null 2>&1; then
-            echo "::error::Chưa có release desktop-beta — tạo một lần bằng: gh release create desktop-beta --prerelease --latest=false --target main --title 'Thaigit cho Windows — kênh beta' --notes '…'"
-            exit 1
-          fi
-          gh release upload desktop-beta out/latest.json out/Thaigit-Windows-setup.exe --clobber
+          channels=(desktop-beta)
+          case "$VERSION" in *-*) ;; *) channels+=(desktop-stable) ;; esac
+          for channel in "${channels[@]}"; do
+            if ! gh release view "$channel" > /dev/null 2>&1; then
+              echo "::error::Chưa có release $channel — tạo một lần bằng: gh release create $channel --latest=false --target main --title 'Thaigit cho Windows — kênh …' --notes '…'"
+              exit 1
+            fi
+            gh release upload "$channel" out/latest.json out/Thaigit-Windows-setup.exe --clobber
+          done

@@ -160,7 +160,7 @@ export const FAQ: FaqItem[] = [
   {
     q: 'Có bản Windows chưa?',
     a: [
-      'Đã có bản thử (beta) cho Windows 10 / 11, xây dựng trên Tauri 2: graph, stage từng dòng, commit, fetch / pull / push, merge, rebase, cherry-pick, giải conflict trong app; tự cập nhật lên bản thử mới.',
+      'Có. Thaigit cho Windows 10 / 11 (xây dựng trên Tauri 2): graph, stage từng dòng, commit, fetch / pull / push, merge, rebase, cherry-pick, giải conflict trong app, AI viết commit message; tự cập nhật.',
       'Cần cài Git for Windows trước. Bản cài chưa ký số nên lần đầu SmartScreen có thể cảnh báo — bấm “More info” → “Run anyway”.',
     ],
   },

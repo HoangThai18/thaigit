@@ -57,5 +57,4 @@ CI đã tự kiểm trên `windows-latest` và `macos-15` mỗi lần push: ki�
 ## Đã biết (chưa làm trong beta)
 
 - Đăng nhập GitHub ngay trong app (OAuth Device Flow) cần Client ID của GitHub OAuth App — bản Swift cũng đang để trống. Trên Windows, Git Credential Manager đã lo đăng nhập GitHub.
-- Mỗi repo một cửa sổ (Ctrl+T mở cửa sổ mới) chưa có; hiện đóng repo để về màn hình chính rồi mở repo khác.
 - Bản cài chưa ký số (SmartScreen cảnh báo) cho tới khi có chứng chỉ ký mã Windows.

@@ -52,7 +52,7 @@ export default async function HomePage() {
       description: SITE.description,
       url: SITE.url,
       applicationCategory: 'DeveloperApplication',
-      operatingSystem: 'macOS 14+, Windows 10/11 (beta)',
+      operatingSystem: 'macOS 14+, Windows 10/11',
       downloadUrl: LINKS.downloadMac,
       ...(release ? { softwareVersion: release.version } : {}),
       image: `${SITE.url}/logo-256.png`,
@@ -104,16 +104,16 @@ export default async function HomePage() {
           </p>
           <div className="cta">
             <DownloadButton initial={release} />
-            <a className="btn btn-glass" href={LINKS.downloadWindows} title="Bản thử cho Windows 10 / 11">
+            <a className="btn btn-glass" href={LINKS.downloadWindows} title="Thaigit cho Windows 10 / 11">
               <WindowsIcon />
               <span className="btn-stack">
-                Windows
-                <span className="sub">Bản thử (beta)</span>
+                Tải cho Windows
+                <span className="sub">Windows 10 / 11 · miễn phí</span>
               </span>
             </a>
           </div>
           <div className="checks-row">
-            <span>macOS 14 trở lên</span>
+            <span>macOS 14 · Windows 10 / 11</span>
             <span>Tự cập nhật</span>
             <span>Giao diện tiếng Việt</span>
             <span>Sáng / tối</span>
@@ -224,7 +224,7 @@ export default async function HomePage() {
         <div className="ai-ring" data-reveal>
           <div className="ai">
             <div className="ai-copy">
-              <span className="gradient-badge">Bản Windows — sắp có</span>
+              <span className="gradient-badge">Mới trên Windows</span>
               <h2>AI viết commit message cho bạn</h2>
               <p>
                 Bấm một nút, Thaigit đọc phần thay đổi đã stage và đề xuất message rõ ràng. Bản macOS dùng
@@ -283,7 +283,7 @@ export default async function HomePage() {
                 </h3>
                 <span className="fit-badge">Phù hợp với máy bạn</span>
               </div>
-              <p className="meta">Windows 10 / 11 · 64-bit · bản thử (beta)</p>
+              <p className="meta">Windows 10 / 11 · 64-bit</p>
               <a className="btn btn-primary btn-block" href={LINKS.downloadWindows}>
                 <WindowsIcon /> Tải cho Windows
               </a>
@@ -302,7 +302,7 @@ export default async function HomePage() {
                 </li>
               </ol>
               <p className="note bottom">
-                App tự cập nhật lên bản thử mới. Xem <a href={LINKS.changelogWindows}>có gì mới</a> ·{' '}
+                App tự cập nhật. Xem <a href={LINKS.changelogWindows}>có gì mới</a> ·{' '}
                 <a href={LINKS.releases}>mọi bản phát hành</a>.
               </p>
             </div>
@@ -376,8 +376,8 @@ export default async function HomePage() {
           <p>
             Thaigit is a free, visual Git GUI with a Liquid Glass look: a colorful commit graph, drag-and-drop
             to merge, rebase or push, line-by-line staging and a friendly conflict resolver. The native macOS
-            app is available today and updates itself from GitHub Releases. A Windows beta (Tauri 2, Windows
-            10/11) is out too and also updates itself. The UI is Vietnamese for now.
+            app updates itself from GitHub Releases. The Windows app (Tauri 2, Windows 10/11) also updates
+            itself and can write commit messages with a self-hosted AI model. The UI is Vietnamese for now.
           </p>
         </div>
       </section>
@@ -387,7 +387,7 @@ export default async function HomePage() {
         <div className="final-cta" data-reveal>
           <img src="/logo-256.png" width={88} height={88} alt="" />
           <h2>Làm việc với Git nhẹ nhàng hơn từ hôm nay</h2>
-          <p>Tải Thaigit miễn phí cho macOS — và bản thử cho Windows.</p>
+          <p>Tải Thaigit miễn phí cho macOS và Windows.</p>
           <div className="cta">
             <DownloadButton initial={release} className="btn btn-white" />
             <a className="btn btn-outline-light" href={LINKS.github}>

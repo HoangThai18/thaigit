@@ -15,7 +15,7 @@ Thaigit giúp làm việc với git bằng chuột: nhìn lịch sử dạng gra
 | Bản | Nền tảng | Trạng thái |
 | --- | --- | --- |
 | Thaigit cho macOS (Swift, native) | macOS 14 trở lên | **Dùng được** — build từ mã nguồn, tự cập nhật qua GitHub Releases |
-| Thaigit cho Windows (Tauri 2) | Windows 10/11 | **Bản thử (beta)** — tải ở [trang chủ](https://git.thaipro.store), tự cập nhật; bản macOS cùng code đang làm |
+| Thaigit cho Windows (Tauri 2) | Windows 10/11 | **Dùng được** (2.0.0) — tải ở [trang chủ](https://git.thaipro.store), tự cập nhật (kênh Ổn định / Beta); bản macOS cùng code đang làm |
 
 ## Tính năng nổi bật
 
@@ -208,9 +208,9 @@ Bản Windows dùng Ctrl thay cho ⌘.
 - Git: đường dẫn `git` riêng, kiểu Pull mặc định, prune khi fetch, chu kỳ tự fetch.
 - Tài khoản: thêm / xoá tài khoản GitHub, chọn tài khoản mặc định, sửa tên & email commit, owner đã gán.
 
-## Bản Windows (Tauri, beta)
+## Bản Windows (Tauri)
 
-- Chung một code cho Windows và macOS (Tauri 2 + Svelte 5 + TypeScript); bản Windows đang thử nghiệm, tự cập nhật.
+- Chung một code cho Windows và macOS (Tauri 2 + Svelte 5 + TypeScript); bản Windows đã phát hành chính thức (2.0.0), tự cập nhật — kênh Ổn định mặc định, đổi sang Beta trong Cài đặt.
 - **AI viết commit message** bằng model Hermes (Nous Research) chạy trên máy chủ của Thaigit — bấm *✨ Viết bằng AI* là có, không cần API key. Thêm: *Giải thích bằng AI* trong chi tiết commit, *Viết mô tả PR với AI…* trong menu nhánh. Máy chủ: `server/`, cách dựng: [docs/deploy-server.md](docs/deploy-server.md).
 - Thống kê ẩn danh **chỉ khi bạn bật** (Cài đặt → Quyền riêng tư).
 - Sắp có: bản macOS từ cùng code, giao diện tiếng Anh.
@@ -260,7 +260,7 @@ Pull Request của GitLab / Bitbucket.
 
 ## English
 
-Thaigit is a free, visual Git GUI with a Liquid Glass look. The native macOS app (Swift) is usable today and updates itself from GitHub Releases (Ed25519-signed; just restart to get the new version). A cross-platform app (Tauri 2) is in beta on Windows, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
+Thaigit is a free, visual Git GUI with a Liquid Glass look. The native macOS app (Swift) is usable today and updates itself from GitHub Releases (Ed25519-signed; just restart to get the new version). A cross-platform app (Tauri 2) is available on Windows 10/11, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
 
 ---
 

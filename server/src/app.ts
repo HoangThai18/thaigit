@@ -63,8 +63,8 @@ const DOWNLOAD_TARGETS: Record<DownloadAsset, (repo: string) => { url: string; m
     manifest: `https://github.com/${repo}/releases/latest/download/update.json`,
   }),
   win: (repo) => ({
-    url: `https://github.com/${repo}/releases/download/desktop-beta/Thaigit-Windows-setup.exe`,
-    manifest: `https://github.com/${repo}/releases/download/desktop-beta/latest.json`,
+    url: `https://github.com/${repo}/releases/download/desktop-stable/Thaigit-Windows-setup.exe`,
+    manifest: `https://github.com/${repo}/releases/download/desktop-stable/latest.json`,
   }),
 };
 

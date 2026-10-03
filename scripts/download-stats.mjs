@@ -46,10 +46,12 @@ const win = all
     installers: count(release, /^Thaigit_.*_x64-setup\.exe$/),
     checks: count(release, /^latest\.json$/),
   }));
-const beta = all.find((release) => release.tag_name === 'desktop-beta');
+const channels = all.filter((release) => ['desktop-stable', 'desktop-beta'].includes(release.tag_name));
 const windows = {
-  downloads: beta ? count(beta, /^Thaigit-Windows-setup\.exe$/) : 0,
-  checks: (beta ? count(beta, /^latest\.json$/) : 0) + win.reduce((sum, item) => sum + item.checks, 0),
+  downloads: channels.reduce((sum, release) => sum + count(release, /^Thaigit-Windows-setup\.exe$/), 0),
+  checks:
+    channels.reduce((sum, release) => sum + count(release, /^latest\.json$/), 0) +
+    win.reduce((sum, item) => sum + item.checks, 0),
   versions: win,
 };
 const sum = (items, key) => items.reduce((total, item) => total + item[key], 0);
