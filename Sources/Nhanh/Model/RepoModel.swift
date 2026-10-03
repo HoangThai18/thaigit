@@ -62,6 +62,8 @@ final class RepoModel {
     var fileEditor: FileEditorSession?
     /// Terminal đơn giản dưới graph (xem TerminalSession.swift), tạo khi mở lần đầu.
     var terminal: TerminalSession?
+    /// Submodule, worktree, Git Flow, LFS (xem RepoModel+Advanced.swift).
+    var extras = RepoExtras()
     var diffState: DiffState = .idle
     /// Các dòng đang chọn trong diff để stage/unstage/huỷ từng dòng: id hunk → chỉ số dòng.
     var lineSelection: [Int: Set<Int>] = [:]
@@ -122,7 +124,11 @@ final class RepoModel {
         let repository = try await GitRepository.open(at: URL(fileURLWithPath: path), environment: appState.environment) { record in
             log.append(record)
         }
-        return RepoModel(repository: repository, commandLog: log)
+        let model = RepoModel(repository: repository, commandLog: log)
+        // Nạp trước submodule / worktree / Git Flow: sidebar có đủ các mục ngay lần vẽ đầu (chèn mục vào List sau đó
+        // làm NSTableView của sidebar cập nhật lồng nhau).
+        model.extras = await RepoExtras.load(repository)
+        return model
     }
 
     // MARK: - Vòng đời
@@ -278,6 +284,7 @@ final class RepoModel {
             remotes = value
             loadPullRequests()
         }
+        if wantsRefs { loadExtras() }
         let newOperation = repository.operationState()
         if newOperation != operation { operation = newOperation }
         // Hết xung đột thì ẩn các cảnh báo xung đột cũ.

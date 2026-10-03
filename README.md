@@ -96,6 +96,8 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 **Thay đổi & commit**
 - Diff gộp hoặc tách đôi, diff ảnh; stage / bỏ stage / huỷ theo file, hunk hoặc từng dòng.
 - Commit, amend, ⌘↩ để commit nhanh, "Stage tất cả & commit".
+- **AI viết commit message** (nút ✨ cạnh chữ Commit): đọc thay đổi đã stage và các commit gần đây để viết đúng phong cách / ngôn ngữ của repo. Chạy bằng Apple Intelligence ngay trên máy (macOS 26+) — code không rời khỏi máy, không cần tài khoản hay API key. Có nút Hoàn tác.
+- **Issues GitHub / Jira** (⌥⌘J, hoặc nút # cạnh chữ Commit): xem issue đang mở của repo trên GitHub và issue Jira giao cho bạn; tạo nhánh từ issue (tên gợi ý như `issue-42-dang-nhap-bi-loi`, `WEB-12-gio-hang`), gắn `#42` / `WEB-12` vào commit message, mở trên web. Jira Cloud kết nối bằng email + API token (token cất trong Keychain, chỉ gửi tới site Jira đã nhập).
 - **Sửa file ngay trong app**: mở diff của file chưa stage, bấm *Sửa* — gõ, ⌘S lưu, ⌘Z hoàn tác. Giữ nguyên BOM và kiểu xuống dòng (CRLF / LF) của file, giữ quyền chạy (+x); file bị sửa ở nơi khác sau khi mở thì hỏi trước khi ghi đè. Chỉ nhận file UTF-8 (file khác: mở bằng trình soạn thảo); không theo symlink ra ngoài repo.
 - **So sánh** hai commit bất kỳ (giữ ⌘ và bấm 2 commit trên graph) hoặc một nhánh với nhánh hiện tại (chuột phải vào nhánh → *So sánh với …*): panel bên phải liệt kê các commit nằm giữa và các file khác nhau, bấm file để xem diff.
 - **Ẩn / solo nhánh trên graph** như GitKraken: rê chuột vào nhánh ở sidebar, bấm con mắt để ẩn (hoặc chuột phải → *Ẩn khỏi graph*); *Chỉ hiện nhánh này (solo)* để graph chỉ còn các nhánh đã chọn và nhánh đang checkout. Ẩn nhánh local thì nhánh remote nó theo dõi cũng ẩn theo; app nhớ riêng cho từng repo; dải báo ở đáy graph có nút *Hiện tất cả*.
@@ -108,6 +110,10 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - **Interactive rebase** (chuột phải vào commit → *Interactive rebase … từ đây*): kéo để đổi thứ tự, chọn pick / reword / squash / fixup / drop cho từng commit, sửa lời commit ngay trong bảng; thay đổi chưa commit được tự cất và trả lại sau khi rebase.
 - **Merge từ repository khác** (menu Pull, menu Repository hoặc chuột phải vào nhánh): lấy nhánh của một repo khác — thư mục trên máy (không cần đăng nhập) hoặc URL — merge vào nhánh của repo đang mở, không thêm remote. App nhớ nguồn đã dùng, lần sau chỉ cần bấm *Merge lại*. Hai repo tạo riêng (không chung commit) thì hỏi trước rồi mới merge với `--allow-unrelated-histories`.
 - Stash kèm lời nhắn, apply, pop, xoá; checkout bị chặn vì có thay đổi thì có nút "Stash rồi checkout".
+- **Ký commit GPG / SSH** (menu Repository → *Ký commit…*): bật ký cho repo này hoặc mọi repo, chọn khoá SSH trong ~/.ssh hoặc khoá GPG. Panel commit cho biết commit có chữ ký không; bấm *Xác minh* để kiểm (luôn dùng gpg / ssh-keygen thật, không chạy chương trình do repo tự đặt).
+- **Git Flow** (menu Repository → *Git Flow*): khởi tạo (dùng chung cấu hình `gitflow.*` với git-flow), bắt đầu feature / release / hotfix, kết thúc bằng chuột phải vào nhánh — merge --no-ff, gắn tag phiên bản, xoá nhánh; mục *GIT FLOW* ở sidebar.
+- **Submodule và worktree**: mục *SUBMODULES* (tải về / cập nhật, mở submodule trong tab mới) và *WORKTREES* (thêm worktree cho nhánh mới hoặc có sẵn, mở trong tab mới, xoá) ở sidebar.
+- **Git LFS** (menu Repository → *Git LFS*): pull / fetch / prune, theo dõi kiểu file mới (sửa .gitattributes).
 - **Pull Request (GitHub)**: mục *PULL REQUESTS* ở sidebar liệt kê PR đang mở (repo riêng tư cần đăng nhập GitHub); nhãn nhánh trên graph có biểu tượng PR. Bấm PR để tới commit mới nhất, nhấp đúp để checkout (PR từ fork được lấy về nhánh `pr/<số>`), chuột phải để mở trên GitHub hoặc xem thay đổi so với nhánh đích. *Tạo Pull Request…* (nút + của mục, hoặc chuột phải vào nhánh): chọn nhánh đích, tiêu đề / mô tả điền sẵn từ các commit, tạo dạng nháp được; nhánh chưa push thì push trước rồi tạo.
 
 **Khác**
@@ -249,7 +255,7 @@ Trang chủ (`site/`) cần Node 24 và pnpm: `pnpm install`, rồi `pnpm --filt
 
 ## Chưa có
 
-Giao diện cho submodule và Git LFS, ký commit GPG / SSH, Pull Request của GitLab / Bitbucket.
+Pull Request của GitLab / Bitbucket.
 
 ## English
 

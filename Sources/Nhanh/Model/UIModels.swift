@@ -162,6 +162,18 @@ enum RepoSheet: Identifiable {
     case blame(path: String, rev: String?)
     /// Tạo Pull Request trên GitHub từ nhánh `head` (tên nhánh trên remote GitHub).
     case createPullRequest(head: String)
+    /// Bật / tắt ký commit (GPG / SSH).
+    case commitSigning
+    /// Tạo worktree mới (nhánh có sẵn hoặc nhánh mới).
+    case addWorktree
+    /// Khởi tạo Git Flow (tên nhánh chính / develop, tiền tố).
+    case gitFlowInit
+    /// Bắt đầu feature / release / hotfix.
+    case gitFlowStart(GitFlowKind)
+    /// Theo dõi một kiểu file bằng Git LFS.
+    case lfsTrack
+    /// Issue GitHub / Jira: tạo nhánh, gắn vào commit.
+    case issues
 
     var id: String {
         switch self {
@@ -181,6 +193,12 @@ enum RepoSheet: Identifiable {
         case .interactiveRebase(let base, _): return "interactive-rebase-\(base)"
         case .blame(let path, let rev): return "blame-\(rev ?? "")-\(path)"
         case .createPullRequest(let head): return "create-pr-\(head)"
+        case .commitSigning: return "commit-signing"
+        case .addWorktree: return "add-worktree"
+        case .gitFlowInit: return "git-flow-init"
+        case .gitFlowStart(let kind): return "git-flow-start-\(kind.rawValue)"
+        case .lfsTrack: return "lfs-track"
+        case .issues: return "issues"
         }
     }
 }

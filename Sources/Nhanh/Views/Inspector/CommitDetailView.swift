@@ -123,6 +123,11 @@ private struct DetailContent: View {
                             }
                         }
                     }
+                    if !commit.isWorkingTree {
+                        // id theo commit: chọn commit khác thì trạng thái (đã ký? đã xác minh?) làm lại từ đầu.
+                        SignatureRow(repository: model.repository, sha: commit.id)
+                            .id(commit.id)
+                    }
                 }
             }
             .padding(14)
@@ -258,5 +263,66 @@ struct FileList: View {
         }
         .font(.caption.monospacedDigit())
         .labelStyle(.titleAndIcon)
+    }
+}
+
+/// Dòng "chữ ký" của commit: biết commit có ký hay không ngay (đọc object, không chạy chương trình ngoài); bấm
+/// "Xác minh" mới chạy gpg / ssh-keygen để kiểm.
+private struct SignatureRow: View {
+    let repository: GitRepository
+    let sha: String
+    @State private var format: SignatureFormat?
+    @State private var verification: SignatureVerification?
+    @State private var verifying = false
+
+    var body: some View {
+        if let format {
+            HStack(spacing: 6) {
+                Text("chữ ký").font(.caption).foregroundStyle(.secondary).frame(width: 46, alignment: .leading)
+                Label(format.title, systemImage: "signature").font(.caption)
+                if let verification {
+                    result(verification)
+                } else if verifying {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Button("Xác minh") {
+                        verifying = true
+                        Task {
+                            verification = await repository.verifySignature(of: sha)
+                            verifying = false
+                        }
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                }
+            }
+        } else {
+            Color.clear.frame(height: 0)
+                .task(id: sha) {
+                    verification = nil
+                    format = await repository.signatureFormat(of: sha)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func result(_ value: SignatureVerification) -> some View {
+        switch value {
+        case .good(let signer, _, let trusted):
+            Label(trusted ? "Hợp lệ" : "Hợp lệ (khoá chưa tin cậy)", systemImage: "checkmark.seal.fill")
+                .font(.caption).foregroundStyle(trusted ? .green : .orange)
+                .help(signer)
+        case .bad:
+            Label("Sai chữ ký", systemImage: "xmark.seal.fill").font(.caption).foregroundStyle(.red)
+        case .expired:
+            Label("Đã hết hạn", systemImage: "clock.badge.exclamationmark").font(.caption).foregroundStyle(.orange)
+        case .revoked:
+            Label("Khoá đã bị thu hồi", systemImage: "xmark.seal").font(.caption).foregroundStyle(.red)
+        case .cannotCheck(let key):
+            Label("Không kiểm được", systemImage: "questionmark.circle").font(.caption).foregroundStyle(.secondary)
+                .help("Thiếu khoá công khai \(key) hoặc chưa cấu hình gpg.ssh.allowedSignersFile")
+        case .unsigned:
+            Text("Không có chữ ký").font(.caption).foregroundStyle(.secondary)
+        }
     }
 }

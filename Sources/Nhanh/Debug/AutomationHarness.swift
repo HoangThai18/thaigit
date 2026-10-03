@@ -284,6 +284,22 @@ enum AutomationHarness {
                 if model.terminal?.isVisible != true { model.toggleTerminal() }
                 model.terminal?.input = value
                 model.terminal?.run()
+            case "ai":
+                // AI viết commit message cho thay đổi đã stage, ghi kết quả ra log.
+                log("ai: " + (CommitMessageAI.unavailableReason ?? "sẵn sàng"))
+                await model.fillCommitMessageWithAI()
+                log("ai summary: \(model.commitSummary) | body: \(model.commitBody.replacingOccurrences(of: "\n", with: " / "))")
+            case "sheet":
+                // Mở hộp thoại theo tên: act:sheet:signing | worktree | flowinit | flowstart | lfs
+                switch value {
+                case "signing": model.sheet = .commitSigning
+                case "worktree": model.sheet = .addWorktree
+                case "flowinit": model.sheet = .gitFlowInit
+                case "flowstart": model.sheet = .gitFlowStart(.feature)
+                case "lfs": model.sheet = .lfsTrack
+                case "issues": model.sheet = .issues
+                default: break
+                }
             case "hide", "solo":
                 // Ẩn / solo nhánh theo tên: act:hide:thu-nghiem, act:solo:main
                 if let ref = model.refs.first(where: { $0.kind != .tag && $0.name == value }) {

@@ -262,6 +262,7 @@ private struct ConflictList: View {
 struct CommitComposer: View {
     @Bindable var model: RepoModel
     @FocusState private var summaryFocused: Bool
+    @State private var aiWorking = false
 
     private var remaining: Int { 72 - model.commitSummary.count }
 
@@ -271,6 +272,30 @@ struct CommitComposer: View {
         if model.operation == .reverting { return "Hoàn tất revert" }
         let count = model.status.staged.count
         return count > 0 ? "Commit \(count) file vào \(model.currentBranch ?? "HEAD")" : "Commit"
+    }
+
+    /// ✨ Viết commit message bằng AI chạy trên máy (Apple Intelligence) từ thay đổi đã stage.
+    @ViewBuilder
+    private var aiButton: some View {
+        let reason = CommitMessageAI.unavailableReason
+        if aiWorking {
+            ProgressView().controlSize(.small)
+        } else {
+            Button {
+                aiWorking = true
+                Task {
+                    await model.fillCommitMessageWithAI()
+                    aiWorking = false
+                }
+            } label: {
+                Image(systemName: "sparkles")
+            }
+            .buttonStyle(.borderless)
+            .disabled(reason != nil || model.status.staged.isEmpty)
+            .help(reason ?? (model.status.staged.isEmpty
+                ? "Stage thay đổi trước, rồi để AI viết commit message"
+                : "AI viết commit message từ thay đổi đã stage — chạy trên máy, không gửi code đi đâu"))
+        }
     }
 
     /// Không gợi ý khi đang merge / revert…: "Stage tất cả & commit" sẽ gói luôn thay đổi đang làm dở vào commit hoàn tất
@@ -283,6 +308,10 @@ struct CommitComposer: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Commit").font(.headline)
+                aiButton
+                Button { model.sheet = .issues } label: { Image(systemName: "number") }
+                    .buttonStyle(.borderless)
+                    .help("Gắn issue GitHub / Jira vào commit message (⌥⌘J)")
                 Spacer()
                 Toggle("Sửa commit trước (amend)", isOn: $model.amendLastCommit)
                     .toggleStyle(.checkbox)

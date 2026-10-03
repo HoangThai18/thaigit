@@ -12,8 +12,14 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Interactive rebase: chuột phải vào commit → "Interactive rebase … từ đây", kéo để đổi thứ tự, chọn pick / reword / squash / fixup / drop, sửa lời commit ngay trong bảng; tự cất thay đổi chưa commit rồi trả lại
 - Blame: chuột phải vào file → "Blame — ai sửa từng dòng", mỗi dòng kèm tác giả, thời gian, commit; theo dấu code chuyển từ file khác
 - So sánh: giữ ⌘ và bấm 2 commit trên graph, hoặc chuột phải vào nhánh → "So sánh với …" để xem nhánh đó có gì mới so với nhánh hiện tại; panel bên phải liệt kê commit nằm giữa và các file khác nhau, bấm file để xem diff
+- AI viết commit message (nút ✨): Apple Intelligence chạy trên máy, theo phong cách các commit gần đây, có Hoàn tác
+- Issues GitHub / Jira (⌥⌘J): tạo nhánh từ issue, gắn #số / mã Jira vào commit message, mở trên web; kết nối Jira Cloud bằng API token (Keychain)
+- Ký commit GPG / SSH: hộp "Ký commit…" (repo này hoặc mọi repo, chọn khoá), panel commit hiện commit có ký không và nút "Xác minh" (luôn dùng gpg / ssh-keygen thật, bỏ qua gpg.program do repo đặt)
+- Git Flow: khởi tạo, bắt đầu / kết thúc feature, release, hotfix (merge --no-ff, tag phiên bản), mục GIT FLOW ở sidebar; báo rõ bước dừng nếu conflict
+- Submodule (tải về / cập nhật, mở trong tab mới) và worktree (thêm, mở, xoá) ở sidebar
+- Git LFS: pull / fetch / prune, theo dõi kiểu file
 - Sửa file ngay trong app: nút "Sửa" trên diff của file chưa stage, ⌘S lưu; giữ BOM, CRLF/LF, quyền +x; hỏi trước khi ghi đè file vừa bị sửa ở nơi khác
-- Terminal đơn giản trong app (⌃`): chạy lệnh trong thư mục repo, nhớ `cd`, lịch sử lệnh, nút Dừng; repo tự làm mới sau mỗi lệnh
+- Terminal đơn giản trong app (Control + phím bên trái số 1, hoặc menu Mở → Terminal trong app): chạy lệnh trong thư mục repo, nhớ thư mục sau lệnh cd, lịch sử lệnh, nút Dừng; repo tự làm mới sau mỗi lệnh
 - Bảng lệnh ⌘P: tìm và chạy mọi thao tác, checkout / so sánh nhánh, mở Pull Request, chuyển tab, mở repo gần đây; tìm không dấu
 - Ẩn / solo nhánh trên graph: nút con mắt khi rê chuột vào nhánh ở sidebar, menu "Ẩn khỏi graph" / "Chỉ hiện nhánh này (solo)", nhớ theo từng repo, dải "Hiện tất cả" ở đáy graph
 - Pull Request GitHub: mục PULL REQUESTS ở sidebar (PR đang mở, tự tải lại sau mỗi lần fetch), biểu tượng PR trên nhãn nhánh của graph; checkout nhánh của PR (kể cả PR từ fork), xem thay đổi so với nhánh đích, mở trên GitHub; tạo PR từ nhánh với tiêu đề / mô tả điền sẵn từ commit, tạo dạng nháp, tự push nhánh trước nếu cần

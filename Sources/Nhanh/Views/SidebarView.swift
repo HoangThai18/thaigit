@@ -13,6 +13,9 @@ struct SidebarView: View {
     @AppStorage("sidebar.showTags") private var showTags = false
     @AppStorage("sidebar.showStashes") private var showStashes = true
     @AppStorage("sidebar.showPullRequests") private var showPullRequests = true
+    @AppStorage("sidebar.showSubmodules") private var showSubmodules = true
+    @AppStorage("sidebar.showWorktrees") private var showWorktrees = false
+    @AppStorage("sidebar.showGitFlow") private var showGitFlow = true
 
     private var trimmedFilter: String { filter.trimmingCharacters(in: .whitespaces) }
     private var filtering: Bool { !trimmedFilter.isEmpty }
@@ -64,6 +67,32 @@ struct SidebarView: View {
                     model.beginStash()
                 }
             }
+
+            if let flow = model.extras.gitFlow {
+                Section(isExpanded: $showGitFlow) {
+                    if showGitFlow { gitFlowRows(flow) }
+                } header: {
+                    SidebarHeader(title: "GIT FLOW", count: flowBranches(flow).count, systemImage: "flag") {
+                        model.sheet = .gitFlowStart(.feature)
+                    }
+                }
+            }
+
+            if !model.extras.submodules.isEmpty {
+                Section(isExpanded: $showSubmodules) {
+                    if showSubmodules { submoduleRows }
+                } header: {
+                    SidebarHeader(title: "SUBMODULES", count: model.extras.submodules.count, systemImage: "shippingbox", addAction: nil)
+                }
+            }
+
+            Section(isExpanded: $showWorktrees) {
+                if showWorktrees { worktreeRows }
+            } header: {
+                SidebarHeader(title: "WORKTREES", count: model.extras.linkedWorktrees.count, systemImage: "square.on.square") {
+                    model.sheet = .addWorktree
+                }
+            }
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -95,6 +124,8 @@ struct SidebarView: View {
                 model.applyStash(stash)
             } else if let pull = pullRequest(for: id) {
                 model.checkoutPullRequest(pull)
+            } else if let path = openablePath(for: id) {
+                model.openInNewTab(path)
             }
         }
         .onChange(of: selection) { _, newValue in
@@ -186,6 +217,82 @@ struct SidebarView: View {
         }
     }
 
+    private func flowBranches(_ flow: GitFlowConfig) -> [GitRef] {
+        model.localBranches.filter { flow.classify($0.name) != nil && matches($0.name) }
+    }
+
+    @ViewBuilder
+    private func gitFlowRows(_ flow: GitFlowConfig) -> some View {
+        ForEach(flowBranches(flow)) { ref in
+            branchRow(ref, title: ref.name)
+        }
+        HStack(spacing: 10) {
+            ForEach(GitFlowKind.allCases) { kind in
+                Button("+ \(kind.title)") { model.sheet = .gitFlowStart(kind) }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .help("Bắt đầu \(kind.title.lowercased()) mới từ \(flow.base(kind))")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var submoduleRows: some View {
+        ForEach(model.extras.submodules) { module in
+            HStack(spacing: 6) {
+                Image(systemName: "shippingbox")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16)
+                Text(module.path)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .opacity(module.state == .uninitialized ? 0.5 : 1)
+                Spacer(minLength: 4)
+                if let badge = Self.submoduleBadge(module.state) {
+                    Image(systemName: badge.symbol).foregroundStyle(badge.color)
+                }
+            }
+            .help([module.path + " @ " + String(module.sha.prefix(7)), Self.submoduleBadge(module.state)?.hint]
+                .compactMap { $0 }.joined(separator: "\n"))
+            .tag("sub:" + module.path)
+        }
+    }
+
+    private static func submoduleBadge(_ state: Submodule.State) -> (symbol: String, color: Color, hint: String)? {
+        switch state {
+        case .uninitialized: return ("arrow.down.circle", .secondary, "Chưa tải về — chuột phải → Tải về")
+        case .modified: return ("exclamationmark.circle", .orange, "Đang ở commit khác commit repo này ghi nhận")
+        case .conflicted: return ("exclamationmark.triangle", .red, "Xung đột")
+        case .upToDate: return nil
+        }
+    }
+
+    @ViewBuilder
+    private var worktreeRows: some View {
+        ForEach(model.extras.worktrees) { worktree in
+            HStack(spacing: 6) {
+                Image(systemName: worktree.isMain ? "folder.fill" : "folder")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16)
+                Text(worktree.branch ?? "HEAD tách rời")
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 4)
+                if worktree.isMain {
+                    Text("chính").font(.caption).foregroundStyle(.secondary)
+                }
+                if worktree.isLocked {
+                    Image(systemName: "lock").foregroundStyle(.secondary).help("Worktree đang bị khoá")
+                }
+                if worktree.isPrunable {
+                    Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange).help("Thư mục không còn — có thể dọn")
+                }
+            }
+            .help((worktree.path as NSString).abbreviatingWithTildeInPath)
+            .tag("wt:" + worktree.path)
+        }
+    }
+
     @ViewBuilder
     private var tagRows: some View {
         let tags = model.tags.filter { matches($0.name) }
@@ -255,10 +362,28 @@ struct SidebarView: View {
         return model.pullRequests.items.first { $0.number == number }
     }
 
+    /// Đường dẫn mở được thành tab (submodule đã tải về, worktree khác thư mục đang mở).
+    private func openablePath(for id: String) -> String? {
+        if id.hasPrefix("sub:"), let module = model.extras.submodules.first(where: { "sub:" + $0.path == id }),
+           module.state != .uninitialized {
+            return model.repository.root.appendingPathComponent(module.path).path
+        }
+        if id.hasPrefix("wt:"), let worktree = model.extras.worktrees.first(where: { "wt:" + $0.path == id }), !worktree.isMain {
+            return worktree.path
+        }
+        return nil
+    }
+
     private func menuItems(for id: String) -> [MenuItemSpec] {
         if let ref = ref(for: id) { return model.menu(for: ref) }
         if let stash = stash(for: id) { return model.stashMenu(stash) }
         if let pull = pullRequest(for: id) { return model.pullRequestMenu(pull) }
+        if id.hasPrefix("sub:"), let module = model.extras.submodules.first(where: { "sub:" + $0.path == id }) {
+            return model.submoduleMenu(module)
+        }
+        if id.hasPrefix("wt:"), let worktree = model.extras.worktrees.first(where: { "wt:" + $0.path == id }) {
+            return model.worktreeMenu(worktree)
+        }
         return []
     }
 }

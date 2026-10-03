@@ -39,6 +39,24 @@ public struct GitHubPullRequest: Sendable, Equatable, Identifiable {
     }
 }
 
+/// Issue đang mở trên GitHub.
+public struct GitHubIssue: Sendable, Equatable, Identifiable {
+    public let number: Int
+    public let title: String
+    public let author: String
+    public let labels: [String]
+    public let webURL: URL?
+    public var id: Int { number }
+
+    public init(number: Int, title: String, author: String, labels: [String] = [], webURL: URL? = nil) {
+        self.number = number
+        self.title = title
+        self.author = author
+        self.labels = labels
+        self.webURL = webURL
+    }
+}
+
 /// Nội dung một Pull Request mới (`POST /repos/{owner}/{repo}/pulls`).
 public struct NewPullRequest: Sendable, Equatable {
     public var title: String
@@ -124,6 +142,32 @@ public struct GitHubRepoAPI: Sendable {
         try Self.check(response, data: data)
         guard let payload = try? JSONDecoder().decode(PullPayload.self, from: data) else { throw GitHubError.invalidResponse }
         return payload.pullRequest
+    }
+
+    /// Issue đang mở (bỏ các mục là Pull Request — API issues của GitHub trả cả PR), mới cập nhật trước.
+    public func openIssues(in repo: GitHubRepoRef, token: String?, limit: Int = 100) async throws -> [GitHubIssue] {
+        guard let url = Self.url(repo, "/issues", query: [
+            URLQueryItem(name: "state", value: "open"),
+            URLQueryItem(name: "sort", value: "updated"),
+            URLQueryItem(name: "per_page", value: String(min(max(limit, 1), 100))),
+        ]) else { throw GitHubRepoAPIError.invalidRepository }
+        let (data, response) = try await send(Self.request(url, token: token))
+        try Self.check(response, data: data)
+        struct Item: Decodable {
+            struct User: Decodable { let login: String }
+            struct Label: Decodable { let name: String }
+            let number: Int
+            let title: String
+            let html_url: String?
+            let user: User?
+            let labels: [Label]?
+            let pull_request: [String: String?]?
+        }
+        guard let items = try? JSONDecoder().decode([Item].self, from: data) else { throw GitHubError.invalidResponse }
+        return items.filter { $0.pull_request == nil }.map { item in
+            GitHubIssue(number: item.number, title: item.title, author: item.user?.login ?? "?",
+                        labels: (item.labels ?? []).map(\.name), webURL: item.html_url.flatMap(Self.trustedWebURL))
+        }
     }
 
     /// Nhánh mặc định của repo trên GitHub (nhánh đích gợi ý khi tạo PR).

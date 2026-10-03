@@ -149,6 +149,33 @@ struct AppCommands: Commands {
             Divider()
             Button("Tài khoản GitHub cho repo này…") { model?.sheet = .githubAccount(owner: nil) }
                 .disabled(model == nil)
+            Button("Issues (GitHub / Jira)…") { model?.sheet = .issues }
+                .keyboardShortcut("j", modifiers: [.command, .option])
+                .disabled(model == nil)
+            Button("Ký commit (GPG / SSH)…") { model?.sheet = .commitSigning }
+                .disabled(model == nil)
+            Menu("Git Flow") {
+                if model?.extras.gitFlow == nil {
+                    Button("Khởi tạo Git Flow…") { model?.sheet = .gitFlowInit }
+                } else {
+                    ForEach(GitFlowKind.allCases) { kind in
+                        Button("Bắt đầu \(kind.title.lowercased())…") { model?.sheet = .gitFlowStart(kind) }
+                    }
+                }
+            }
+            .disabled(model == nil)
+            Menu("Git LFS") {
+                Button("Pull file LFS") { model?.runLFS(.pull) }
+                Button("Fetch file LFS") { model?.runLFS(.fetch) }
+                Button("Dọn file LFS cũ (prune)") { model?.runLFS(.prune) }
+                Divider()
+                Button("Theo dõi kiểu file bằng LFS…") { model?.sheet = .lfsTrack }
+            }
+            .disabled(model == nil)
+            Button("Thêm worktree…") { model?.sheet = .addWorktree }
+                .disabled(model == nil)
+            Button("Tải / cập nhật mọi submodule") { model?.updateSubmodules() }
+                .disabled(model?.extras.submodules.isEmpty ?? true)
             Button("Nhật ký lệnh git…") { model?.sheet = .commandLog }
         }
     }

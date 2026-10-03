@@ -321,7 +321,7 @@ extension RepoModel {
         }
     }
 
-    private func handleCheckoutError(_ error: any Error, stashAndRetry: @escaping () -> Void) -> Bool {
+    func handleCheckoutError(_ error: any Error, stashAndRetry: @escaping () -> Void) -> Bool {
         guard let gitError = error as? GitError,
               gitError.contains("would be overwritten") || gitError.contains("Please commit your changes or stash them") else {
             return false
@@ -333,7 +333,7 @@ extension RepoModel {
     }
 
     /// Cất thay đổi vào stash rồi chạy thao tác (GitKraken gọi là auto-stash).
-    private func stashThen(_ title: String, _ work: @escaping (GitRepository) async throws -> Void) {
+    func stashThen(_ title: String, _ work: @escaping (GitRepository) async throws -> Void) {
         perform(title) { repo in
             try await repo.stashPush(message: "Thaigit: tự cất trước khi \(title.lowercased())", includeUntracked: true)
             try await work(repo)
@@ -1236,6 +1236,11 @@ extension RepoModel {
         if !pullItems.isEmpty {
             items.append(.separator)
             items += pullItems
+        }
+        let flowItems = gitFlowMenuItems(for: ref)
+        if !flowItems.isEmpty {
+            items.append(.separator)
+            items += flowItems
         }
         let filterItems = graphFilterMenuItems(for: ref)
         if !filterItems.isEmpty {

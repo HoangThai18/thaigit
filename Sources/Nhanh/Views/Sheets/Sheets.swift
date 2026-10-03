@@ -40,6 +40,18 @@ struct SheetContent: View {
             BlameSheet(model: model, path: path, rev: rev)
         case .createPullRequest(let head):
             CreatePullRequestSheet(model: model, head: head)
+        case .commitSigning:
+            CommitSigningSheet(model: model)
+        case .addWorktree:
+            AddWorktreeSheet(model: model)
+        case .gitFlowInit:
+            GitFlowInitSheet(model: model)
+        case .gitFlowStart(let kind):
+            GitFlowStartSheet(model: model, kind: kind)
+        case .lfsTrack:
+            LFSTrackSheet(model: model)
+        case .issues:
+            IssuesSheet(model: model)
         }
     }
 }

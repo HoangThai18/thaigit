@@ -212,6 +212,39 @@ struct CommandPaletteSheet: View {
                                            systemImage: "arrow.triangle.pull") { model.revealPullRequest(pull) })
             }
         }
+        list.append(PaletteCommand(id: "issues", title: "Issues (GitHub / Jira)…", subtitle: "Tạo nhánh từ issue, gắn issue vào commit",
+                                   systemImage: "checklist", shortcut: "⌥⌘J") { model.sheet = .issues })
+        if CommitMessageAI.unavailableReason == nil, !model.status.staged.isEmpty {
+            list.append(PaletteCommand(id: "ai.commit", title: "AI viết commit message", subtitle: "Chạy trên máy (Apple Intelligence)",
+                                       systemImage: "sparkles") { Task { await model.fillCommitMessageWithAI() } })
+        }
+        list.append(PaletteCommand(id: "signing", title: "Ký commit (GPG / SSH)…", systemImage: "signature") { model.sheet = .commitSigning })
+        list.append(PaletteCommand(id: "worktree.add", title: "Thêm worktree…", systemImage: "square.on.square") { model.sheet = .addWorktree })
+        for worktree in model.extras.linkedWorktrees {
+            list.append(PaletteCommand(id: "worktree." + worktree.path, title: "Mở worktree \(worktree.branch ?? (worktree.path as NSString).lastPathComponent)",
+                                       subtitle: (worktree.path as NSString).abbreviatingWithTildeInPath, systemImage: "folder") {
+                model.openInNewTab(worktree.path)
+            })
+        }
+        if !model.extras.submodules.isEmpty {
+            list.append(PaletteCommand(id: "submodule.update", title: "Tải / cập nhật mọi submodule", systemImage: "shippingbox") {
+                model.updateSubmodules()
+            })
+        }
+        if let flow = model.extras.gitFlow {
+            for kind in GitFlowKind.allCases {
+                list.append(PaletteCommand(id: "flow.start." + kind.rawValue, title: "Git Flow: bắt đầu \(kind.title.lowercased())…",
+                                           subtitle: "Từ \(flow.base(kind))", systemImage: "flag") { model.sheet = .gitFlowStart(kind) })
+            }
+            if let branch = model.currentBranch, let current = flow.classify(branch) {
+                list.append(PaletteCommand(id: "flow.finish", title: "Git Flow: kết thúc \(current.kind.title.lowercased()) \(current.name)…",
+                                           systemImage: "flag.checkered") { model.finishFlow(current.kind, name: current.name) })
+            }
+        } else {
+            list.append(PaletteCommand(id: "flow.init", title: "Git Flow: khởi tạo…", systemImage: "flag") { model.sheet = .gitFlowInit })
+        }
+        list.append(PaletteCommand(id: "lfs.pull", title: "Git LFS: pull", systemImage: "externaldrive") { model.runLFS(.pull) })
+        list.append(PaletteCommand(id: "lfs.track", title: "Git LFS: theo dõi kiểu file…", systemImage: "externaldrive") { model.sheet = .lfsTrack })
         if model.graphFilter.isActive {
             list.append(PaletteCommand(id: "graph.showall", title: "Hiện tất cả nhánh trên graph", systemImage: "eye") {
                 model.showAllBranchesOnGraph()
