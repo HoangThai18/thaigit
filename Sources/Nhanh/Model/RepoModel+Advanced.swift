@@ -8,6 +8,8 @@ struct RepoExtras: Equatable {
     var worktrees: [Worktree] = []
     var gitFlow: GitFlowConfig?
     var usesLFS = false
+    /// Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Lấy đầy đủ từ remote".
+    var historyGaps = HistoryGaps.none
 
     /// Worktree phụ (không tính thư mục repo chính).
     var linkedWorktrees: [Worktree] { worktrees.filter { !$0.isMain } }
@@ -16,7 +18,9 @@ struct RepoExtras: Equatable {
         async let submodules = (try? await repo.submodules()) ?? []
         async let worktrees = (try? await repo.worktrees()) ?? []
         async let flow = repo.gitFlowConfig()
-        return RepoExtras(submodules: await submodules, worktrees: await worktrees, gitFlow: await flow, usesLFS: repo.usesLFS())
+        async let gaps = repo.historyGaps()
+        return RepoExtras(submodules: await submodules, worktrees: await worktrees, gitFlow: await flow, usesLFS: repo.usesLFS(),
+                          historyGaps: await gaps)
     }
 }
 

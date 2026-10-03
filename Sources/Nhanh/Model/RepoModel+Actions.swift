@@ -753,6 +753,25 @@ extension RepoModel {
         }
     }
 
+    /// "Lấy đầy đủ từ remote" (thanh báo khi repo thiếu nhánh / lịch sử): remote chỉ theo dõi vài nhánh thì thêm refspec mọi
+    /// nhánh (giữ refspec cũ), clone nông thì lấy nốt commit cũ, rồi fetch để các nhánh như `main` hiện ra.
+    func completeHistory() {
+        guard !remotes.isEmpty else { return }
+        let gaps = extras.historyGaps
+        let source = defaultRemote
+        let progress = progressReporter()
+        perform("Lấy đầy đủ từ remote", showsProgress: true, cancellable: true, refresh: .all) { repo in
+            for remote in gaps.narrowRemotes { try await repo.trackAllBranches(remote: remote) }
+            if gaps.shallow, let source { try await repo.unshallow(remote: source, onProgress: progress) }
+            try await repo.fetch(remote: nil, prune: Prefs.fetchPruneValue, onProgress: progress)
+        } onSuccess: { [weak self] in
+            self?.lastFetch = Date()
+            self?.toast(.success, "Đã lấy đủ nhánh và lịch sử từ remote")
+        } onError: { [weak self] error in
+            self?.handleGitHubAuthError(error, operation: "Lấy đầy đủ từ remote") ?? false
+        }
+    }
+
     func pull(mode: PullMode? = nil) {
         guard let branch = currentBranchRef else {
             toast(.warning, "Cần đứng trên một nhánh để pull")

@@ -64,6 +64,8 @@ final class RepoModel {
     var terminal: TerminalSession?
     /// Submodule, worktree, Git Flow, LFS (xem RepoModel+Advanced.swift).
     var extras = RepoExtras()
+    /// Người dùng bấm "Để sau" trên thanh báo thiếu nhánh / lịch sử (chỉ trong phiên này).
+    var historyGapsDismissed = false
     var diffState: DiffState = .idle
     /// Các dòng đang chọn trong diff để stage/unstage/huỷ từng dòng: id hunk → chỉ số dòng.
     var lineSelection: [Int: Set<Int>] = [:]

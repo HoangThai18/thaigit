@@ -81,6 +81,9 @@ struct CenterArea: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if !model.historyGapsDismissed, !model.remotes.isEmpty, !model.extras.historyGaps.isEmpty {
+                HistoryGapsBanner(model: model, gaps: model.extras.historyGaps)
+            }
             if let operation = model.operation {
                 OperationBanner(model: model, operation: operation)
             }
@@ -314,6 +317,50 @@ struct BranchSwitcher: View {
                 .labelStyle(.titleAndIcon)
         }
         .help("Chuyển nhánh")
+    }
+}
+
+/// Repo clone chỉ một nhánh (`--single-branch`) hoặc clone nông (`--depth`): nhánh khác / commit cũ trên remote không bao giờ
+/// về máy, kể cả khi Fetch — mời người dùng lấy đủ.
+struct HistoryGapsBanner: View {
+    @Bindable var model: RepoModel
+    let gaps: HistoryGaps
+
+    private var detail: String {
+        var parts: [String] = []
+        if !gaps.narrowRemotes.isEmpty {
+            parts.append("Repo chỉ đang lấy một vài nhánh của \(gaps.narrowRemotes.joined(separator: ", ")) nên các nhánh khác trên remote không hiện, kể cả khi Fetch.")
+        }
+        if gaps.shallow { parts.append("Đây là bản clone nông nên còn thiếu các commit cũ.") }
+        return parts.joined(separator: " ")
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "info.circle.fill")
+                .font(.title2)
+                .foregroundStyle(Brand.blue)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(gaps.narrowRemotes.isEmpty ? "Repo chưa có đủ lịch sử từ remote" : "Repo chưa có đủ nhánh từ remote")
+                    .font(.headline)
+                Text(detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Button("Để sau") { model.historyGapsDismissed = true }
+                .glassButtonStyle()
+            Button("Lấy đầy đủ từ remote") { model.completeHistory() }
+                .glassButtonStyle(prominent: true)
+                .help("Theo dõi mọi nhánh của remote, tải các commit còn thiếu rồi fetch")
+                .disabled(model.busy != nil)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .glassSurface(in: RoundedRectangle(cornerRadius: 16), tint: Brand.blue.opacity(0.18))
+        .padding(.horizontal, 10)
+        .padding(.top, 8)
     }
 }
 
