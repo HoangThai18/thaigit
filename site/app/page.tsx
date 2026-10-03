@@ -16,7 +16,7 @@ import {
 } from '@/components/Icons';
 import { DownloadButton, ReleaseDetails } from '@/components/ReleaseInfo';
 import { Shot } from '@/components/Shot';
-import { readChangelog } from '@/lib/changelog';
+import { formatDate, readChangelog } from '@/lib/changelog';
 import { FAQ, FEATURES, SMALL_FEATURES, type SmallFeature } from '@/lib/content';
 import { fetchMacRelease } from '@/lib/release';
 import { LINKS, SITE } from '@/lib/site';
@@ -35,6 +35,9 @@ const GALLERY = [
   { shot: 'image-diff', caption: 'Diff ảnh' },
   { shot: 'welcome', caption: 'Mở, clone hoặc tạo repository' },
 ] as const;
+
+/** Số thay đổi hiện sẵn cho mỗi bản; phần còn lại gập trong "Xem thêm". */
+const RELEASE_ITEMS = 4;
 
 export default async function HomePage() {
   // Lúc build: số phiên bản mới nhất có sẵn trong HTML (tốt cho SEO); trong trình duyệt nút tải tự làm mới.
@@ -313,22 +316,51 @@ export default async function HomePage() {
             <h2>Nhật ký thay đổi</h2>
           </div>
           <div className="timeline">
-            {changelog.map((entry) => (
-              <article key={entry.version} className="release" data-reveal>
-                <div className="release-body">
-                  <header>
-                    <h3>Thaigit {entry.version}</h3>
-                    {entry.date && <time dateTime={entry.date}>{entry.date}</time>}
-                  </header>
-                  {entry.summary && <p>{entry.summary}</p>}
-                  <ul>
-                    {entry.items.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              </article>
-            ))}
+            {changelog.map((entry) => {
+              const shown = entry.items.slice(0, RELEASE_ITEMS);
+              const more = entry.items.slice(RELEASE_ITEMS);
+              return (
+                <article
+                  key={`${entry.platform}-${entry.version}`}
+                  className="release"
+                  data-os={entry.platform === 'Windows' ? 'win' : 'mac'}
+                  data-reveal
+                >
+                  <div className="release-body">
+                    <header>
+                      <span className="release-os">
+                        {entry.platform === 'Windows' ? <WindowsIcon size={14} /> : <AppleIcon size={14} />}
+                        {entry.platform}
+                      </span>
+                      <h3>{entry.version}</h3>
+                      {entry.date && <time dateTime={entry.date}>{formatDate(entry.date)}</time>}
+                    </header>
+                    {entry.summary && <p className="release-summary">{entry.summary}</p>}
+                    <ul className="release-items">
+                      {shown.map((item, index) => (
+                        <li key={index}>
+                          <strong>{item.title}</strong>
+                          {item.detail && <span>{item.detail}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                    {more.length > 0 && (
+                      <details className="release-more">
+                        <summary>Xem thêm {more.length} thay đổi</summary>
+                        <ul className="release-items">
+                          {more.map((item, index) => (
+                            <li key={index}>
+                              <strong>{item.title}</strong>
+                              {item.detail && <span>{item.detail}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       )}
