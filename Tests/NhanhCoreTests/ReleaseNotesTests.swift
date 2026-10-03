@@ -13,7 +13,7 @@ struct ReleaseNotesTests {
         ## Chưa phát hành
 
         - Merge từ repository khác
-        - Graph như **GitKraken**:
+        - Graph **nhiều màu**:
           node là ảnh đại diện
 
         ## 1.0.0 — 2026-10-02
@@ -27,7 +27,7 @@ struct ReleaseNotesTests {
         #expect(notes.sections.map(\.title) == ["Chưa phát hành", "1.0.0"])
         let unreleased = notes.sections[0]
         #expect(unreleased.isUnreleased && unreleased.date == nil)
-        #expect(unreleased.items == ["Merge từ repository khác", "Graph như **GitKraken**: node là ảnh đại diện"])
+        #expect(unreleased.items == ["Merge từ repository khác", "Graph **nhiều màu**: node là ảnh đại diện"])
         let first = notes.sections[1]
         #expect(!first.isUnreleased && first.date == "2026-10-02")
         #expect(first.paragraphs == ["Bản đầu tiên của Thaigit cho macOS."])

@@ -4,7 +4,7 @@ export const SITE = {
   url: 'https://git.thaipro.store',
   title: 'Thaigit — Git client trực quan, miễn phí cho macOS & Windows',
   description:
-    'Thaigit là Git GUI miễn phí, trực quan như GitKraken: graph lịch sử nhiều màu, kéo & thả để merge, rebase, push, stage từng dòng, giải conflict vài cú bấm. Tải cho macOS và Windows (bản thử).',
+    'Thaigit là Git GUI miễn phí, trực quan: graph lịch sử nhiều màu, kéo & thả để merge, rebase, push, stage từng dòng, giải conflict vài cú bấm. Tải cho macOS và Windows (bản thử).',
   author: 'Phan Thái',
   repo: 'HoangThai18/thaigit',
 } as const;

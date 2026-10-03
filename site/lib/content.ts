@@ -15,7 +15,7 @@ export const FEATURES: Feature[] = [
     id: 'keo-tha',
     tag: 'Kéo & thả',
     title: 'Kéo nhánh, thả lên nhánh — xong merge, rebase hay push',
-    text: 'Giống GitKraken: kéo nhãn nhánh trên graph hoặc ở sidebar rồi thả lên nhánh khác. Luôn có hộp thoại hỏi lại, không có gì chạy ngầm ngoài ý muốn.',
+    text: 'Kéo nhãn nhánh trên graph hoặc ở sidebar rồi thả lên nhánh khác. Luôn có hộp thoại hỏi lại, không có gì chạy ngầm ngoài ý muốn.',
     points: [
       'Nhánh → nhánh: merge, rebase hoặc fast-forward',
       'Nhánh → remote: push; tag → remote: push tag',
@@ -132,9 +132,9 @@ export const FAQ: FaqItem[] = [
     ],
   },
   {
-    q: 'Thaigit khác GitKraken hay SourceTree ở điểm nào?',
+    q: 'Thaigit khác các Git client khác ở điểm nào?',
     a: [
-      'Thaigit học cách làm trực quan của GitKraken — graph nhiều màu, kéo & thả để merge / rebase / push — nhưng miễn phí, nhẹ (app native) và có giao diện tiếng Việt. So với SourceTree, các thao tác thường ngày cần ít bước hơn và luôn có nút hoàn tác.',
+      'Thaigit tập trung vào cách làm trực quan — graph nhiều màu, kéo & thả để merge / rebase / push — mà vẫn miễn phí, nhẹ (app native) và có giao diện tiếng Việt. Các thao tác thường ngày cần ít bước và luôn có nút hoàn tác.',
     ],
   },
   {

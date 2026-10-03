@@ -76,7 +76,7 @@ export default async function HomePage() {
           Miễn phí · Không cần tài khoản · Mã nguồn công khai
         </span>
         <h1>
-          Git trực quan như GitKraken.
+          Git trực quan, làm bằng chuột.
           <br />
           <span className="gradient-text">Miễn phí, nhẹ, dễ dùng.</span>
         </h1>
@@ -358,10 +358,10 @@ export default async function HomePage() {
         <div className="english glass">
           <h2 id="in-english">In English</h2>
           <p>
-            Thaigit is a free, GitKraken-style Git GUI with a Liquid Glass look: a colorful commit graph,
-            drag-and-drop to merge, rebase or push, line-by-line staging and a friendly conflict resolver. The
-            native macOS app is available today and updates itself from GitHub Releases. A Windows beta (Tauri
-            2, Windows 10/11) is out too and also updates itself. The UI is Vietnamese for now.
+            Thaigit is a free, visual Git GUI with a Liquid Glass look: a colorful commit graph, drag-and-drop
+            to merge, rebase or push, line-by-line staging and a friendly conflict resolver. The native macOS
+            app is available today and updates itself from GitHub Releases. A Windows beta (Tauri 2, Windows
+            10/11) is out too and also updates itself. The UI is Vietnamese for now.
           </p>
         </div>
       </section>

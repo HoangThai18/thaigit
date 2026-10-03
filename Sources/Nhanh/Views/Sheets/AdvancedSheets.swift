@@ -222,7 +222,7 @@ struct GitFlowInitSheet: View {
             .formStyle(.grouped)
             .scrollDisabled(true)
             .fixedSize(horizontal: false, vertical: true)
-            Text("Ghi cấu hình gitflow.* vào repo (dùng chung với git-flow và GitKraken). Chưa có nhánh \(config.develop) thì tạo từ \(config.main).")
+            Text("Ghi cấu hình gitflow.* vào repo (dùng chung được với các công cụ git-flow khác). Chưa có nhánh \(config.develop) thì tạo từ \(config.main).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

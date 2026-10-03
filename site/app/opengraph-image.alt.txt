@@ -1,1 +1,1 @@
-Thaigit — Git client trực quan, miễn phí như GitKraken cho macOS và Windows
+Thaigit — Git client trực quan, miễn phí cho macOS và Windows

@@ -5,7 +5,7 @@
 <h1 align="center">Thaigit</h1>
 
 <p align="center">
-  <b>Git client miễn phí, trực quan như GitKraken — giao diện kính cho macOS, sắp có bản Windows.</b>
+  <b>Git client miễn phí, trực quan — giao diện kính cho macOS, sắp có bản Windows.</b>
 </p>
 
 ![Thaigit: graph commit nhiều màu, sidebar nhánh và panel commit](docs/screenshots/overview.png)
@@ -19,7 +19,7 @@ Thaigit giúp làm việc với git bằng chuột: nhìn lịch sử dạng gra
 
 ## Tính năng nổi bật
 
-### Kéo & thả như GitKraken
+### Kéo & thả
 
 ![Thả nhánh feature/giao-dien lên main: chọn merge hoặc rebase](docs/screenshots/drag.png)
 
@@ -89,7 +89,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 
 **Graph lịch sử**
 - Graph nhiều làn, mỗi làn một màu; nhãn nhánh / tag ở cột trái (💻 local, ☁️ remote).
-- Node commit là ảnh đại diện của tác giả như GitKraken (GitHub / Gravatar theo email, chưa có ảnh thì chữ viết tắt). Bảng gọn chỉ còn Nhánh / Tag │ Graph │ Commit — tên tác giả và thời gian xem ở panel bên phải; chuột phải lên tiêu đề cột để bật lại cột Tác giả / Thời gian / SHA hoặc tắt ảnh đại diện.
+- Node commit là ảnh đại diện của tác giả (GitHub / Gravatar theo email, chưa có ảnh thì chữ viết tắt). Bảng gọn chỉ còn Nhánh / Tag │ Graph │ Commit — tên tác giả và thời gian xem ở panel bên phải; chuột phải lên tiêu đề cột để bật lại cột Tác giả / Thời gian / SHA hoặc tắt ảnh đại diện.
 - Dòng `// WIP` trên cùng là thay đổi chưa commit — bấm vào để stage và commit.
 - Tìm commit theo nội dung, tác giả, SHA. Tải dần khi cuộn (2.000 commit mỗi lần).
 
@@ -100,13 +100,13 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - **Issues GitHub / Jira** (⌥⌘J, hoặc nút # cạnh chữ Commit): xem issue đang mở của repo trên GitHub và issue Jira giao cho bạn; tạo nhánh từ issue (tên gợi ý như `issue-42-dang-nhap-bi-loi`, `WEB-12-gio-hang`), gắn `#42` / `WEB-12` vào commit message, mở trên web. Jira Cloud kết nối bằng email + API token (token cất trong Keychain, chỉ gửi tới site Jira đã nhập).
 - **Sửa file ngay trong app**: mở diff của file chưa stage, bấm *Sửa* — gõ, ⌘S lưu, ⌘Z hoàn tác. Giữ nguyên BOM và kiểu xuống dòng (CRLF / LF) của file, giữ quyền chạy (+x); file bị sửa ở nơi khác sau khi mở thì hỏi trước khi ghi đè. Chỉ nhận file UTF-8 (file khác: mở bằng trình soạn thảo); không theo symlink ra ngoài repo.
 - **So sánh** hai commit bất kỳ (giữ ⌘ và bấm 2 commit trên graph) hoặc một nhánh với nhánh hiện tại (chuột phải vào nhánh → *So sánh với …*): panel bên phải liệt kê các commit nằm giữa và các file khác nhau, bấm file để xem diff.
-- **Ẩn / solo nhánh trên graph** như GitKraken: rê chuột vào nhánh ở sidebar, bấm con mắt để ẩn (hoặc chuột phải → *Ẩn khỏi graph*); *Chỉ hiện nhánh này (solo)* để graph chỉ còn các nhánh đã chọn và nhánh đang checkout. Ẩn nhánh local thì nhánh remote nó theo dõi cũng ẩn theo; app nhớ riêng cho từng repo; dải báo ở đáy graph có nút *Hiện tất cả*.
+- **Ẩn / solo nhánh trên graph**: rê chuột vào nhánh ở sidebar, bấm con mắt để ẩn (hoặc chuột phải → *Ẩn khỏi graph*); *Chỉ hiện nhánh này (solo)* để graph chỉ còn các nhánh đã chọn và nhánh đang checkout. Ẩn nhánh local thì nhánh remote nó theo dõi cũng ẩn theo; app nhớ riêng cho từng repo; dải báo ở đáy graph có nút *Hiện tất cả*.
 - **Blame** (chuột phải vào file → *Blame — ai sửa từng dòng*): mỗi dòng kèm tác giả, thời gian và commit đã sửa nó; theo dấu cả khi đoạn code được chuyển từ file khác sang.
 
 **Nhánh, remote, stash, tag**
 - Checkout bằng nhấp đúp; ⌘B để tìm & chuyển nhánh.
 - Tạo / đổi tên / xoá nhánh, đặt upstream; fetch / pull (merge, rebase hoặc chỉ fast-forward) / push — bị từ chối thì đề xuất pull hoặc force-with-lease.
-- Cherry-pick, revert (hỏi commit ngay hay chỉ stage để xem lại, như GitKraken), reset (soft / mixed / hard), tag, push tag.
+- Cherry-pick, revert (hỏi commit ngay hay chỉ stage để xem lại), reset (soft / mixed / hard), tag, push tag.
 - **Interactive rebase** (chuột phải vào commit → *Interactive rebase … từ đây*): kéo để đổi thứ tự, chọn pick / reword / squash / fixup / drop cho từng commit, sửa lời commit ngay trong bảng; thay đổi chưa commit được tự cất và trả lại sau khi rebase.
 - **Merge từ repository khác** (menu Pull, menu Repository hoặc chuột phải vào nhánh): lấy nhánh của một repo khác — thư mục trên máy (không cần đăng nhập) hoặc URL — merge vào nhánh của repo đang mở, không thêm remote. App nhớ nguồn đã dùng, lần sau chỉ cần bấm *Merge lại*. Hai repo tạo riêng (không chung commit) thì hỏi trước rồi mới merge với `--allow-unrelated-histories`.
 - Stash kèm lời nhắn, apply, pop, xoá; checkout bị chặn vì có thay đổi thì có nút "Stash rồi checkout".
@@ -117,9 +117,9 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - **Pull Request (GitHub)**: mục *PULL REQUESTS* ở sidebar liệt kê PR đang mở (repo riêng tư cần đăng nhập GitHub); nhãn nhánh trên graph có biểu tượng PR. Bấm PR để tới commit mới nhất, nhấp đúp để checkout (PR từ fork được lấy về nhánh `pr/<số>`), chuột phải để mở trên GitHub hoặc xem thay đổi so với nhánh đích. *Tạo Pull Request…* (nút + của mục, hoặc chuột phải vào nhánh): chọn nhánh đích, tiêu đề / mô tả điền sẵn từ các commit, tạo dạng nháp được; nhánh chưa push thì push trước rồi tạo.
 
 **Khác**
-- Nhiều repo trong nhiều tab như GitKraken: thanh tab ở hàng trên cùng cạnh 3 nút đỏ/vàng/xanh. Đầu hàng là tab **Trang chủ** (🏠, mở / clone / tạo repo, danh sách repo gần đây), cuối hàng là nút ✨ **Có gì mới**; **+** mở tab mới (màn hình chọn repo gần đây), **×** đóng tab, kéo tab để đổi chỗ, chuột phải để đóng các tab khác. Mỗi tab giữ nguyên repo của nó; mở lại app thì các tab của lần trước được mở lại. *File → Đóng repository* đưa tab về màn hình chọn repo. Hàng công cụ của repo (Fetch, Pull, Push…) nằm ngay dưới thanh tab, cửa sổ hẹp thì chỉ còn biểu tượng.
+- Nhiều repo trong nhiều tab: thanh tab ở hàng trên cùng cạnh 3 nút đỏ/vàng/xanh. Đầu hàng là tab **Trang chủ** (🏠, mở / clone / tạo repo, danh sách repo gần đây), cuối hàng là nút ✨ **Có gì mới**; **+** mở tab mới (màn hình chọn repo gần đây), **×** đóng tab, kéo tab để đổi chỗ, chuột phải để đóng các tab khác. Mỗi tab giữ nguyên repo của nó; mở lại app thì các tab của lần trước được mở lại. *File → Đóng repository* đưa tab về màn hình chọn repo. Hàng công cụ của repo (Fetch, Pull, Push…) nằm ngay dưới thanh tab, cửa sổ hẹp thì chỉ còn biểu tượng.
 - Tab **Có gì mới** (nút ✨ cuối thanh tab, hoặc menu *Thaigit → Có gì mới…*) đọc nhật ký thay đổi; tự mở một lần sau mỗi lần cập nhật.
-- **Bảng lệnh ⌘P** như GitKraken: gõ để tìm mọi thao tác (fetch, pull, stash, tạo nhánh, tạo PR…), checkout nhánh, so sánh nhánh, chuyển tab, mở repo gần đây; gõ không dấu vẫn ra ("nhanh" → "nhánh"), ↑↓ chọn, ↩ chạy.
+- **Bảng lệnh ⌘P**: gõ để tìm mọi thao tác (fetch, pull, stash, tạo nhánh, tạo PR…), checkout nhánh, so sánh nhánh, chuyển tab, mở repo gần đây; gõ không dấu vẫn ra ("nhanh" → "nhánh"), ↑↓ chọn, ↩ chạy.
 - Mở gần đây, clone có tiến trình, tạo repo mới.
 - Tự làm mới khi file đổi bên ngoài (sửa trong editor, commit từ terminal…), tự fetch định kỳ.
 - **Terminal trong app** (⌃\` hoặc menu Mở → *Terminal trong app*): panel dưới graph, gõ lệnh chạy trong thư mục repo, nhớ `cd`, ↑↓ gọi lại lệnh cũ, Dừng (⌃C). Mỗi lệnh chạy riêng, không tương tác — chương trình cần bàn phím (vim, less, ssh hỏi mật khẩu) thì dùng *Mở trong Terminal*.
@@ -259,7 +259,7 @@ Pull Request của GitLab / Bitbucket.
 
 ## English
 
-Thaigit is a free, GitKraken-style Git GUI with a Liquid Glass look. The native macOS app (Swift) is usable today and updates itself from GitHub Releases (Ed25519-signed; just restart to get the new version). A cross-platform Windows + macOS app (Tauri 2) is in progress, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
+Thaigit is a free, visual Git GUI with a Liquid Glass look. The native macOS app (Swift) is usable today and updates itself from GitHub Releases (Ed25519-signed; just restart to get the new version). A cross-platform Windows + macOS app (Tauri 2) is in progress, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
 
 ---
 

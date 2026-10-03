@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import NhanhCore
 
-@Suite("Revert như GitKraken: commit ngay hoặc để stage (git thật)")
+@Suite("Revert: commit ngay hoặc để stage (git thật)")
 struct RevertTests {
     /// Repo có hai commit "init" và "Đổi dòng 2" (sửa a.txt); trả về SHA của commit thứ hai.
     private func makeRepo() async throws -> (TestRepo, String) {

@@ -1,7 +1,7 @@
 [package]
 name = "thaigit"
 version = "0.1.0"
-description = "Thaigit — Git client trực quan như GitKraken"
+description = "Thaigit — Git client trực quan, miễn phí"
 authors = ["Phan Thái"]
 license = ""
 edition = "2024"
