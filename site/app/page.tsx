@@ -42,7 +42,7 @@ export default async function HomePage() {
       description: SITE.description,
       url: SITE.url,
       applicationCategory: 'DeveloperApplication',
-      operatingSystem: 'macOS 14+ (Windows sắp có)',
+      operatingSystem: 'macOS 14+, Windows 10/11 (beta)',
       downloadUrl: LINKS.downloadMac,
       ...(release ? { softwareVersion: release.version } : {}),
       image: `${SITE.url}/logo-256.png`,
@@ -86,13 +86,13 @@ export default async function HomePage() {
         </p>
         <div className="cta">
           <DownloadButton initial={release} />
-          <span className="btn btn-secondary" aria-disabled="true" title="Bản Windows đang được xây dựng">
+          <a className="btn btn-secondary" href={LINKS.downloadWindows} title="Bản thử cho Windows 10 / 11">
             <WindowsIcon />
             <span className="btn-stack">
               Windows
-              <span className="sub">Sắp ra mắt</span>
+              <span className="sub">Bản thử (beta)</span>
             </span>
-          </span>
+          </a>
         </div>
         <div className="chips">
           <span>macOS 14 trở lên</span>
@@ -266,15 +266,23 @@ export default async function HomePage() {
             <h3>
               <WindowsIcon size={24} /> Windows
             </h3>
-            <p className="meta">Windows 10 / 11</p>
-            <p style={{ color: 'var(--text-2)', fontSize: 15.5 }}>
-              Đang được xây dựng trên Tauri 2, chung một mã nguồn với macOS. Bản beta dự kiến cuối năm 2026.
-            </p>
-            <span className="btn btn-secondary" aria-disabled="true">
-              Sắp ra mắt
-            </span>
+            <p className="meta">Windows 10 / 11 · 64-bit · bản thử (beta)</p>
+            <a className="btn btn-primary" href={LINKS.downloadWindows}>
+              <WindowsIcon /> Tải cho Windows
+            </a>
+            <ol className="steps">
+              <li>
+                Cần có Git: cài <a href={LINKS.gitForWindows}>Git for Windows</a> nếu máy chưa có.
+              </li>
+              <li>Mở file Thaigit-Windows-setup.exe để cài (không cần quyền quản trị).</li>
+              <li>
+                Bản cài chưa ký số nên lần đầu Windows SmartScreen có thể cảnh báo: bấm <strong>More info</strong> →{' '}
+                <strong>Run anyway</strong>.
+              </li>
+            </ol>
             <p className="hash">
-              Muốn được báo khi phát hành? Bấm <a href={LINKS.github}>Watch → Releases</a> trên GitHub.
+              App tự cập nhật lên bản thử mới. Xem <a href={LINKS.changelogWindows}>có gì mới</a> ·{' '}
+              <a href={LINKS.releases}>mọi bản phát hành</a>.
             </p>
           </div>
 
@@ -352,9 +360,8 @@ export default async function HomePage() {
           <p>
             Thaigit is a free, GitKraken-style Git GUI with a Liquid Glass look: a colorful commit graph,
             drag-and-drop to merge, rebase or push, line-by-line staging and a friendly conflict resolver. The
-            native macOS app is available today and updates itself from GitHub Releases. A Windows version
-            (Tauri 2) is in progress, with AI commit messages powered by a self-hosted Hermes model — no API
-            key, no third party. The UI is Vietnamese for now.
+            native macOS app is available today and updates itself from GitHub Releases. A Windows beta
+            (Tauri 2, Windows 10/11) is out too and also updates itself. The UI is Vietnamese for now.
           </p>
         </div>
       </section>
@@ -363,7 +370,7 @@ export default async function HomePage() {
       <section className="container">
         <div className="final-cta reveal">
           <h2>Làm việc với Git nhẹ nhàng hơn từ hôm nay</h2>
-          <p>Tải Thaigit miễn phí cho macOS — bản Windows sắp ra mắt.</p>
+          <p>Tải Thaigit miễn phí cho macOS — và bản thử cho Windows.</p>
           <div className="cta">
             <DownloadButton initial={release} />
             <a className="btn btn-secondary" href={LINKS.github}>

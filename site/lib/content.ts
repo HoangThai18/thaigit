@@ -158,9 +158,10 @@ export const FAQ: FaqItem[] = [
     ],
   },
   {
-    q: 'Khi nào có bản Windows?',
+    q: 'Có bản Windows chưa?',
     a: [
-      'Bản Windows đang được xây dựng trên Tauri 2, chung một mã nguồn với macOS; bản beta dự kiến cuối năm 2026. Bấm Watch → Releases trên GitHub để được báo khi phát hành.',
+      'Đã có bản thử (beta) cho Windows 10 / 11, xây dựng trên Tauri 2: graph, stage từng dòng, commit, fetch / pull / push, merge, rebase, cherry-pick, giải conflict trong app; tự cập nhật lên bản thử mới.',
+      'Cần cài Git for Windows trước. Bản cài chưa ký số nên lần đầu SmartScreen có thể cảnh báo — bấm “More info” → “Run anyway”.',
     ],
   },
   {
