@@ -50,3 +50,10 @@ export function formatCommitTime(
   if (options.relative && delta < WEEK && delta > -MINUTE) return formatRelative(seconds, now);
   return formatAbsolute(seconds);
 }
+
+/** Giờ:phút:giây theo giờ máy (nhật ký lệnh) từ mili-giây epoch. */
+export function formatClock(milliseconds: number): string {
+  const date = new Date(milliseconds);
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}

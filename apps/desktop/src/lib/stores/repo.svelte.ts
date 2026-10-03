@@ -17,6 +17,7 @@ import {
   isStatusClean,
   isWorkingTreeCommit,
   operationTitle,
+  progressFraction,
   refName,
   stashDisplayMessage,
   type Commit,
@@ -36,7 +37,7 @@ import { DiffStore } from './diff.svelte.ts';
 import type { RepoPort } from '../platform/host.ts';
 import { vi } from '../strings.vi.ts';
 import { jsonEqual } from './equality.ts';
-import { COMMIT_LIMIT_MAX, prefs as globalPrefs, type PrefsStore } from './prefs.svelte.ts';
+import { COMMIT_LIMIT_MAX, prefs as globalPrefs, type PrefsData, type PrefsStore } from './prefs.svelte.ts';
 import { toasts as globalToasts, describeError, type ToastAction, type ToastStore } from './toasts.svelte.ts';
 
 // MARK: - Kiểu
@@ -175,6 +176,8 @@ export class RepoStore {
 
   // --- giao diện ---
   busy = $state.raw<BusyState | null>(null);
+  /** Lần fetch / pull thành công gần nhất (ms, `Date.now()`), để tự fetch không chạy ngay sau khi người dùng vừa fetch. */
+  lastFetch = $state<number | null>(null);
   /** File đang mở ở vùng giữa (thay graph) và các dòng đang chọn để stage từng dòng. */
   readonly diff: DiffStore;
   /** Ô soạn commit (giữ khi chuyển qua lại giữa WIP và commit khác). */
@@ -202,6 +205,7 @@ export class RepoStore {
   private operationChain: Promise<void> = Promise.resolve();
   private runningOperations = 0;
   private abort: AbortController | null = null;
+  private lastProgressAt = 0;
 
   constructor(port: RepoPort, options: RepoStoreOptions = {}) {
     this.port = port;
@@ -240,6 +244,11 @@ export class RepoStore {
 
   get name(): string {
     return this.git.name;
+  }
+
+  /** Cài đặt đang dùng (kiểu pull, fetch --prune, tự fetch…) cho các thao tác ở `actions/`. */
+  get preferences(): PrefsData {
+    return this.prefs.value;
   }
 
   get rootPath(): string {
@@ -306,6 +315,34 @@ export class RepoStore {
     if (this.status.behind > 0) parts.push(`↓${this.status.behind}`);
     if (this.operation) parts.push(`· ${operationTitle(this.operation)}`);
     return parts.join(' ');
+  }
+
+  /** Ref của nhánh đang checkout (không có khi HEAD tách rời / repo chưa có commit). */
+  get currentBranchRef(): GitRef | undefined {
+    return this.localBranches.find((ref) => ref.isHead);
+  }
+
+  /** Remote dùng khi push nhánh chưa có upstream: remote của upstream hiện tại, rồi `origin`, rồi remote đầu tiên. */
+  get defaultRemote(): string | null {
+    const upstream = this.currentBranchRef?.upstream;
+    const fromUpstream = upstream ? this.splitUpstream(upstream)?.remote : undefined;
+    if (fromUpstream) return fromUpstream;
+    return this.remotes.find((remote) => remote.name === 'origin')?.name ?? this.remotes[0]?.name ?? null;
+  }
+
+  /** Nhánh local gần đây nhất (nhánh hiện tại đứng đầu) — menu đổi nhánh chỉ liệt kê chừng này. */
+  recentLocalBranches(limit: number): readonly GitRef[] {
+    if (this.localBranches.length <= limit) return this.localBranches;
+    const rank = (ref: GitRef): number => (ref.isHead ? Number.POSITIVE_INFINITY : (ref.date ?? 0));
+    return [...this.localBranches].sort((a, b) => rank(b) - rank(a)).slice(0, limit);
+  }
+
+  /** Tách "origin/feature/x" thành remote + nhánh theo danh sách remote (remote có `/` trong tên vẫn đúng). */
+  splitUpstream(upstream: string): { remote: string; branch: string } | null {
+    const match = [...this.remotes]
+      .sort((a, b) => b.name.length - a.name.length)
+      .find((remote) => upstream.startsWith(`${remote.name}/`));
+    return match ? { remote: match.name, branch: upstream.slice(match.name.length + 1) } : null;
   }
 
   get hasWorkingTreeRow(): boolean {
@@ -846,6 +883,22 @@ export class RepoStore {
     // Chuỗi không bao giờ reject: một thao tác hỏng không chặn các thao tác sau.
     this.operationChain = task.catch(() => undefined);
     return task;
+  }
+
+  /**
+   * Hàm nhận dòng tiến độ của git (`--progress`) cho thanh bận: chữ + phần trăm, cập nhật tối đa ~12 lần/giây (Swift: 80 ms)
+   * để repo lớn không làm giao diện giật.
+   */
+  progressReporter(): (line: string) => void {
+    return (line) => {
+      const busy = this.busy;
+      if (busy === null || this.disposed) return;
+      const fraction = progressFraction(line);
+      const now = performance.now();
+      if (now - this.lastProgressAt < 80 && fraction !== 1) return;
+      this.lastProgressAt = now;
+      this.busy = { ...busy, detail: line, fraction: fraction ?? busy.fraction };
+    };
   }
 
   cancelCurrentOperation(): void {

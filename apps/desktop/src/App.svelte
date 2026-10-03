@@ -9,6 +9,7 @@
   import RepoWindow from './lib/shell/RepoWindow.svelte';
   import Toasts from './lib/shell/Toasts.svelte';
   import DialogHost from './lib/ui/DialogHost.svelte';
+  import MenuHost from './lib/ui/MenuHost.svelte';
   import TrustPrompt from './lib/shell/TrustPrompt.svelte';
   import Welcome from './lib/shell/Welcome.svelte';
   import { vi } from './lib/strings.vi.ts';
@@ -179,3 +180,4 @@
 
 <Toasts />
 <DialogHost />
+<MenuHost />

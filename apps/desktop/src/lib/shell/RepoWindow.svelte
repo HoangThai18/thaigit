@@ -5,6 +5,9 @@
 -->
 <script lang="ts">
   import { operationTitle } from '@thaigit/core';
+  import { beginCreateBranch } from '../actions/branches.ts';
+  import { startAutoFetch } from '../actions/autoFetch.ts';
+  import { fetch, pull, push } from '../actions/remote.ts';
   import DiffPane from '../diff/DiffPane.svelte';
   import { showBidi } from '../format/bidi.ts';
   import GraphView from '../graph/GraphView.svelte';
@@ -14,6 +17,12 @@
   import { INSPECTOR_LIMITS, SIDEBAR_LIMITS, prefs } from '../stores/prefs.svelte.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
+  import { dialogs } from '../stores/dialogs.svelte.ts';
+  import { menus } from '../stores/menus.svelte.ts';
+  import ActionBar from './ActionBar.svelte';
+  import BranchSwitcher from './BranchSwitcher.svelte';
+  import BusyBar from './BusyBar.svelte';
+  import CommandLogPanel from './CommandLogPanel.svelte';
   import Splitter from './Splitter.svelte';
 
   interface Props {
@@ -26,7 +35,25 @@
   const showSidebar = $derived(prefs.value.showSidebar);
   const showInspector = $derived(prefs.value.showInspector);
   const conflicts = $derived(store.status.conflicts.length);
+  let showLog = $state(false);
+
+  $effect(() => startAutoFetch(store));
+
+  /** Phím tắt của repo (Ctrl trên Windows/Linux, ⌘ trên macOS) — như menu Repository của app Swift. */
+  function onwindowkeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented || dialogs.current !== null || menus.current !== null || showLog) return;
+    if (!(event.ctrlKey || event.metaKey)) return;
+    const code = event.code;
+    if (event.altKey && !event.shiftKey && code === 'KeyF') void fetch(store);
+    else if (event.shiftKey && !event.altKey && code === 'KeyL') void pull(store);
+    else if (event.shiftKey && !event.altKey && code === 'KeyP') void push(store);
+    else if (event.shiftKey && !event.altKey && code === 'KeyB') void beginCreateBranch(store);
+    else return;
+    event.preventDefault();
+  }
 </script>
+
+<svelte:window onkeydown={onwindowkeydown} />
 
 {#snippet sidebarToggle()}
   <button
@@ -67,15 +94,14 @@
         <span class="inset" data-tauri-drag-region></span>
         {@render sidebarToggle()}
       {/if}
-      <div class="branch" title={vi.window.branchLabel}>
-        <Icon name="branch" size={15} />
-        <span class="branch-name"><bdi>{showBidi(store.headDescription || vi.window.noBranch)}</bdi></span>
-      </div>
+      <BranchSwitcher {store} />
       <div class="titles" data-tauri-drag-region>
         <strong class="repo-name" data-tauri-drag-region><bdi>{showBidi(store.name)}</bdi></strong>
         <span class="subtitle" data-tauri-drag-region><bdi>{showBidi(store.branchSubtitle)}</bdi></span>
       </div>
       <span class="grow" data-tauri-drag-region></span>
+      <ActionBar {store} onshowlog={() => (showLog = true)} />
+      <span class="divider" data-tauri-drag-region></span>
       <button
         type="button"
         class="tool"
@@ -97,6 +123,8 @@
         <Icon name="x" size={16} />
       </button>
     </header>
+
+    <BusyBar {store} />
 
     <div class="content">
       <div class="center">
@@ -131,6 +159,10 @@
     </div>
   </div>
 </div>
+
+{#if showLog}
+  <CommandLogPanel {store} onclose={() => (showLog = false)} />
+{/if}
 
 <style>
   .window {
@@ -212,28 +244,6 @@
     color: var(--text);
   }
 
-  .branch {
-    display: inline-flex;
-    align-items: center;
-    flex: none;
-    gap: 7px;
-    max-width: 260px;
-    height: 30px;
-    padding: 0 12px;
-    border: 1px solid var(--glass-rim);
-    border-radius: 15px;
-    background: var(--glass-fill);
-    color: var(--text-secondary);
-  }
-
-  .branch-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--text);
-    font-size: 13px;
-  }
-
   .titles {
     display: flex;
     flex-direction: column;
@@ -259,6 +269,13 @@
   .grow {
     flex: 1;
     align-self: stretch;
+  }
+
+  .divider {
+    flex: none;
+    width: 1px;
+    height: 20px;
+    background: var(--separator);
   }
 
   .content {
