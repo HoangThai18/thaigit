@@ -3,7 +3,9 @@
   import { formatRelative } from '../format/time.ts';
   import type { RecentRepo } from '../ipc/types.ts';
   import logo from '../assets/logo.png';
+  import { hasTauriInternals } from '../platform/host.ts';
   import { vi } from '../strings.vi.ts';
+  import { updates } from '../stores/update.svelte.ts';
   import Icon from '../ui/Icon.svelte';
 
   interface Props {
@@ -17,6 +19,9 @@
   }
 
   let { recent, opening, unavailable, onopen, onrecent, onforget }: Props = $props();
+
+  const version = import.meta.env.VITE_APP_VERSION ?? '';
+  const inApp = hasTauriInternals();
 </script>
 
 <main class="welcome" data-tauri-drag-region>
@@ -62,10 +67,52 @@
         {/each}
       </ul>
     {/if}
+
+    <footer class="footer">
+      {#if version}<span class="version">{vi.appName} {version}</span>{/if}
+      {#if inApp}
+        {#if updates.available}
+          <button type="button" class="link" onclick={() => void updates.install()}>
+            {vi.update.installMenu(updates.available.version)}
+          </button>
+        {:else}
+          <button
+            type="button"
+            class="link"
+            disabled={updates.checking || updates.installing}
+            onclick={() => void updates.check(version)}>{vi.update.checkNow}</button
+          >
+        {/if}
+      {/if}
+    </footer>
   </section>
 </main>
 
 <style>
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 18px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+  }
+
+  .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .link:disabled {
+    color: var(--text-tertiary);
+    cursor: default;
+  }
+
   .welcome {
     display: grid;
     place-items: center;

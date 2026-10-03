@@ -8,7 +8,9 @@
   import { fetch, pull, push } from '../actions/remote.ts';
   import { popLatestStash, quickStash } from '../actions/stash.ts';
   import { vi } from '../strings.vi.ts';
-  import { menus } from '../stores/menus.svelte.ts';
+  import { hasTauriInternals } from '../platform/host.ts';
+  import { menus, tidyMenu } from '../stores/menus.svelte.ts';
+  import { updates } from '../stores/update.svelte.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
 
@@ -42,12 +44,23 @@
 
   function openMoreMenu(event: MouseEvent): void {
     if (!moreButton) return;
+    const available = updates.available;
     menus.openBelow(
       moreButton,
-      [
+      tidyMenu([
         { title: vi.remote.refresh, icon: 'reset', run: () => store.refreshEverything() },
         { title: vi.remote.commandLog, icon: 'terminal', run: onshowlog },
-      ],
+        { kind: 'separator' },
+        hasTauriInternals() &&
+          (available
+            ? { title: vi.update.installMenu(available.version), icon: 'download', run: () => void updates.install() }
+            : {
+                title: vi.update.checkNow,
+                icon: 'download',
+                disabled: updates.checking || updates.installing,
+                run: () => void updates.check(import.meta.env.VITE_APP_VERSION ?? ''),
+              }),
+      ]),
       { focusFirst: event.detail === 0 },
     );
   }

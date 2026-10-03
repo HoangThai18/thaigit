@@ -10,6 +10,9 @@
   import Toasts from './lib/shell/Toasts.svelte';
   import DialogHost from './lib/ui/DialogHost.svelte';
   import MenuHost from './lib/ui/MenuHost.svelte';
+  import UpdateBar from './lib/shell/UpdateBar.svelte';
+  import { appReady, onUpdateAvailable, onUpdateProgress, updateCheck, updateInstall } from './lib/ipc/update.ts';
+  import { updates } from './lib/stores/update.svelte.ts';
   import TrustPrompt from './lib/shell/TrustPrompt.svelte';
   import Welcome from './lib/shell/Welcome.svelte';
   import { vi } from './lib/strings.vi.ts';
@@ -43,7 +46,20 @@
     );
     const stopWatching = theme.watchSystem();
     void boot();
+    if (hasTauriInternals()) {
+      // Cập nhật tự động: Rust tự kiểm định kỳ và báo qua sự kiện; giao diện chỉ hiện + cài khi người dùng bấm.
+      void updates
+        .start({
+          check: updateCheck,
+          install: updateInstall,
+          onAvailable: (handler) => onUpdateAvailable((event) => handler(event.update)),
+          onProgress: onUpdateProgress,
+        })
+        .catch(() => undefined);
+      void appReady().catch(() => undefined);
+    }
     return () => {
+      updates.stop();
       stopWatching();
       if (view.kind === 'repo') void view.store.dispose();
       prefs.flush();
@@ -181,3 +197,4 @@
 <Toasts />
 <DialogHost />
 <MenuHost />
+<UpdateBar />

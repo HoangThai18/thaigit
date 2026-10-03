@@ -23,10 +23,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 tokio = { version = "1", features = ["process", "io-util", "sync", "time", "rt", "rt-multi-thread", "macros", "net"] }
-# Phase 8a (cập nhật tự động): CHƯA đăng ký plugin trong `run()` — seam S0 chỉ khai báo phụ thuộc để các nhánh làm song song
-# không đụng Cargo.toml/Cargo.lock. `semver` cho comparator chặn hạ cấp (updater.rs). `net` của tokio: listener askpass 127.0.0.1 (2b).
+# Cập nhật tự động (updater.rs): plugin chỉ dùng từ Rust; `semver` cho kênh mặc định + chặn hạ cấp, `time` định dạng ngày phát
+# hành. `net` của tokio: listener askpass 127.0.0.1 (2b).
 tauri-plugin-updater = "2"
 semver = "1"
+time = { version = "0.3", features = ["formatting"] }
 notify-debouncer-full = "0.7"
 ignore = "0.4"
 dunce = "1"

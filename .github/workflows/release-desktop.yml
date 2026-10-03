@@ -1,0 +1,115 @@
+# Phát hành bản Windows (Tauri) khi đẩy tag `desktop-v<phiên bản>` (vd. desktop-v2.0.0-beta.1).
+# - Build bản cài NSIS trên máy Windows của GitHub, ký file cập nhật bằng khoá minisign (secret TAURI_SIGNING_PRIVATE_KEY +
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD; khoá công khai nằm trong tauri.conf.json).
+# - Tạo release THỬ NGHIỆM (--prerelease --latest=false): `releases/latest` vẫn là bản macOS, bộ cập nhật của app macOS không
+#   bị ảnh hưởng.
+# - Cập nhật release cố định `desktop-beta` (kênh beta): `latest.json` cho bộ cập nhật và `Thaigit-Windows-setup.exe` cho nút
+#   "Tải cho Windows" trên trang chủ (link không đổi giữa các phiên bản).
+# Bản cài chưa ký Authenticode nên Windows SmartScreen sẽ cảnh báo lần đầu ("More info" → "Run anyway").
+name: Phát hành bản Windows
+
+on:
+  push:
+    tags: ['desktop-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build bản cài (NSIS) có chữ ký cập nhật
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: Phiên bản khớp tag
+        id: version
+        shell: bash
+        run: |
+          version=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
+          package=$(node -p "require('./apps/desktop/package.json').version")
+          if [ "desktop-v$version" != "$GITHUB_REF_NAME" ] || [ "$package" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME không khớp phiên bản (tauri.conf.json $version, package.json $package)"
+            exit 1
+          fi
+          grep -q "^## $version " apps/desktop/CHANGELOG.md || { echo "::error::CHANGELOG chưa có mục $version"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cài phụ thuộc (chỉ app desktop)
+        run: pnpm install --frozen-lockfile --filter @thaigit/desktop...
+      - name: Build bản cài
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm --filter @thaigit/desktop tauri build --bundles nsis
+      - name: Gom file phát hành
+        shell: bash
+        run: |
+          version='${{ steps.version.outputs.version }}'
+          bundle=apps/desktop/src-tauri/target/release/bundle/nsis
+          exe="$bundle/Thaigit_${version}_x64-setup.exe"
+          test -f "$exe" && test -f "$exe.sig"
+          mkdir -p out
+          cp "$exe" "$exe.sig" out/
+          cp "$exe" out/Thaigit-Windows-setup.exe
+          node scripts/desktop-latest-json.mjs "$version" "$GITHUB_REF_NAME" "$exe" "$exe.sig" apps/desktop/CHANGELOG.md > out/latest.json
+          node -e "
+            const fs = require('fs');
+            const text = fs.readFileSync('apps/desktop/CHANGELOG.md', 'utf8').replace(/\r\n/g, '\n');
+            const lines = text.split('\n');
+            const start = lines.findIndex((l) => l.startsWith('## $version '));
+            const body = [];
+            for (const l of lines.slice(start + 1)) { if (l.startsWith('## ')) break; body.push(l); }
+            fs.writeFileSync('out/notes.md', body.join('\n').trim() + '\n');
+          "
+          ls -la out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: thaigit-windows-release
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Tạo release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: thaigit-windows-release
+          path: out
+      - name: Release của phiên bản
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Thaigit cho Windows $VERSION" \
+            --notes-file out/notes.md \
+            --prerelease --latest=false --verify-tag \
+            "out/Thaigit_${VERSION}_x64-setup.exe" "out/Thaigit_${VERSION}_x64-setup.exe.sig" out/latest.json
+      - name: Kênh beta (latest.json + link tải cố định)
+        run: |
+          if ! gh release view desktop-beta > /dev/null 2>&1; then
+            gh release create desktop-beta \
+              --title "Thaigit cho Windows — kênh beta" \
+              --notes "Bản Windows mới nhất của kênh beta. Bộ cập nhật trong app đọc latest.json ở đây; tải bản cài: Thaigit-Windows-setup.exe." \
+              --prerelease --latest=false --target "$GITHUB_SHA"
+          fi
+          gh release upload desktop-beta out/latest.json out/Thaigit-Windows-setup.exe --clobber

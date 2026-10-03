@@ -37,8 +37,10 @@ jobs:
           workspaces: apps/desktop/src-tauri
       - name: Cài phụ thuộc (chỉ app desktop)
         run: pnpm install --frozen-lockfile --filter @thaigit/desktop...
+      # Bản thử từng commit: không có khoá ký cập nhật (chỉ workflow phát hành có) nên tắt file cập nhật.
       - name: Build bản cài
-        run: pnpm --filter @thaigit/desktop tauri build --bundles nsis
+        shell: bash
+        run: pnpm --filter @thaigit/desktop tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - uses: actions/upload-artifact@v7
         with:
           name: Thaigit-Windows
