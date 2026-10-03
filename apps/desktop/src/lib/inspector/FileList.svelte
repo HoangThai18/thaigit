@@ -1,4 +1,4 @@
-<!-- Danh sách file thay đổi (commit/stash/WIP), ảo hoá để commit hàng nghìn file vẫn mượt. Chỉ-đọc ở 4a. -->
+<!-- Danh sách file thay đổi (commit/stash), ảo hoá để commit hàng nghìn file vẫn mượt. Bấm file để xem diff ở vùng giữa. -->
 <script lang="ts">
   import { fileChangeDirectory, fileChangeName, type FileChange } from '@thaigit/core';
   import { showBidi } from '../format/bidi.ts';
@@ -10,9 +10,13 @@
     files: readonly FileChange[];
     title: string;
     emptyText?: string;
+    /** Bấm / Enter vào file (mở diff). */
+    onopen?: (change: FileChange) => void;
+    /** Đường dẫn file đang mở diff (tô hàng). */
+    selectedPath?: string | null;
   }
 
-  let { files, title, emptyText = '' }: Props = $props();
+  let { files, title, emptyText = '', onopen, selectedPath = null }: Props = $props();
 
   const summary = $derived(summarizeChanges(files));
 </script>
@@ -39,7 +43,18 @@
         {#snippet row(change: FileChange)}
           <div
             class="file"
+            class:openable={onopen !== undefined}
+            class:selected={selectedPath === change.path}
+            role="button"
+            tabindex={onopen ? 0 : -1}
             title={showBidi(change.oldPath ? `${change.oldPath} → ${change.path}` : change.path)}
+            onclick={() => onopen?.(change)}
+            onkeydown={(event) => {
+              if (onopen && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                onopen(change);
+              }
+            }}
           >
             <ChangeIcon kind={change.kind} />
             <span class="name selectable"><bdi>{showBidi(fileChangeName(change))}</bdi></span>
@@ -115,6 +130,15 @@
 
   .file:hover {
     background: var(--row-hover);
+  }
+
+  .file.selected {
+    background: var(--row-selected-focus);
+  }
+
+  .file.openable:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
 
   .name {

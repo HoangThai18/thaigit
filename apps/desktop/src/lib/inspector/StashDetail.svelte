@@ -19,6 +19,10 @@
   const message = $derived(stash ? stashDisplayMessage(stash) : '');
   const branch = $derived(stash ? stashBranchName(stash) : null);
   const details = $derived(store.details?.commit.id === sha ? store.details : null);
+  const openPath = $derived.by(() => {
+    const open = store.diff.file;
+    return open?.source.kind === 'stash' && open.source.sha === sha ? open.change.path : null;
+  });
 </script>
 
 {#if stash}
@@ -48,6 +52,8 @@
         files={details.files}
         title={vi.inspector.filesChanged(details.files.length)}
         emptyText={vi.inspector.noFiles}
+        selectedPath={openPath}
+        onopen={(change) => store.diff.open(change, { kind: 'stash', sha })}
       />
     {:else}
       <div class="loading" role="status">{vi.inspector.loadingDetails}</div>

@@ -32,6 +32,8 @@
     label?: string;
     /** Bề ngang vùng nội dung (không gồm thanh cuộn) — để căn tiêu đề cột với hàng. */
     contentWidth?: number;
+    /** Bề ngang tối thiểu của nội dung (CSS, vd. "calc(120ch + 80px)"): có thì cuộn ngang được (diff dòng dài). */
+    minContentWidth?: string;
   }
 
   let {
@@ -44,6 +46,7 @@
     onrange,
     label,
     contentWidth = $bindable(0),
+    minContentWidth,
   }: Props = $props();
 
   let viewport = $state<HTMLDivElement>();
@@ -87,13 +90,14 @@
 
 <div
   class="viewport"
+  class:scroll-x={minContentWidth !== undefined}
   bind:this={viewport}
   bind:clientHeight={height}
   bind:clientWidth={contentWidth}
   onscroll={(event) => (scrollTop = event.currentTarget.scrollTop)}
   aria-label={label}
 >
-  <div class="spacer" style:height="{items.length * rowHeight}px">
+  <div class="spacer" style:height="{items.length * rowHeight}px" style:min-width={minContentWidth}>
     {#each visible as item, offset (key ? key(item, first + offset) : first + offset)}
       <div
         class="row"
@@ -116,6 +120,10 @@
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
+  }
+
+  .viewport.scroll-x {
+    overflow-x: auto;
   }
 
   .spacer {

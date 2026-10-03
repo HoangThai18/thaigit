@@ -24,6 +24,7 @@ const TRASH = [
 
 export const ICONS = {
   'chevron-right': [d('M9.5 6l6 6-6 6')],
+  'chevron-left': [d('M14.5 6l-6 6 6 6')],
   'chevron-down': [d('M6 9.5l6 6 6-6')],
   check: [d('M5 12.5l4.5 4.5L19 7.5')],
   plus: [d('M12 5v14M5 12h14')],

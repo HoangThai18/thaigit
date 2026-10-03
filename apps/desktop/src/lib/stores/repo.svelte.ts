@@ -32,6 +32,7 @@ import {
 import type { RepoChangedEvent } from '@thaigit/contracts';
 import { compareNatural } from '../format/natural.ts';
 import { buildRefLabels, type RefLabel } from '../graph/pills.ts';
+import { DiffStore } from './diff.svelte.ts';
 import type { RepoPort } from '../platform/host.ts';
 import { vi } from '../strings.vi.ts';
 import { jsonEqual } from './equality.ts';
@@ -174,6 +175,10 @@ export class RepoStore {
 
   // --- giao diện ---
   busy = $state.raw<BusyState | null>(null);
+  /** File đang mở ở vùng giữa (thay graph) và các dòng đang chọn để stage từng dòng. */
+  readonly diff: DiffStore;
+  /** Ô soạn commit (giữ khi chuyển qua lại giữa WIP và commit khác). */
+  commitDraft = $state({ summary: '', body: '', amend: false });
 
   // --- nội bộ (không phản ứng) ---
   private rowIndex = new Map<string, number>();
@@ -217,6 +222,20 @@ export class RepoStore {
       log: this.commandLog,
       typed: port.typedGit,
     });
+    const store = this;
+    this.diff = new DiffStore({
+      get git() {
+        return store.git;
+      },
+      get status() {
+        return store.status;
+      },
+      get stashes() {
+        return store.stashes;
+      },
+      diffContext: () => store.prefs.value.diffContext,
+      reportError: (title, error) => store.showError(title, error),
+    });
   }
 
   get name(): string {
@@ -251,6 +270,7 @@ export class RepoStore {
     this.detailsToken++;
     // Toast của repo đã đóng mang nút gọi vào store này (Xem lại cấu hình, Tải thêm…): bấm vào sẽ tác động lên repo không còn mở.
     this.toasts.dismissOwner(this.ownerId);
+    this.diff.close();
     this.abort?.abort();
     const stop = this.unwatch;
     this.unwatch = null;
@@ -377,6 +397,8 @@ export class RepoStore {
       if (statusResult.ok) {
         this.toasts.dismissTag(this.refreshErrorTag);
         if (!jsonEqual(statusResult.value, this.status)) this.status = statusResult.value;
+        // Diff của thay đổi chưa commit đang mở: nạp lại (file vừa sửa / stage) hoặc đóng nếu file không còn.
+        this.diff.statusDidChange();
       } else {
         this.reportRefreshFailure(vi.errors.status, statusResult.error);
       }
@@ -604,6 +626,8 @@ export class RepoStore {
   select(next: RepoSelection, reveal = false): void {
     if (!sameSelection(next, this.selection)) {
       this.selection = next;
+      // Như Swift: chọn commit / stash / WIP khác thì đóng file đang xem, quay về graph.
+      this.diff.close();
       this.loadDetails();
     }
     if (reveal) {
@@ -708,6 +732,16 @@ export class RepoStore {
   showError(title: string, error: unknown, actions: readonly ToastAction[] = []): void {
     if (this.disposed) return;
     this.toasts.error(title, error, { actions, owner: this.ownerId });
+  }
+
+  /** Thông báo của repo này cho các thao tác ở `actions/` (gỡ khi đóng repo, không hiện sau `dispose`). */
+  notify(
+    style: 'info' | 'success' | 'warning',
+    title: string,
+    options: { message?: string; actions?: readonly ToastAction[]; tag?: string } = {},
+  ): void {
+    if (this.disposed) return;
+    this.toasts[style](title, { ...options, owner: this.ownerId });
   }
 
   /** Toast thường của store này: có chủ sở hữu (gỡ khi đóng repo) và không hiện sau `dispose`. */

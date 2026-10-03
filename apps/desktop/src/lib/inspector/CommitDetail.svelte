@@ -20,6 +20,10 @@
   let { store, sha }: Props = $props();
 
   const details = $derived(store.details?.commit.id === sha ? store.details : null);
+  const openPath = $derived.by(() => {
+    const open = store.diff.file;
+    return open?.source.kind === 'commit' && open.source.sha === sha ? open.change.path : null;
+  });
   const commit = $derived(details?.commit);
   const summary = $derived(details ? commitSummary(details.message, details.commit.subject) : '');
   const body = $derived(details ? commitBody(details.message) : '');
@@ -102,6 +106,8 @@
       files={details.files}
       title={vi.inspector.filesChanged(details.files.length)}
       emptyText={vi.inspector.noFiles}
+      selectedPath={openPath}
+      onopen={(change) => store.diff.open(change, { kind: 'commit', sha, parent: details.commit.parents[0] ?? null })}
     />
   </div>
 {:else if store.isLoadingDetails}

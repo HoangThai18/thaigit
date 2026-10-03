@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import { operationTitle } from '@thaigit/core';
+  import DiffPane from '../diff/DiffPane.svelte';
   import { showBidi } from '../format/bidi.ts';
   import GraphView from '../graph/GraphView.svelte';
   import Inspector from '../inspector/Inspector.svelte';
@@ -108,7 +109,11 @@
             >
           </div>
         {/if}
-        <div class="graph-area"><GraphView {store} /></div>
+        <!-- Graph giữ nguyên khi mở diff (ẩn đi) để quay lại không phải dựng lại / mất vị trí cuộn. -->
+        <div class="graph-area" class:hidden={store.diff.file !== null}><GraphView {store} /></div>
+        {#if store.diff.file !== null}
+          <div class="graph-area"><DiffPane {store} /></div>
+        {/if}
       </div>
       {#if showInspector}
         <Splitter
@@ -263,6 +268,7 @@
   }
 
   .center {
+    position: relative;
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -272,6 +278,14 @@
   .graph-area {
     flex: 1;
     min-height: 0;
+  }
+
+  /* Không dùng display: none — giữ khung cuộn của graph (vị trí cuộn) khi mở diff rồi quay lại. */
+  .graph-area.hidden {
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .inspector-pane {
