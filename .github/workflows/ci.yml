@@ -66,6 +66,10 @@ jobs:
         working-directory: apps/desktop/src-tauri
         run: cargo test
       - name: Build app (debug, không đóng gói)
+        id: build
         # Chạy cả khi bước kiểm tra trước lỗi: một lượt CI thấy hết lỗi (miễn là đã cài được phụ thuộc).
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm --filter @thaigit/desktop tauri build --debug --no-bundle
+      - name: Kiểm thử khói (mở app thật, chờ giao diện báo sẵn sàng)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: node scripts/smoke-app.mjs apps/desktop/src-tauri/target/debug/thaigit

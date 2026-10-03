@@ -157,6 +157,8 @@ pub fn run() {
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
+            // Đếm lần khởi động trước khi nạp giao diện (giao diện không lên được thì vẫn đếm).
+            safe_mode::init(app.handle(), &data_dir);
             let askpass_deny = std::env::current_exe().ok().and_then(|exe| askpass::prepare_deny_program(&data_dir, &exe));
             let core = Core::new(data_dir, Arc::new(TauriEvents(app.handle().clone())), askpass_deny);
             core.registry.push_launch_paths(launch_paths());
