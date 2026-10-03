@@ -244,7 +244,7 @@
     Bàn phím do hộp `listbox` bên ngoài xử lý (↑↓/PageUp/PageDown/Home/End/Enter). Hàng ảo hoá bị gỡ khỏi DOM khi cuộn đi; nếu
     focus nằm ở hàng thì phím mũi tên ngừng hoạt động, nên bấm hàng xong là chuyển focus về hộp listbox.
   -->
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="g-row"
     class:selected={index === selectedRow}

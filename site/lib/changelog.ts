@@ -10,7 +10,7 @@ export interface ChangelogEntry {
 
 /** Đọc CHANGELOG.md ở gốc repo lúc build: "## 1.0.0 — 2026-10-02", đoạn mô tả, rồi các dòng "- …". */
 export async function readChangelog(limit = 3): Promise<ChangelogEntry[]> {
-  let text = '';
+  let text: string;
   try {
     text = await readFile(path.join(process.cwd(), '..', 'CHANGELOG.md'), 'utf8');
   } catch {

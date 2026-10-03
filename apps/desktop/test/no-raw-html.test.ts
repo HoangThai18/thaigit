@@ -1,5 +1,6 @@
 // Rào chắn bảo mật (phase 4, "Security Considerations"): chuỗi từ repo (message, tác giả, tên nhánh/file) chỉ được render dạng text.
-// Không có ESLint trong repo nên rào chắn là test này: cấm `{@html …}` và các API chèn HTML thô trong mã giao diện.
+// ESLint chỉ chặn `{@html …}` (svelte/no-at-html-tags) nên rào chắn chính vẫn là test này: cấm cả `{@html …}` lẫn các API chèn
+// HTML thô trong mã giao diện.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';

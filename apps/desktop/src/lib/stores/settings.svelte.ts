@@ -20,7 +20,7 @@ export class SettingsStore {
     version = import.meta.env.VITE_APP_VERSION ?? '',
   ) {
     this.#storage = storage;
-    let saved: string | null = null;
+    let saved: string | null;
     try {
       saved = storage?.getItem(CHANNEL_KEY) ?? null;
     } catch {

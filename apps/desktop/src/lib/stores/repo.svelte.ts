@@ -233,6 +233,8 @@ export class RepoStore {
       log: this.commandLog,
       typed: port.typedGit,
     });
+    // Getter trong object literal bên dưới có `this` của riêng nó, nên cần tên khác để trỏ về store.
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const store = this;
     this.diff = new DiffStore({
       get git() {

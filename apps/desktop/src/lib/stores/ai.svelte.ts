@@ -120,7 +120,7 @@ export class AiStore {
     this.#storage = options.storage === undefined ? browserStorage() : options.storage;
     this.#randomId = options.randomId ?? (() => crypto.randomUUID());
     this.#now = options.now ?? Date.now;
-    let raw: unknown = null;
+    let raw: unknown;
     try {
       const text = this.#storage?.getItem(AI_STORAGE_KEY);
       raw = text ? JSON.parse(text) : null;

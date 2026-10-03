@@ -80,7 +80,7 @@ export class TelemetryStore {
     this.#target = options.target === undefined ? buildTarget() : options.target;
     this.#randomId = options.randomId ?? (() => crypto.randomUUID());
     this.#now = options.now ?? Date.now;
-    let raw: unknown = null;
+    let raw: unknown;
     try {
       const text = this.#storage?.getItem(TELEMETRY_STORAGE_KEY);
       raw = text ? JSON.parse(text) : null;

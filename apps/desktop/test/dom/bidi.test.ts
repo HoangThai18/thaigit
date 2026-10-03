@@ -39,6 +39,7 @@ async function bidiRepo(): Promise<LoadedRepo> {
 }
 
 // `any` ở đây chỉ để nhận mọi component Svelte; kiểu của `props` vẫn suy ra chính xác từ component (`ComponentProps`).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mountInto<C extends Component<any>>(component: C, props: ComponentProps<C>): HTMLElement {
   const target = document.createElement('div');
   document.body.append(target);
