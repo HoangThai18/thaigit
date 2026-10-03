@@ -21,9 +21,11 @@ pub mod pathutil;
 pub mod policy;
 pub mod registry;
 pub mod repo_fs;
+pub mod safe_mode;
 pub mod store;
 pub mod trust;
 pub mod typed;
+pub mod updater;
 pub mod watcher;
 
 // Các kịch bản dùng script `#!/bin/sh` và `touch` làm "lệnh của repo": chỉ chạy trên Unix.
@@ -141,6 +143,11 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::reveal,
         commands::open_url,
         commands::session_reset,
+        commands::askpass_reply,
+        commands::update_check,
+        commands::update_install,
+        commands::update_set_channel,
+        commands::app_ready,
     ])
 }
 
@@ -154,6 +161,9 @@ pub fn run() {
             let core = Core::new(data_dir, Arc::new(TauriEvents(app.handle().clone())), askpass_deny);
             core.registry.push_launch_paths(launch_paths());
             app.manage(core.clone());
+            // Seam S0: các khung này hiện là no-op; 2b (askpass) và 8a (updater) điền thân hàm, không phải sửa lại chỗ gọi.
+            askpass::init(app.handle())?;
+            updater::init(app.handle())?;
             tauri::async_runtime::spawn(init_git(core));
             build_main_window(app)?;
             Ok(())

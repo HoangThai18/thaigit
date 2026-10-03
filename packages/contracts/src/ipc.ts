@@ -117,9 +117,77 @@ export const Commands = {
   reveal: 'reveal',
   openUrl: 'open_url',
   sessionReset: 'session_reset',
+  // Askpass (2b): webview trả lời hộp thoại hỏi mật khẩu/passphrase do `askpass-request` mở.
+  askpassReply: 'askpass_reply',
+  // Cập nhật tự động (8a) + chế độ an toàn: Rust làm hết, webview chỉ hiển thị/ra lệnh.
+  updateCheck: 'update_check',
+  updateInstall: 'update_install',
+  updateSetChannel: 'update_set_channel',
+  appReady: 'app_ready',
 } as const;
 
 export const Events = {
   repoChanged: 'repo-changed',
   gitEnvChanged: 'git-env-changed',
+  askpassRequest: 'askpass-request',
+  updateAvailable: 'update-available',
+  updateProgress: 'update-progress',
 } as const;
+
+// MARK: - Askpass (2b)
+
+/** Loại câu hỏi askpass (Rust phân loại prompt của git/ssh; webview chỉ hiển thị, không tin prompt thô). */
+export type AskpassKind = 'username' | 'password' | 'passphrase' | 'other';
+
+/**
+ * Sự kiện `askpass-request`: git/ssh (hồ sơ `interactive`) cần một câu trả lời. UI hiện hộp thoại rồi gọi `askpass_reply` với
+ * đúng `requestId`. `prompt` chỉ để hiển thị (Rust đã từ chối prompt có ký tự điều khiển); không bao giờ log prompt/câu trả lời.
+ */
+export interface AskpassRequestEvent {
+  requestId: string;
+  /** `opId` của lệnh `git_exec` đang chờ — để nút Huỷ trên BusyBar gắn đúng op. */
+  opId: string;
+  /** Tên thao tác hiện trên modal ("git push origin"). */
+  operation: string;
+  kind: AskpassKind;
+  /** Host đã parse từ prompt (`github.com`), `null` nếu không có. */
+  host: string | null;
+  prompt: string;
+}
+
+/** Tham số `askpass_reply`: `answer = null` nghĩa là người dùng bấm Huỷ (git nhận mã thoát ≠ 0). */
+export interface AskpassReply {
+  requestId: string;
+  answer: string | null;
+}
+
+// MARK: - Cập nhật tự động (8a)
+
+/** Kênh cập nhật: manifest `latest.json` nằm trên release cố định `desktop-<kênh>` của GitHub. */
+export type UpdateChannel = 'beta' | 'stable';
+
+/** Một bản cập nhật hợp lệ (đã qua chữ ký + chống hạ cấp ở Rust). */
+export interface UpdateInfo {
+  currentVersion: string;
+  version: string;
+  /** Ghi chú phát hành (từ CHANGELOG), văn bản thường — chỉ render dạng text. */
+  notes: string | null;
+  /** RFC 3339, `null` nếu manifest không ghi. */
+  pubDate: string | null;
+}
+
+/** Sự kiện `update-available`: Rust tự kiểm lúc khởi động + mỗi 6 giờ rồi báo cho UI. */
+export interface UpdateAvailableEvent {
+  update: UpdateInfo;
+}
+
+export type UpdatePhase = 'downloading' | 'verifying' | 'installing' | 'ready' | 'failed';
+
+/** Sự kiện `update-progress` trong lúc `update_install` chạy. `total = null` khi chưa biết kích thước. */
+export interface UpdateProgressEvent {
+  phase: UpdatePhase;
+  downloaded: number;
+  total: number | null;
+  /** Lý do khi `phase = 'failed'`. */
+  message: string | null;
+}

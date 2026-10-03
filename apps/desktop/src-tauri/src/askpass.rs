@@ -14,6 +14,9 @@
 use std::ffi::OsString;
 use std::path::Path;
 
+use tauri::{AppHandle, Runtime};
+
+use crate::errors::{AppError, Result};
 use crate::policy::ASKPASS_DENY_ENV;
 
 pub const DENY_FLAG: &str = "--askpass-deny";
@@ -27,6 +30,24 @@ pub fn is_deny_invocation(args: &[OsString], marker: Option<OsString>) -> bool {
 pub fn should_exit_early() -> bool {
     let args: Vec<OsString> = std::env::args_os().collect();
     is_deny_invocation(&args, std::env::var_os(ASKPASS_DENY_ENV))
+}
+
+// --- Askpass tương tác (2b) — KHUNG của seam S0: chữ ký hàm đã chốt, thân hàm CHƯA làm -------------------------------------
+//
+// Việc của 2b: `init` dựng listener 127.0.0.1 + token theo op (tokio `net`), `main()` kiểm `--askpass` trước khi dựng Tauri;
+// mỗi prompt của git/ssh (hồ sơ `interactive`) → phát `askpass-request` (`AskpassRequestEvent` ở contracts) tới ĐÚNG cửa sổ
+// sở hữu op; webview trả lời bằng `askpass_reply`, `reply` đối chiếu `requestId` + nhãn cửa sổ rồi chuyển câu trả lời cho
+// tiến trình askpass. Không bao giờ log prompt/câu trả lời. Phần từ chối (`--askpass-deny`) ở trên đang chạy thật.
+
+/// Khởi tạo lúc `setup` (sau `app.manage(core)`). Hiện là no-op.
+pub fn init<R: Runtime>(_app: &AppHandle<R>) -> Result<()> {
+    Ok(())
+}
+
+/// `askpass_reply`: webview (cửa sổ `window`) trả lời yêu cầu `request_id`; `answer = None` = người dùng huỷ.
+/// `request_id` không tồn tại / không thuộc `window` → lỗi (không đoán). Hiện trả lỗi "chưa làm".
+pub fn reply<R: Runtime>(_app: &AppHandle<R>, _window: &str, _request_id: &str, _answer: Option<String>) -> Result<()> {
+    Err(AppError::Internal("Chưa làm: trả lời askpass (phase 2b).".into()))
 }
 
 /// Nội dung script bọc (Unix).
@@ -77,6 +98,13 @@ mod tests {
         assert!(!is_deny_invocation(&args(&["thaigit", "/path/to/repo"]), None));
         assert!(!is_deny_invocation(&args(&["thaigit", "--other"]), Some("0".into())));
         assert!(!is_deny_invocation(&[], None));
+    }
+
+    #[test]
+    fn interactive_askpass_stubs_are_wired_but_not_implemented() {
+        let app = tauri::test::mock_app();
+        assert!(init(app.handle()).is_ok());
+        assert_eq!(reply(app.handle(), "main", "req-1", None).unwrap_err().code(), "internal");
     }
 
     #[test]

@@ -17,6 +17,8 @@ use crate::os_integration;
 use crate::registry::{OpenSource, OpenedRepo, PickedFolder, RecentRepo, new_detach_flag};
 use crate::repo_fs;
 use crate::typed::ConfigScope;
+use crate::updater::UpdateInfo;
+use crate::{askpass, safe_mode, updater};
 
 type CoreState<'a> = State<'a, Arc<Core>>;
 
@@ -272,6 +274,41 @@ pub async fn open_url(url: String, confirmed: Option<bool>) -> Result<()> {
 #[tauri::command]
 pub fn session_reset<R: Runtime>(window: WebviewWindow<R>, core: CoreState<'_>) {
     core.reset_window(window.label());
+}
+
+// --- askpass (2b) -------------------------------------------------------------------------------------------------------
+
+/// Webview trả lời hộp thoại hỏi mật khẩu/passphrase (`askpass-request`); `answer = null` = người dùng huỷ.
+/// Lớp mỏng: `askpass::reply` kiểm `request_id` + cửa sổ gọi.
+#[tauri::command]
+pub fn askpass_reply<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, request_id: String, answer: Option<String>) -> Result<()> {
+    askpass::reply(&app, window.label(), &request_id, answer)
+}
+
+// --- cập nhật tự động + chế độ an toàn (8a) -----------------------------------------------------------------------------
+
+/// Kiểm cập nhật theo kênh hiện tại: `null` = đang ở bản mới nhất.
+#[tauri::command]
+pub async fn update_check<R: Runtime>(app: AppHandle<R>) -> Result<Option<UpdateInfo>> {
+    updater::check(&app).await
+}
+
+/// Tải + kiểm chữ ký + cài bản đã báo (tiến độ qua sự kiện `update-progress`).
+#[tauri::command]
+pub async fn update_install<R: Runtime>(app: AppHandle<R>) -> Result<()> {
+    updater::install(&app).await
+}
+
+/// Đổi kênh cập nhật (`"beta"` | `"stable"`; kênh lạ bị serde từ chối).
+#[tauri::command]
+pub fn update_set_channel<R: Runtime>(app: AppHandle<R>, channel: updater::Channel) -> Result<()> {
+    updater::set_channel(&app, channel)
+}
+
+/// UI báo "đã sẵn sàng" → đặt lại bộ đếm khởi động hỏng của chế độ an toàn.
+#[tauri::command]
+pub fn app_ready<R: Runtime>(app: AppHandle<R>) -> Result<()> {
+    safe_mode::ready(&app)
 }
 
 /// Thời gian chờ PATH của login shell (macOS).

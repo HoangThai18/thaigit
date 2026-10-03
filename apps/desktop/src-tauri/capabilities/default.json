@@ -37,6 +37,11 @@
     "allow-open-in-editor",
     "allow-reveal",
     "allow-open-url",
-    "allow-session-reset"
+    "allow-session-reset",
+    "allow-askpass-reply",
+    "allow-update-check",
+    "allow-update-install",
+    "allow-update-set-channel",
+    "allow-app-ready"
   ]
 }

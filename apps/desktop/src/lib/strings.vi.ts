@@ -1,177 +1,20 @@
 /**
- * Mọi chuỗi giao diện (tiếng Việt) gom một chỗ để sau này tách ngôn ngữ nếu cần. Hàm nhận tham số cho chuỗi có số/tên.
- * Văn phong bám theo app Swift (`Sources/Nhanh`).
+ * Mọi chuỗi giao diện (tiếng Việt) gom một chỗ để sau này tách ngôn ngữ nếu cần. File này chỉ GỘP các file con trong `strings/`:
+ *  - `shell.vi.ts`: chuỗi "khung" (welcome, trust, window, graph, sidebar, inspector, time, errors, toast, dialog, menu, busy…)
+ *    được trải phẳng nên `vi.window.x`, `vi.graph.x`… giữ nguyên như trước khi tách.
+ *  - mỗi gói tính năng một namespace riêng: `vi.staging`, `vi.branches`, `vi.remote`, `vi.update` (một file, một gói) — nhờ vậy
+ *    các gói làm song song không bao giờ trùng khoá hay sửa chung file. Test `strings.test.ts` giữ namespace không trùng khoá của shell.
  */
+import { branches } from './strings/branches.vi.ts';
+import { remote } from './strings/remote.vi.ts';
+import { shell } from './strings/shell.vi.ts';
+import { staging } from './strings/staging.vi.ts';
+import { update } from './strings/update.vi.ts';
+
 export const vi = {
-  appName: 'Thaigit',
-
-  welcome: {
-    tagline: 'Git client trực quan, miễn phí — graph nhiều màu, thao tác bằng chuột.',
-    openFolder: 'Mở thư mục…',
-    opening: 'Đang mở…',
-    recent: 'Gần đây',
-    recentEmpty: 'Chưa mở repo nào gần đây.',
-    forget: 'Xoá khỏi danh sách',
-    loadRecentFailed: 'Không đọc được danh sách repo gần đây',
-    openFailed: 'Không mở được repo',
-    notInTauri: 'Đang chạy ngoài ứng dụng Thaigit (không có lõi Rust) nên chưa mở được repo.',
-    forgetMissing: 'Xoá khỏi danh sách',
-  },
-
-  trust: {
-    title: 'Tin tưởng repo này?',
-    lead: 'Repo có cấu hình hoặc hook có thể chạy lệnh trên máy bạn. Thaigit chưa chạy gì cả — chỉ tiếp tục khi bạn tin nguồn của repo.',
-    findings: 'Đã tìm thấy',
-    trust: 'Tin tưởng repo',
-    cancel: 'Huỷ',
-    failed: 'Không ghi nhận được việc tin tưởng repo',
-    changed: 'Cấu hình repo vừa thay đổi — hãy xem lại danh sách trước khi tin tưởng.',
-  },
-
-  window: {
-    resizeSidebar: 'Kéo để đổi độ rộng thanh bên',
-    resizeInspector: 'Kéo để đổi độ rộng panel chi tiết',
-    operationConflicts: (count: number) => `Còn ${count} file xung đột`,
-    operationResolved: 'Đã giải quyết hết xung đột',
-    toggleSidebar: 'Ẩn/hiện thanh bên',
-    toggleInspector: 'Ẩn/hiện panel chi tiết',
-    closeRepo: 'Đóng repo (về màn hình chính)',
-    detachedHead: (sha: string) => `HEAD tách rời @ ${sha}`,
-    noBranch: '—',
-    branchLabel: 'Nhánh hiện tại',
-  },
-
-  graph: {
-    columns: {
-      refs: 'Nhánh / Tag',
-      graph: 'Graph',
-      message: 'Commit',
-      author: 'Tác giả',
-      date: 'Thời gian',
-      sha: 'SHA',
-    },
-    resizeColumn: (title: string) => `Kéo để đổi độ rộng cột ${title}`,
-    loading: 'Đang tải lịch sử…',
-    loadingMore: 'Đang tải thêm commit…',
-    emptyTitle: 'Chưa có commit nào',
-    emptyHint: 'Thêm file vào thư mục repository, sau đó stage và tạo commit đầu tiên ở panel bên phải.',
-    wip: '// WIP',
-    wipTooltip: 'Thay đổi chưa commit — bấm để xem',
-    ariaLabel: 'Lịch sử commit',
-    pillMore: (count: number) => `+${count}`,
-    detachedHeadPill: 'HEAD (tách rời)',
-    localBranchTip: (name: string, upstream: string | null) =>
-      `Nhánh local: ${name}${upstream === null ? '' : ` → ${upstream}`}`,
-    remoteBranchTip: (name: string) => `Nhánh remote: ${name}`,
-    tagTip: (name: string) => `Tag: ${name}`,
-    annotatedTagTip: (name: string) => `Tag có chú thích: ${name}`,
-    wipConflicts: (count: number) => `⚠︎ ${count} xung đột`,
-    wipModified: (count: number) => `✎ ${count} file sửa`,
-    wipUntracked: (count: number) => `＋ ${count} file mới`,
-    wipStaged: (count: number) => `● ${count} đã stage`,
-    notLoaded: (sha: string, limit: number) => `Commit ${sha} nằm ngoài ${limit} commit đã tải`,
-    loadMore: 'Tải thêm',
-  },
-
-  sidebar: {
-    filterPlaceholder: 'Lọc nhánh, tag…',
-    filterClear: 'Xoá bộ lọc',
-    local: 'LOCAL',
-    remote: 'REMOTE',
-    tags: 'TAGS',
-    stashes: 'STASHES',
-    noLocal: 'Chưa có nhánh nào',
-    noLocalMatch: 'Không có nhánh khớp',
-    noRemote: 'Chưa có remote nào',
-    noTags: 'Không có tag',
-    noTagsMatch: 'Không có tag khớp',
-    noStashes: 'Không có stash',
-    showMore: (shown: number, noun: string, remaining: number) =>
-      `Hiện thêm ${shown} ${noun} (còn ${remaining})`,
-    nounBranch: 'nhánh',
-    nounTag: 'tag',
-    nounStash: 'stash',
-    upstreamGone: 'Nhánh trên remote đã bị xoá',
-    aheadTip: (count: number) => `${count} commit chưa push`,
-    behindTip: (count: number) => `${count} commit mới trên remote chưa pull`,
-    annotatedTag: 'Tag có chú thích',
-    tag: 'Tag',
-    stashFrom: (branch: string) => `Nhánh: ${branch}`,
-    stashNoMessage: '(không có lời nhắn)',
-    section: (title: string) => `Mở/đóng mục ${title}`,
-    ariaLabel: 'Nhánh, tag và stash',
-  },
-
-  inspector: {
-    ariaLabel: 'Chi tiết',
-    emptyTitle: 'Chọn một commit',
-    emptyHint:
-      'Bấm vào một commit trên graph để xem chi tiết, hoặc chọn dòng “WIP” để xem thay đổi chưa commit.',
-    loadingDetails: 'Đang tải chi tiết…',
-    noDetails: 'Không có chi tiết',
-    commit: 'commit',
-    parent: 'cha',
-    parentTip: 'Tới commit cha',
-    copySha: 'Sao chép SHA đầy đủ',
-    copied: (label: string) => `Đã sao chép ${label}`,
-    copyFailed: 'Không sao chép được',
-    committedBy: (name: string, when: string) => `Commit bởi ${name} · ${when}`,
-    showFullBody: 'Xem toàn bộ mô tả',
-    collapseBody: 'Thu gọn',
-    filesChanged: (count: number) => `${count} file thay đổi`,
-    noFiles: 'Không có file nào thay đổi (commit rỗng hoặc merge).',
-    stash: 'Stash',
-    stashMissing: 'Stash không còn tồn tại',
-    stashFromBranch: (branch: string) => `Từ nhánh ${branch}`,
-    stashActionsLater: 'Apply / Pop / Xoá sẽ có ở bản sau.',
-    wipTitle: 'Thay đổi chưa commit',
-    wipPlaceholder:
-      'Stage từng file/hunk/dòng và tạo commit sẽ có ở bản sau (giai đoạn 5). Đây mới là danh sách chỉ-đọc.',
-    wipUnstaged: 'Chưa stage',
-    wipStaged: 'Đã stage',
-    wipConflicts: 'Xung đột',
-    wipClean: 'Không có thay đổi nào.',
-    changeKind: {
-      added: 'Thêm mới',
-      untracked: 'File mới (chưa track)',
-      modified: 'Đã sửa',
-      deleted: 'Đã xoá',
-      renamed: 'Đổi tên',
-      copied: 'Sao chép',
-      typeChanged: 'Đổi loại file',
-      conflicted: 'Xung đột',
-      unknown: 'Khác',
-    },
-  },
-
-  time: {
-    justNow: 'vừa xong',
-    minutes: (count: number) => `${count} phút`,
-    hours: (count: number) => `${count} giờ`,
-    days: (count: number) => `${count} ngày`,
-    weeks: (count: number) => `${count} tuần`,
-    months: (count: number) => `${count} tháng`,
-    years: (count: number) => `${count} năm`,
-    ago: (span: string) => `${span} trước`,
-    inFuture: (span: string) => `sau ${span}`,
-  },
-
-  errors: {
-    status: 'Không đọc được trạng thái repository',
-    refs: 'Không đọc được nhánh và tag',
-    history: 'Không tải được lịch sử commit',
-    commitDetails: 'Không tải được chi tiết commit',
-    stashDetails: 'Không tải được nội dung stash',
-    watch: 'Không theo dõi được thay đổi của repo (phải bấm làm mới thủ công)',
-    repoMissing: 'Không tìm thấy thư mục repository',
-    repoUntrusted: 'Cấu hình repo vừa thay đổi — Thaigit tạm dừng chạy lệnh cho tới khi bạn xem lại.',
-    reviewTrust: 'Xem lại cấu hình repo',
-    cancelled: (title: string) => `Đã huỷ: ${title}`,
-  },
-
-  toast: {
-    dismiss: 'Đóng thông báo',
-    expand: 'Xem đầy đủ',
-    collapse: 'Thu gọn',
-  },
+  ...shell,
+  staging,
+  branches,
+  remote,
+  update,
 } as const;

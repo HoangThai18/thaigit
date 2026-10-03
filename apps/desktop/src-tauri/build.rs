@@ -33,6 +33,11 @@ const APP_COMMANDS: &[&str] = &[
     "reveal",
     "open_url",
     "session_reset",
+    "askpass_reply",
+    "update_check",
+    "update_install",
+    "update_set_channel",
+    "app_ready",
 ];
 
 fn main() {

@@ -10,6 +10,10 @@ export const PREFS_KEY = 'thaigit.prefs.v1';
 
 export type ColorScheme = 'system' | 'light' | 'dark';
 
+/** Kiểu pull mặc định (cài đặt). `ff-only` ↔ `PullMode` `'fastForwardOnly'` của core (ánh xạ ở `actions/remote.ts`). */
+export type PullModePref = 'merge' | 'rebase' | 'ff-only';
+const PULL_MODES: readonly PullModePref[] = ['merge', 'rebase', 'ff-only'];
+
 export interface PrefsData {
   /** Số commit tải mỗi lần (Swift: mặc định 2000, tối thiểu 200). */
   commitLimit: number;
@@ -26,12 +30,23 @@ export interface PrefsData {
   inspectorWidth: number;
   sidebarSections: { local: boolean; remote: boolean; tags: boolean; stashes: boolean };
   columns: PreferredWidths;
+  /** Kiểu pull của nút Pull (mặc định `merge`). */
+  pullMode: PullModePref;
+  /** `fetch --prune`: dọn nhánh remote đã bị xoá (mặc định bật). */
+  fetchPrune: boolean;
+  /** Chu kỳ tự fetch (phút); 0 = tắt. */
+  autoFetchMinutes: number;
+  /** Số dòng ngữ cảnh quanh mỗi hunk khi xem diff (`-U<n>`). */
+  diffContext: number;
 }
 
 export const SIDEBAR_LIMITS = { min: 210, max: 440, ideal: 260 } as const;
 export const INSPECTOR_LIMITS = { min: 300, max: 640, ideal: 380 } as const;
 export const COMMIT_LIMIT_MIN = 200;
 export const COMMIT_LIMIT_MAX = 200_000;
+/** 0 = tắt tự fetch; trần 24 giờ. */
+export const AUTO_FETCH_MINUTES_MAX = 1440;
+export const DIFF_CONTEXT_MAX = 100;
 
 export function defaultPrefs(): PrefsData {
   return {
@@ -48,6 +63,10 @@ export function defaultPrefs(): PrefsData {
     inspectorWidth: INSPECTOR_LIMITS.ideal,
     sidebarSections: { local: true, remote: true, tags: false, stashes: true },
     columns: { ...DEFAULT_WIDTHS },
+    pullMode: 'merge',
+    fetchPrune: true,
+    autoFetchMinutes: 10,
+    diffContext: 3,
   };
 }
 
@@ -94,6 +113,10 @@ export function sanitizePrefs(raw: unknown): PrefsData {
       stashes: bool(sections.stashes, base.sidebarSections.stashes),
     },
     columns: sanitizePreferred(source.columns),
+    pullMode: PULL_MODES.find((mode) => mode === source.pullMode) ?? base.pullMode,
+    fetchPrune: bool(source.fetchPrune, base.fetchPrune),
+    autoFetchMinutes: clamp(source.autoFetchMinutes, 0, AUTO_FETCH_MINUTES_MAX, base.autoFetchMinutes),
+    diffContext: clamp(source.diffContext, 0, DIFF_CONTEXT_MAX, base.diffContext),
   };
 }
 

@@ -263,6 +263,31 @@ fn capability_only_allows_the_main_window_and_app_commands() {
     assert!(json_call(&h.main, "plugin:event|listen", json!({ "event": "repo-changed", "target": { "kind": "Any" }, "handler": 1 })).is_ok());
 }
 
+/// Seam S0: 5 lệnh mới (askpass/cập nhật/chế độ an toàn) phải tới được Rust từ cửa sổ `main` qua ACL thật và KHÔNG tới được từ cửa
+/// sổ khác. Không khẳng định kết quả (thân hàm do 2b/8a điền): chỉ phân biệt "ACL từ chối" (lỗi dạng chuỗi) với "lệnh chạy" (Ok hoặc
+/// lỗi `{ code, message }`).
+#[test]
+fn seam_commands_pass_the_acl_for_main_and_are_denied_elsewhere() {
+    let h = harness();
+    let calls: [(&str, Value); 5] = [
+        ("askpass_reply", json!({ "requestId": "r1", "answer": null })),
+        ("update_check", json!({})),
+        ("update_install", json!({})),
+        ("update_set_channel", json!({ "channel": "beta" })),
+        ("app_ready", json!({})),
+    ];
+    for (command, args) in &calls {
+        match json_call(&h.main, command, args.clone()) {
+            Ok(_) => {}
+            Err(error) => assert!(error.get("code").is_some(), "{command}: ACL từ chối cửa sổ main: {error}"),
+        }
+        let denied = json_call(&h.other, command, args.clone()).unwrap_err();
+        assert!(denied.get("code").is_none(), "{command}: cửa sổ khác phải bị ACL chặn chứ không chạy lệnh: {denied}");
+    }
+    // kênh lạ bị serde từ chối ngay ở biên IPC (lỗi dạng chuỗi của Tauri, không phải `{ code }`)
+    assert!(json_call(&h.main, "update_set_channel", json!({ "channel": "nightly" })).is_err());
+}
+
 /// Origin "local" của app trong bản chạy thật (đúng như Tauri tính: `cfg!(windows | android)` → `http://tauri.localhost`).
 fn production_origin() -> &'static str {
     if cfg!(any(windows, target_os = "android")) { "http://tauri.localhost/" } else { "tauri://localhost/" }
