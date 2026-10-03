@@ -33,7 +33,41 @@ extension RepoModel {
             lineSelection = [:]
             diffState = .loading
         }
+        openFilePosition = max(0, siblingFiles(of: source)?.firstIndex { $0.path == change.path } ?? 0)
         loadDiff()
+    }
+
+    /// Danh sách chứa file của `source` (chưa stage / đã stage / xung đột); `nil` với diff của commit, stash.
+    func siblingFiles(of source: DiffSource) -> [FileChange]? {
+        switch source {
+        case .unstaged: return status.unstaged
+        case .staged: return status.staged
+        case .conflict: return status.conflicts.map(\.asChange)
+        default: return nil
+        }
+    }
+
+    /// Vị trí (từ 1) và tổng số file trong danh sách của file đang mở — cho nút ↑ / ↓ "2/5" ở đầu diff.
+    var openFilePlace: (index: Int, total: Int)? {
+        guard let file = openFile, let files = siblingFiles(of: file.source),
+              let index = files.firstIndex(where: { $0.path == file.change.path }) else { return nil }
+        return (index + 1, files.count)
+    }
+
+    /// Mở file kế (`step` = 1) / trước (−1) trong cùng danh sách với file đang mở; hết danh sách thì đứng yên.
+    func stepOpenFile(_ step: Int) {
+        guard let file = openFile, let files = siblingFiles(of: file.source),
+              let index = files.firstIndex(where: { $0.path == file.change.path }),
+              files.indices.contains(index + step) else { return }
+        openDiff(files[index + step], source: file.source)
+    }
+
+    /// File đang mở vừa rời danh sách của nó (đã stage / bỏ stage / huỷ / giải xong): mở file đứng ở đúng chỗ đó để duyệt
+    /// tiếp không phải bấm lại. Danh sách đã trống thì trả `false`.
+    private func openNeighbour(in source: DiffSource) -> Bool {
+        guard let files = siblingFiles(of: source), !files.isEmpty else { return false }
+        openDiff(files[min(openFilePosition, files.count - 1)], source: source)
+        return true
     }
 
     func openConflict(_ entry: ConflictEntry) {
@@ -222,26 +256,37 @@ extension RepoModel {
         if let file = openFile {
             switch file.source {
             case .unstaged:
-                if let change = status.unstaged.first(where: { $0.path == file.change.path }) {
+                if let index = status.unstaged.firstIndex(where: { $0.path == file.change.path }) {
+                    let change = status.unstaged[index]
+                    openFilePosition = index
                     if change != file.change { openFile = OpenFile(source: .unstaged, change: change) }
                     loadDiff(silently: true)
+                } else if openNeighbour(in: .unstaged) {
+                    break
                 } else if let change = status.staged.first(where: { $0.path == file.change.path }) {
                     openDiff(change, source: .staged)
                 } else {
                     closeFile()
                 }
             case .staged:
-                if let change = status.staged.first(where: { $0.path == file.change.path }) {
+                if let index = status.staged.firstIndex(where: { $0.path == file.change.path }) {
+                    let change = status.staged[index]
+                    openFilePosition = index
                     if change != file.change { openFile = OpenFile(source: .staged, change: change) }
                     loadDiff(silently: true)
+                } else if openNeighbour(in: .staged) {
+                    break
                 } else if let change = status.unstaged.first(where: { $0.path == file.change.path }) {
                     openDiff(change, source: .unstaged)
                 } else {
                     closeFile()
                 }
             case .conflict:
-                if status.conflicts.contains(where: { $0.path == file.change.path }) {
+                if let index = status.conflicts.firstIndex(where: { $0.path == file.change.path }) {
+                    openFilePosition = index
                     loadDiff(silently: true)
+                } else if openNeighbour(in: .conflict) {
+                    break
                 } else if let change = status.staged.first(where: { $0.path == file.change.path }) {
                     openDiff(change, source: .staged)
                 } else {

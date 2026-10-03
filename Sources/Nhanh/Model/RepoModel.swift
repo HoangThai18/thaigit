@@ -69,12 +69,18 @@ final class RepoModel {
     var diffState: DiffState = .idle
     /// Các dòng đang chọn trong diff để stage/unstage/huỷ từng dòng: id hunk → chỉ số dòng.
     var lineSelection: [Int: Set<Int>] = [:]
+    /// Vị trí của file đang mở trong danh sách của nó: file biến mất (đã stage, đã huỷ…) thì mở file đứng ở chỗ này.
+    @ObservationIgnored var openFilePosition = 0
     var scrollRequest: ScrollRequest?
 
     // MARK: - Commit đang soạn
 
-    var commitSummary = ""
-    var commitBody = ""
+    var commitSummary = "" {
+        didSet { if commitSummary != oldValue { saveCommitDraft() } }
+    }
+    var commitBody = "" {
+        didSet { if commitBody != oldValue { saveCommitDraft() } }
+    }
     var amendLastCommit = false {
         didSet { if amendLastCommit != oldValue { amendToggled() } }
     }
@@ -127,6 +133,16 @@ final class RepoModel {
     init(repository: GitRepository, commandLog: CommandLog) {
         self.repository = repository
         self.commandLog = commandLog
+        if let draft = CommitDraftStore().load(root: repository.root.path) {
+            commitSummary = draft.summary
+            commitBody = draft.body
+        }
+    }
+
+    /// Lưu message đang gõ dở theo repo (không lưu lúc amend: khi đó ô soạn chứa message của commit cũ).
+    private func saveCommitDraft() {
+        guard !amendLastCommit else { return }
+        CommitDraftStore().save(root: repository.root.path, summary: commitSummary, body: commitBody)
     }
 
     static func open(path: String, appState: AppState) async throws -> RepoModel {

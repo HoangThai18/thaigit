@@ -200,6 +200,7 @@ struct RepoActionBar: View {
                 Button("Pull (rebase)") { model.pull(mode: .rebase) }
                 Button("Pull (chỉ fast-forward)") { model.pull(mode: .fastForwardOnly) }
                 Divider()
+                Button("Đồng bộ (pull rồi push)") { model.sync() }
                 Button("Chỉ fetch") { model.fetch() }
                 Divider()
                 ForEach(model.savedForeignMergeSources.prefix(3)) { item in

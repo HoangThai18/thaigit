@@ -313,6 +313,11 @@ struct CommitComposer: View {
         model.status.staged.isEmpty && !model.status.unstaged.isEmpty && !model.amendLastCommit && model.operation == nil
     }
 
+    /// Nút commit (và Commit & Push) bấm được chưa.
+    private var canCommitNow: Bool {
+        suggestsStageAll ? model.hasCommitMessage && model.status.conflicts.isEmpty : model.canCommit
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -379,30 +384,48 @@ struct CommitComposer: View {
                 .font(.caption)
             }
 
-            if suggestsStageAll {
-                Button {
-                    model.commit(stageAllFirst: true)
-                } label: {
-                    Label("Stage tất cả & commit", systemImage: "checkmark.circle.fill")
-                        .frame(maxWidth: .infinity)
+            HStack(spacing: 6) {
+                if suggestsStageAll {
+                    Button {
+                        model.commit(stageAllFirst: true)
+                    } label: {
+                        Label("Stage tất cả & commit", systemImage: "checkmark.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .glassButtonStyle(prominent: true)
+                    .controlSize(.large)
+                    .disabled(!canCommitNow)
+                    .keyboardShortcut(.return, modifiers: .command)
+                } else {
+                    Button {
+                        model.commit()
+                    } label: {
+                        Label(commitTitle, systemImage: "checkmark.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .glassButtonStyle(prominent: true)
+                    .controlSize(.large)
+                    .disabled(!canCommitNow)
+                    .keyboardShortcut(.return, modifiers: .command)
                 }
-                .glassButtonStyle(prominent: true)
-                .controlSize(.large)
-                .disabled(!model.hasCommitMessage || !model.status.conflicts.isEmpty)
-                .keyboardShortcut(.return, modifiers: .command)
-            } else {
-                Button {
-                    model.commit()
-                } label: {
-                    Label(commitTitle, systemImage: "checkmark.circle.fill")
-                        .frame(maxWidth: .infinity)
+                if model.canCommitAndPush {
+                    // Commit rồi push luôn (⌘⇧↩) — luồng hằng ngày "xong việc, đẩy lên".
+                    Button {
+                        model.commit(stageAllFirst: suggestsStageAll, andPush: true)
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                    }
+                    .glassButtonStyle(prominent: true)
+                    .controlSize(.large)
+                    .disabled(!canCommitNow)
+                    .keyboardShortcut(.return, modifiers: [.command, .shift])
+                    .help("Commit rồi push lên remote (⌘⇧↩)")
+                    .accessibilityLabel("Commit & Push")
                 }
-                .glassButtonStyle(prominent: true)
-                .controlSize(.large)
-                .disabled(!model.canCommit)
-                .keyboardShortcut(.return, modifiers: .command)
             }
-            Text(model.hasCommitMessage ? String(localized: "⌘↩ để commit") : String(localized: "Nhập tóm tắt để commit"))
+            Text(model.hasCommitMessage
+                ? (model.canCommitAndPush ? String(localized: "⌘↩ để commit · ⌘⇧↩ để commit & push") : String(localized: "⌘↩ để commit"))
+                : String(localized: "Nhập tóm tắt để commit"))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .center)

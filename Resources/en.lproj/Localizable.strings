@@ -173,6 +173,7 @@
 "Commit mới nhất của PR #%lld chưa có trên graph" = "The latest commit of PR #%lld isn't in the graph yet";
 "Commit mới ở %@ sẽ được ký bằng %@" = "New commits in %@ will be signed with %@";
 "Commit này đã được đảo ngược, không có gì để revert" = "This commit was already reversed — nothing to revert";
+"Commit rồi push lên remote (⌘⇧↩)" = "Commit, then push to the remote (⌘⇧↩)";
 "Cài đặt…" = "Settings…";
 "Các commit này đã có trên remote: rebase xong cần force push, người khác đang dùng nhánh sẽ bị lệch." = "These commits are already on the remote: after rebasing you'll need to force push, and others using the branch will be out of sync.";
 "Các commit riêng của %@ sẽ được viết lại lên trên %@. Tránh rebase nhánh đã push mà người khác đang dùng." = "The commits only on %@ will be rewritten on top of %@. Avoid rebasing a pushed branch others are using.";
@@ -252,6 +253,8 @@
 "File nhị phân" = "Binary file";
 "File nhị phân — không sửa được trong app." = "Binary file — can't be edited in the app.";
 "File nằm ngoài repository." = "The file is outside the repository.";
+"File sau (⇧⌥⌘↓)" = "Next file (⇧⌥⌘↓)";
+"File trước (⇧⌥⌘↑)" = "Previous file (⇧⌥⌘↑)";
 "File vừa bị sửa ở nơi khác (trình soạn thảo, lệnh git…) sau khi bạn mở. Lưu bây giờ sẽ thay bằng bản của bạn." = "The file was changed elsewhere (an editor, a git command…) after you opened it. Saving now replaces it with your version.";
 "File vừa bị sửa ở nơi khác sau khi bạn mở." = "The file was changed elsewhere after you opened it.";
 "Ghi %@ <%@> vào config local của repo này" = "Write %@ <%@> into this repository's local config";
@@ -339,6 +342,8 @@
 "Hoàn tác revert" = "Undo Revert";
 "Hoàn tất merge" = "Complete Merge";
 "Hoàn tất revert" = "Complete Revert";
+"Hunk sau" = "Next Hunk";
+"Hunk trước" = "Previous Hunk";
 "Huỷ" = "Cancel";
 "Huỷ %@" = "Abort %@";
 "Huỷ %@?" = "Abort %@?";
@@ -601,6 +606,7 @@
 "Pull (chỉ fast-forward)" = "Pull (fast-forward only)";
 "Pull (merge nếu cần)" = "Pull (merge if needed)";
 "Pull file LFS" = "Pull LFS Files";
+"Pull rồi Push" = "Pull, Then Push";
 "Pull trước" = "Pull First";
 "Push %@ lên %@" = "Push %@ to %@";
 "Push & tạo Pull Request" = "Push & Create Pull Request";
@@ -1075,6 +1081,7 @@
 "Địa chỉ Jira phải là https://…, ví dụ https://cong-ty.atlassian.net" = "The Jira address must be https://…, e.g. https://your-company.atlassian.net";
 "Địa chỉ repository" = "Repository address";
 "Đồng bộ" = "Sync";
+"Đồng bộ (pull rồi push)" = "Sync (Pull, Then Push)";
 "Đồng ý" = "Yes";
 "Đổi chiều so sánh" = "Swap Comparison";
 "Đổi loại file" = "File type changed";
@@ -1107,6 +1114,7 @@
 "↳ thoát với mã %d" = "↳ exited with code %d";
 "⌘S lưu · ⌘Z hoàn tác" = "⌘S save · ⌘Z undo";
 "⌘↩ để commit" = "⌘↩ to commit";
+"⌘↩ để commit · ⌘⇧↩ để commit & push" = "⌘↩ to commit · ⌘⇧↩ to commit & push";
 "⏎ Không có xuống dòng ở cuối file" = "⏎ No newline at end of file";
 "● %lld đã stage" = "● %lld staged";
 "✎ %lld file sửa" = "✎ %lld modified";

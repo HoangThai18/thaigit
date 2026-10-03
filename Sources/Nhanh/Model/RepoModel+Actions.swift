@@ -147,7 +147,14 @@ extension RepoModel {
         return body.isEmpty ? summary : summary + "\n\n" + body
     }
 
-    func commit(stageAllFirst: Bool = false) {
+    /// "Commit & Push" dùng được không: có remote, đang ở một nhánh, không amend (amend commit đã push thì push thường bị
+    /// từ chối, "Pull trước" lại tạo merge — để người dùng tự push có cân nhắc).
+    var canCommitAndPush: Bool {
+        !remotes.isEmpty && currentBranchRef != nil && !amendLastCommit
+    }
+
+    /// Commit với nội dung ô soạn; `andPush`: commit xong thì push nhánh hiện tại luôn (commit lỗi thì không push).
+    func commit(stageAllFirst: Bool = false, andPush: Bool = false) {
         guard hasCommitMessage else {
             toast(.warning, String(localized: "Hãy nhập tóm tắt cho commit"))
             return
@@ -167,12 +174,14 @@ extension RepoModel {
         } onSuccess: { [weak self] in
             guard let self else { return }
             savedSummaryBeforeAmend = nil
+            // Tắt amend TRƯỚC khi xoá ô soạn để bản nháp đã lưu của repo cũng được xoá theo.
+            amendLastCommit = false
             commitSummary = ""
             commitBody = ""
-            amendLastCommit = false
             toast(.success, amend ? String(localized: "Đã sửa commit trước") : String(localized: "Đã commit vào \(branch)"), actions: [
                 ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.undoCommit(previousHead: previousHead, message: message) },
             ])
+            if andPush { push() }
         } onError: { [weak self] error in
             guard let self, let gitError = error as? GitError else { return false }
             if gitError.contains("Please tell me who you are") || gitError.contains("empty ident") {
@@ -772,7 +781,8 @@ extension RepoModel {
         }
     }
 
-    func pull(mode: PullMode? = nil) {
+    /// Pull nhánh hiện tại; `next` chạy sau khi pull xong không lỗi (dùng cho "Pull rồi Push").
+    func pull(mode: PullMode? = nil, then next: (() -> Void)? = nil) {
         guard let branch = currentBranchRef else {
             toast(.warning, String(localized: "Cần đứng trên một nhánh để pull"))
             return
@@ -802,6 +812,7 @@ extension RepoModel {
             } else {
                 toast(.success, String(localized: "\(branch.name) đã mới nhất"))
             }
+            next?()
         } onError: { [weak self] error in
             guard let self, let gitError = error as? GitError else { return false }
             if handleGitHubAuthError(error, operation: "Pull") { return true }
@@ -814,6 +825,16 @@ extension RepoModel {
             }
             return handleConflictError(error, operation: "Pull")
         }
+    }
+
+    /// Đồng bộ nhánh hiện tại: pull (kiểu trong cài đặt) rồi push nếu pull không lỗi — "Pull rồi Push" khi push bị từ chối
+    /// và mục "Đồng bộ" ở menu Pull. Chưa có upstream thì chỉ push (hỏi remote + đặt upstream).
+    func sync() {
+        guard let branch = currentBranchRef, branch.upstream != nil, !branch.upstreamGone else {
+            push()
+            return
+        }
+        pull { [weak self] in self?.push() }
     }
 
     /// Tách "origin/feature/x" thành ("origin", "feature/x") theo danh sách remote.
@@ -863,6 +884,7 @@ extension RepoModel {
                 var forced = request
                 forced.force = true
                 showError(String(localized: "Push bị từ chối — remote có commit mà máy bạn chưa có"), error, actions: [
+                    ToastAction(title: String(localized: "Pull rồi Push")) { [weak self] in self?.sync() },
                     ToastAction(title: String(localized: "Pull trước")) { [weak self] in self?.pull() },
                     ToastAction(title: "Force push…") { [weak self] in self?.confirmForcePush(forced) },
                 ])

@@ -135,6 +135,10 @@ private struct DiffHeader: View {
             }
             Spacer(minLength: 8)
 
+            if !editing, let place = model.openFilePlace, place.total > 1 {
+                fileNavigator(place)
+            }
+
             if editing, let session = model.fileEditor {
                 EditorControls(model: model, session: session)
             } else {
@@ -152,6 +156,26 @@ private struct DiffHeader: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(.bar)
+    }
+
+    /// ↑ 2/5 ↓: chuyển file trong cùng danh sách (chưa stage / đã stage / xung đột) — ⇧⌥⌘↑ / ⇧⌥⌘↓.
+    private func fileNavigator(_ place: (index: Int, total: Int)) -> some View {
+        HStack(spacing: 2) {
+            Button { model.stepOpenFile(-1) } label: { Image(systemName: "chevron.up") }
+                .disabled(place.index <= 1)
+                .keyboardShortcut(.upArrow, modifiers: [.command, .option, .shift])
+                .help("File trước (⇧⌥⌘↑)")
+            Text("\(place.index)/\(place.total)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            Button { model.stepOpenFile(1) } label: { Image(systemName: "chevron.down") }
+                .disabled(place.index >= place.total)
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option, .shift])
+                .help("File sau (⇧⌥⌘↓)")
+        }
+        .buttonStyle(.borderless)
+        .fixedSize()
     }
 
     @ViewBuilder
@@ -293,11 +317,42 @@ private struct DiffTextView: View {
     let presentation: DiffPresentation
     let split: Bool
     let wrap: Bool
+    /// Hunk vừa nhảy tới bằng ⌥⌘↓ / ⌥⌘↑ (−1: chưa nhảy, đang ở đầu file).
+    @State private var hunkCursor = -1
 
     var body: some View {
+        ScrollViewReader { reader in
+            lines
+                .background { hunkShortcuts(reader) }
+        }
+        .onChange(of: model.openFile) { hunkCursor = -1 }
+    }
+
+    /// Phím nhảy giữa các hunk (nút ẩn — chỉ để gắn phím tắt).
+    private func hunkShortcuts(_ reader: ScrollViewProxy) -> some View {
+        HStack {
+            Button("Hunk sau") { jumpHunk(1, reader) }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+            Button("Hunk trước") { jumpHunk(-1, reader) }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+        }
+        .opacity(0)
+        .accessibilityHidden(true)
+    }
+
+    private func jumpHunk(_ step: Int, _ reader: ScrollViewProxy) {
+        let hunks = presentation.hunks
+        guard !hunks.isEmpty else { return }
+        hunkCursor = min(hunks.count - 1, max(0, hunkCursor + step))
+        withAnimation(.snappy(duration: 0.15)) {
+            reader.scrollTo("hunk-\(hunks[hunkCursor].id)", anchor: .top)
+        }
+    }
+
+    private var lines: some View {
         let metrics = DiffMetrics(presentation)
         let selectable = model.canSelectLines
-        GeometryReader { proxy in
+        return GeometryReader { proxy in
             if split {
                 // Hai cột bằng nhau, dòng dài tự xuống dòng — không cần cuộn ngang.
                 let halfWidth = max(240, floor((proxy.size.width - 1) / 2))
@@ -305,6 +360,7 @@ private struct DiffTextView: View {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(presentation.hunks) { hunk in
                             HunkHeader(model: model, hunk: hunk)
+                                .id("hunk-\(hunk.id)")
                             ForEach(Array(hunk.splitRows.enumerated()), id: \.offset) { _, row in
                                 SplitRowView(row: row, numberWidth: metrics.numberWidth, halfWidth: halfWidth,
                                              selection: model.lineSelection[hunk.id] ?? [], selectable: selectable) { index, extend in
@@ -322,6 +378,7 @@ private struct DiffTextView: View {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(presentation.hunks) { hunk in
                             HunkHeader(model: model, hunk: hunk)
+                                .id("hunk-\(hunk.id)")
                             ForEach(hunk.lines, id: \.index) { line in
                                 UnifiedLineView(line: line, metrics: metrics, wrap: true,
                                                 isSelected: model.lineSelection[hunk.id]?.contains(line.index) == true,
@@ -340,6 +397,7 @@ private struct DiffTextView: View {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(presentation.hunks) { hunk in
                             HunkHeader(model: model, hunk: hunk)
+                                .id("hunk-\(hunk.id)")
                             ForEach(hunk.lines, id: \.index) { line in
                                 UnifiedLineView(line: line, metrics: metrics, wrap: false,
                                                 isSelected: model.lineSelection[hunk.id]?.contains(line.index) == true,
