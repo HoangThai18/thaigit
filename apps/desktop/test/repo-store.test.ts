@@ -582,7 +582,11 @@ describe('RepoStore: hàng đợi thao tác', () => {
 
     expect(order).toEqual(['1 bắt đầu', '1 xong', '2 bắt đầu', '3']);
     expect(toasts.items.map((toast) => [toast.style, toast.title, toast.message])).toEqual([
-      ['error', 'Thao tác 2', 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.'],
+      [
+        'error',
+        'Thao tác 2',
+        'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+      ],
     ]);
     expect(status.mock.calls.length).toBeGreaterThanOrEqual(3);
     expect(store.busy).toBeNull();

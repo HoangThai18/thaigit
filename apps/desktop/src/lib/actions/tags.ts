@@ -2,12 +2,22 @@
 
 import { isValidRefName, refName, type GitRef } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
-import { dialogs as globalDialogs, flagValue, textValue, type DialogStore } from '../stores/dialogs.svelte.ts';
+import {
+  dialogs as globalDialogs,
+  flagValue,
+  textValue,
+  type DialogStore,
+} from '../stores/dialogs.svelte.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { handleNetworkError } from './errors.ts';
 
 /** Hỏi tên (+ lời nhắn, + push luôn) rồi tạo tag tại `sha`. */
-export async function beginCreateTag(store: RepoStore, sha: string, label: string, dialogs?: DialogStore): Promise<void> {
+export async function beginCreateTag(
+  store: RepoStore,
+  sha: string,
+  label: string,
+  dialogs?: DialogStore,
+): Promise<void> {
   const existing = new Set(store.tags.map((ref) => refName(ref)));
   const remote = store.defaultRemote;
   const values = await (dialogs ?? globalDialogs).form({
@@ -15,11 +25,25 @@ export async function beginCreateTag(store: RepoStore, sha: string, label: strin
     message: vi.branches.createTagMessage(label),
     confirmTitle: vi.branches.createTag,
     fields: [
-      { kind: 'text', id: 'name', label: vi.branches.tagNameLabel, value: '', placeholder: 'v1.0.0', monospace: true },
+      {
+        kind: 'text',
+        id: 'name',
+        label: vi.branches.tagNameLabel,
+        value: '',
+        placeholder: 'v1.0.0',
+        monospace: true,
+      },
       { kind: 'text', id: 'message', label: vi.branches.tagMessageLabel, value: '' },
       ...(remote === null
         ? []
-        : [{ kind: 'checkbox' as const, id: 'push', label: vi.branches.tagPushToRemote(remote), value: false }]),
+        : [
+            {
+              kind: 'checkbox' as const,
+              id: 'push',
+              label: vi.branches.tagPushToRemote(remote),
+              value: false,
+            },
+          ]),
     ],
     validate: (current) => {
       const name = textValue(current, 'name');
@@ -30,10 +54,22 @@ export async function beginCreateTag(store: RepoStore, sha: string, label: strin
     },
   });
   if (!values) return;
-  await createTag(store, textValue(values, 'name'), sha, textValue(values, 'message'), flagValue(values, 'push') ? remote : null);
+  await createTag(
+    store,
+    textValue(values, 'name'),
+    sha,
+    textValue(values, 'message'),
+    flagValue(values, 'push') ? remote : null,
+  );
 }
 
-export function createTag(store: RepoStore, name: string, sha: string, message: string, pushTo: string | null): Promise<void> {
+export function createTag(
+  store: RepoStore,
+  name: string,
+  sha: string,
+  message: string,
+  pushTo: string | null,
+): Promise<void> {
   const progress = store.progressReporter();
   return store.perform(
     vi.branches.createTagRunning(name),
@@ -46,21 +82,25 @@ export function createTag(store: RepoStore, name: string, sha: string, message: 
       cancellable: pushTo !== null,
       refresh: Scope.refs | Scope.history,
       onSuccess: () =>
-        store.notify('success', pushTo !== null ? vi.branches.tagCreatedPushed(name) : vi.branches.tagCreated(name), {
-          actions:
-            pushTo !== null
-              ? []
-              : [
-                  {
-                    title: vi.staging.undo,
-                    run: () =>
-                      void store.perform(vi.branches.deleteTagRunning(name), (git) => git.deleteTag(name), {
-                        refresh: Scope.refs | Scope.history,
-                        onSuccess: () => store.notify('success', vi.staging.undone),
-                      }),
-                  },
-                ],
-        }),
+        store.notify(
+          'success',
+          pushTo !== null ? vi.branches.tagCreatedPushed(name) : vi.branches.tagCreated(name),
+          {
+            actions:
+              pushTo !== null
+                ? []
+                : [
+                    {
+                      title: vi.staging.undo,
+                      run: () =>
+                        void store.perform(vi.branches.deleteTagRunning(name), (git) => git.deleteTag(name), {
+                          refresh: Scope.refs | Scope.history,
+                          onSuccess: () => store.notify('success', vi.staging.undone),
+                        }),
+                    },
+                  ],
+          },
+        ),
       onError: (error) => handleNetworkError(store, error, vi.branches.pushTagRunning(name)),
     },
   );
@@ -83,10 +123,14 @@ export async function deleteTag(store: RepoStore, ref: GitRef, dialogs?: DialogS
           {
             title: vi.staging.undo,
             run: () =>
-              void store.perform(vi.branches.restoreTag, (git) => git.updateRef(ref.fullName, ref.objectName), {
-                refresh: Scope.refs | Scope.history,
-                onSuccess: () => store.notify('success', vi.staging.undone),
-              }),
+              void store.perform(
+                vi.branches.restoreTag,
+                (git) => git.updateRef(ref.fullName, ref.objectName),
+                {
+                  refresh: Scope.refs | Scope.history,
+                  onSuccess: () => store.notify('success', vi.staging.undone),
+                },
+              ),
           },
         ],
       }),
@@ -101,13 +145,17 @@ export function pushTag(store: RepoStore, ref: GitRef): Promise<void> {
   }
   const name = refName(ref);
   const progress = store.progressReporter();
-  return store.perform(vi.branches.pushTagRunning(name), (git, signal) => git.pushTag(remote, name, { onProgress: progress, signal }), {
-    showsProgress: true,
-    cancellable: true,
-    refresh: Scope.refs,
-    onSuccess: () => store.notify('success', vi.branches.tagPushed(name, remote)),
-    onError: (error) => handleNetworkError(store, error, vi.branches.pushTagRunning(name)),
-  });
+  return store.perform(
+    vi.branches.pushTagRunning(name),
+    (git, signal) => git.pushTag(remote, name, { onProgress: progress, signal }),
+    {
+      showsProgress: true,
+      cancellable: true,
+      refresh: Scope.refs,
+      onSuccess: () => store.notify('success', vi.branches.tagPushed(name, remote)),
+      onError: (error) => handleNetworkError(store, error, vi.branches.pushTagRunning(name)),
+    },
+  );
 }
 
 export async function deleteRemoteTag(store: RepoStore, ref: GitRef, dialogs?: DialogStore): Promise<void> {

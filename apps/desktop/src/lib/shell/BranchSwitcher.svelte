@@ -26,7 +26,8 @@
     const items: MenuItem[] = [
       {
         kind: 'header',
-        title: branches.length < store.localBranches.length ? vi.remote.recentBranches : vi.remote.localBranches,
+        title:
+          branches.length < store.localBranches.length ? vi.remote.recentBranches : vi.remote.localBranches,
       },
     ];
     if (branches.length === 0) {
@@ -40,7 +41,10 @@
         run: () => void checkout(store, ref),
       });
     }
-    items.push({ kind: 'separator' }, { title: vi.remote.newBranchHere, icon: 'plus', run: () => void beginCreateBranch(store) });
+    items.push(
+      { kind: 'separator' },
+      { title: vi.remote.newBranchHere, icon: 'plus', run: () => void beginCreateBranch(store) },
+    );
     menus.openBelow(button, items, { focusFirst: event.detail === 0 });
   }
 </script>

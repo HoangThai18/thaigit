@@ -35,7 +35,9 @@
     }
   });
   const fraction = $derived(
-    progress?.phase === 'downloading' && progress.total ? Math.min(1, progress.downloaded / progress.total) : null,
+    progress?.phase === 'downloading' && progress.total
+      ? Math.min(1, progress.downloaded / progress.total)
+      : null,
   );
 </script>
 
@@ -46,20 +48,26 @@
       <strong>{label}{store.available ? ` — ${store.available.version}` : ''}</strong>
       {#if progress.phase === 'downloading' && progress.downloaded > 0}
         <span class="detail"
-          >{vi.update.progressBytes(size(progress.downloaded), progress.total ? size(progress.total) : null)}</span
+          >{vi.update.progressBytes(
+            size(progress.downloaded),
+            progress.total ? size(progress.total) : null,
+          )}</span
         >
       {:else if progress.phase === 'failed' && progress.message}
         <span class="detail">{progress.message}</span>
       {/if}
       {#if progress.phase !== 'failed'}
         <span class="bar" class:indeterminate={fraction === null}
-          ><span class="fill" style:width={fraction === null ? undefined : `${Math.round(fraction * 100)}%`}></span></span
+          ><span class="fill" style:width={fraction === null ? undefined : `${Math.round(fraction * 100)}%`}
+          ></span></span
         >
       {/if}
     </div>
     {#if progress.phase === 'failed'}
       {#if store.available}
-        <button type="button" class="button" onclick={() => void store.install(false)}>{vi.update.retry}</button>
+        <button type="button" class="button" onclick={() => void store.install(false)}
+          >{vi.update.retry}</button
+        >
       {/if}
       <button type="button" class="button" onclick={() => store.dismissProgress()}>{vi.update.close}</button>
     {/if}

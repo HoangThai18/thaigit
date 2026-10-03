@@ -65,7 +65,8 @@ export const remote = {
     `Ghi đè ${target} bằng bản trên máy bạn (--force-with-lease: sẽ dừng nếu remote có commit mới mà bạn chưa fetch).`,
   forcePushConfirm: 'Force push',
   publishTitle: (branch: string) => `Push nhánh ${branch} lên remote`,
-  publishMessage: 'Nhánh này chưa có nhánh tương ứng trên remote. Thaigit sẽ tạo nhánh trên remote và đặt làm upstream.',
+  publishMessage:
+    'Nhánh này chưa có nhánh tương ứng trên remote. Thaigit sẽ tạo nhánh trên remote và đặt làm upstream.',
   publishRemote: 'Remote',
   publishBranch: 'Tên nhánh trên remote',
   publishConfirm: 'Push',

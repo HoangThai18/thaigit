@@ -5,7 +5,12 @@ import { DialogStore } from '../src/lib/stores/dialogs.svelte.ts';
 import { ToastStore } from '../src/lib/stores/toasts.svelte.ts';
 import { UpdateStore, type UpdatePort } from '../src/lib/stores/update.svelte.ts';
 
-const NEXT: UpdateInfo = { currentVersion: '2.0.0-beta.1', version: '2.0.0-beta.2', notes: 'Sửa lỗi push', pubDate: null };
+const NEXT: UpdateInfo = {
+  currentVersion: '2.0.0-beta.1',
+  version: '2.0.0-beta.2',
+  notes: 'Sửa lỗi push',
+  pubDate: null,
+};
 
 function fakePort(result: UpdateInfo | null = NEXT) {
   let available: ((update: UpdateInfo) => void) | null = null;

@@ -75,12 +75,24 @@
   function moreMenu(event: MouseEvent, block: ConflictBlock): void {
     const current = choices.get(block.id);
     const items: MenuItem[] = [
-      { title: vi.branches.keepBothIncomingFirst, checked: current === 'theirsThenOurs', run: () => choose(block, 'theirsThenOurs') },
+      {
+        title: vi.branches.keepBothIncomingFirst,
+        checked: current === 'theirsThenOurs',
+        run: () => choose(block, 'theirsThenOurs'),
+      },
     ];
     if (block.base !== null) {
-      items.push({ title: vi.branches.keepBase, checked: current === 'base', run: () => choose(block, 'base') });
+      items.push({
+        title: vi.branches.keepBase,
+        checked: current === 'base',
+        run: () => choose(block, 'base'),
+      });
     }
-    items.push({ title: vi.branches.keepNeither, checked: current === 'neither', run: () => choose(block, 'neither') });
+    items.push({
+      title: vi.branches.keepNeither,
+      checked: current === 'neither',
+      run: () => choose(block, 'neither'),
+    });
     if (current !== undefined) {
       items.push({ kind: 'separator' }, { title: vi.branches.clearChoice, run: () => choose(block, null) });
     }
@@ -100,7 +112,11 @@
       save();
     } else if (event.key === 'Escape') {
       const target = event.target;
-      if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+      )
+        return;
       diff.close();
     }
   }
@@ -112,7 +128,9 @@
   {#if lines.length === 0 && empty !== ''}
     <div class="code empty">{empty}</div>
   {:else}
-    <div class="code">{#each lines as line, index (index)}<div class="code-line">{line === '' ? ' ' : line}</div>{/each}</div>
+    <div class="code">
+      {#each lines as line, index (index)}<div class="code-line">{line === '' ? ' ' : line}</div>{/each}
+    </div>
   {/if}
 {/snippet}
 
@@ -161,7 +179,9 @@
       {:else if whole}
         <div class="message">
           <p>
-            {whole.reason === 'not-utf8' ? vi.branches.notUtf8 : vi.branches.wholeFileOnly(conflictDescription(whole.entry.kind))}
+            {whole.reason === 'not-utf8'
+              ? vi.branches.notUtf8
+              : vi.branches.wholeFileOnly(conflictDescription(whole.entry.kind))}
           </p>
           <button type="button" class="button" onclick={() => void markResolved(store, [whole.entry.path])}>
             {vi.branches.markResolved}
@@ -176,7 +196,11 @@
               {:else}
                 <div class="common">
                   {@render code(segment.lines.slice(0, 3))}
-                  <button type="button" class="link" onclick={() => (expanded = new Set([...expanded, index]))}>
+                  <button
+                    type="button"
+                    class="link"
+                    onclick={() => (expanded = new Set([...expanded, index]))}
+                  >
                     {vi.branches.unchangedLines(segment.lines.length - 6)}
                   </button>
                   {@render code(segment.lines.slice(-3))}
@@ -189,7 +213,9 @@
                 <div class="block-top">
                   <strong>{vi.branches.conflictNumber(block.id + 1, total)}</strong>
                   {#if choice !== undefined}
-                    <span class="chosen"><Icon name="check-circle" size={13} /> {vi.branches.conflictChosen}</span>
+                    <span class="chosen"
+                      ><Icon name="check-circle" size={13} /> {vi.branches.conflictChosen}</span
+                    >
                   {/if}
                   <span class="grow"></span>
                   <button
@@ -228,19 +254,29 @@
                   <button
                     type="button"
                     class="side ours"
-                    class:highlighted={choice === 'ours' || choice === 'oursThenTheirs' || choice === 'theirsThenOurs'}
+                    class:highlighted={choice === 'ours' ||
+                      choice === 'oursThenTheirs' ||
+                      choice === 'theirsThenOurs'}
                     onclick={() => choose(block, 'ours')}
                   >
-                    <span class="side-title">{vi.branches.current} <span class="side-label"><bdi>{block.oursLabel}</bdi></span></span>
+                    <span class="side-title"
+                      >{vi.branches.current}
+                      <span class="side-label"><bdi>{block.oursLabel}</bdi></span></span
+                    >
                     {@render code(block.ours, ' ')}
                   </button>
                   <button
                     type="button"
                     class="side theirs"
-                    class:highlighted={choice === 'theirs' || choice === 'oursThenTheirs' || choice === 'theirsThenOurs'}
+                    class:highlighted={choice === 'theirs' ||
+                      choice === 'oursThenTheirs' ||
+                      choice === 'theirsThenOurs'}
                     onclick={() => choose(block, 'theirs')}
                   >
-                    <span class="side-title">{vi.branches.incoming} <span class="side-label"><bdi>{block.theirsLabel}</bdi></span></span>
+                    <span class="side-title"
+                      >{vi.branches.incoming}
+                      <span class="side-label"><bdi>{block.theirsLabel}</bdi></span></span
+                    >
                     {@render code(block.theirs, ' ')}
                   </button>
                 </div>
@@ -259,13 +295,21 @@
 
     {#if conflict}
       <footer class="footer">
-        <span class="progress" aria-hidden="true"><span class="fill" style:width="{total === 0 ? 0 : (chosen / total) * 100}%"></span></span>
+        <span class="progress" aria-hidden="true"
+          ><span class="fill" style:width="{total === 0 ? 0 : (chosen / total) * 100}%"></span></span
+        >
         <span class="count">{vi.branches.chosenCount(chosen, total)}</span>
         <span class="grow"></span>
         <button type="button" class="button" disabled={chosen === 0} onclick={() => (choices = new Map())}>
           {vi.branches.resetChoices}
         </button>
-        <button type="button" class="button primary" disabled={chosen < total} title="Ctrl/⌘ + Enter" onclick={save}>
+        <button
+          type="button"
+          class="button primary"
+          disabled={chosen < total}
+          title="Ctrl/⌘ + Enter"
+          onclick={save}
+        >
           <Icon name="check-circle" size={14} />
           <span>{vi.branches.saveResolution}</span>
         </button>

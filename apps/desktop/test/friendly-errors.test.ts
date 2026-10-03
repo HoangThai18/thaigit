@@ -33,16 +33,24 @@ describe('friendlyError', () => {
   });
 
   it('lỗi của lõi Rust / bộ chuyển theo mã, không dùng message gốc', () => {
-    expect(friendlyError(new CommandFailure('io', 'Os { code: 13, kind: PermissionDenied }'))).toMatch(/ổ đĩa/);
+    expect(friendlyError(new CommandFailure('io', 'Os { code: 13, kind: PermissionDenied }'))).toMatch(
+      /ổ đĩa/,
+    );
     expect(friendlyError(new CommandFailure('git-missing', 'program not found'))).toMatch(/cài Git/);
     expect(friendlyError(new CommandFailure('busy', 'opId x'))).toMatch(/đang bận/);
-    expect(friendlyError(new AdapterError('conflict', '"a" đã bị thay đổi bên ngoài'))).toMatch(/thay đổi ở nơi khác/);
-    expect(friendlyError(new CommandFailure('internal', 'thread panicked at src/x.rs:12'))).not.toContain('panicked');
+    expect(friendlyError(new AdapterError('conflict', '"a" đã bị thay đổi bên ngoài'))).toMatch(
+      /thay đổi ở nơi khác/,
+    );
+    expect(friendlyError(new CommandFailure('internal', 'thread panicked at src/x.rs:12'))).not.toContain(
+      'panicked',
+    );
   });
 
   it('lỗi khác của core và exception JS', () => {
     expect(friendlyError(new CancelledError(130))).toBe('Thao tác đã được huỷ.');
-    expect(friendlyError(new RepositoryError('notARepository', '/tmp/x'))).toBe('Thư mục này không phải repository git.');
+    expect(friendlyError(new RepositoryError('notARepository', '/tmp/x'))).toBe(
+      'Thư mục này không phải repository git.',
+    );
     const unexpected = friendlyError(new TypeError("Cannot read properties of undefined (reading 'length')"));
     expect(unexpected).toMatch(/không mong muốn/);
     expect(friendlyError(undefined)).toBe(unexpected);

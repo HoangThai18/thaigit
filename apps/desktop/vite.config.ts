@@ -6,7 +6,9 @@ import { thaigitDevBridge } from './dev/bridge-plugin.ts';
 // Tauri chạy dev server cố định cổng 1420 (khai báo trong src-tauri/tauri.conf.json).
 const host = process.env.TAURI_DEV_HOST;
 // Phiên bản app (cùng số với tauri.conf.json) cho "Bạn đang dùng bản mới nhất (…)".
-const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version: string;
+};
 
 export default defineConfig({
   // `thaigitDevBridge` chỉ chạy ở dev server (`apply: 'serve'`) và chỉ khi có THAIGIT_DEV_REPO: xem dev/bridge-plugin.ts.

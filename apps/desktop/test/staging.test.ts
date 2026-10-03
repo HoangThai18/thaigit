@@ -30,7 +30,12 @@ async function openStore(
   const test = await openTestPort(setup);
   cleanups.push(() => test.cleanup());
   const toasts = new ToastStore();
-  const store = new RepoStore(test.port, { prefs: new PrefsStore(null), toasts, detailsDelayMs: 0, clipboard: async () => {} });
+  const store = new RepoStore(test.port, {
+    prefs: new PrefsStore(null),
+    toasts,
+    detailsDelayMs: 0,
+    clipboard: async () => {},
+  });
   cleanups.push(() => store.dispose());
   await store.start();
   await until(() => store.hasLoaded, 'nạp xong');
@@ -53,7 +58,9 @@ async function answerNext(dialogs: DialogStore, result: 'confirm' | 'cancel'): P
 }
 
 function lastAction(toasts: ToastStore, title: string): () => void {
-  const toast = [...toasts.items].reverse().find((item) => item.actions.some((action) => action.title === title));
+  const toast = [...toasts.items]
+    .reverse()
+    .find((item) => item.actions.some((action) => action.title === title));
   const action = toast?.actions.find((candidate) => candidate.title === title);
   if (!action) throw new Error(`Không thấy nút “${title}”`);
   return action.run;
@@ -63,7 +70,10 @@ describe('message commit', () => {
   it('ghép và tách tóm tắt + mô tả', () => {
     expect(composeMessage('  Sửa lỗi  ', '')).toBe('Sửa lỗi');
     expect(composeMessage('Sửa lỗi', '\nChi tiết\n')).toBe('Sửa lỗi\n\nChi tiết');
-    expect(splitMessage('Sửa lỗi\r\n\r\nDòng 1\r\nDòng 2\r\n')).toEqual({ summary: 'Sửa lỗi', body: 'Dòng 1\nDòng 2' });
+    expect(splitMessage('Sửa lỗi\r\n\r\nDòng 1\r\nDòng 2\r\n')).toEqual({
+      summary: 'Sửa lỗi',
+      body: 'Dòng 1\nDòng 2',
+    });
     expect(splitMessage('Một dòng')).toEqual({ summary: 'Một dòng', body: '' });
   });
 });
@@ -110,7 +120,10 @@ describe('stage theo dòng / hunk', () => {
 
     const staged = store.status.staged.find((item) => item.path === 'a.txt')!;
     store.diff.open(staged, { kind: 'staged' });
-    await until(() => store.diff.state.kind === 'text' && store.diff.file?.source.kind === 'staged', 'diff đã stage');
+    await until(
+      () => store.diff.state.kind === 'text' && store.diff.file?.source.kind === 'staged',
+      'diff đã stage',
+    );
     await applyToSelection(store, 'unstage', { hunkId: 0 });
     expect(test.git('diff', '--cached', '--name-only')).toBe('');
     // Hết gì đã stage: diff "đã stage" tự đóng.
@@ -144,7 +157,10 @@ describe('stage theo dòng / hunk', () => {
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe(`${afterDiscard.join('\n')}\n`);
 
     lastAction(toasts, 'Hoàn tác')();
-    await until(() => readFileSync(join(test.root, 'a.txt'), 'utf8') === `${changed.join('\n')}\n`, 'hoàn tác huỷ hunk');
+    await until(
+      () => readFileSync(join(test.root, 'a.txt'), 'utf8') === `${changed.join('\n')}\n`,
+      'hoàn tác huỷ hunk',
+    );
   });
 });
 

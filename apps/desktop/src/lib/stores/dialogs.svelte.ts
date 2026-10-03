@@ -55,8 +55,16 @@ export interface FormRequest {
 }
 
 export type PendingDialog =
-  | (ConfirmRequest & { readonly kind: 'confirm'; readonly id: number; readonly resolve: (result: ConfirmResult) => void })
-  | (FormRequest & { readonly kind: 'form'; readonly id: number; readonly resolve: (values: FormValues | null) => void });
+  | (ConfirmRequest & {
+      readonly kind: 'confirm';
+      readonly id: number;
+      readonly resolve: (result: ConfirmResult) => void;
+    })
+  | (FormRequest & {
+      readonly kind: 'form';
+      readonly id: number;
+      readonly resolve: (values: FormValues | null) => void;
+    });
 
 /** Giá trị chữ của một ô form (đã bỏ khoảng trắng hai đầu). */
 export function textValue(values: FormValues, id: string): string {

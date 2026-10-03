@@ -32,20 +32,16 @@ export function fetch(store: RepoStore): Promise<void> {
   if (noRemote(store)) return Promise.resolve();
   const progress = store.progressReporter();
   const prune = store.preferences.fetchPrune;
-  return store.perform(
-    vi.remote.fetch,
-    (git, signal) => git.fetch({ prune, onProgress: progress, signal }),
-    {
-      showsProgress: true,
-      cancellable: true,
-      refresh: Scope.refs | Scope.status,
-      onSuccess: () => {
-        store.lastFetch = Date.now();
-        store.notify('success', vi.remote.fetched);
-      },
-      onError: (error) => handleNetworkError(store, error, vi.remote.fetch),
+  return store.perform(vi.remote.fetch, (git, signal) => git.fetch({ prune, onProgress: progress, signal }), {
+    showsProgress: true,
+    cancellable: true,
+    refresh: Scope.refs | Scope.status,
+    onSuccess: () => {
+      store.lastFetch = Date.now();
+      store.notify('success', vi.remote.fetched);
     },
-  );
+    onError: (error) => handleNetworkError(store, error, vi.remote.fetch),
+  });
 }
 
 /**
@@ -137,7 +133,10 @@ export function pull(store: RepoStore, mode?: PullMode): Promise<void> {
 }
 
 /** Push nhánh hiện tại (xem `pushBranch`). */
-export function push(store: RepoStore, options: { force?: boolean; dialogs?: DialogStore } = {}): Promise<void> {
+export function push(
+  store: RepoStore,
+  options: { force?: boolean; dialogs?: DialogStore } = {},
+): Promise<void> {
   const branch = store.currentBranchRef;
   if (!branch) {
     store.notify('warning', vi.remote.needBranchToPush);
@@ -154,15 +153,20 @@ export async function pushBranch(
 ): Promise<void> {
   if (noRemote(store)) return;
   const name = refName(branch);
-  const target = branch.upstream !== null && !branch.upstreamGone ? store.splitUpstream(branch.upstream) : null;
+  const target =
+    branch.upstream !== null && !branch.upstreamGone ? store.splitUpstream(branch.upstream) : null;
   if (target) {
-    await performPush(store, {
-      localBranch: name,
-      remote: target.remote,
-      remoteBranch: target.branch,
-      setUpstream: false,
-      force: options.force === true,
-    }, options.dialogs);
+    await performPush(
+      store,
+      {
+        localBranch: name,
+        remote: target.remote,
+        remoteBranch: target.branch,
+        setUpstream: false,
+        force: options.force === true,
+      },
+      options.dialogs,
+    );
     return;
   }
   const values = await (options.dialogs ?? globalDialogs).form({
@@ -179,21 +183,28 @@ export async function pushBranch(
       },
       { kind: 'text', id: 'branch', label: vi.remote.publishBranch, value: name, monospace: true },
     ],
-    validate: (current) => (isValidRefName(textValue(current, 'branch')) ? null : vi.remote.invalidRemoteBranch),
+    validate: (current) =>
+      isValidRefName(textValue(current, 'branch')) ? null : vi.remote.invalidRemoteBranch,
   });
   if (!values) return;
-  await performPush(store, {
-    localBranch: name,
-    remote: textValue(values, 'remote'),
-    remoteBranch: textValue(values, 'branch'),
-    setUpstream: true,
-    force: false,
-  }, options.dialogs);
+  await performPush(
+    store,
+    {
+      localBranch: name,
+      remote: textValue(values, 'remote'),
+      remoteBranch: textValue(values, 'branch'),
+      setUpstream: true,
+      force: false,
+    },
+    options.dialogs,
+  );
 }
 
 export function performPush(store: RepoStore, request: PushRequest, dialogs?: DialogStore): Promise<void> {
   const progress = store.progressReporter();
-  const title = request.force ? vi.remote.forcePushTitle(request.localBranch) : vi.remote.pushTitle(request.localBranch);
+  const title = request.force
+    ? vi.remote.forcePushTitle(request.localBranch)
+    : vi.remote.pushTitle(request.localBranch);
   return store.perform(
     title,
     (git, signal) =>
@@ -211,13 +222,19 @@ export function performPush(store: RepoStore, request: PushRequest, dialogs?: Di
       cancellable: true,
       refresh: Scope.refs | Scope.status,
       onSuccess: () =>
-        store.notify('success', vi.remote.pushed(request.localBranch, `${request.remote}/${request.remoteBranch}`)),
+        store.notify(
+          'success',
+          vi.remote.pushed(request.localBranch, `${request.remote}/${request.remoteBranch}`),
+        ),
       onError: (error) => {
         if (handleNetworkError(store, error, title)) return true;
         if (gitErrorContains(error, '[rejected]', 'non-fast-forward', 'fetch first', 'stale info')) {
           store.showError(vi.remote.rejected, error, [
             { title: vi.remote.pullFirst, run: () => void pull(store) },
-            { title: vi.remote.forcePush, run: () => void confirmForcePush(store, { ...request, force: true }, dialogs) },
+            {
+              title: vi.remote.forcePush,
+              run: () => void confirmForcePush(store, { ...request, force: true }, dialogs),
+            },
           ]);
           return true;
         }
@@ -227,7 +244,11 @@ export function performPush(store: RepoStore, request: PushRequest, dialogs?: Di
   );
 }
 
-export async function confirmForcePush(store: RepoStore, request: PushRequest, dialogs?: DialogStore): Promise<void> {
+export async function confirmForcePush(
+  store: RepoStore,
+  request: PushRequest,
+  dialogs?: DialogStore,
+): Promise<void> {
   const confirmed = await (dialogs ?? globalDialogs).confirm({
     title: vi.remote.forcePushConfirmTitle(request.localBranch),
     message: vi.remote.forcePushConfirmMessage(`${request.remote}/${request.remoteBranch}`),

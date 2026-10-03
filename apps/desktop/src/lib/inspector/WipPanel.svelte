@@ -67,7 +67,12 @@
       title={vi.staging.unstagedTitle}
       headerAction={{ title: vi.staging.stageAll, icon: 'stage', run: () => void stageAll(store) }}
       actions={[
-        { icon: 'discard', title: vi.staging.discardFile, destructive: true, run: (change) => void discardFiles(store, [change]) },
+        {
+          icon: 'discard',
+          title: vi.staging.discardFile,
+          destructive: true,
+          run: (change) => void discardFiles(store, [change]),
+        },
         { icon: 'stage', title: vi.staging.stageFile, run: (change) => void stageFiles(store, [change]) },
       ]}
       selectedPath={openUnstaged}
@@ -83,7 +88,13 @@
       files={status.staged}
       title={vi.staging.stagedTitle}
       headerAction={{ title: vi.staging.unstageAll, icon: 'unstage', run: () => void unstageAll(store) }}
-      actions={[{ icon: 'unstage', title: vi.staging.unstageFile, run: (change) => void unstageFiles(store, [change]) }]}
+      actions={[
+        {
+          icon: 'unstage',
+          title: vi.staging.unstageFile,
+          run: (change) => void unstageFiles(store, [change]),
+        },
+      ]}
       selectedPath={openStaged}
       emptyText={vi.staging.noStaged}
       onopen={(change) => store.diff.open(change, { kind: 'staged' })}

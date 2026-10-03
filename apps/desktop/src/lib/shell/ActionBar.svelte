@@ -34,7 +34,11 @@
       [
         { title: vi.remote.pullMerge, icon: 'merge', run: () => void pull(store, 'merge') },
         { title: vi.remote.pullRebase, icon: 'rebase', run: () => void pull(store, 'rebase') },
-        { title: vi.remote.pullFastForward, icon: 'fast-forward', run: () => void pull(store, 'fastForwardOnly') },
+        {
+          title: vi.remote.pullFastForward,
+          icon: 'fast-forward',
+          run: () => void pull(store, 'fastForwardOnly'),
+        },
         { kind: 'separator' },
         { title: vi.remote.fetchOnly, icon: 'fetch', run: () => void fetch(store) },
       ],
@@ -53,7 +57,11 @@
         { kind: 'separator' },
         hasTauriInternals() &&
           (available
-            ? { title: vi.update.installMenu(available.version), icon: 'download', run: () => void updates.install() }
+            ? {
+                title: vi.update.installMenu(available.version),
+                icon: 'download',
+                run: () => void updates.install(),
+              }
             : {
                 title: vi.update.checkNow,
                 icon: 'download',
@@ -67,13 +75,25 @@
 </script>
 
 <div class="actions">
-  <button type="button" class="action" title={vi.remote.fetchTip} disabled={busy} onclick={() => void fetch(store)}>
+  <button
+    type="button"
+    class="action"
+    title={vi.remote.fetchTip}
+    disabled={busy}
+    onclick={() => void fetch(store)}
+  >
     <Icon name="fetch" size={16} />
     <span class="label">{vi.remote.fetch}</span>
   </button>
 
   <div class="split">
-    <button type="button" class="action left" title={vi.remote.pullTip} disabled={busy} onclick={() => void pull(store)}>
+    <button
+      type="button"
+      class="action left"
+      title={vi.remote.pullTip}
+      disabled={busy}
+      onclick={() => void pull(store)}
+    >
       <Icon name="pull" size={16} />
       <span class="label">{behind > 0 ? vi.remote.pullBehind(behind) : vi.remote.pull}</span>
       {#if behind > 0}<span class="badge compact">{behind}</span>{/if}
@@ -92,7 +112,13 @@
     </button>
   </div>
 
-  <button type="button" class="action" title={vi.remote.pushTip} disabled={busy} onclick={() => void push(store)}>
+  <button
+    type="button"
+    class="action"
+    title={vi.remote.pushTip}
+    disabled={busy}
+    onclick={() => void push(store)}
+  >
     <Icon name="push" size={16} />
     <span class="label">{ahead > 0 ? vi.remote.pushAhead(ahead) : vi.remote.push}</span>
     {#if ahead > 0}<span class="badge compact">{ahead}</span>{/if}
@@ -100,7 +126,12 @@
 
   <span class="gap"></span>
 
-  <button type="button" class="action" title={vi.remote.branchTip} onclick={() => void beginCreateBranch(store)}>
+  <button
+    type="button"
+    class="action"
+    title={vi.remote.branchTip}
+    onclick={() => void beginCreateBranch(store)}
+  >
     <Icon name="branch" size={16} />
     <span class="label">{vi.remote.branch}</span>
   </button>

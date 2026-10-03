@@ -27,7 +27,9 @@ export const staging = {
   unstageAllTitle: 'Bỏ stage tất cả',
   discardTitle: 'Huỷ thay đổi',
   discardConfirmTitle: (count: number, name: string) =>
-    count === 1 ? `Huỷ mọi thay đổi chưa stage của ${name}?` : `Huỷ mọi thay đổi chưa stage của ${count} file?`,
+    count === 1
+      ? `Huỷ mọi thay đổi chưa stage của ${name}?`
+      : `Huỷ mọi thay đổi chưa stage của ${count} file?`,
   discardConfirmMessage:
     'Thay đổi chưa stage sẽ bị bỏ; file mới (chưa track) được dời vào thùng rác của Thaigit. Có thể bấm “Hoàn tác” ngay sau đó.',
   discardConfirm: 'Huỷ thay đổi',
@@ -47,8 +49,10 @@ export const staging = {
   clearSelection: 'Bỏ chọn',
   lineTip: 'Bấm để chọn dòng này (stage / bỏ stage / huỷ từng dòng)',
   discardHunkConfirmTitle: 'Huỷ phần thay đổi đã chọn?',
-  discardHunkConfirmMessage: 'Những dòng đã chọn sẽ trở về như trong index. Có thể bấm “Hoàn tác” ngay sau đó.',
-  partialUnsupported: 'File này chỉ stage / bỏ stage được cả file (file nhị phân, chỉ đổi quyền, hoặc đổi tên).',
+  discardHunkConfirmMessage:
+    'Những dòng đã chọn sẽ trở về như trong index. Có thể bấm “Hoàn tác” ngay sau đó.',
+  partialUnsupported:
+    'File này chỉ stage / bỏ stage được cả file (file nhị phân, chỉ đổi quyền, hoặc đổi tên).',
 
   // Diff
   diffLabel: 'Diff của file',
@@ -75,7 +79,8 @@ export const staging = {
   summaryTip: 'Nên giữ dòng tóm tắt dưới 72 ký tự',
   amend: 'Sửa commit trước (amend)',
   amendTip: 'Gộp thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó',
-  commitButton: (count: number, branch: string) => (count > 0 ? `Commit ${count} file vào ${branch}` : 'Commit'),
+  commitButton: (count: number, branch: string) =>
+    count > 0 ? `Commit ${count} file vào ${branch}` : 'Commit',
   amendButton: 'Sửa commit trước',
   stageAllAndCommit: 'Stage tất cả & commit',
   needSummary: 'Nhập tóm tắt để commit',

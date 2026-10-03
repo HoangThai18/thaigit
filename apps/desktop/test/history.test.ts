@@ -68,7 +68,12 @@ async function openBranchy(): Promise<Fixture> {
   });
   cleanups.push(() => test.cleanup());
   const toasts = new ToastStore();
-  const store = new RepoStore(test.port, { prefs: new PrefsStore(null), toasts, detailsDelayMs: 0, clipboard: async () => {} });
+  const store = new RepoStore(test.port, {
+    prefs: new PrefsStore(null),
+    toasts,
+    detailsDelayMs: 0,
+    clipboard: async () => {},
+  });
   cleanups.push(() => store.dispose());
   await store.start();
   await until(() => store.hasLoaded && store.localBranches.length === 3, 'nạp xong');
@@ -76,9 +81,14 @@ async function openBranchy(): Promise<Fixture> {
 }
 
 function action(toasts: ToastStore, title: string): () => void {
-  const toast = [...toasts.items].reverse().find((item) => item.actions.some((candidate) => candidate.title === title));
+  const toast = [...toasts.items]
+    .reverse()
+    .find((item) => item.actions.some((candidate) => candidate.title === title));
   const found = toast?.actions.find((candidate) => candidate.title === title);
-  if (!found) throw new Error(`Không thấy nút “${title}” (toast: ${toasts.items.map((item) => item.title).join(' | ')})`);
+  if (!found)
+    throw new Error(
+      `Không thấy nút “${title}” (toast: ${toasts.items.map((item) => item.title).join(' | ')})`,
+    );
   return found.run;
 }
 
@@ -114,7 +124,10 @@ describe('merge và giải xung đột', () => {
     expect(lastToast(toasts)).toBe('Merge gặp xung đột');
     expect(store.operation).toEqual({ kind: 'merging' });
     expect(store.status.conflicts.map((entry) => entry.path)).toEqual(['a.txt']);
-    await until(() => store.commitDraft.summary.startsWith("Merge branch 'feature'"), 'điền sẵn message merge');
+    await until(
+      () => store.commitDraft.summary.startsWith("Merge branch 'feature'"),
+      'điền sẵn message merge',
+    );
 
     const entry = store.status.conflicts[0]!;
     store.diff.open(conflictAsChange(entry), { kind: 'conflict' });
@@ -185,7 +198,13 @@ describe('merge và giải xung đột', () => {
   });
 });
 
-async function writeAndCommit(test: TestPort, store: RepoStore, file: string, content: string, message: string): Promise<void> {
+async function writeAndCommit(
+  test: TestPort,
+  store: RepoStore,
+  file: string,
+  content: string,
+  message: string,
+): Promise<void> {
   await test.write(file, content);
   test.git('add', '.');
   test.git('commit', '-q', '-m', message);
@@ -212,7 +231,11 @@ describe('cherry-pick / revert / reset / rebase', () => {
     expect(test.git('log', '-1', '--format=%s').trim()).toBe('Revert "main sửa a"');
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe('một\nhai\nba\n');
     action(toasts, 'Hoàn tác')();
-    await until(() => store.entries.some((entry) => entry.commit.subject === 'main sửa a') && store.headOid === target.id, 'hoàn tác revert');
+    await until(
+      () =>
+        store.entries.some((entry) => entry.commit.subject === 'main sửa a') && store.headOid === target.id,
+      'hoàn tác revert',
+    );
 
     const staging = revert(store, target, dialogs);
     await answer(dialogs, 'secondary');
@@ -278,7 +301,10 @@ describe('nhánh / tag / huỷ tất cả', () => {
     await deleting;
     expect(store.localBranches.map((item) => item.fullName)).not.toContain('refs/heads/gon');
     action(toasts, 'Hoàn tác')();
-    await until(() => store.localBranches.some((item) => item.fullName === 'refs/heads/gon'), 'khôi phục nhánh');
+    await until(
+      () => store.localBranches.some((item) => item.fullName === 'refs/heads/gon'),
+      'khôi phục nhánh',
+    );
 
     const feature = ref(store, 'refs/heads/feature');
     const deletingFeature = deleteBranch(store, feature, dialogs);
@@ -299,7 +325,10 @@ describe('nhánh / tag / huỷ tất cả', () => {
     await renaming;
     expect(lastToast(toasts)).toBe('Đã đổi tên gon → da-doi-ten');
     action(toasts, 'Hoàn tác')();
-    await until(() => store.localBranches.some((item) => item.fullName === 'refs/heads/gon'), 'hoàn tác đổi tên');
+    await until(
+      () => store.localBranches.some((item) => item.fullName === 'refs/heads/gon'),
+      'hoàn tác đổi tên',
+    );
   });
 
   it('tạo tag annotated qua form, xoá rồi hoàn tác', async () => {
@@ -340,7 +369,10 @@ describe('nhánh / tag / huỷ tất cả', () => {
     expect(existsSync(join(test.root, 'moi.txt'))).toBe(false);
 
     action(toasts, 'Hoàn tác')();
-    await until(() => existsSync(join(test.root, 'moi.txt')) && store.status.staged.length === 1, 'hoàn tác huỷ tất cả');
+    await until(
+      () => existsSync(join(test.root, 'moi.txt')) && store.status.staged.length === 1,
+      'hoàn tác huỷ tất cả',
+    );
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe('chưa stage\n');
     expect(test.git('show', ':a.txt')).toBe('đã stage\n');
   });
@@ -353,7 +385,12 @@ describe('menu chuột phải', () => {
     const items = commitMenu(store, featureTip);
     expect(items[0]).toMatchObject({ kind: 'submenu', title: 'feature' });
     const sub = items[0]!.kind === 'submenu' ? items[0]!.items : [];
-    expect(titles(sub).slice(0, 4)).toEqual(['Checkout feature', 'Merge feature vào main', 'Rebase main lên feature', 'Push feature']);
+    expect(titles(sub).slice(0, 4)).toEqual([
+      'Checkout feature',
+      'Merge feature vào main',
+      'Rebase main lên feature',
+      'Push feature',
+    ]);
 
     const headEntry = store.entries.find((entry) => entry.commit.id === store.headOid)!;
     const headItems = commitMenu(store, headEntry);
@@ -376,11 +413,17 @@ describe('menu chuột phải', () => {
     const change = store.status.unstaged.find((item) => item.path === 'build.log')!;
     const items = fileMenu(store, change, { kind: 'unstaged' });
     const ignoreMenu = items.find((item) => item.kind === 'submenu');
-    expect(ignoreMenu?.kind === 'submenu' && titles(ignoreMenu.items)).toEqual(['Bỏ qua file này', 'Bỏ qua mọi file *.log']);
+    expect(ignoreMenu?.kind === 'submenu' && titles(ignoreMenu.items)).toEqual([
+      'Bỏ qua file này',
+      'Bỏ qua mọi file *.log',
+    ]);
     const byExtension = ignoreMenu?.kind === 'submenu' ? ignoreMenu.items[1] : undefined;
     if (!byExtension || !isMenuAction(byExtension)) throw new Error('thiếu mục');
     byExtension.run();
-    await until(() => store.status.unstaged.every((item) => item.path !== 'build.log'), '.gitignore có hiệu lực');
+    await until(
+      () => store.status.unstaged.every((item) => item.path !== 'build.log'),
+      '.gitignore có hiệu lực',
+    );
     expect(readFileSync(join(test.root, '.gitignore'), 'utf8')).toContain('*.log');
   });
 });

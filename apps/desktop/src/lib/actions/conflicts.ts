@@ -1,7 +1,13 @@
 // Giải xung đột (port phần Xung đột của RepoModel+Diff.swift): chọn cả file một phía, hoặc chọn từng đoạn rồi lưu — ghép theo
 // byte (BOM, kiểu xuống dòng, mọi byte ngoài khối xung đột giữ nguyên) và chỉ ghi khi file trên đĩa vẫn là bản đã mở.
 
-import { fileChangeName, resolveConflicts, type ConflictChoices, type ConflictEntry, type ConflictFile } from '@thaigit/core';
+import {
+  fileChangeName,
+  resolveConflicts,
+  type ConflictChoices,
+  type ConflictEntry,
+  type ConflictFile,
+} from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 
@@ -14,7 +20,10 @@ export function resolveWhole(store: RepoStore, entry: ConflictEntry, useOurs: bo
   return store.perform(
     useOurs ? vi.branches.useCurrentRunning : vi.branches.useIncomingRunning,
     (git) => git.resolveConflict(entry.path, entry.kind, useOurs),
-    { refresh: Scope.status, onSuccess: () => store.notify('success', vi.branches.conflictResolved(nameOf(entry.path))) },
+    {
+      refresh: Scope.status,
+      onSuccess: () => store.notify('success', vi.branches.conflictResolved(nameOf(entry.path))),
+    },
   );
 }
 
@@ -52,5 +61,7 @@ export function saveResolution(
 }
 
 export function markResolved(store: RepoStore, paths: readonly string[]): Promise<void> {
-  return store.perform(vi.branches.markResolvedRunning, (git) => git.markResolved(paths), { refresh: Scope.status });
+  return store.perform(vi.branches.markResolvedRunning, (git) => git.markResolved(paths), {
+    refresh: Scope.status,
+  });
 }

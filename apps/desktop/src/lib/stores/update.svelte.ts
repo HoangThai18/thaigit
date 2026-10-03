@@ -90,7 +90,9 @@ export class UpdateStore {
     if (confirm) {
       const ok = await this.dialogs.confirm({
         title: vi.update.installConfirmTitle(update.version),
-        message: update.notes ? `${vi.update.installConfirmMessage}\n\n${update.notes}` : vi.update.installConfirmMessage,
+        message: update.notes
+          ? `${vi.update.installConfirmMessage}\n\n${update.notes}`
+          : vi.update.installConfirmMessage,
         confirmTitle: vi.update.installConfirm,
       });
       if (!ok) return;
@@ -122,7 +124,11 @@ export class UpdateStore {
         title: vi.update.notes,
         run: () =>
           void this.dialogs
-            .confirm({ title: vi.update.notesTitle(update.version), message: notes, confirmTitle: vi.update.installNow })
+            .confirm({
+              title: vi.update.notesTitle(update.version),
+              message: notes,
+              confirmTitle: vi.update.installNow,
+            })
             .then((ok) => {
               if (ok) void this.install(false);
             }),

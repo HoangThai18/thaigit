@@ -109,8 +109,13 @@
       title={vi.inspector.filesChanged(details.files.length)}
       emptyText={vi.inspector.noFiles}
       selectedPath={openPath}
-      onopen={(change) => store.diff.open(change, { kind: 'commit', sha, parent: details.commit.parents[0] ?? null })}
-      onmenu={(event, change) => menus.openAt(event, fileMenu(store, change, { kind: 'commit', sha, parent: details.commit.parents[0] ?? null }))}
+      onopen={(change) =>
+        store.diff.open(change, { kind: 'commit', sha, parent: details.commit.parents[0] ?? null })}
+      onmenu={(event, change) =>
+        menus.openAt(
+          event,
+          fileMenu(store, change, { kind: 'commit', sha, parent: details.commit.parents[0] ?? null }),
+        )}
     />
   </div>
 {:else if store.isLoadingDetails}

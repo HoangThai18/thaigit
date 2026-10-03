@@ -2,7 +2,12 @@
 
 import { isStatusClean, stashDisplayMessage, type Stash } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
-import { dialogs as globalDialogs, flagValue, textValue, type DialogStore } from '../stores/dialogs.svelte.ts';
+import {
+  dialogs as globalDialogs,
+  flagValue,
+  textValue,
+  type DialogStore,
+} from '../stores/dialogs.svelte.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { handleConflictError } from './errors.ts';
 
@@ -34,13 +39,17 @@ export async function beginStash(store: RepoStore, dialogs?: DialogStore): Promi
 }
 
 export function stash(store: RepoStore, message: string, includeUntracked: boolean): Promise<void> {
-  return store.perform(vi.branches.stashTitle, (git) => git.stashPush(message === '' ? null : message, includeUntracked), {
-    refresh: Scope.all,
-    onSuccess: () =>
-      store.notify('success', vi.branches.stashed, {
-        actions: [{ title: vi.staging.undo, run: () => void popLatestStash(store) }],
-      }),
-  });
+  return store.perform(
+    vi.branches.stashTitle,
+    (git) => git.stashPush(message === '' ? null : message, includeUntracked),
+    {
+      refresh: Scope.all,
+      onSuccess: () =>
+        store.notify('success', vi.branches.stashed, {
+          actions: [{ title: vi.staging.undo, run: () => void popLatestStash(store) }],
+        }),
+    },
+  );
 }
 
 export function popLatestStash(store: RepoStore): Promise<void> {
@@ -74,7 +83,11 @@ export function applyStash(store: RepoStore, entry: Stash): Promise<void> {
   });
 }
 
-export async function dropStash(store: RepoStore, entry: Stash, options: { dialogs?: DialogStore } = {}): Promise<void> {
+export async function dropStash(
+  store: RepoStore,
+  entry: Stash,
+  options: { dialogs?: DialogStore } = {},
+): Promise<void> {
   const label = stashDisplayMessage(entry);
   const confirmed = await (options.dialogs ?? globalDialogs).confirm({
     title: vi.branches.dropStashConfirmTitle(label),
@@ -91,10 +104,14 @@ export async function dropStash(store: RepoStore, entry: Stash, options: { dialo
           {
             title: vi.staging.undo,
             run: () =>
-              void store.perform(vi.branches.restoreStash, (git) => git.stashStore(entry.sha, entry.message), {
-                refresh: Scope.all,
-                onSuccess: () => store.notify('success', vi.staging.undone),
-              }),
+              void store.perform(
+                vi.branches.restoreStash,
+                (git) => git.stashStore(entry.sha, entry.message),
+                {
+                  refresh: Scope.all,
+                  onSuccess: () => store.notify('success', vi.staging.undone),
+                },
+              ),
           },
         ],
       }),

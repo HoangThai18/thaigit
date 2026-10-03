@@ -32,9 +32,13 @@ export function stageFiles(store: RepoStore, changes: readonly FileChange[]): Pr
 export function unstageFiles(store: RepoStore, changes: readonly FileChange[]): Promise<void> {
   if (changes.length === 0) return Promise.resolve();
   const headExists = store.headOid !== null;
-  return store.perform(vi.staging.unstageTitle(changes.length), (git) => git.unstage(allPaths(changes), headExists), {
-    refresh: Scope.status,
-  });
+  return store.perform(
+    vi.staging.unstageTitle(changes.length),
+    (git) => git.unstage(allPaths(changes), headExists),
+    {
+      refresh: Scope.status,
+    },
+  );
 }
 
 export function stageAll(store: RepoStore): Promise<void> {
@@ -43,7 +47,9 @@ export function stageAll(store: RepoStore): Promise<void> {
 
 export function unstageAll(store: RepoStore): Promise<void> {
   const headExists = store.headOid !== null;
-  return store.perform(vi.staging.unstageAllTitle, (git) => git.unstageAll(headExists), { refresh: Scope.status });
+  return store.perform(vi.staging.unstageAllTitle, (git) => git.unstageAll(headExists), {
+    refresh: Scope.status,
+  });
 }
 
 /**
@@ -110,7 +116,12 @@ export async function discardFiles(
  * Patch cho `action` từ diff đang xem: `hunkId` cho cả một hunk, không thì các dòng đang chọn. `null` khi không có gì để áp
  * (không chọn dòng nào, hoặc file không hỗ trợ stage từng phần).
  */
-export function buildPatch(diff: FileDiff, action: PatchAction, selection: LineSelection, hunkId?: number): Uint8Array | null {
+export function buildPatch(
+  diff: FileDiff,
+  action: PatchAction,
+  selection: LineSelection,
+  hunkId?: number,
+): Uint8Array | null {
   let chosen: LineSelection = selection;
   if (hunkId !== undefined) {
     const hunk = diff.hunks.find((candidate) => candidate.id === hunkId);
@@ -155,8 +166,12 @@ export async function applyToSelection(
   let snapshot: string | null = null;
   const title =
     options.hunkId !== undefined
-      ? { stage: vi.staging.stageHunk, unstage: vi.staging.unstageHunk, discard: vi.staging.discardHunk }[action]
-      : { stage: vi.staging.stageLines, unstage: vi.staging.unstageLines, discard: vi.staging.discardLines }[action];
+      ? { stage: vi.staging.stageHunk, unstage: vi.staging.unstageHunk, discard: vi.staging.discardHunk }[
+          action
+        ]
+      : { stage: vi.staging.stageLines, unstage: vi.staging.unstageLines, discard: vi.staging.discardLines }[
+          action
+        ];
   await store.perform(
     title,
     async (git) => {

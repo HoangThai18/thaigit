@@ -238,7 +238,9 @@ describe('merge / cherry-pick / revert / reset', () => {
       await t.repo.revert(tip, null, false);
       expect(await t.repo.resolveCommit('HEAD')).toBe(tip);
       expect(await t.exists('f.txt')).toBe(false);
-      expect((await t.repo.status()).staged.map((change) => [change.path, change.kind])).toEqual([['f.txt', 'deleted']]);
+      expect((await t.repo.status()).staged.map((change) => [change.path, change.kind])).toEqual([
+        ['f.txt', 'deleted'],
+      ]);
       expect(await t.repo.operationState()).toEqual({ kind: 'reverting' });
       expect(await t.repo.pendingCommitMessage()).toMatch(/^Revert "feature"/);
       await t.repo.abort({ kind: 'reverting' });

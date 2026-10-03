@@ -31,9 +31,13 @@ export function appReady(): Promise<void> {
 }
 
 export async function onUpdateAvailable(handler: (event: UpdateAvailableEvent) => void): Promise<() => void> {
-  return getCurrentWebviewWindow().listen<UpdateAvailableEvent>(Events.updateAvailable, (event) => handler(event.payload));
+  return getCurrentWebviewWindow().listen<UpdateAvailableEvent>(Events.updateAvailable, (event) =>
+    handler(event.payload),
+  );
 }
 
 export async function onUpdateProgress(handler: (event: UpdateProgressEvent) => void): Promise<() => void> {
-  return getCurrentWebviewWindow().listen<UpdateProgressEvent>(Events.updateProgress, (event) => handler(event.payload));
+  return getCurrentWebviewWindow().listen<UpdateProgressEvent>(Events.updateProgress, (event) =>
+    handler(event.payload),
+  );
 }

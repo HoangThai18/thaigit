@@ -10,9 +10,13 @@ export function askpassReply(requestId: string, answer: string | null): Promise<
 }
 
 export async function onAskpassRequest(handler: (event: AskpassRequestEvent) => void): Promise<() => void> {
-  return getCurrentWebviewWindow().listen<AskpassRequestEvent>(Events.askpassRequest, (event) => handler(event.payload));
+  return getCurrentWebviewWindow().listen<AskpassRequestEvent>(Events.askpassRequest, (event) =>
+    handler(event.payload),
+  );
 }
 
 export async function onAskpassClosed(handler: (event: AskpassClosedEvent) => void): Promise<() => void> {
-  return getCurrentWebviewWindow().listen<AskpassClosedEvent>(Events.askpassClosed, (event) => handler(event.payload));
+  return getCurrentWebviewWindow().listen<AskpassClosedEvent>(Events.askpassClosed, (event) =>
+    handler(event.payload),
+  );
 }

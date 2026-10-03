@@ -18,7 +18,10 @@ export function handleConflictError(
   stashChanges?: () => void,
 ): boolean {
   if (gitErrorContains(error, 'CONFLICT', 'Resolve all conflicts', 'could not apply')) {
-    store.notify('warning', vi.remote.conflict(operation), { message: vi.remote.conflictMessage, tag: 'conflict' });
+    store.notify('warning', vi.remote.conflict(operation), {
+      message: vi.remote.conflictMessage,
+      tag: 'conflict',
+    });
     store.select({ kind: 'workingTree' }, true);
     return true;
   }
@@ -47,7 +50,15 @@ export function handleNetworkError(store: RepoStore, error: unknown, operation: 
     store.notify('warning', vi.remote.authFailed(operation), { message: vi.remote.authFailedMessage });
     return true;
   }
-  if (gitErrorContains(error, 'Could not resolve host', 'Connection timed out', 'Connection refused', 'unable to access')) {
+  if (
+    gitErrorContains(
+      error,
+      'Could not resolve host',
+      'Connection timed out',
+      'Connection refused',
+      'unable to access',
+    )
+  ) {
     store.showError(vi.remote.hostUnreachable(operation), error);
     return true;
   }

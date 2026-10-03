@@ -170,14 +170,16 @@ export const shell = {
     cancelled: (title: string) => `Đã huỷ: ${title}`,
     unexpectedTitle: 'Đã xảy ra lỗi',
     crashTitle: 'Màn hình này gặp lỗi',
-    crashMessage: 'Thaigit đã dừng phần giao diện bị lỗi để không ảnh hưởng tới repository của bạn. Dữ liệu không bị thay đổi.',
+    crashMessage:
+      'Thaigit đã dừng phần giao diện bị lỗi để không ảnh hưởng tới repository của bạn. Dữ liệu không bị thay đổi.',
     crashRetry: 'Thử lại',
     crashHome: 'Về màn hình chính',
     /** Câu thân thiện thay cho lỗi thô (errors/friendly.ts) — không bao giờ hiện stderr / message gốc / stack trace. */
     friendly: {
       unexpected: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
       cancelled: 'Thao tác đã được huỷ.',
-      gitFailed: 'Git không thực hiện được thao tác này. Xem chi tiết trong “Nhật ký lệnh git” (menu Thêm ⋯).',
+      gitFailed:
+        'Git không thực hiện được thao tác này. Xem chi tiết trong “Nhật ký lệnh git” (menu Thêm ⋯).',
       policy: 'Thaigit chặn lệnh này vì lý do an toàn.',
       notFound: 'Không tìm thấy file hoặc thư mục cần dùng — có thể nó đã bị xoá hoặc đổi tên.',
       outOfScope: 'Đường dẫn nằm ngoài repository nên Thaigit không truy cập.',
@@ -193,7 +195,8 @@ export const shell = {
       auth: 'Remote từ chối đăng nhập — kiểm tra tài khoản / token rồi thử lại.',
       network: 'Không kết nối được tới remote — kiểm tra mạng rồi thử lại.',
       remoteMissing: 'Không tìm thấy repository trên remote — sai địa chỉ hoặc tài khoản không có quyền.',
-      lockFile: 'Một tiến trình git khác đang chạy trong repository (file khoá .lock) — đợi nó xong rồi thử lại.',
+      lockFile:
+        'Một tiến trình git khác đang chạy trong repository (file khoá .lock) — đợi nó xong rồi thử lại.',
       gitConflict: 'Có xung đột cần giải quyết trước.',
       localChanges: 'Có thay đổi chưa commit chặn thao tác này — commit hoặc stash trước.',
       notMerged: 'Nhánh có commit chưa được merge.',
@@ -205,7 +208,8 @@ export const shell = {
       unknownRef: 'Không tìm thấy nhánh, commit hoặc file được chỉ định.',
       permission: 'Không có quyền truy cập file hoặc thư mục.',
       diskFull: 'Ổ đĩa đã đầy.',
-      identity: 'Chưa đặt tên và email cho git — chạy git config --global user.name / user.email rồi thử lại.',
+      identity:
+        'Chưa đặt tên và email cho git — chạy git config --global user.name / user.email rồi thử lại.',
       signing: 'Không ký được commit — kiểm tra cấu hình khoá GPG / SSH.',
       hook: 'Hook của repository đã từ chối thao tác này.',
     },

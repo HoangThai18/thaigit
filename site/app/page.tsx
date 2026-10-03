@@ -276,8 +276,8 @@ export default async function HomePage() {
               </li>
               <li>Mở file Thaigit-Windows-setup.exe để cài (không cần quyền quản trị).</li>
               <li>
-                Bản cài chưa ký số nên lần đầu Windows SmartScreen có thể cảnh báo: bấm <strong>More info</strong> →{' '}
-                <strong>Run anyway</strong>.
+                Bản cài chưa ký số nên lần đầu Windows SmartScreen có thể cảnh báo: bấm{' '}
+                <strong>More info</strong> → <strong>Run anyway</strong>.
               </li>
             </ol>
             <p className="hash">
@@ -360,8 +360,8 @@ export default async function HomePage() {
           <p>
             Thaigit is a free, GitKraken-style Git GUI with a Liquid Glass look: a colorful commit graph,
             drag-and-drop to merge, rebase or push, line-by-line staging and a friendly conflict resolver. The
-            native macOS app is available today and updates itself from GitHub Releases. A Windows beta
-            (Tauri 2, Windows 10/11) is out too and also updates itself. The UI is Vietnamese for now.
+            native macOS app is available today and updates itself from GitHub Releases. A Windows beta (Tauri
+            2, Windows 10/11) is out too and also updates itself. The UI is Vietnamese for now.
           </p>
         </div>
       </section>

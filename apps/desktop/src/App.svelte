@@ -11,7 +11,13 @@
   import DialogHost from './lib/ui/DialogHost.svelte';
   import MenuHost from './lib/ui/MenuHost.svelte';
   import UpdateBar from './lib/shell/UpdateBar.svelte';
-  import { appReady, onUpdateAvailable, onUpdateProgress, updateCheck, updateInstall } from './lib/ipc/update.ts';
+  import {
+    appReady,
+    onUpdateAvailable,
+    onUpdateProgress,
+    updateCheck,
+    updateInstall,
+  } from './lib/ipc/update.ts';
   import { updates } from './lib/stores/update.svelte.ts';
   import { askpassReply, onAskpassClosed, onAskpassRequest } from './lib/ipc/askpass.ts';
   import { askpass } from './lib/stores/askpass.svelte.ts';

@@ -12,9 +12,15 @@ describe('toastLifetimeMs', () => {
 
 describe('describeError', () => {
   it('không bao giờ trả message gốc của lỗi: chỉ câu thân thiện', () => {
-    expect(describeError(new Error('  boom\n'))).toBe('Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.');
-    expect(describeError('chuỗi')).toBe('Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.');
-    expect(describeError(new TypeError("Cannot read properties of undefined (reading 'x')"))).not.toContain('Cannot');
+    expect(describeError(new Error('  boom\n'))).toBe(
+      'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+    );
+    expect(describeError('chuỗi')).toBe(
+      'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+    );
+    expect(describeError(new TypeError("Cannot read properties of undefined (reading 'x')"))).not.toContain(
+      'Cannot',
+    );
   });
 });
 
@@ -33,7 +39,11 @@ describe('ToastStore', () => {
     expect(store.items.map((item) => item.id)).toEqual([errorId]);
     vi.advanceTimersByTime(60_000);
     expect(store.items).toHaveLength(1);
-    expect(store.items[0]).toMatchObject({ style: 'error', title: 'hỏng', message: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.' });
+    expect(store.items[0]).toMatchObject({
+      style: 'error',
+      title: 'hỏng',
+      message: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+    });
   });
 
   it('giữ tối đa 4 cái (bỏ cái cũ nhất)', () => {

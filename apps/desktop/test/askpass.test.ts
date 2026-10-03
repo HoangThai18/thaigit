@@ -5,7 +5,11 @@ import type { AskpassClosedEvent, AskpassRequestEvent } from '@thaigit/contracts
 import { AskpassStore, type AskpassPort } from '../src/lib/stores/askpass.svelte.ts';
 import { DialogStore } from '../src/lib/stores/dialogs.svelte.ts';
 
-function request(id: string, kind: AskpassRequestEvent['kind'], host: string | null = 'github.com'): AskpassRequestEvent {
+function request(
+  id: string,
+  kind: AskpassRequestEvent['kind'],
+  host: string | null = 'github.com',
+): AskpassRequestEvent {
   return { requestId: id, opId: 'op', operation: 'git push', kind, host, prompt: `prompt ${id}` };
 }
 
@@ -37,7 +41,13 @@ async function setup() {
     },
   };
   await store.start(port);
-  return { dialogs, store, replies, ask: (event: AskpassRequestEvent) => ask?.(event), close: (id: string) => close?.({ requestId: id }) };
+  return {
+    dialogs,
+    store,
+    replies,
+    ask: (event: AskpassRequestEvent) => ask?.(event),
+    close: (id: string) => close?.({ requestId: id }),
+  };
 }
 
 describe('AskpassStore', () => {

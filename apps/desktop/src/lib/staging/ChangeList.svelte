@@ -67,7 +67,12 @@
     {#if files.length === 0}
       <p class="empty">{emptyText}</p>
     {:else}
-      <VirtualList items={files} rowHeight={28} overscan={8} key={(change) => `${change.kind}:${change.path}`}>
+      <VirtualList
+        items={files}
+        rowHeight={28}
+        overscan={8}
+        key={(change) => `${change.kind}:${change.path}`}
+      >
         {#snippet row(change: FileChange)}
           <div
             class="file"

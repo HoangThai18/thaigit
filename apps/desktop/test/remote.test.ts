@@ -56,7 +56,12 @@ async function openWithRemote(): Promise<Fixture> {
   cleanups.push(() => test.cleanup());
   rawGit(base, ['clone', '-q', bare, other]);
   const toasts = new ToastStore();
-  const store = new RepoStore(test.port, { prefs: new PrefsStore(null), toasts, detailsDelayMs: 0, clipboard: async () => {} });
+  const store = new RepoStore(test.port, {
+    prefs: new PrefsStore(null),
+    toasts,
+    detailsDelayMs: 0,
+    clipboard: async () => {},
+  });
   cleanups.push(() => store.dispose());
   await store.start();
   await until(() => store.hasLoaded && store.remotes.length === 1, 'nạp xong');
@@ -72,9 +77,14 @@ function pushFromOther(other: string, file: string, content: string, message: st
 }
 
 function action(toasts: ToastStore, title: string): () => void {
-  const toast = [...toasts.items].reverse().find((item) => item.actions.some((candidate) => candidate.title === title));
+  const toast = [...toasts.items]
+    .reverse()
+    .find((item) => item.actions.some((candidate) => candidate.title === title));
   const found = toast?.actions.find((candidate) => candidate.title === title);
-  if (!found) throw new Error(`Không thấy nút “${title}” (toast: ${toasts.items.map((item) => item.title).join(' | ')})`);
+  if (!found)
+    throw new Error(
+      `Không thấy nút “${title}” (toast: ${toasts.items.map((item) => item.title).join(' | ')})`,
+    );
   return found.run;
 }
 

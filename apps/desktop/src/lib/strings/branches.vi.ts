@@ -3,7 +3,6 @@
  * theo app Swift (RepoModel+Actions).
  */
 export const branches = {
-
   // Checkout
   checkout: 'Checkout',
   checkoutTitle: (target: string) => `Checkout ${target}`,
@@ -70,7 +69,8 @@ export const branches = {
   notMerged: (name: string) => `Nhánh ${name} có commit chưa được merge`,
   deleteAnyway: 'Vẫn xoá',
   deleteRemoteConfirmTitle: (name: string) => `Xoá nhánh “${name}” trên remote?`,
-  deleteRemoteConfirmMessage: (branch: string, remote: string) => `Nhánh ${branch} sẽ bị xoá khỏi ${remote} cho mọi người.`,
+  deleteRemoteConfirmMessage: (branch: string, remote: string) =>
+    `Nhánh ${branch} sẽ bị xoá khỏi ${remote} cho mọi người.`,
   deleteOnRemote: 'Xoá trên remote',
   deleteRemoteTitle: (name: string) => `Xoá ${name}`,
   deletedRemote: (name: string) => `Đã xoá ${name}`,
@@ -104,7 +104,8 @@ export const branches = {
     `Tạo một commit mới trên ${branch} đảo ngược thay đổi của ${sha}. Lịch sử cũ giữ nguyên.`,
   revertMergeNote: (parent: string) =>
     `Đây là commit merge: thay đổi được đảo ngược so với cha thứ nhất (${parent}).`,
-  revertNoCommitNote: '“Revert, chưa commit” chỉ stage thay đổi đảo ngược để bạn xem lại hoặc sửa trước khi tự commit.',
+  revertNoCommitNote:
+    '“Revert, chưa commit” chỉ stage thay đổi đảo ngược để bạn xem lại hoặc sửa trước khi tự commit.',
   revertAndCommit: 'Revert & commit',
   revertNoCommit: 'Revert, chưa commit',
   revertTitle: (sha: string) => `Revert ${sha}`,
@@ -206,7 +207,8 @@ export const branches = {
   markResolved: 'Đánh dấu đã giải quyết',
   markResolvedRunning: 'Đánh dấu đã giải quyết',
   wholeFileOnly: (description: string) => `${description} — chỉ chọn được cả file.`,
-  notUtf8: 'File không phải UTF-8 nên không giải từng đoạn trong app được. Chọn cả file, hoặc sửa bằng trình soạn thảo rồi bấm “Đánh dấu đã giải quyết”.',
+  notUtf8:
+    'File không phải UTF-8 nên không giải từng đoạn trong app được. Chọn cả file, hoặc sửa bằng trình soạn thảo rồi bấm “Đánh dấu đã giải quyết”.',
   openConflict: 'Giải xung đột',
 
   // Menu ngữ cảnh

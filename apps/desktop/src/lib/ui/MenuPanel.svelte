@@ -46,7 +46,8 @@
     } else {
       left = anchor.x;
       top = anchor.y;
-      if (left + width > window.innerWidth - MARGIN) left = Math.max(MARGIN, window.innerWidth - MARGIN - width);
+      if (left + width > window.innerWidth - MARGIN)
+        left = Math.max(MARGIN, window.innerWidth - MARGIN - width);
     }
     if (top + height > window.innerHeight - MARGIN) {
       top =
@@ -166,7 +167,9 @@
         onclick={(event) => openSubmenu(index, event.currentTarget, event.detail === 0)}
         onpointerenter={(event) => openSubmenu(index, event.currentTarget, false)}
       >
-        <span class="icon">{#if item.icon}<Icon name={item.icon} size={14} />{/if}</span>
+        <span class="icon"
+          >{#if item.icon}<Icon name={item.icon} size={14} />{/if}</span
+        >
         <span class="title"><bdi>{item.title}</bdi></span>
         <span class="chevron"><Icon name="chevron-right" size={12} /></span>
       </button>

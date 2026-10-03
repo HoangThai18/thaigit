@@ -666,7 +666,11 @@ export class GitRepository {
    */
   async revert(sha: string, mainline: number | null = null, commit = true): Promise<void> {
     assertArgument(sha);
-    await this.runner.run('revert', [commit ? '--no-edit' : '--no-commit', ...this.mainlineArgs(mainline), sha]);
+    await this.runner.run('revert', [
+      commit ? '--no-edit' : '--no-commit',
+      ...this.mainlineArgs(mainline),
+      sha,
+    ]);
   }
 
   private mainlineArgs(mainline: number | null): string[] {

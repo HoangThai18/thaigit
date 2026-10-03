@@ -73,7 +73,12 @@ export function merge(store: RepoStore, ref: string, label: string): Promise<voi
 }
 
 /** Rebase nhánh hiện tại lên `onto` (hỏi trước vì viết lại lịch sử). */
-export function rebaseCurrent(store: RepoStore, onto: string, label: string, dialogs?: DialogStore): Promise<void> {
+export function rebaseCurrent(
+  store: RepoStore,
+  onto: string,
+  label: string,
+  dialogs?: DialogStore,
+): Promise<void> {
   const current = store.currentBranch;
   if (current === null) {
     store.notify('warning', vi.branches.needBranchToRebase);
@@ -97,31 +102,36 @@ export async function rebase(
     confirmTitle: vi.branches.rebase,
   });
   if (!confirmed) return;
-  const previousHead = store.localBranches.find((ref) => ref.fullName === `refs/heads/${branch}`)?.target ?? null;
-  await store.perform(vi.branches.rebaseTitle(branch, label), (git) => git.rebase(onto, switches ? branch : null), {
-    refresh: Scope.all,
-    onSuccess: () =>
-      store.notify('success', vi.branches.rebased(branch, label), {
-        actions:
-          previousHead === null
-            ? []
-            : [
-                {
-                  title: vi.staging.undo,
-                  run: () =>
-                    void store.perform(
-                      vi.branches.undoRebase,
-                      async (git) => {
-                        await git.switchTo(branch);
-                        await git.resetKeepingLocalChanges(previousHead);
-                      },
-                      { refresh: Scope.all, onSuccess: () => store.notify('success', vi.staging.undone) },
-                    ),
-                },
-              ],
-      }),
-    onError: onConflict(store, 'Rebase'),
-  });
+  const previousHead =
+    store.localBranches.find((ref) => ref.fullName === `refs/heads/${branch}`)?.target ?? null;
+  await store.perform(
+    vi.branches.rebaseTitle(branch, label),
+    (git) => git.rebase(onto, switches ? branch : null),
+    {
+      refresh: Scope.all,
+      onSuccess: () =>
+        store.notify('success', vi.branches.rebased(branch, label), {
+          actions:
+            previousHead === null
+              ? []
+              : [
+                  {
+                    title: vi.staging.undo,
+                    run: () =>
+                      void store.perform(
+                        vi.branches.undoRebase,
+                        async (git) => {
+                          await git.switchTo(branch);
+                          await git.resetKeepingLocalChanges(previousHead);
+                        },
+                        { refresh: Scope.all, onSuccess: () => store.notify('success', vi.staging.undone) },
+                      ),
+                  },
+                ],
+        }),
+      onError: onConflict(store, 'Rebase'),
+    },
+  );
 }
 
 export function cherryPick(store: RepoStore, commit: Commit): Promise<void> {
@@ -167,30 +177,34 @@ export async function revert(store: RepoStore, commit: Commit, dialogs?: DialogS
       });
       return;
     }
-    await store.perform(vi.branches.revertNoCommitTitle(sha), (git) => git.revert(commit.id, mainline, false), {
-      refresh: Scope.all,
-      onSuccess: () => {
-        store.select({ kind: 'workingTree' }, true);
-        void prefillPendingMessage(store);
-        store.notify('success', vi.branches.revertedNoCommit(commit.subject), {
-          actions: [
-            {
-              title: vi.staging.undo,
-              run: () =>
-                void store.perform(vi.branches.undoRevert, (git) => git.abort({ kind: 'reverting' }), {
-                  refresh: Scope.all,
-                  onSuccess: () => {
-                    store.commitDraft.summary = '';
-                    store.commitDraft.body = '';
-                    store.notify('success', vi.staging.undone);
-                  },
-                }),
-            },
-          ],
-        });
+    await store.perform(
+      vi.branches.revertNoCommitTitle(sha),
+      (git) => git.revert(commit.id, mainline, false),
+      {
+        refresh: Scope.all,
+        onSuccess: () => {
+          store.select({ kind: 'workingTree' }, true);
+          void prefillPendingMessage(store);
+          store.notify('success', vi.branches.revertedNoCommit(commit.subject), {
+            actions: [
+              {
+                title: vi.staging.undo,
+                run: () =>
+                  void store.perform(vi.branches.undoRevert, (git) => git.abort({ kind: 'reverting' }), {
+                    refresh: Scope.all,
+                    onSuccess: () => {
+                      store.commitDraft.summary = '';
+                      store.commitDraft.body = '';
+                      store.notify('success', vi.staging.undone);
+                    },
+                  }),
+              },
+            ],
+          });
+        },
+        onError: onConflict(store, 'Revert'),
       },
-      onError: onConflict(store, 'Revert'),
-    });
+    );
     return;
   }
   const previousHead = store.headOid;
@@ -205,7 +219,12 @@ export async function revert(store: RepoStore, commit: Commit, dialogs?: DialogS
 }
 
 /** Reset nhánh hiện tại về `commit`. Hard thì hỏi trước (mất thay đổi chưa commit). */
-export async function reset(store: RepoStore, commit: Commit, mode: ResetMode, dialogs?: DialogStore): Promise<void> {
+export async function reset(
+  store: RepoStore,
+  commit: Commit,
+  mode: ResetMode,
+  dialogs?: DialogStore,
+): Promise<void> {
   const target = store.currentBranch ?? 'HEAD';
   const sha = shortSha(commit);
   if (mode === 'hard') {
@@ -257,7 +276,9 @@ export async function discardAll(store: RepoStore, dialogs?: DialogStore): Promi
     destructive: true,
   });
   if (!confirmed) return;
-  const untracked = store.status.unstaged.filter((change) => change.kind === 'untracked').map((change) => change.path);
+  const untracked = store.status.unstaged
+    .filter((change) => change.kind === 'untracked')
+    .map((change) => change.path);
   let snapshot: string | null = null;
   let trashToken: string | null = null;
   await store.perform(

@@ -14,7 +14,8 @@ export const update = {
   upToDate: (version: string) => `Bạn đang dùng bản mới nhất (${version})`,
   checkFailed: 'Không kiểm tra được bản cập nhật',
   installConfirmTitle: (version: string) => `Cập nhật lên Thaigit ${version}?`,
-  installConfirmMessage: 'Thaigit sẽ tải bản mới, kiểm chữ ký rồi cài và tự khởi động lại. Các repo đang mở sẽ được mở lại.',
+  installConfirmMessage:
+    'Thaigit sẽ tải bản mới, kiểm chữ ký rồi cài và tự khởi động lại. Các repo đang mở sẽ được mở lại.',
   installConfirm: 'Cập nhật & khởi động lại',
   downloading: 'Đang tải bản cập nhật',
   verifying: 'Đang kiểm chữ ký',
@@ -24,5 +25,6 @@ export const update = {
   failedHint: 'Không tải hoặc cài được bản mới — kiểm tra kết nối mạng rồi thử lại.',
   retry: 'Thử lại',
   close: 'Đóng',
-  progressBytes: (downloaded: string, total: string | null) => (total ? `${downloaded} / ${total}` : downloaded),
+  progressBytes: (downloaded: string, total: string | null) =>
+    total ? `${downloaded} / ${total}` : downloaded,
 } as const;

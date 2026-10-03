@@ -22,11 +22,18 @@
     <strong>{busy.title}</strong>
     <span class="detail"><bdi>{busy.detail}</bdi></span>
     {#if busy.fraction !== null}
-      <span class="bar" aria-hidden="true"><span class="fill" style:width="{Math.round(busy.fraction * 100)}%"></span></span>
+      <span class="bar" aria-hidden="true"
+        ><span class="fill" style:width="{Math.round(busy.fraction * 100)}%"></span></span
+      >
       <span class="percent">{Math.round(busy.fraction * 100)}%</span>
     {/if}
     {#if busy.canCancel}
-      <button type="button" class="cancel" title={vi.remote.cancelTip} onclick={() => store.cancelCurrentOperation()}>
+      <button
+        type="button"
+        class="cancel"
+        title={vi.remote.cancelTip}
+        onclick={() => store.cancelCurrentOperation()}
+      >
         {vi.remote.cancel}
       </button>
     {/if}

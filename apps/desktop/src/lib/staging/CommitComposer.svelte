@@ -95,8 +95,7 @@
     placeholder={vi.staging.bodyPlaceholder}
     aria-label={vi.staging.bodyPlaceholder}
     bind:value={draft.body}
-    {onkeydown}
-  ></textarea>
+    {onkeydown}></textarea>
   <button type="button" class="commit" disabled={!enabled} title={vi.staging.commitShortcut} onclick={submit}>
     <Icon name="commit" size={16} />
     <span>{buttonTitle}</span>

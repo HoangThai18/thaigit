@@ -11,7 +11,12 @@ import {
   type HeadState,
 } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
-import { dialogs as globalDialogs, flagValue, textValue, type DialogStore } from '../stores/dialogs.svelte.ts';
+import {
+  dialogs as globalDialogs,
+  flagValue,
+  textValue,
+  type DialogStore,
+} from '../stores/dialogs.svelte.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { gitErrorContains, handleNetworkError } from './errors.ts';
 import { popLatestStash } from './stash.ts';
@@ -20,8 +25,11 @@ type Work = (git: GitRepository) => Promise<void>;
 
 /** Thay đổi chưa commit chặn checkout: hiện lỗi kèm "Stash rồi checkout". */
 export function handleCheckoutError(store: RepoStore, error: unknown, stashAndRetry: () => void): boolean {
-  if (!gitErrorContains(error, 'would be overwritten', 'Please commit your changes or stash them')) return false;
-  store.showError(vi.branches.checkoutBlocked, error, [{ title: vi.branches.stashAndCheckout, run: stashAndRetry }]);
+  if (!gitErrorContains(error, 'would be overwritten', 'Please commit your changes or stash them'))
+    return false;
+  store.showError(vi.branches.checkoutBlocked, error, [
+    { title: vi.branches.stashAndCheckout, run: stashAndRetry },
+  ]);
   return true;
 }
 
@@ -87,7 +95,11 @@ export function checkout(store: RepoStore, ref: GitRef, dialogs?: DialogStore): 
             ],
           }),
         onError: (error) =>
-          handleCheckoutError(store, error, () => void stashThen(store, vi.branches.checkoutTitle(remoteName), work)),
+          handleCheckoutError(
+            store,
+            error,
+            () => void stashThen(store, vi.branches.checkoutTitle(remoteName), work),
+          ),
       });
     }
     case 'tag':
@@ -110,7 +122,12 @@ export function switchToBranch(store: RepoStore, name: string): Promise<void> {
 }
 
 /** Checkout một commit (HEAD tách rời) — hỏi trước vì người mới hay lạc ở trạng thái này. */
-export async function checkoutDetached(store: RepoStore, sha: string, label: string, dialogs?: DialogStore): Promise<void> {
+export async function checkoutDetached(
+  store: RepoStore,
+  sha: string,
+  label: string,
+  dialogs?: DialogStore,
+): Promise<void> {
   const confirmed = await (dialogs ?? globalDialogs).confirm({
     title: vi.branches.detachedConfirmTitle(label),
     message: vi.branches.detachedConfirmMessage,
@@ -137,7 +154,8 @@ export async function beginCreateBranch(
   dialogs?: DialogStore,
 ): Promise<void> {
   const head = store.headOid;
-  const start = startPoint ?? (head === null ? null : { sha: head, label: store.currentBranch ?? head.slice(0, 7) });
+  const start =
+    startPoint ?? (head === null ? null : { sha: head, label: store.currentBranch ?? head.slice(0, 7) });
   if (start === null) {
     store.notify('info', vi.branches.needCommitFirst);
     return;
@@ -148,7 +166,14 @@ export async function beginCreateBranch(
     message: vi.branches.createMessage(start.label),
     confirmTitle: vi.branches.create,
     fields: [
-      { kind: 'text', id: 'name', label: vi.branches.nameLabel, value: '', placeholder: 'feature/ten-nhanh', monospace: true },
+      {
+        kind: 'text',
+        id: 'name',
+        label: vi.branches.nameLabel,
+        value: '',
+        placeholder: 'feature/ten-nhanh',
+        monospace: true,
+      },
       { kind: 'checkbox', id: 'checkout', label: vi.branches.checkoutAfterCreate, value: true },
     ],
     validate: (current) => {
@@ -163,28 +188,41 @@ export async function beginCreateBranch(
   await createBranch(store, textValue(values, 'name'), start.sha, flagValue(values, 'checkout'));
 }
 
-export function createBranch(store: RepoStore, name: string, startPoint: string, checkoutAfter: boolean): Promise<void> {
+export function createBranch(
+  store: RepoStore,
+  name: string,
+  startPoint: string,
+  checkoutAfter: boolean,
+): Promise<void> {
   const previous = store.status.head;
   const work: Work = (git) => git.createBranch(name, startPoint, checkoutAfter);
   return store.perform(vi.branches.createTitleNamed(name), work, {
     refresh: Scope.all,
     onSuccess: () =>
-      store.notify('success', checkoutAfter ? vi.branches.createdAndSwitched(name) : vi.branches.created(name), {
-        actions: [
-          {
-            title: vi.staging.undo,
-            run: () =>
-              void (checkoutAfter
-                ? restoreHead(store, previous, (git) => git.deleteBranch(name, true))
-                : store.perform(vi.branches.deleteTitle(name), (git) => git.deleteBranch(name, true), {
-                    refresh: Scope.all,
-                    onSuccess: () => store.notify('success', vi.staging.undone),
-                  })),
-          },
-        ],
-      }),
+      store.notify(
+        'success',
+        checkoutAfter ? vi.branches.createdAndSwitched(name) : vi.branches.created(name),
+        {
+          actions: [
+            {
+              title: vi.staging.undo,
+              run: () =>
+                void (checkoutAfter
+                  ? restoreHead(store, previous, (git) => git.deleteBranch(name, true))
+                  : store.perform(vi.branches.deleteTitle(name), (git) => git.deleteBranch(name, true), {
+                      refresh: Scope.all,
+                      onSuccess: () => store.notify('success', vi.staging.undone),
+                    })),
+            },
+          ],
+        },
+      ),
     onError: (error) =>
-      handleCheckoutError(store, error, () => void stashThen(store, vi.branches.createTitleNamed(name), work)),
+      handleCheckoutError(
+        store,
+        error,
+        () => void stashThen(store, vi.branches.createTitleNamed(name), work),
+      ),
   });
 }
 
@@ -215,10 +253,14 @@ function performDeleteBranch(store: RepoStore, ref: GitRef, force: boolean): Pro
           {
             title: vi.staging.undo,
             run: () =>
-              void store.perform(vi.branches.restoreBranch(name), (git) => git.updateRef(ref.fullName, ref.target), {
-                refresh: Scope.refs | Scope.history,
-                onSuccess: () => store.notify('success', vi.staging.undone),
-              }),
+              void store.perform(
+                vi.branches.restoreBranch(name),
+                (git) => git.updateRef(ref.fullName, ref.target),
+                {
+                  refresh: Scope.refs | Scope.history,
+                  onSuccess: () => store.notify('success', vi.staging.undone),
+                },
+              ),
           },
         ],
       }),
@@ -233,7 +275,11 @@ function performDeleteBranch(store: RepoStore, ref: GitRef, force: boolean): Pro
 }
 
 /** Xoá nhánh trên remote (cho mọi người — hỏi trước). "Hoàn tác" đẩy lại đúng commit cũ. */
-export async function deleteRemoteBranch(store: RepoStore, ref: GitRef, dialogs?: DialogStore): Promise<void> {
+export async function deleteRemoteBranch(
+  store: RepoStore,
+  ref: GitRef,
+  dialogs?: DialogStore,
+): Promise<void> {
   const remotes = store.remotes.map((remote) => remote.name);
   const remote = refRemoteName(ref, remotes);
   if (remote === null) return;
@@ -263,7 +309,8 @@ export async function deleteRemoteBranch(store: RepoStore, ref: GitRef, dialogs?
                 const restoreProgress = store.progressReporter();
                 void store.perform(
                   vi.branches.restoreRemote(name),
-                  (git, signal) => git.pushCommit(ref.target, remote, branch, { onProgress: restoreProgress, signal }),
+                  (git, signal) =>
+                    git.pushCommit(ref.target, remote, branch, { onProgress: restoreProgress, signal }),
                   {
                     showsProgress: true,
                     cancellable: true,
@@ -324,7 +371,8 @@ export function fastForward(store: RepoStore, ref: GitRef): Promise<void> {
   const name = refName(ref);
   return store.perform(
     vi.branches.fastForwardTitle(name),
-    (git) => (name === store.currentBranch ? git.merge(upstream, 'fastForwardOnly') : git.fastForward(name, upstream)),
+    (git) =>
+      name === store.currentBranch ? git.merge(upstream, 'fastForwardOnly') : git.fastForward(name, upstream),
     { refresh: Scope.all, onSuccess: () => store.notify('success', vi.branches.fastForwarded(name)) },
   );
 }

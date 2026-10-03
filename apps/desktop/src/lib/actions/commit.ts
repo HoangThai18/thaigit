@@ -28,7 +28,8 @@ export interface CommitCheck {
 export function canCommit(store: RepoStore): CommitCheck {
   const draft = store.commitDraft;
   if (draft.summary.trim() === '') return { ok: false, reason: vi.staging.needSummary };
-  if (store.status.conflicts.length > 0) return { ok: false, reason: vi.staging.conflictsFirst(store.status.conflicts.length) };
+  if (store.status.conflicts.length > 0)
+    return { ok: false, reason: vi.staging.conflictsFirst(store.status.conflicts.length) };
   // Amend chỉ sửa message thì không cần gì đã stage; đang merge / revert thì commit hoàn tất thao tác.
   if (store.status.staged.length === 0 && !draft.amend && store.operation === null) {
     return { ok: false, reason: vi.staging.needStaged };
@@ -40,7 +41,11 @@ export function canCommit(store: RepoStore): CommitCheck {
  * Bật / tắt amend. Bật khi ô soạn trống thì điền sẵn message của commit gần nhất (như Swift), tắt thì trả lại những gì đã
  * gõ trước khi bật.
  */
-export async function setAmend(store: RepoStore, amend: boolean, saved: { summary: string; body: string } | null): Promise<{ summary: string; body: string } | null> {
+export async function setAmend(
+  store: RepoStore,
+  amend: boolean,
+  saved: { summary: string; body: string } | null,
+): Promise<{ summary: string; body: string } | null> {
   const draft = store.commitDraft;
   draft.amend = amend;
   if (amend) {
@@ -90,7 +95,14 @@ export async function commit(store: RepoStore, options: { stageAllFirst?: boolea
         draft.amend = false;
         store.select({ kind: 'workingTree' });
         store.notify('success', amend ? vi.staging.amended : vi.staging.committed(branch), {
-          actions: committed ? [{ title: vi.staging.undo, run: () => void undoCommit(store, previousHead, { summary, body, amend }) }] : [],
+          actions: committed
+            ? [
+                {
+                  title: vi.staging.undo,
+                  run: () => void undoCommit(store, previousHead, { summary, body, amend }),
+                },
+              ]
+            : [],
         });
       },
     },

@@ -44,9 +44,18 @@ export type DiffState =
   /** `message`: câu thân thiện (errors/friendly.ts), không phải lỗi thô. */
   | { readonly kind: 'failed'; readonly message: string }
   /** File xung đột có dấu <<<<<<< (giải từng đoạn được); `sha256` của byte đã đọc để ghi lại có kiểm tra. */
-  | { readonly kind: 'conflict'; readonly entry: ConflictEntry; readonly file: ConflictFile; readonly sha256: string }
+  | {
+      readonly kind: 'conflict';
+      readonly entry: ConflictEntry;
+      readonly file: ConflictFile;
+      readonly sha256: string;
+    }
   /** Xung đột không giải từng đoạn được (xoá ở một phía, không phải UTF-8, không thấy dấu): chỉ chọn cả file. */
-  | { readonly kind: 'conflictWhole'; readonly entry: ConflictEntry; readonly reason: 'no-markers' | 'not-utf8' };
+  | {
+      readonly kind: 'conflictWhole';
+      readonly entry: ConflictEntry;
+      readonly reason: 'no-markers' | 'not-utf8';
+    };
 
 /** Quá số dòng này thì hỏi trước khi vẽ (Swift: 20 000). */
 export const LARGE_DIFF_LINES = 20_000;
@@ -109,7 +118,12 @@ export class DiffStore {
 
   open(change: FileChange, source: DiffSource): void {
     const current = this.file;
-    if (current && current.change.path === change.path && current.change.kind === change.kind && sameSource(current.source, source)) {
+    if (
+      current &&
+      current.change.path === change.path &&
+      current.change.kind === change.kind &&
+      sameSource(current.source, source)
+    ) {
       return;
     }
     this.file = { source, change };
@@ -249,7 +263,11 @@ export class DiffStore {
     const source = file.source;
     switch (source.kind) {
       case 'unstaged':
-        return git.workingDiffBytes(file.change, file.change.kind === 'untracked' ? 'untracked' : 'unstaged', context);
+        return git.workingDiffBytes(
+          file.change,
+          file.change.kind === 'untracked' ? 'untracked' : 'unstaged',
+          context,
+        );
       case 'staged':
         return git.workingDiffBytes(file.change, 'staged', context);
       case 'commit':

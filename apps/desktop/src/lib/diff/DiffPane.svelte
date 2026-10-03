@@ -4,8 +4,19 @@
   Bỏ stage / Huỷ ở từng hunk, bấm vào dòng +/− để chọn rồi stage / bỏ stage / huỷ riêng những dòng đó.
 -->
 <script lang="ts">
-  import { fileChangeDirectory, fileChangeName, type PresentationHunk, type PresentationLine } from '@thaigit/core';
-  import { applyToSelection, discardFiles, stageFiles, unstageFiles, type PatchAction } from '../actions/staging.ts';
+  import {
+    fileChangeDirectory,
+    fileChangeName,
+    type PresentationHunk,
+    type PresentationLine,
+  } from '@thaigit/core';
+  import {
+    applyToSelection,
+    discardFiles,
+    stageFiles,
+    unstageFiles,
+    type PatchAction,
+  } from '../actions/staging.ts';
   import { showBidi } from '../format/bidi.ts';
   import { vi } from '../strings.vi.ts';
   import { dialogs } from '../stores/dialogs.svelte.ts';
@@ -79,7 +90,10 @@
   function onwindowkeydown(event: KeyboardEvent): void {
     if (event.key !== 'Escape' || event.defaultPrevented || dialogs.current !== null) return;
     const target = event.target;
-    if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
+    if (
+      target instanceof HTMLElement &&
+      (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+    ) {
       return;
     }
     if (selected > 0) diff.clearSelection();
@@ -91,7 +105,8 @@
 
 {#snippet lineText(line: PresentationLine)}
   {#if line.highlight}
-    {line.text.slice(0, line.highlight.start)}<mark>{line.text.slice(line.highlight.start, line.highlight.end)}</mark
+    {line.text.slice(0, line.highlight.start)}<mark
+      >{line.text.slice(line.highlight.start, line.highlight.end)}</mark
     >{line.text.slice(line.highlight.end)}
   {:else}
     {line.text}
@@ -112,7 +127,12 @@
         <Icon name="chevron-left" size={15} />
         <span>{vi.staging.back}</span>
       </button>
-      <div class="file" title={showBidi(file.change.oldPath ? `${file.change.oldPath} → ${file.change.path}` : file.change.path)}>
+      <div
+        class="file"
+        title={showBidi(
+          file.change.oldPath ? `${file.change.oldPath} → ${file.change.path}` : file.change.path,
+        )}
+      >
         <strong class="name"><bdi>{showBidi(fileChangeName(file.change))}</bdi></strong>
         {#if fileChangeDirectory(file.change) !== ''}
           <span class="dir"><bdi>{showBidi(fileChangeDirectory(file.change))}</bdi></span>
@@ -120,11 +140,18 @@
       </div>
       <span class="badge">{sourceLabel(file.source)}</span>
       {#if presentation}
-        <span class="stats"><span class="add">+{presentation.diff.additions}</span> <span class="del">−{presentation.diff.deletions}</span></span>
+        <span class="stats"
+          ><span class="add">+{presentation.diff.additions}</span>
+          <span class="del">−{presentation.diff.deletions}</span></span
+        >
       {/if}
       <span class="grow"></span>
       {#if unstaged}
-        <button type="button" class="action destructive" onclick={() => void discardFiles(store, [file.change])}>
+        <button
+          type="button"
+          class="action destructive"
+          onclick={() => void discardFiles(store, [file.change])}
+        >
           <Icon name="discard" size={14} />
           <span>{vi.staging.discardFile}</span>
         </button>
@@ -163,7 +190,9 @@
               state.diff.deletions,
             )}
           </p>
-          <button type="button" class="action" onclick={() => diff.showAnyway()}>{vi.staging.showAnyway}</button>
+          <button type="button" class="action" onclick={() => diff.showAnyway()}
+            >{vi.staging.showAnyway}</button
+          >
         </div>
       {:else}
         <div class="lines" style:--digits={digits}>
@@ -182,7 +211,11 @@
                   {#if pickable}
                     <span class="hunk-actions">
                       {#if unstaged}
-                        <button type="button" class="mini destructive" onclick={() => apply('discard', row.hunk.id)}>
+                        <button
+                          type="button"
+                          class="mini destructive"
+                          onclick={() => apply('discard', row.hunk.id)}
+                        >
                           {vi.staging.discardHunk}
                         </button>
                         <button type="button" class="mini" onclick={() => apply('stage', row.hunk.id)}>
@@ -230,7 +263,9 @@
       <footer class="selection" role="status">
         <span>{vi.staging.selectedLines(selected)}</span>
         <span class="grow"></span>
-        <button type="button" class="action" onclick={() => diff.clearSelection()}>{vi.staging.clearSelection}</button>
+        <button type="button" class="action" onclick={() => diff.clearSelection()}
+          >{vi.staging.clearSelection}</button
+        >
         {#if unstaged}
           <button type="button" class="action destructive" onclick={() => apply('discard')}>
             <Icon name="discard" size={14} />

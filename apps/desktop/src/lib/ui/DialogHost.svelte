@@ -23,10 +23,15 @@
     const pending = current;
     if (!pending || pending.id === valuesFor) return;
     valuesFor = pending.id;
-    values = pending.kind === 'form' ? Object.fromEntries(pending.fields.map((field) => [field.id, field.value])) : {};
+    values =
+      pending.kind === 'form'
+        ? Object.fromEntries(pending.fields.map((field) => [field.id, field.value]))
+        : {};
   });
 
-  const error = $derived(current?.kind === 'form' ? (current.validate?.(values as FormValues) ?? null) : null);
+  const error = $derived(
+    current?.kind === 'form' ? (current.validate?.(values as FormValues) ?? null) : null,
+  );
 
   $effect(() => {
     if (!current) return;
@@ -135,7 +140,10 @@
                     {/each}
                   </select>
                 {:else}
-                  <select value={values[field.id]} onchange={(event) => (values[field.id] = event.currentTarget.value)}>
+                  <select
+                    value={values[field.id]}
+                    onchange={(event) => (values[field.id] = event.currentTarget.value)}
+                  >
                     {#each field.options as option (option.value)}
                       <option value={option.value}>{option.label}</option>
                     {/each}
@@ -176,9 +184,12 @@
         </div>
       {/if}
       <div class="buttons">
-        <button type="button" class="button" onclick={() => store.answer('cancel')}>{vi.dialog.cancel}</button>
+        <button type="button" class="button" onclick={() => store.answer('cancel')}>{vi.dialog.cancel}</button
+        >
         {#if current.kind === 'confirm' && current.secondaryTitle}
-          <button type="button" class="button" onclick={() => store.answer('secondary')}>{current.secondaryTitle}</button>
+          <button type="button" class="button" onclick={() => store.answer('secondary')}
+            >{current.secondaryTitle}</button
+          >
         {/if}
         <button
           type="button"

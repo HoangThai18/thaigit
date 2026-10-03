@@ -49,10 +49,7 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "languages": [
-          "English",
-          "Vietnamese"
-        ],
+        "languages": ["English", "Vietnamese"],
         "displayLanguageSelector": false
       }
     }

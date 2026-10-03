@@ -42,7 +42,10 @@
   function copyAll(): void {
     const text = [...records]
       .reverse()
-      .map((record) => `${commandLine(record)}  → ${record.cancelled ? vi.remote.commandLogCancelled : record.exitCode} (${record.durationMs} ms)`)
+      .map(
+        (record) =>
+          `${commandLine(record)}  → ${record.cancelled ? vi.remote.commandLogCancelled : record.exitCode} (${record.durationMs} ms)`,
+      )
       .join('\n');
     void store.copy(text, vi.remote.commandLogTitle);
   }
@@ -62,8 +65,12 @@
       <Icon name="terminal" size={16} />
       <h2 id="command-log-title">{vi.remote.commandLogTitle}</h2>
       <span class="grow"></span>
-      <button type="button" class="button" onclick={copyAll} disabled={records.length === 0}>{vi.remote.commandLogCopy}</button>
-      <button type="button" class="button" bind:this={closeButton} onclick={onclose}>{vi.remote.commandLogClose}</button>
+      <button type="button" class="button" onclick={copyAll} disabled={records.length === 0}
+        >{vi.remote.commandLogCopy}</button
+      >
+      <button type="button" class="button" bind:this={closeButton} onclick={onclose}
+        >{vi.remote.commandLogClose}</button
+      >
     </header>
     <div class="list">
       {#if records.length === 0}
@@ -75,7 +82,8 @@
               <span class="time">{formatClock(record.startedAt)}</span>
               <code class="command selectable"><bdi>{commandLine(record)}</bdi></code>
               <span class="meta">
-                {record.cancelled ? vi.remote.commandLogCancelled : `exit ${record.exitCode}`} · {record.durationMs} ms
+                {record.cancelled ? vi.remote.commandLogCancelled : `exit ${record.exitCode}`} · {record.durationMs}
+                ms
               </span>
             </div>
             {#if record.stderr.trim() !== '' && record.exitCode !== 0}
