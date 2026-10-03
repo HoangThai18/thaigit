@@ -19,6 +19,7 @@ import {
   type Stash,
   type WorkingTreeStatus,
 } from '@thaigit/core';
+import { friendlyError } from '../errors/friendly.ts';
 
 export type DiffSource =
   | { readonly kind: 'unstaged' }
@@ -40,6 +41,7 @@ export type DiffState =
   | { readonly kind: 'binary' }
   | { readonly kind: 'tooLarge'; readonly diff: FileDiff }
   | { readonly kind: 'empty' }
+  /** `message`: câu thân thiện (errors/friendly.ts), không phải lỗi thô. */
   | { readonly kind: 'failed'; readonly message: string }
   /** File xung đột có dấu <<<<<<< (giải từng đoạn được); `sha256` của byte đã đọc để ghi lại có kiểm tra. */
   | { readonly kind: 'conflict'; readonly entry: ConflictEntry; readonly file: ConflictFile; readonly sha256: string }
@@ -198,7 +200,7 @@ export class DiffStore {
       else this.state = { kind: 'text', presentation: buildPresentation(diff) };
     } catch (error) {
       if (token !== this.token) return;
-      this.state = { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
+      this.state = { kind: 'failed', message: friendlyError(error) };
     }
   }
 
@@ -237,7 +239,7 @@ export class DiffStore {
       this.state = { kind: 'conflict', entry, file: parsed.file, sha256 };
     } catch (error) {
       if (token !== this.token) return;
-      this.state = { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
+      this.state = { kind: 'failed', message: friendlyError(error) };
     }
   }
 

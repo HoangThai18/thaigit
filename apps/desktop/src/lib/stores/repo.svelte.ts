@@ -805,7 +805,8 @@ export class RepoStore {
     const code = (error as { code?: unknown } | null)?.code;
     if (code === 'not-found') {
       // Thư mục repo bị xoá/đổi tên: một cảnh báo rõ ràng thay vì lỗi git khó hiểu.
-      this.toasts.error(vi.errors.repoMissing, this.rootPath, {
+      this.toasts.error(vi.errors.repoMissing, undefined, {
+        message: this.rootPath,
         tag: this.refreshErrorTag,
         owner: this.ownerId,
       });

@@ -3,6 +3,8 @@
  * còn lại tự ẩn sau 4 giây (9 giây nếu có nút hành động). Một kho dùng chung cho cả màn hình chính lẫn cửa sổ repo.
  */
 
+import { friendlyError } from '../errors/friendly.ts';
+
 export type ToastStyle = 'info' | 'success' | 'warning' | 'error';
 
 export interface ToastAction {
@@ -40,10 +42,13 @@ export function toastLifetimeMs(toast: Pick<Toast, 'style' | 'actions'>): number
   return toast.actions.length === 0 ? 4000 : 9000;
 }
 
-/** Nội dung lỗi để hiện: `message` của Error (GitError đã gồm stderr), không thì chuỗi hoá. */
+/**
+ * Nội dung lỗi để hiện: LUÔN là câu thân thiện (errors/friendly.ts) — không bao giờ là stderr / message gốc / stack trace.
+ * Lỗi gốc chỉ ghi ra console khi chạy dev.
+ */
 export function describeError(error: unknown): string {
-  const text = error instanceof Error ? error.message : String(error);
-  return text.trim();
+  if (import.meta.env?.DEV) console.warn('[Thaigit]', error);
+  return friendlyError(error);
 }
 
 export class ToastStore {
@@ -86,8 +91,11 @@ export class ToastStore {
     return this.push('warning', title, options);
   }
 
+  /** Toast lỗi: `error` (nếu có) được chuyển thành câu thân thiện — không bao giờ hiện lỗi thô. */
   error(title: string, error?: unknown, options: ToastOptions = {}): number {
-    const message = error === undefined ? options.message : describeError(error);
+    const friendly = error === undefined ? options.message : describeError(error);
+    // Tiêu đề đã nói đúng điều đó thì khỏi lặp lại ở dòng mô tả.
+    const message = friendly === title ? null : friendly;
     return this.push('error', title, { ...options, message });
   }
 

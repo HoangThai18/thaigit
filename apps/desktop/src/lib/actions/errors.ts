@@ -44,7 +44,7 @@ export function handleNetworkError(store: RepoStore, error: unknown, operation: 
       'terminal prompts disabled',
     )
   ) {
-    store.showError(vi.remote.authFailed(operation), error);
+    store.notify('warning', vi.remote.authFailed(operation), { message: vi.remote.authFailedMessage });
     return true;
   }
   if (gitErrorContains(error, 'Could not resolve host', 'Connection timed out', 'Connection refused', 'unable to access')) {

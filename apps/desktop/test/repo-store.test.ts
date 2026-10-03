@@ -521,7 +521,7 @@ describe('RepoStore: toast của repo đã đóng và lỗi trùng', () => {
     await store.start();
     await until(() => store.hasLoaded, 'nạp xong');
     expect(toasts.items.map((toast) => toast.style)).toEqual(['warning']);
-    expect(store.historyError).toBe('repo chưa được tin tưởng');
+    expect(store.historyError).toBe('Repository chưa được tin tưởng nên Thaigit không chạy lệnh này.');
   });
 
   it('mọi lệnh báo `not-found` (thư mục repo mất): đúng MỘT thông báo "không tìm thấy thư mục"', async () => {
@@ -532,7 +532,7 @@ describe('RepoStore: toast của repo đã đóng và lỗi trùng', () => {
     expect(toasts.items.map((toast) => toast.title)).toEqual(['Không tìm thấy thư mục repository']);
   });
 
-  it('chi tiết commit bị từ chối `untrusted`: dùng chung cảnh báo (không thêm lỗi git thô); lỗi thường vẫn hiện nguyên văn', async () => {
+  it('chi tiết commit bị từ chối `untrusted`: dùng chung cảnh báo (không thêm lỗi git thô); lỗi thường chỉ hiện câu thân thiện', async () => {
     const toasts = new ToastStore();
     let mode: 'untrusted' | 'io' = 'untrusted';
     const store = await openWith(toasts, 'repo-d', (request) =>
@@ -549,7 +549,7 @@ describe('RepoStore: toast của repo đã đóng và lỗi trùng', () => {
     await until(() => toasts.items.some((toast) => toast.style === 'error'), 'lỗi thường');
     expect(toasts.items.find((toast) => toast.style === 'error')).toMatchObject({
       title: 'Không tải được chi tiết commit',
-      message: 'đĩa lỗi',
+      message: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
     });
   });
 });
@@ -582,7 +582,7 @@ describe('RepoStore: hàng đợi thao tác', () => {
 
     expect(order).toEqual(['1 bắt đầu', '1 xong', '2 bắt đầu', '3']);
     expect(toasts.items.map((toast) => [toast.style, toast.title, toast.message])).toEqual([
-      ['error', 'Thao tác 2', 'hỏng rồi'],
+      ['error', 'Thao tác 2', 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.'],
     ]);
     expect(status.mock.calls.length).toBeGreaterThanOrEqual(3);
     expect(store.busy).toBeNull();

@@ -2,6 +2,7 @@
 // việc người dùng làm được — kiểm tra ngay, cài. Chỉ hoạt động trong app Tauri (cầu nối dev / test thì im lặng).
 
 import type { UpdateInfo, UpdateProgressEvent } from '@thaigit/contracts';
+import { friendlyError } from '../errors/friendly.ts';
 import { vi } from '../strings.vi.ts';
 import { dialogs as globalDialogs, type DialogStore } from './dialogs.svelte.ts';
 import { toasts as globalToasts, type ToastAction, type ToastStore } from './toasts.svelte.ts';
@@ -43,9 +44,11 @@ export class UpdateStore {
     this.stops.push(await port.onAvailable((update) => this.didFind(update, false)));
     this.stops.push(
       await port.onProgress((event) => {
-        this.progress = event;
+        // Lý do lỗi từ Rust là chữ kỹ thuật: chỉ giữ câu thân thiện.
+        this.progress = event.phase === 'failed' ? { ...event, message: vi.update.failedHint } : event;
         if (event.phase === 'failed') {
-          this.toasts.error(vi.update.failed, event.message ?? '', {
+          this.toasts.error(vi.update.failed, undefined, {
+            message: vi.update.failedHint,
             tag: TOAST_TAG,
             actions: this.available ? [{ title: vi.update.retry, run: () => void this.install(false) }] : [],
           });
@@ -98,7 +101,7 @@ export class UpdateStore {
     } catch (error) {
       // Rust đã phát `failed` (hiện toast ở trên); lỗi trước khi bắt đầu tải (không có bản nào, đang bận) thì báo ở đây.
       if (this.progress?.phase !== 'failed') {
-        this.progress = { phase: 'failed', downloaded: 0, total: null, message: error instanceof Error ? error.message : String(error) };
+        this.progress = { phase: 'failed', downloaded: 0, total: null, message: friendlyError(error) };
         this.toasts.error(vi.update.failed, error, { tag: TOAST_TAG });
       }
     }

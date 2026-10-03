@@ -2,6 +2,7 @@
 // lỗi quen thuộc (bị từ chối, tách nhánh, xung đột, đăng nhập) thành thông báo dễ hiểu kèm nút xử lý.
 
 import { isValidRefName, refName, type GitRef, type PullMode } from '@thaigit/core';
+import { friendlyError } from '../errors/friendly.ts';
 import { vi } from '../strings.vi.ts';
 import { dialogs as globalDialogs, textValue, type DialogStore } from '../stores/dialogs.svelte.ts';
 import type { PullModePref } from '../stores/prefs.svelte.ts';
@@ -64,7 +65,7 @@ export function backgroundFetch(store: RepoStore): Promise<void> {
       },
       onError: (error) => {
         store.notify('warning', vi.remote.autoFetchFailed, {
-          message: error instanceof Error ? error.message.split('\n')[0] : String(error),
+          message: friendlyError(error),
           tag: 'auto-fetch',
         });
         return true;

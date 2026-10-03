@@ -16,6 +16,7 @@
   import { askpassReply, onAskpassClosed, onAskpassRequest } from './lib/ipc/askpass.ts';
   import { askpass } from './lib/stores/askpass.svelte.ts';
   import TrustPrompt from './lib/shell/TrustPrompt.svelte';
+  import CrashPanel from './lib/shell/CrashPanel.svelte';
   import Welcome from './lib/shell/Welcome.svelte';
   import { vi } from './lib/strings.vi.ts';
   import { app } from './lib/stores/app.svelte.ts';
@@ -40,7 +41,24 @@
     theme.apply(prefs.value.scheme, prefs.value.glass);
   });
 
+  /** Lỗi không lường trước (exception, promise bị từ chối không ai bắt): chỉ hiện một thông báo thân thiện. */
+  function reportUnexpected(error: unknown): void {
+    toasts.error(vi.errors.unexpectedTitle, error, { tag: 'unexpected' });
+  }
+
   onMount(() => {
+    const onRejection = (event: PromiseRejectionEvent): void => {
+      event.preventDefault();
+      reportUnexpected(event.reason);
+    };
+    const onError = (event: ErrorEvent): void => {
+      // Lỗi tải tài nguyên (ảnh đại diện…) không phải exception: bỏ qua.
+      if (event.error === undefined && event.message === '') return;
+      event.preventDefault();
+      reportUnexpected(event.error ?? event.message);
+    };
+    window.addEventListener('unhandledrejection', onRejection);
+    window.addEventListener('error', onError);
     // macOS: thanh tiêu đề chồng (tauri.conf `titleBarStyle: Overlay`) nên chừa chỗ cho 3 nút đèn giao thông.
     document.documentElement.classList.toggle(
       'titlebar-overlay',
@@ -65,6 +83,8 @@
       void appReady().catch(() => undefined);
     }
     return () => {
+      window.removeEventListener('unhandledrejection', onRejection);
+      window.removeEventListener('error', onError);
       updates.stop();
       askpass.stop();
       stopWatching();
@@ -178,7 +198,13 @@
 
 {#if view.kind === 'repo'}
   {#key view.store}
-    <RepoWindow store={view.store} onclose={close} />
+    <!-- Lỗi khi vẽ giao diện của repo: không hiện exception, chỉ báo thân thiện và cho thử lại / về màn hình chính. -->
+    <svelte:boundary onerror={(error) => reportUnexpected(error)}>
+      <RepoWindow store={view.store} onclose={close} />
+      {#snippet failed(_error, reset)}
+        <CrashPanel onretry={reset} onhome={close} />
+      {/snippet}
+    </svelte:boundary>
   {/key}
 {:else if view.kind === 'trust'}
   {@const port = view.port}

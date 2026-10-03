@@ -21,6 +21,7 @@ export const update = {
   installing: 'Đang cài đặt',
   ready: 'Đã cài xong — đang khởi động lại',
   failed: 'Cập nhật không thành công',
+  failedHint: 'Không tải hoặc cài được bản mới — kiểm tra kết nối mạng rồi thử lại.',
   retry: 'Thử lại',
   close: 'Đóng',
   progressBytes: (downloaded: string, total: string | null) => (total ? `${downloaded} / ${total}` : downloaded),
