@@ -2,7 +2,7 @@
 
 Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
-## Chưa phát hành
+## 1.1.0 — 2026-10-03
 
 - Merge từ repository khác: lấy một nhánh của repo khác (thư mục trên máy hoặc URL) merge vào nhánh của repo đang mở mà không thêm remote; nhớ nguồn đã dùng để lần sau bấm "Merge lại" trong menu Pull; hai repo không chung lịch sử thì hỏi trước khi merge
 - Graph như GitKraken: node commit là ảnh đại diện thật của tác giả (GitHub / Gravatar, cache trên máy, tắt được); bảng chỉ còn Nhánh / Tag, Graph, Commit — tác giả và thời gian xem ở panel bên phải, bật lại cột Tác giả / Thời gian / SHA bằng chuột phải lên tiêu đề cột
