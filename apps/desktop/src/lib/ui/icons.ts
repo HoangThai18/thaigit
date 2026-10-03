@@ -114,6 +114,11 @@ export const ICONS = {
   settings: [d('M4 7h9M17 7h3M4 17h3M11 17h9'), circle(15, 7, 2), circle(9, 17, 2)],
   download: [d('M12 4v10.5M7.5 10.2l4.5 4.5 4.5-4.5'), d('M4.5 15.5V18a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2.5')],
   more: [circle(6, 12, 1.2, true), circle(12, 12, 1.2, true), circle(18, 12, 1.2, true)],
+  sparkles: [
+    d('M10 3.5l1.6 4.4 4.4 1.6-4.4 1.6L10 15.5l-1.6-4.4L4 9.5l4.4-1.6z'),
+    d('M17.5 13.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z'),
+  ],
+  stop: [rect(7, 7, 10, 10, 1.8)],
 } as const satisfies Record<string, readonly IconShape[]>;
 
 export type IconName = keyof typeof ICONS;

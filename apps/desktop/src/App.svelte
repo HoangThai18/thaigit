@@ -9,6 +9,8 @@
   import RepoWindow from './lib/shell/RepoWindow.svelte';
   import Toasts from './lib/shell/Toasts.svelte';
   import DialogHost from './lib/ui/DialogHost.svelte';
+  import AiConsent from './lib/ai/AiConsent.svelte';
+  import AiResultDialog from './lib/ai/AiResultDialog.svelte';
   import MenuHost from './lib/ui/MenuHost.svelte';
   import UpdateBar from './lib/shell/UpdateBar.svelte';
   import {
@@ -234,6 +236,8 @@
 {/if}
 
 <Toasts />
+<AiResultDialog />
 <DialogHost />
+<AiConsent />
 <MenuHost />
 <UpdateBar />

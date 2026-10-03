@@ -3,6 +3,7 @@
 // kỹ thuật vẫn xem được trong "Nhật ký lệnh git" (người dùng tự mở).
 
 import { CancelledError, GitError, RepositoryError } from '@thaigit/core';
+import { AiFailure } from '../ai/client.ts';
 import { vi } from '../strings.vi.ts';
 
 const text = vi.errors.friendly;
@@ -90,9 +91,40 @@ function friendlyGitError(error: GitError): string {
   return text.gitFailed;
 }
 
+/** Lỗi của máy chủ AI (mã trong contracts) → câu thân thiện. */
+function friendlyAiFailure(error: AiFailure): string {
+  const ai = vi.ai.errors;
+  const wait = error.retryAfter ?? 30;
+  switch (error.code) {
+    case 'quota_exhausted':
+      return ai.quota_exhausted;
+    case 'ip_rate_limited':
+      return ai.ip_rate_limited(wait);
+    case 'ai_busy':
+      return ai.ai_busy(wait);
+    case 'ai_unavailable':
+      return ai.ai_unavailable;
+    case 'ai_disabled':
+      return ai.ai_disabled;
+    case 'too_large':
+      return ai.too_large;
+    case 'invalid_token':
+      return ai.invalid_token;
+    case 'network':
+      return ai.network;
+    case 'cancelled':
+      return text.cancelled;
+    case 'empty':
+      return ai.empty;
+    default:
+      return ai.server;
+  }
+}
+
 /** Câu thân thiện cho một lỗi bất kỳ. */
 export function friendlyError(error: unknown): string {
   if (error instanceof CancelledError) return text.cancelled;
+  if (error instanceof AiFailure) return friendlyAiFailure(error);
   if (error instanceof GitError) return friendlyGitError(error);
   if (error instanceof RepositoryError) {
     switch (error.kind) {

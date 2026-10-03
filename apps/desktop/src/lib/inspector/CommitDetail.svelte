@@ -12,6 +12,7 @@
   import Avatar from './Avatar.svelte';
   import FileList from './FileList.svelte';
   import { fileMenu } from '../actions/menus.ts';
+  import { explainCommit } from '../ai/actions.ts';
   import { menus } from '../stores/menus.svelte.ts';
 
   interface Props {
@@ -103,6 +104,15 @@
           </dd>
         {/if}
       </dl>
+      <button
+        type="button"
+        class="ai-explain"
+        title={vi.ai.explainTip}
+        onclick={() => explainCommit(store, commit)}
+      >
+        <Icon name="sparkles" size={13} />
+        <span>{vi.ai.explain}</span>
+      </button>
     </div>
     <FileList
       files={details.files}
@@ -125,6 +135,31 @@
 {/if}
 
 <style>
+  .ai-explain {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    align-self: flex-start;
+    margin-top: 8px;
+    padding: 3px 9px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .ai-explain :global(svg) {
+    color: var(--accent);
+  }
+
+  .ai-explain:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
   .detail {
     display: flex;
     flex-direction: column;
