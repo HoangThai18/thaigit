@@ -8,6 +8,8 @@
   import { fetch, pull, push } from '../actions/remote.ts';
   import { popLatestStash, quickStash } from '../actions/stash.ts';
   import { repoOsItems } from '../actions/menus.ts';
+  import { newWindow } from '../ipc/os.ts';
+  import { toasts } from '../stores/toasts.svelte.ts';
   import { vi } from '../strings.vi.ts';
   import { hasTauriInternals } from '../platform/host.ts';
   import { menus, tidyMenu } from '../stores/menus.svelte.ts';
@@ -60,6 +62,12 @@
         { title: vi.remote.commandLog, icon: 'terminal', run: onshowlog },
         { kind: 'separator' },
         ...repoOsItems(store),
+        hasTauriInternals() && {
+          title: vi.welcome.newWindow,
+          shortcut: 'Ctrl/⌘ + T',
+          run: () =>
+            void newWindow().catch((error: unknown) => toasts.error(vi.welcome.newWindowFailed, error)),
+        },
         { kind: 'separator' },
         {
           title: vi.settings.open,

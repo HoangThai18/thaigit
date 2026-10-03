@@ -124,6 +124,8 @@ export const Commands = {
   updateInstall: 'update_install',
   updateSetChannel: 'update_set_channel',
   appReady: 'app_ready',
+  // Cửa sổ thêm (Ctrl/⌘+T) để làm việc với repo khác song song.
+  newWindow: 'new_window',
 } as const;
 
 export const Events = {

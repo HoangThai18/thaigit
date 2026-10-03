@@ -17,6 +17,8 @@ export const shell = {
     openFailed: 'Không mở được repo',
     notInTauri: 'Đang chạy ngoài ứng dụng Thaigit (không có lõi Rust) nên chưa mở được repo.',
     forgetMissing: 'Xoá khỏi danh sách',
+    newWindow: 'Cửa sổ mới',
+    newWindowFailed: 'Không mở được cửa sổ mới',
     clone: 'Clone…',
     init: 'Tạo repo mới…',
     cloneTitle: 'Clone repository',

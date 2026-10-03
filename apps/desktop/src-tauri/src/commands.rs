@@ -305,6 +305,12 @@ pub fn update_set_channel<R: Runtime>(app: AppHandle<R>, channel: updater::Chann
     updater::set_channel(&app, channel)
 }
 
+/// Mở thêm một cửa sổ (Ctrl/⌘+T).
+#[tauri::command]
+pub fn new_window<R: Runtime>(app: AppHandle<R>) -> Result<()> {
+    crate::open_new_window(&app).map_err(|error| AppError::Internal(format!("mở cửa sổ mới: {error}")))
+}
+
 /// UI báo "đã sẵn sàng" → đặt lại bộ đếm khởi động hỏng của chế độ an toàn.
 #[tauri::command]
 pub fn app_ready<R: Runtime>(app: AppHandle<R>) -> Result<()> {

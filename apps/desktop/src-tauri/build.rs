@@ -38,6 +38,7 @@ const APP_COMMANDS: &[&str] = &[
     "update_install",
     "update_set_channel",
     "app_ready",
+    "new_window",
 ];
 
 fn main() {

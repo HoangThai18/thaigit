@@ -24,6 +24,7 @@
   } from './lib/ipc/update.ts';
   import { updates } from './lib/stores/update.svelte.ts';
   import { askpassReply, onAskpassClosed, onAskpassRequest } from './lib/ipc/askpass.ts';
+  import { newWindow } from './lib/ipc/os.ts';
   import { askpass } from './lib/stores/askpass.svelte.ts';
   import TrustPrompt from './lib/shell/TrustPrompt.svelte';
   import CrashPanel from './lib/shell/CrashPanel.svelte';
@@ -53,6 +54,15 @@
   $effect(() => {
     theme.apply(prefs.value.scheme, prefs.value.glass);
   });
+
+  /** Ctrl/⌘ + T: mở thêm một cửa sổ (chỉ trong app). */
+  function onwindowkeydown(event: KeyboardEvent): void {
+    if (!hasTauriInternals() || event.defaultPrevented) return;
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.code === 'KeyT') {
+      event.preventDefault();
+      newWindow().catch((error: unknown) => toasts.error(vi.welcome.newWindowFailed, error));
+    }
+  }
 
   /** Lỗi không lường trước (exception, promise bị từ chối không ai bắt): chỉ hiện một thông báo thân thiện. */
   function reportUnexpected(error: unknown): void {
@@ -237,6 +247,8 @@
       missing: { title: vi.welcome.forgetMissing, run: () => void app.forgetRecent(repo.id) },
     });
 </script>
+
+<svelte:window onkeydown={onwindowkeydown} />
 
 {#if view.kind === 'repo'}
   {#key view.store}

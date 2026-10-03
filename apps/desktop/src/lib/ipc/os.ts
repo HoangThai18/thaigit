@@ -23,3 +23,8 @@ export function reveal(repoId: string, relativePath?: string): Promise<void> {
 export function openUrl(url: string, confirmed = false): Promise<void> {
   return call<void>(Commands.openUrl, { url, confirmed });
 }
+
+/** Mở thêm một cửa sổ Thaigit (màn hình chính) để làm việc với repo khác song song. */
+export function newWindow(): Promise<void> {
+  return call<void>(Commands.newWindow);
+}

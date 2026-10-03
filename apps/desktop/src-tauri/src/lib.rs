@@ -65,9 +65,10 @@ pub fn allowed_navigation(url: &url::Url, dev_url: Option<&url::Url>) -> bool {
     }
 }
 
-/// Dựng cửa sổ chính từ cấu hình và gắn chốt chặn điều hướng/`window.open` ra ngoài app (CSP là lớp thứ hai).
-fn build_main_window(app: &tauri::App) -> tauri::Result<()> {
-    let config = app
+/// Dựng một cửa sổ app từ cấu hình cửa sổ `main` (nhãn `label`) và gắn chốt chặn điều hướng/`window.open` ra ngoài app (CSP
+/// là lớp thứ hai). Cửa sổ thêm (Ctrl/⌘+T) có nhãn `repo-N` — capability cấp quyền cho `main` và `repo-*`.
+pub fn build_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -> tauri::Result<()> {
+    let mut config = app
         .config()
         .app
         .windows
@@ -75,12 +76,21 @@ fn build_main_window(app: &tauri::App) -> tauri::Result<()> {
         .find(|w| w.label == "main")
         .cloned()
         .ok_or_else(|| tauri::Error::WindowNotFound)?;
+    config.label = label.to_string();
     let dev_url = if tauri::is_dev() { app.config().build.dev_url.clone() } else { None };
-    tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?
+    tauri::WebviewWindowBuilder::from_config(app, &config)?
         .on_navigation(move |url| allowed_navigation(url, dev_url.as_ref()))
         .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Deny)
         .build()?;
     Ok(())
+}
+
+static WINDOW_SERIAL: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+
+/// `new_window`: mở thêm một cửa sổ (màn hình chính) để làm việc với repo khác song song.
+pub fn open_new_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
+    let serial = WINDOW_SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    build_window(app, &format!("repo-{serial}"))
 }
 
 /// Thư mục truyền qua dòng lệnh ("Mở bằng…"): chỉ nhận đường dẫn là thư mục thật.
@@ -148,6 +158,7 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::update_install,
         commands::update_set_channel,
         commands::app_ready,
+        commands::new_window,
     ])
 }
 
@@ -167,7 +178,7 @@ pub fn run() {
             askpass::init(app.handle())?;
             updater::init(app.handle())?;
             tauri::async_runtime::spawn(init_git(core));
-            build_main_window(app)?;
+            build_window(app.handle(), "main")?;
             Ok(())
         })
         // Webview tải lại: huỷ op con và bỏ watcher của phiên cũ.
@@ -269,7 +280,7 @@ mod contract_tests {
             }
             assert!(permission.starts_with("allow-") || permission.starts_with("core:event:") || permission == "core:window:allow-start-dragging", "{permission}");
         }
-        assert_eq!(json["windows"], serde_json::json!(["main"]));
+        assert_eq!(json["windows"], serde_json::json!(["main", "repo-*"]));
     }
 
     #[test]
