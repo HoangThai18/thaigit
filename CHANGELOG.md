@@ -16,7 +16,6 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Interactive rebase: chuột phải vào commit → "Interactive rebase … từ đây", kéo để đổi thứ tự, chọn pick / reword / squash / fixup / drop, sửa lời commit ngay trong bảng; tự cất thay đổi chưa commit rồi trả lại
 - Blame: chuột phải vào file → "Blame — ai sửa từng dòng", mỗi dòng kèm tác giả, thời gian, commit; theo dấu code chuyển từ file khác
 - So sánh: giữ ⌘ và bấm 2 commit trên graph, hoặc chuột phải vào nhánh → "So sánh với …" để xem nhánh đó có gì mới so với nhánh hiện tại; panel bên phải liệt kê commit nằm giữa và các file khác nhau, bấm file để xem diff
-- AI viết commit message (nút ✨): Apple Intelligence chạy trên máy, theo phong cách các commit gần đây, có Hoàn tác
 - Issues GitHub / Jira (⌥⌘J): tạo nhánh từ issue, gắn #số / mã Jira vào commit message, mở trên web; kết nối Jira Cloud bằng API token (Keychain)
 - Ký commit GPG / SSH: hộp "Ký commit…" (repo này hoặc mọi repo, chọn khoá), panel commit hiện commit có ký không và nút "Xác minh" (luôn dùng gpg / ssh-keygen thật, bỏ qua gpg.program do repo đặt)
 - Git Flow: khởi tạo, bắt đầu / kết thúc feature, release, hotfix (merge --no-ff, tag phiên bản), mục GIT FLOW ở sidebar; báo rõ bước dừng nếu conflict
