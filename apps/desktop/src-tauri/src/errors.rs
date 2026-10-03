@@ -30,6 +30,9 @@ pub enum AppError {
     /// Repo chưa được tin cậy nên không chạy được thao tác này.
     #[error("{0}")]
     Untrusted(String),
+    /// Đăng nhập / token không hợp lệ, hoặc kho bí mật của hệ điều hành không mở được.
+    #[error("{0}")]
+    Auth(String),
     #[error("{0}")]
     Internal(String),
 }
@@ -47,6 +50,7 @@ impl AppError {
             Self::GitMissing(_) => "git-missing",
             Self::GitTooOld(_) => "git-too-old",
             Self::Untrusted(_) => "untrusted",
+            Self::Auth(_) => "auth",
             Self::Internal(_) => "internal",
         }
     }
@@ -103,7 +107,7 @@ mod tests {
     fn every_code_matches_the_typescript_union() {
         let allowed = [
             "policy", "not-found", "out-of-scope", "conflict", "busy", "io", "git-missing", "git-too-old", "untrusted",
-            "internal",
+            "auth", "internal",
         ];
         let errors = [
             AppError::Policy(String::new()),
@@ -115,6 +119,7 @@ mod tests {
             AppError::GitMissing(String::new()),
             AppError::GitTooOld(String::new()),
             AppError::Untrusted(String::new()),
+            AppError::Auth(String::new()),
             AppError::Internal(String::new()),
         ];
         for error in errors {

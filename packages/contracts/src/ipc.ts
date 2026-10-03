@@ -80,6 +80,7 @@ export interface CommandError {
     | 'git-missing'
     | 'git-too-old'
     | 'untrusted'
+    | 'auth'
     | 'internal';
   message: string;
 }
@@ -126,6 +127,21 @@ export const Commands = {
   appReady: 'app_ready',
   // Cửa sổ thêm (Ctrl/⌘+T) để làm việc với repo khác song song.
   newWindow: 'new_window',
+  // Tài khoản git: token trong kho bí mật của hệ điều hành, chọn theo owner của repo.
+  accountsList: 'accounts_list',
+  accountsAddToken: 'accounts_add_token',
+  accountsStartLogin: 'accounts_start_login',
+  accountsPollLogin: 'accounts_poll_login',
+  accountsCancelLogin: 'accounts_cancel_login',
+  accountsRemove: 'accounts_remove',
+  accountsSetDefault: 'accounts_set_default',
+  accountsAssignOwner: 'accounts_assign_owner',
+  accountsSetIdentity: 'accounts_set_identity',
+  accountsSetClientId: 'accounts_set_client_id',
+  accountsRepositories: 'accounts_repositories',
+  // Pull Request (GitHub / Bitbucket) và Merge Request (GitLab).
+  forgeListMergeRequests: 'forge_list_merge_requests',
+  forgeCreateMergeRequest: 'forge_create_merge_request',
 } as const;
 
 export const Events = {
@@ -198,4 +214,85 @@ export interface UpdateProgressEvent {
   total: number | null;
   /** Lý do khi `phase = 'failed'`. */
   message: string | null;
+}
+
+// MARK: - Tài khoản & Pull Request
+
+export type ForgeProvider = 'github' | 'gitlab' | 'bitbucket';
+
+/** Máy chủ mà app hiểu ngay (host khác phải tự chọn provider). */
+export const KNOWN_FORGE_HOSTS: Readonly<Record<ForgeProvider, string>> = {
+  github: 'github.com',
+  gitlab: 'gitlab.com',
+  bitbucket: 'bitbucket.org',
+};
+
+export interface ForgeAccount {
+  host: string;
+  provider: ForgeProvider;
+  /** Id của tài khoản ở máy chủ (GitHub dùng cho email ẩn). */
+  id: string;
+  login: string;
+  displayName: string;
+  commitName: string;
+  commitEmail: string;
+  /** Tổ chức / nhóm / workspace — dùng chọn token theo owner. */
+  organizations: string[];
+  /** Token có trong kho bí mật của hệ điều hành không (token không bao giờ đi qua IPC). */
+  hasToken: boolean;
+}
+
+/** Lý do app chọn tài khoản này cho owner đó. */
+export type ForgeMatchReason = 'assigned' | 'login' | 'organization' | 'fallback';
+
+export interface AccountsView {
+  accounts: ForgeAccount[];
+  /** host → login của tài khoản mặc định đang hiệu lực. */
+  defaults: Record<string, string>;
+  /** `host/owner` → login do người dùng tự gán. */
+  ownerAssignments: Record<string, string>;
+  /** host → Client ID của OAuth App (device flow); thiếu thì chỉ dán được token. */
+  oauthClientIds: Record<string, string>;
+}
+
+export interface ForgeRepository {
+  host: string;
+  /** `owner/repo` (GitLab có thể `group/sub/repo`). */
+  path: string;
+  name: string;
+  defaultBranch: string;
+  isPrivate: boolean;
+  webUrl: string;
+  /** URL clone HTTPS không kèm token (token đi qua credential helper của app). */
+  cloneUrl: string;
+}
+
+/** Pull Request (GitHub / Bitbucket) hoặc Merge Request (GitLab). */
+export interface ForgeMergeRequest {
+  host: string;
+  /** Số PR (GitHub) hoặc iid (GitLab / Bitbucket). */
+  number: string;
+  title: string;
+  body: string;
+  author: string;
+  sourceBranch: string;
+  targetBranch: string;
+  state: string;
+  draft: boolean;
+  webUrl: string;
+  /** Nhánh PR nằm ở repo khác (fork) thì `headHost` khác `host`. */
+  headHost: string;
+  headOwner: string;
+  updatedAt: string;
+  commits: number | null;
+}
+
+/** Mã để người dùng nhập ở trang đăng nhập của máy chủ (OAuth device flow). */
+export interface ForgeDeviceCode {
+  userCode: string;
+  verificationUri: string;
+  expiresIn: number;
+  interval: number;
+  /** Bí mật tạm của RFC 8628: webview giữ để hỏi token, hết hiệu lực cùng mã người dùng nhập. */
+  deviceCode: string;
 }

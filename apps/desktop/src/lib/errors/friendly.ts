@@ -81,6 +81,7 @@ const CODE_TEXT: Readonly<Record<string, string>> = {
   'git-missing': text.gitMissing,
   'git-too-old': text.gitTooOld,
   untrusted: text.untrusted,
+  auth: text.auth,
   internal: text.unexpected,
 };
 

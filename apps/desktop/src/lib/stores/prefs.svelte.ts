@@ -29,7 +29,7 @@ export interface PrefsData {
   showInspector: boolean;
   sidebarWidth: number;
   inspectorWidth: number;
-  sidebarSections: { local: boolean; remote: boolean; tags: boolean; stashes: boolean };
+  sidebarSections: { local: boolean; remote: boolean; tags: boolean; stashes: boolean; pullRequests: boolean };
   columns: PreferredWidths;
   /** Kiểu pull của nút Pull (mặc định `merge`). */
   pullMode: PullModePref;
@@ -64,7 +64,7 @@ export function defaultPrefs(): PrefsData {
     showInspector: true,
     sidebarWidth: SIDEBAR_LIMITS.ideal,
     inspectorWidth: INSPECTOR_LIMITS.ideal,
-    sidebarSections: { local: true, remote: true, tags: false, stashes: true },
+    sidebarSections: { local: true, remote: true, tags: false, stashes: true, pullRequests: false },
     columns: { ...DEFAULT_WIDTHS },
     pullMode: 'merge',
     fetchPrune: true,
@@ -115,6 +115,7 @@ export function sanitizePrefs(raw: unknown): PrefsData {
       remote: bool(sections.remote, base.sidebarSections.remote),
       tags: bool(sections.tags, base.sidebarSections.tags),
       stashes: bool(sections.stashes, base.sidebarSections.stashes),
+      pullRequests: bool(sections.pullRequests, base.sidebarSections.pullRequests),
     },
     columns: sanitizePreferred(source.columns),
     pullMode: PULL_MODES.find((mode) => mode === source.pullMode) ?? base.pullMode,
@@ -147,7 +148,7 @@ export class PrefsStore {
   private timer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly storage: KeyValueStorage | null = browserStorage()) {
-    let raw: unknown = null;
+    let raw: unknown;
     try {
       const text = storage?.getItem(PREFS_KEY);
       raw = text ? JSON.parse(text) : null;

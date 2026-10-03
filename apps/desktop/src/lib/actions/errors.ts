@@ -2,6 +2,8 @@
 // RepoModel+Actions.swift). Trả `true` khi đã tự hiện thông báo (dùng làm `onError` của `store.perform`).
 
 import { GitError } from '@thaigit/core';
+import { assignAccountForRepo } from '../forge/assignOwner.ts';
+import { targetOf } from '../forge/pullRequests.ts';
 import { vi } from '../strings.vi.ts';
 import type { RepoStore } from '../stores/repo.svelte.ts';
 import type { ToastAction } from '../stores/toasts.svelte.ts';
@@ -47,7 +49,15 @@ export function handleNetworkError(store: RepoStore, error: unknown, operation: 
       'terminal prompts disabled',
     )
   ) {
-    store.notify('warning', vi.remote.authFailed(operation), { message: vi.remote.authFailedMessage });
+    // Remote là GitHub / GitLab / Bitbucket: gợi ý đăng nhập (hoặc chọn đúng tài khoản cho owner) ngay trong app.
+    const actions: ToastAction[] =
+      targetOf(store) === null
+        ? []
+        : [{ title: vi.accounts.openAccounts, run: () => void assignAccountForRepo(store) }];
+    store.notify('warning', vi.remote.authFailed(operation), {
+      message: vi.remote.authFailedMessage,
+      actions,
+    });
     return true;
   }
   if (

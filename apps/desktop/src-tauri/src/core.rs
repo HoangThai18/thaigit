@@ -12,6 +12,8 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::Deserialize;
 
+use crate::accounts::Accounts;
+use crate::credential::CredentialServer;
 use crate::errors::{AppError, Result};
 use crate::exec::{CancelTiming, CancelToken, Collected, CollectSink, ExitInfo, FrameSink, LimitedSink, ProcessSpec, run_process};
 use crate::frames::exit_frame;
@@ -138,6 +140,10 @@ pub struct Core {
     pub askpass_deny: Option<OsString>,
     /// Máy chủ askpass tương tác (hỏi mật khẩu trong app) — có sau `askpass::init`; chưa có thì lệnh interactive không hỏi được.
     pub askpass: std::sync::OnceLock<Arc<crate::askpass::AskpassServer>>,
+    /// Tài khoản + token của các máy chủ git (token trong kho bí mật của hệ điều hành).
+    pub accounts: Arc<Accounts>,
+    /// Credential helper trả lời `git credential` — có sau `credential::init`; chưa có thì lệnh mạng không dùng token của app.
+    pub credential: std::sync::OnceLock<Arc<CredentialServer>>,
     pub timing: CancelTiming,
     /// Giới hạn output của `git_exec`/`git_clone` (xem `MAX_EXEC_OUTPUT_BYTES`).
     pub exec_output_limit: u64,
@@ -195,8 +201,22 @@ fn check_index_file(value: &str, entry: &RepoEntry) -> Result<()> {
     if inside { Ok(()) } else { Err(AppError::policy("GIT_INDEX_FILE phải là đường dẫn tuyệt đối nằm trong git dir của repo")) }
 }
 
+/// Tên dịch vụ trong kho bí mật của hệ điều hành (Keychain / Credential Manager) — mỗi mục là token của một tài khoản.
+pub const KEYCHAIN_SERVICE: &str = "Thaigit";
+
 impl Core {
     pub fn new(data_dir: PathBuf, events: Arc<dyn EventSink>, askpass_deny: Option<OsString>) -> Arc<Self> {
+        let accounts = Accounts::load(&data_dir, Arc::new(crate::accounts::KeychainStore::new(KEYCHAIN_SERVICE)));
+        Self::with_accounts(data_dir, events, askpass_deny, accounts)
+    }
+
+    /// Như `new` nhưng dùng kho tài khoản cho sẵn (test).
+    pub fn with_accounts(
+        data_dir: PathBuf,
+        events: Arc<dyn EventSink>,
+        askpass_deny: Option<OsString>,
+        accounts: Arc<Accounts>,
+    ) -> Arc<Self> {
         let empty_hooks_dir = data_dir.join("empty-hooks");
         let _ = std::fs::create_dir_all(&empty_hooks_dir);
         Arc::new(Self {
@@ -208,6 +228,8 @@ impl Core {
             events,
             askpass_deny,
             askpass: std::sync::OnceLock::new(),
+            accounts,
+            credential: std::sync::OnceLock::new(),
             timing: CancelTiming::default(),
             exec_output_limit: MAX_EXEC_OUTPUT_BYTES,
             internal_output_limit: MAX_INTERNAL_OUTPUT_BYTES,
@@ -231,6 +253,29 @@ impl Core {
     /// Như `for_tests_with` nhưng đặt giới hạn output `(git_exec, lệnh nội bộ)`.
     #[cfg(test)]
     pub async fn for_tests_limited(data_dir: &Path, base_env: EnvMap, askpass_deny: Option<OsString>, limits: (u64, u64)) -> Arc<Self> {
+        let accounts = Accounts::load(data_dir, Arc::new(crate::accounts::MemoryStore::default()));
+        Self::for_tests_full(data_dir, base_env, askpass_deny, limits, accounts).await
+    }
+
+    /// Như `for_tests_limited` nhưng dùng kho tài khoản cho sẵn (test credential / tài khoản).
+    #[cfg(test)]
+    pub async fn for_tests_with_accounts(
+        data_dir: &Path,
+        base_env: EnvMap,
+        accounts: Arc<Accounts>,
+    ) -> Arc<Self> {
+        Self::for_tests_full(data_dir, base_env, Some(OsString::from("/test/askpass-deny")), (MAX_EXEC_OUTPUT_BYTES, MAX_INTERNAL_OUTPUT_BYTES), accounts)
+            .await
+    }
+
+    #[cfg(test)]
+    async fn for_tests_full(
+        data_dir: &Path,
+        base_env: EnvMap,
+        askpass_deny: Option<OsString>,
+        limits: (u64, u64),
+        accounts: Arc<Accounts>,
+    ) -> Arc<Self> {
         let git = crate::testutil::system_git();
         let events: Arc<dyn EventSink> = Arc::new(NullEvents);
         let empty_hooks_dir = data_dir.join("empty-hooks");
@@ -244,6 +289,8 @@ impl Core {
             events,
             askpass_deny,
             askpass: std::sync::OnceLock::new(),
+            accounts,
+            credential: std::sync::OnceLock::new(),
             timing: CancelTiming {
                 soft_wait: Duration::from_millis(600),
                 group_grace: Duration::from_millis(200),
@@ -268,17 +315,38 @@ impl Core {
 
     /// Dựng tiến trình git: argv (`-c` cứng + sub + args), env chuẩn của chính sách, ghi đè chế độ hạn chế.
     pub fn build_spec(&self, git: &GitInfo, options: SpawnOptions<'_>) -> ProcessSpec {
-        self.build_spec_with(git, options, None)
+        self.build_spec_with(git, options, None, None)
     }
 
-    /// Như `build_spec`, kèm phiên askpass tương tác của lệnh (chỉ có tác dụng với hồ sơ `interactive`).
-    pub fn build_spec_with(&self, git: &GitInfo, options: SpawnOptions<'_>, askpass: Option<&crate::askpass::AskpassSession>) -> ProcessSpec {
+    /// Như `build_spec`, kèm phiên askpass tương tác của lệnh (chỉ có tác dụng với hồ sơ `interactive`) và phiên credential
+    /// (đưa token của tài khoản cho lệnh mạng chạm remote HTTPS của host đã đăng nhập).
+    pub fn build_spec_with(
+        &self,
+        git: &GitInfo,
+        options: SpawnOptions<'_>,
+        askpass: Option<&crate::askpass::AskpassSession>,
+        credential: Option<&crate::credential::CredentialSession>,
+    ) -> ProcessSpec {
         let policy = policy();
-        let argv = policy.build_argv(options.sub, options.args);
         let interactive = options.profile == EnvProfile::Interactive;
         let mut extra = options.restrictions.map(Restrictions::env).unwrap_or_default();
         if interactive && let Some(session) = askpass {
             extra.extend(session.env());
+        }
+        if let Some(session) = credential {
+            extra.extend(session.env());
+        }
+        let mut argv = policy.build_argv(options.sub, options.args);
+        if let Some(session) = credential {
+            // `-c` của helper phải nằm TRƯỚC subcommand (chính sách chèn cờ ở đúng vị trí đó).
+            let sub_position = argv.iter().position(|arg| arg == options.sub).unwrap_or(argv.len());
+            let mut extra_args: Vec<String> = Vec::new();
+            for host in session.hosts() {
+                extra_args.extend(crate::credential::helper_config(host, std::path::Path::new(session.program())));
+            }
+            for (offset, arg) in extra_args.into_iter().enumerate() {
+                argv.insert(sub_position + offset, arg);
+            }
         }
         let env_options = EnvOptions {
             profile: options.profile,
@@ -295,6 +363,13 @@ impl Core {
             env: env.into_pairs(),
             stdin: options.stdin,
         }
+    }
+
+    /// Phiên credential cho một lệnh mạng chạm các URL `urls`: chỉ tạo khi URL đó có remote HTTPS của host đã đăng nhập.
+    pub fn credential_session(&self, urls: &[String]) -> Option<crate::credential::CredentialSession> {
+        let server = self.credential.get()?;
+        let hosts = crate::credential::helper_hosts(urls, &self.accounts);
+        (!hosts.is_empty()).then(|| server.session(hosts))
     }
 
     /// Đăng ký op vào bảng (huỷ được theo `opId`, gắn nhãn cửa sổ).
@@ -559,6 +634,14 @@ impl Core {
         let askpass = (profile == EnvProfile::Interactive && kind == ExecKind::Network)
             .then(|| self.askpass.get().map(|server| server.session(window, &request.op_id, &format!("git {}", request.sub))))
             .flatten();
+        // Lệnh mạng chạm remote HTTPS của host đã đăng nhập: git hỏi credential thì app trả token của tài khoản đúng owner.
+        // Cả hồ sơ background (tự fetch) cũng dùng được — không bao giờ mở hộp thoại, chỉ trả token đã lưu.
+        let credential = if kind == ExecKind::Network {
+            let urls = self.remote_urls(&entry.id).await.unwrap_or_default();
+            self.credential_session(&urls)
+        } else {
+            None
+        };
         let spec = self.build_spec_with(
             &git,
             SpawnOptions {
@@ -571,6 +654,7 @@ impl Core {
                 restrictions: entry.restrictions.as_ref(),
             },
             askpass.as_ref(),
+            credential.as_ref(),
         );
 
         let cancel = CancelToken::new();
@@ -1284,6 +1368,7 @@ mod tests {
                 restrictions: None,
             },
             Some(&session),
+            None,
         );
         let output = core.run_spec(spec, Some(Duration::from_secs(20))).await.unwrap();
         assert_eq!(output.exit.code, 0, "{}", output.stderr());

@@ -10,5 +10,9 @@ fn main() {
     if let Some(code) = thaigit_lib::askpass::client_exit_code() {
         std::process::exit(code);
     }
+    // git gọi chính binary này làm credential helper (`get`): trả token của tài khoản cho host đó rồi thoát.
+    if let Some(code) = thaigit_lib::credential::client_exit_code() {
+        std::process::exit(code);
+    }
     thaigit_lib::run()
 }

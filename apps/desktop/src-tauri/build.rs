@@ -39,6 +39,19 @@ const APP_COMMANDS: &[&str] = &[
     "update_set_channel",
     "app_ready",
     "new_window",
+    "accounts_list",
+    "accounts_add_token",
+    "accounts_start_login",
+    "accounts_poll_login",
+    "accounts_cancel_login",
+    "accounts_remove",
+    "accounts_set_default",
+    "accounts_assign_owner",
+    "accounts_set_identity",
+    "accounts_set_client_id",
+    "accounts_repositories",
+    "forge_list_merge_requests",
+    "forge_create_merge_request",
 ];
 
 fn main() {

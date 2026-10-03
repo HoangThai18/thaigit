@@ -43,6 +43,19 @@
     "allow-update-install",
     "allow-update-set-channel",
     "allow-app-ready",
-    "allow-new-window"
+    "allow-new-window",
+    "allow-accounts-list",
+    "allow-accounts-add-token",
+    "allow-accounts-start-login",
+    "allow-accounts-poll-login",
+    "allow-accounts-cancel-login",
+    "allow-accounts-remove",
+    "allow-accounts-set-default",
+    "allow-accounts-assign-owner",
+    "allow-accounts-set-identity",
+    "allow-accounts-set-client-id",
+    "allow-accounts-repositories",
+    "allow-forge-list-merge-requests",
+    "allow-forge-create-merge-request"
   ]
 }

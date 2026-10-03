@@ -1,7 +1,7 @@
 <!--
-  Sidebar: LOCAL / REMOTE / TAGS / STASHES (port SidebarView.swift). Bấm một nhánh/tag → chọn commit của nó trên graph; bấm stash →
-  xem chi tiết stash. Component KHÔNG đọc `status`/`selection` trong phần dựng (chỉ một $effect nhỏ đồng bộ vùng chọn), nên
-  đổi file hay đổi commit đang chọn không dựng lại cả danh sách nhánh.
+  Sidebar: LOCAL / REMOTE / TAGS / STASHES (port SidebarView.swift), cuối cùng là PULL REQUESTS. Bấm một nhánh/tag → chọn
+  commit của nó trên graph; bấm stash → xem chi tiết stash. Component KHÔNG đọc `status`/`selection` trong phần dựng (chỉ
+  một $effect nhỏ đồng bộ vùng chọn), nên đổi file hay đổi commit đang chọn không dựng lại cả danh sách nhánh.
 -->
 <script lang="ts">
   import { drag, dropAttr } from '../dnd/drag.svelte.ts';
@@ -28,6 +28,7 @@
   import Icon from '../ui/Icon.svelte';
   import BranchTree from './BranchTree.svelte';
   import LimitedRows from './LimitedRows.svelte';
+  import PullRequestSection from './PullRequestSection.svelte';
   import './sidebar.css';
   import { buildBranchTree } from './tree.ts';
 
@@ -315,6 +316,8 @@
         {/if}
       {/if}
     </section>
+
+    <PullRequestSection {store} />
   </div>
 </div>
 

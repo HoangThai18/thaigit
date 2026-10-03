@@ -7,11 +7,14 @@ use std::sync::Arc;
 use tauri::webview::PageLoadEvent;
 use tauri::{Emitter, Manager, WindowEvent};
 
+pub mod accounts;
 pub mod askpass;
 mod commands;
 pub mod core;
+pub mod credential;
 pub mod errors;
 pub mod exec;
+pub mod forge;
 pub mod frames;
 pub mod health;
 pub mod locate;
@@ -159,6 +162,19 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::update_set_channel,
         commands::app_ready,
         commands::new_window,
+        commands::accounts_list,
+        commands::accounts_add_token,
+        commands::accounts_start_login,
+        commands::accounts_poll_login,
+        commands::accounts_cancel_login,
+        commands::accounts_remove,
+        commands::accounts_set_default,
+        commands::accounts_assign_owner,
+        commands::accounts_set_identity,
+        commands::accounts_set_client_id,
+        commands::accounts_repositories,
+        commands::forge_list_merge_requests,
+        commands::forge_create_merge_request,
     ])
 }
 
@@ -176,6 +192,7 @@ pub fn run() {
             app.manage(core.clone());
             // Seam S0: các khung này hiện là no-op; 2b (askpass) và 8a (updater) điền thân hàm, không phải sửa lại chỗ gọi.
             askpass::init(app.handle())?;
+            credential::init(app.handle())?;
             updater::init(app.handle())?;
             tauri::async_runtime::spawn(init_git(core));
             build_window(app.handle(), "main")?;

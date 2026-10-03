@@ -5,6 +5,7 @@
  *  - mỗi gói tính năng một namespace riêng: `vi.staging`, `vi.branches`, `vi.remote`, `vi.update` (một file, một gói) — nhờ vậy
  *    các gói làm song song không bao giờ trùng khoá hay sửa chung file. Test `strings.test.ts` giữ namespace không trùng khoá của shell.
  */
+import { accounts, pullRequests } from './strings/accounts.vi.ts';
 import { ai } from './strings/ai.vi.ts';
 import { branches } from './strings/branches.vi.ts';
 import { dnd } from './strings/dnd.vi.ts';
@@ -23,4 +24,6 @@ export const vi = {
   ai,
   settings,
   dnd,
+  accounts,
+  pullRequests,
 } as const;

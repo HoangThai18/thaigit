@@ -199,6 +199,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.historyGaps();
     await r.trackAllBranches('origin');
     await r.unshallow('origin', network);
+    await r.fetchRefspec('origin', '+refs/pull/42/head:refs/remotes/origin/pr/42', network);
     for (const mode of ['merge', 'rebase', 'fastForwardOnly'] as const) await r.pull(mode, network);
     await r.push({
       remote: 'origin',

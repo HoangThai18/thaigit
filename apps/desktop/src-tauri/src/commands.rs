@@ -8,8 +8,10 @@ use tauri::ipc::{Channel, InvokeBody, InvokeResponseBody, Request, Response};
 use tauri::{AppHandle, Runtime, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
+use crate::accounts::{AccountsView, Provider};
 use crate::core::{Core, GitExecRequest};
 use crate::errors::{AppError, Result};
+use crate::forge::{self, DeviceCode, ForgeMergeRequest, ForgeRepository};
 use crate::exec::FrameSink;
 use crate::health::RepoHealth;
 use crate::locate::GitInfo;
@@ -283,6 +285,136 @@ pub fn session_reset<R: Runtime>(window: WebviewWindow<R>, core: CoreState<'_>) 
 #[tauri::command]
 pub fn askpass_reply<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, request_id: String, answer: Option<String>) -> Result<()> {
     askpass::reply(&app, window.label(), &request_id, answer)
+}
+
+// --- tài khoản git -----------------------------------------------------------------------------------------------------
+
+/// Danh sách tài khoản (không token) + tài khoản mặc định + các owner đã gán.
+#[tauri::command]
+pub fn accounts_list(core: CoreState<'_>) -> AccountsView {
+    core.accounts.view()
+}
+
+/// Thêm tài khoản bằng Personal access token / app password: app kiểm token với API của máy chủ rồi mới lưu (Keychain).
+#[tauri::command]
+pub async fn accounts_add_token(core: CoreState<'_>, host: String, provider: Option<Provider>, token: String) -> Result<crate::accounts::Account> {
+    core.accounts.add_token(&host, provider, &token).await
+}
+
+/// Bắt đầu đăng nhập bằng mã (OAuth device flow) → mã để người dùng nhập trên trang của máy chủ.
+#[tauri::command]
+pub async fn accounts_start_login(
+    core: CoreState<'_>,
+    host: String,
+    provider: Option<Provider>,
+    client_id: Option<String>,
+) -> Result<DeviceCode> {
+    core.accounts.start_login(&host, provider, client_id.as_deref()).await
+}
+
+/// Hỏi token cho phiên đăng nhập: `null` = người dùng chưa xác nhận (UI hỏi lại sau `interval` giây), có token thì lưu
+/// tài khoản và trả login.
+#[tauri::command]
+pub async fn accounts_poll_login(core: CoreState<'_>, device_code: String) -> Result<Option<String>> {
+    core.accounts.poll_login(&device_code).await
+}
+
+/// Đóng phiên đăng nhập (người dùng bấm Huỷ / đóng hộp thoại).
+#[tauri::command]
+pub fn accounts_cancel_login(core: CoreState<'_>, device_code: String) {
+    core.accounts.cancel_login(&device_code);
+}
+
+#[tauri::command]
+pub fn accounts_remove(core: CoreState<'_>, host: String, login: String) -> Result<AccountsView> {
+    core.accounts.remove(&host, &login)?;
+    Ok(core.accounts.view())
+}
+
+#[tauri::command]
+pub fn accounts_set_default(core: CoreState<'_>, host: String, login: String) -> Result<AccountsView> {
+    core.accounts.set_default(&host, &login)?;
+    Ok(core.accounts.view())
+}
+
+/// Gán owner (user / tổ chức) cho một tài khoản — lệnh git tới repo của owner đó dùng đúng token.
+#[tauri::command]
+pub fn accounts_assign_owner(core: CoreState<'_>, host: String, owner: String, login: Option<String>) -> Result<AccountsView> {
+    core.accounts.assign_owner(&host, &owner, login.as_deref())?;
+    Ok(core.accounts.view())
+}
+
+/// Tên / email ghi vào cấu hình repo khi dùng tài khoản này cho commit.
+#[tauri::command]
+pub fn accounts_set_identity(core: CoreState<'_>, host: String, login: String, name: String, email: String) -> Result<AccountsView> {
+    core.accounts.set_commit_identity(&host, &login, &name, &email)?;
+    Ok(core.accounts.view())
+}
+
+/// Lưu Client ID của OAuth App cho device flow (rỗng = xoá, chỉ dán được token).
+#[tauri::command]
+pub fn accounts_set_client_id(core: CoreState<'_>, host: String, client_id: String) -> Result<AccountsView> {
+    core.accounts.set_oauth_client_id(&host, &client_id)?;
+    Ok(core.accounts.view())
+}
+
+/// Repo mà tài khoản này truy cập được (dùng cho hộp Clone).
+#[tauri::command]
+pub async fn accounts_repositories(core: CoreState<'_>, host: String, login: String) -> Result<Vec<ForgeRepository>> {
+    let token = core
+        .accounts
+        .token(&host, &login)
+        .ok_or_else(|| AppError::Auth(format!("Tài khoản {login} trên {host} chưa có token trong máy")))?;
+    crate::forge::list_repositories(&host, core.accounts.provider_of(&host)?, &token, &login).await
+}
+
+// --- Pull Request / Merge Request --------------------------------------------------------------------------------------
+
+/// Repo trên máy chủ mà ta tạo / đọc PR (thông tin này webview chỉ gửi, không sao chép được từ đâu khác).
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoRef {
+    host: String,
+    provider: Option<Provider>,
+    owner: String,
+    repo: String,
+}
+
+/// Nội dung PR/MR cần tạo (webview gửi kèm `repoRef`).
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewMergeRequest {
+    host: String,
+    provider: Option<Provider>,
+    owner: String,
+    repo: String,
+    title: String,
+    body: String,
+    source_branch: String,
+    target_branch: String,
+    draft: bool,
+}
+
+#[tauri::command]
+pub async fn forge_list_merge_requests(core: CoreState<'_>, repo: RepoRef) -> Result<Vec<ForgeMergeRequest>> {
+    forge::list_for(&core.accounts, &repo.host, repo.provider, &repo.owner, &repo.repo).await
+}
+
+#[tauri::command]
+pub async fn forge_create_merge_request(core: CoreState<'_>, request: NewMergeRequest) -> Result<ForgeMergeRequest> {
+    forge::create(
+        &core.accounts,
+        &request.host,
+        request.provider,
+        &request.owner,
+        &request.repo,
+        &request.title,
+        &request.body,
+        &request.source_branch,
+        &request.target_branch,
+        request.draft,
+    )
+    .await
 }
 
 // --- cập nhật tự động + chế độ an toàn (8a) -----------------------------------------------------------------------------

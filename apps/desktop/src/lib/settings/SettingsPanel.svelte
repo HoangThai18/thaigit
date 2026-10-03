@@ -21,6 +21,8 @@
   import { settingsStore as defaultSettings, type SettingsStore } from '../stores/settings.svelte.ts';
   import { telemetry as defaultTelemetry, type TelemetryStore } from '../stores/telemetry.svelte.ts';
   import { toasts } from '../stores/toasts.svelte.ts';
+  import { accounts as defaultAccounts } from '../stores/accounts.svelte.ts';
+  import AccountsSection from './AccountsSection.svelte';
 
   interface Props {
     settings?: SettingsStore;
@@ -44,6 +46,11 @@
 
   $effect(() => {
     if (settings.isOpen && doneButton) doneButton.focus();
+  });
+
+  // Danh sách tài khoản nạp khi mở Cài đặt (Rust là nguồn sự thật; lỗi thì giữ danh sách cũ).
+  $effect(() => {
+    if (settings.isOpen) void defaultAccounts.refresh().catch(() => undefined);
   });
 
   function numberInput(event: Event, apply: (value: number) => void): void {
@@ -275,6 +282,10 @@
             >
           {/if}
         </section>
+
+        {#if inApp}
+          <AccountsSection />
+        {/if}
 
         <section>
           <h3>{vi.settings.privacy}</h3>

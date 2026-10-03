@@ -162,6 +162,21 @@ impl Core {
         self.remote_write(repo_id, "set-url", name, url).await
     }
 
+    /// URL của mọi remote của repo (đọc bằng `git remote -v`, lệnh chỉ đọc của app) — dùng để biết lệnh mạng chạm host nào.
+    pub async fn remote_urls(&self, repo_id: &str) -> Result<Vec<String>> {
+        let entry = self.registry.get(repo_id)?;
+        let output = self.run_typed(&entry.root, "remote", &["-v".into()], entry.restrictions.as_ref()).await?;
+        if !output.ok() {
+            return Ok(Vec::new());
+        }
+        Ok(output
+            .stdout()
+            .lines()
+            .filter_map(|line| line.split_whitespace().nth(1))
+            .map(|url| url.to_string())
+            .collect())
+    }
+
     async fn remote_write(&self, repo_id: &str, action: &str, name: &str, url: &str) -> Result<()> {
         validate_remote_name(name)?;
         validate_remote_url(policy(), url)?;
@@ -247,10 +262,12 @@ impl Core {
         }
         let args = vec!["--progress".to_string(), "--".to_string(), url.to_string(), dest.to_string_lossy().into_owned()];
         let askpass = self.askpass.get().map(|server| server.session(window, op_id, "git clone"));
+        let credential = self.credential_session(std::slice::from_ref(&url.to_string()));
         let spec = self.build_spec_with(
             &git,
             SpawnOptions { cwd: &base, sub: "clone", args: &args, stdin: None, profile: EnvProfile::Interactive, caller_env: BTreeMap::new(), restrictions: None },
             askpass.as_ref(),
+            credential.as_ref(),
         );
         let cancel = CancelToken::new();
         let (_op, _guard) = self.register_op(OpEntry {

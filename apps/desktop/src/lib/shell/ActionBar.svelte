@@ -7,7 +7,7 @@
   import { beginCreateBranch } from '../actions/branches.ts';
   import { fetch, pull, push } from '../actions/remote.ts';
   import { popLatestStash, quickStash } from '../actions/stash.ts';
-  import { repoOsItems } from '../actions/menus.ts';
+  import { repoForgeItems, repoOsItems } from '../actions/menus.ts';
   import { newWindow } from '../ipc/os.ts';
   import { toasts } from '../stores/toasts.svelte.ts';
   import { vi } from '../strings.vi.ts';
@@ -60,6 +60,8 @@
         onsearch && { title: vi.graph.search, icon: 'search', shortcut: 'Ctrl/⌘ + F', run: onsearch },
         { title: vi.remote.refresh, icon: 'reset', run: () => store.refreshEverything() },
         { title: vi.remote.commandLog, icon: 'terminal', run: onshowlog },
+        { kind: 'separator' },
+        ...repoForgeItems(store),
         { kind: 'separator' },
         ...repoOsItems(store),
         hasTauriInternals() && {

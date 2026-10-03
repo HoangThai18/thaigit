@@ -1,3 +1,19 @@
+export {
+  accountsAddToken,
+  accountsAssignOwner,
+  accountsCancelLogin,
+  accountsList,
+  accountsPollLogin,
+  accountsRemove,
+  accountsRepositories,
+  accountsSetClientId,
+  accountsSetDefault,
+  accountsSetIdentity,
+  accountsStartLogin,
+  forgeCreateMergeRequest,
+  forgeListMergeRequests,
+} from './accounts.ts';
+export type { ForgeRepoRef, NewMergeRequest } from './accounts.ts';
 export { Commands, Events } from './commands.ts';
 export type { CommandName } from './commands.ts';
 export { CommandFailure, isCommandFailure, toCommandFailure } from './errors.ts';

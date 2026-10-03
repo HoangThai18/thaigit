@@ -90,7 +90,7 @@ export const remote = {
   stashChanges: 'Stash thay đổi',
   authFailed: (operation: string) => `${operation} bị remote từ chối đăng nhập`,
   authFailedMessage:
-    'Kiểm tra tài khoản / token của remote (Git Credential Manager trên Windows, Keychain trên macOS) rồi thử lại.',
+    'Kiểm tra tài khoản / token của remote (Cài đặt → Tài khoản, hoặc Git Credential Manager / Keychain) rồi thử lại.',
   hostUnreachable: (operation: string) => `${operation}: không kết nối được tới remote`,
 
   // Hỏi đăng nhập (askpass)

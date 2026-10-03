@@ -3,6 +3,16 @@
   mục đặt repo, tên thư mục; trong lúc clone hiện dòng tiến độ của git và cho Huỷ. Xong thì mở repo vừa clone.
 -->
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import type { ForgeRepository } from '@thaigit/contracts';
+  import { accountsRepositories } from '../ipc/accounts.ts';
+  import { showBidi } from '../format/bidi.ts';
+  import { forgeTarget } from '../forge/target.ts';
+  import {
+    accounts as globalAccounts,
+    forgeErrorText,
+    type AccountsStore,
+  } from '../stores/accounts.svelte.ts';
   import type { PickedFolder } from '../ipc/types.ts';
   import type { Host, RepoPort } from '../platform/host.ts';
   import { vi } from '../strings.vi.ts';
@@ -11,11 +21,12 @@
 
   interface Props {
     host: Host;
+    accounts?: AccountsStore;
     onopened: (port: RepoPort) => void;
     onclose: () => void;
   }
 
-  let { host, onopened, onclose }: Props = $props();
+  let { host, accounts = globalAccounts, onopened, onclose }: Props = $props();
 
   let url = $state('');
   let folder = $state.raw<PickedFolder | null>(null);
@@ -24,9 +35,29 @@
   let running = $state(false);
   let progress = $state('');
   let controller: AbortController | null = null;
+  const text = vi.accounts;
   let urlInput = $state<HTMLInputElement | null>(null);
+  /** Tài khoản đang xem danh sách repo (`host/login`) và danh sách đó (mở bằng nút "Xem repo"). */
+  let repoAccount = $state('');
+  let repos = $state.raw<ForgeRepository[]>([]);
+  let loadingRepos = $state(false);
+  let reposError = $state<string | null>(null);
 
   const check = $derived(checkCloneUrl(url));
+  /** Owner trong URL đang dán (để biết tài khoản nào sẽ được dùng). */
+  const target = $derived(check.ok ? forgeTarget(url) : null);
+  const hostHasAccounts = $derived(target !== null && accounts.accountsFor(target.host).length > 0);
+  const usedLogin = $derived(target === null ? null : accounts.loginForOwner(target.host, target.owner));
+  /** Tài khoản có token trên máy — mới đọc được danh sách repo. */
+  const withToken = $derived(accounts.view.accounts.filter((account) => account.hasToken));
+  const chosenAccount = $derived(
+    withToken.find((account) => `${account.host}/${account.login}` === repoAccount) ?? withToken[0] ?? null,
+  );
+
+  // Danh sách tài khoản chỉ nạp khi mở Cài đặt; hộp Clone cần nó để gợi ý repo và tài khoản sẽ dùng.
+  onMount(() => {
+    void accounts.refresh().catch(() => undefined);
+  });
   const validName = $derived(
     name.trim() !== '' &&
       name.trim() !== '.' &&
@@ -75,6 +106,37 @@
       running = false;
       controller = null;
     }
+  }
+
+  async function listRepos(): Promise<void> {
+    const account = chosenAccount;
+    if (account === null || loadingRepos) return;
+    loadingRepos = true;
+    reposError = null;
+    try {
+      repos = await accountsRepositories(account.host, account.login);
+    } catch (error) {
+      repos = [];
+      reposError = forgeErrorText(error);
+    } finally {
+      loadingRepos = false;
+    }
+  }
+
+  function chooseAccount(key: string): void {
+    repoAccount = key;
+    repos = [];
+    reposError = null;
+  }
+
+  /** Bấm một repo trong danh sách: điền URL clone + gán owner cho tài khoản đó để clone / fetch / push dùng đúng token. */
+  function pickRepo(repo: ForgeRepository): void {
+    url = repo.cloneUrl;
+    nameEdited = false;
+    const parsed = forgeTarget(repo.cloneUrl);
+    const account = chosenAccount;
+    if (parsed !== null && account !== null)
+      void accounts.ensureOwnerUses(account.host, parsed.owner, account.login);
   }
 
   function cancel(): void {
@@ -130,6 +192,59 @@
       {/if}
     {/if}
 
+    {#if target !== null && hostHasAccounts}
+      <p class="note">
+        {usedLogin === null
+          ? text.noAccountForOwner(target.owner)
+          : text.usedAccount(target.owner, usedLogin)}
+      </p>
+    {/if}
+
+    {#if withToken.length > 0}
+      <div class="field">
+        <span class="label">{text.repositories}</span>
+        <div class="folder">
+          {#if withToken.length > 1}
+            <select
+              class="account-select"
+              value={chosenAccount ? `${chosenAccount.host}/${chosenAccount.login}` : ''}
+              disabled={running || loadingRepos}
+              onchange={(event) => chooseAccount(event.currentTarget.value)}
+            >
+              {#each withToken as account (account.host + '/' + account.login)}
+                <option value={`${account.host}/${account.login}`}>{account.login} · {account.host}</option>
+              {/each}
+            </select>
+          {/if}
+          <button
+            type="button"
+            class="button"
+            disabled={running || loadingRepos}
+            onclick={() => void listRepos()}
+          >
+            {loadingRepos ? text.loadingRepositories : text.showRepositories}
+          </button>
+          {#if reposError}
+            <span class="error-inline">{reposError}</span>
+          {/if}
+        </div>
+        {#if repos.length > 0}
+          <ul class="repo-list">
+            {#each repos as repo (repo.path)}
+              <li>
+                <button type="button" class="repo" disabled={running} onclick={() => pickRepo(repo)}>
+                  <span class="repo-path"><bdi>{showBidi(repo.path)}</bdi></span>
+                  {#if repo.isPrivate}
+                    <span class="repo-badge">{text.private}</span>
+                  {/if}
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    {/if}
+
     <div class="field">
       <span class="label">{vi.welcome.cloneFolder}</span>
       <div class="folder">
@@ -176,6 +291,65 @@
 </div>
 
 <style>
+  .repo-list {
+    max-height: 180px;
+    margin: 6px 0 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+  }
+
+  .repo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 9px;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: 12.5px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .repo:hover {
+    background: var(--chip-fill);
+  }
+
+  .repo-path {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .repo-badge {
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+
+  .error-inline {
+    color: var(--danger);
+    font-size: 12px;
+  }
+
+  .account-select {
+    min-width: 0;
+    max-width: 220px;
+    padding: 5px 8px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+    color: var(--text);
+    font: inherit;
+    font-size: 12.5px;
+  }
+
   .backdrop {
     position: fixed;
     inset: 0;

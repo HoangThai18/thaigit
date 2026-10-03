@@ -21,6 +21,7 @@ const KNOWN_CODES: ReadonlySet<string> = new Set<CommandError['code']>([
   'git-missing',
   'git-too-old',
   'untrusted',
+  'auth',
   'internal',
 ]);
 

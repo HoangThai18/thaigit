@@ -10,7 +10,9 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
+use crate::accounts::Accounts;
 use crate::core::{Core, GitExecRequest};
+use crate::credential::CredentialServer;
 use crate::exec::CollectSink;
 use crate::policy::ExecKind;
 use crate::pathutil::canonical;
@@ -175,6 +177,16 @@ impl TestRepo {
 pub async fn core_with(repo: &TestRepo) -> (Arc<Core>, tempfile::TempDir) {
     let data = tempfile::tempdir().unwrap();
     let core = Core::for_tests(data.path(), repo.env()).await;
+    (core, data)
+}
+
+/// Như `core_with` nhưng dựng sẵn credential server với tài khoản cho (test token → git).
+pub async fn core_with_credential(repo: &TestRepo, accounts: Arc<Accounts>) -> (Arc<Core>, tempfile::TempDir) {
+    let data = tempfile::tempdir().unwrap();
+    let core = Core::for_tests_with_accounts(data.path(), repo.env(), accounts).await;
+    let program = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("/bin/false"));
+    let server = CredentialServer::start(program.into_os_string(), core.accounts.clone()).unwrap();
+    let _ = core.credential.set(server);
     (core, data)
 }
 

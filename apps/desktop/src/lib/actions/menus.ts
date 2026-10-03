@@ -16,6 +16,9 @@ import type { DiffSource } from '../stores/diff.svelte.ts';
 import { tidyMenu, type MenuItem } from '../stores/menus.svelte.ts';
 import { vi } from '../strings.vi.ts';
 import { describePullRequest, explainCommit } from '../ai/actions.ts';
+import { assignAccountForRepo } from '../forge/assignOwner.ts';
+import { createPullRequest } from '../forge/createPullRequest.svelte.ts';
+import { targetOf } from '../forge/pullRequests.ts';
 import {
   beginCreateBranch,
   beginRenameBranch,
@@ -373,6 +376,25 @@ export async function osAction(store: RepoStore, run: () => Promise<void> | unde
   } catch (error) {
     store.showError(vi.branches.osFailed, error);
   }
+}
+
+/** Mục liên quan tới máy chủ từ xa của repo: tạo Pull Request và gán tài khoản cho owner (chỉ khi remote nói chuyện với GitHub / GitLab / Bitbucket). */
+export function repoForgeItems(store: RepoStore): MenuItem[] {
+  const target = targetOf(store);
+  if (target === null) return [];
+  const head = store.currentBranchRef ? refName(store.currentBranchRef) : null;
+  return tidyMenu([
+    head !== null && {
+      title: vi.pullRequests.createFrom(head),
+      icon: 'globe',
+      run: () => void createPullRequest.open(store, head),
+    },
+    {
+      title: vi.accounts.ownerForRepo,
+      icon: 'shield',
+      run: () => void assignAccountForRepo(store),
+    },
+  ]);
 }
 
 /** Mục "mở ra ngoài" của repo (menu Thêm trên thanh công cụ). */

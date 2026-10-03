@@ -53,7 +53,13 @@ describe('sanitizePrefs', () => {
     expect(prefs.sidebarWidth).toBe(SIDEBAR_LIMITS.max);
     expect(prefs.inspectorWidth).toBe(INSPECTOR_LIMITS.min);
     expect(prefs).toMatchObject({ logOrder: 'topo', scheme: 'dark', glass: false });
-    expect(prefs.sidebarSections).toEqual({ local: false, remote: true, tags: true, stashes: true });
+    expect(prefs.sidebarSections).toEqual({
+      local: false,
+      remote: true,
+      tags: true,
+      stashes: true,
+      pullRequests: false,
+    });
     expect(prefs.columns).toMatchObject({ refs: 400, author: 60 });
   });
 });
@@ -99,7 +105,13 @@ describe('PrefsStore', () => {
     const store = new PrefsStore(null);
     store.update({ sidebarSections: { ...store.value.sidebarSections, tags: true } });
     store.update({ columns: { ...store.value.columns, author: 200 } });
-    expect(store.value.sidebarSections).toEqual({ local: true, remote: true, tags: true, stashes: true });
+    expect(store.value.sidebarSections).toEqual({
+      local: true,
+      remote: true,
+      tags: true,
+      stashes: true,
+      pullRequests: false,
+    });
     expect(store.value.columns).toMatchObject({ author: 200, refs: 190 });
   });
 

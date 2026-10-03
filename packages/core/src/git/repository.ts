@@ -882,6 +882,16 @@ export class GitRepository {
     await this.runner.run('remote', ['set-branches', '--add', remote, '*']);
   }
 
+  /**
+   * Fetch một refspec cụ thể (vd. `+refs/pull/42/head:refs/remotes/origin/pr/42` khi checkout Pull Request). Refspec
+   * được kiểm là chuỗi không trắng / không bắt đầu bằng `-` trước khi đưa vào lệnh git.
+   */
+  async fetchRefspec(remote: string, refspec: string, options: NetworkOptions = {}): Promise<void> {
+    assertArgument(remote);
+    assertArgument(refspec);
+    await this.runner.run('fetch', ['--progress', remote, refspec], networkRunOptions(options));
+  }
+
   /** Lấy phần lịch sử còn thiếu của clone nông từ `remote` (`fetch --unshallow`). */
   async unshallow(remote: string, options: NetworkOptions = {}): Promise<void> {
     assertArgument(remote);

@@ -11,6 +11,7 @@
   import DialogHost from './lib/ui/DialogHost.svelte';
   import AiConsent from './lib/ai/AiConsent.svelte';
   import AiResultDialog from './lib/ai/AiResultDialog.svelte';
+  import CreatePullRequestDialog from './lib/forge/CreatePullRequestDialog.svelte';
   import SettingsPanel from './lib/settings/SettingsPanel.svelte';
   import { telemetry } from './lib/stores/telemetry.svelte.ts';
   import MenuHost from './lib/ui/MenuHost.svelte';
@@ -297,6 +298,7 @@
 <SettingsPanel />
 <AiResultDialog />
 <DialogHost />
+<CreatePullRequestDialog />
 <AiConsent />
 <MenuHost />
 <UpdateBar />
