@@ -13,6 +13,36 @@
 # Viet kieu flow (mot dong moi khoa) vi trinh soan thao web cua GitHub tu thut le, go
 # kieu thuong se lam lech YAML. Chay `pnpm format` o may de Prettier dan lai cho de doc.
 name: Deploy site len VPS
-on: { push: { branches: [main], paths: ['site/**', 'packages/**', 'CHANGELOG.md', '.github/workflows/deploy-vps.yml'] }, workflow_dispatch: {} }
+on:
+  {
+    push:
+      {
+        branches: [main],
+        paths: ['site/**', 'packages/**', 'CHANGELOG.md', '.github/workflows/deploy-vps.yml'],
+      },
+    workflow_dispatch: {},
+  }
 concurrency: { group: deploy-vps-thaigit, cancel-in-progress: false }
-jobs: { deploy: { runs-on: ubuntu-latest, steps: [ { name: SSH vao VPS va chay deploy, uses: appleboy/ssh-action@v1.2.0, with: { host: '${{ secrets.VPS_HOST }}', username: '${{ secrets.VPS_USER }}', key: '${{ secrets.VPS_SSH_KEY }}', port: '${{ secrets.VPS_PORT }}', script_stop: true, script: deploy } } ] } }
+jobs:
+  {
+    deploy:
+      {
+        runs-on: ubuntu-latest,
+        steps:
+          [
+            {
+              name: SSH vao VPS va chay deploy,
+              uses: appleboy/ssh-action@v1.2.0,
+              with:
+                {
+                  host: '${{ secrets.VPS_HOST }}',
+                  username: '${{ secrets.VPS_USER }}',
+                  key: '${{ secrets.VPS_SSH_KEY }}',
+                  port: '${{ secrets.VPS_PORT }}',
+                  script_stop: true,
+                  script: deploy,
+                },
+            },
+          ],
+      },
+  }
