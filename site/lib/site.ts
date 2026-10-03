@@ -10,15 +10,10 @@ export const SITE = {
 } as const;
 
 export const LINKS = {
-  github: `https://github.com/${SITE.repo}`,
-  releases: `https://github.com/${SITE.repo}/releases`,
-  issues: `https://github.com/${SITE.repo}/issues`,
-  changelog: `https://github.com/${SITE.repo}/blob/main/CHANGELOG.md`,
   /** Qua máy chủ Thaigit để đếm lượt tải (không lưu IP) rồi chuyển tới file cố định trên GitHub Releases: bản macOS mới nhất. */
   downloadMac: `${SITE.url}/download/mac`,
   latestReleaseApi: `https://api.github.com/repos/${SITE.repo}/releases/latest`,
   /** Như trên, tới release cố định `desktop-stable` (workflow release-desktop.yml): bản Windows chính thức mới nhất. */
   downloadWindows: `${SITE.url}/download/win`,
-  changelogWindows: `https://github.com/${SITE.repo}/blob/main/apps/desktop/CHANGELOG.md`,
   gitForWindows: 'https://git-scm.com/download/win',
 } as const;

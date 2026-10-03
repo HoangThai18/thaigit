@@ -6,7 +6,6 @@ import { Faq } from '@/components/Faq';
 import { FeatureTabs } from '@/components/FeatureTabs';
 import {
   AppleIcon,
-  GitHubIcon,
   KeyboardIcon,
   MoonIcon,
   RefreshIcon,
@@ -59,7 +58,7 @@ export default async function HomePage() {
       screenshot: `${SITE.url}/screenshots/overview-1600.webp`,
       inLanguage: 'vi',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'VND' },
-      author: { '@type': 'Person', name: SITE.author, url: LINKS.github },
+      author: { '@type': 'Person', name: SITE.author },
     },
     {
       '@context': 'https://schema.org',
@@ -91,7 +90,7 @@ export default async function HomePage() {
         <div className="hero-inner container">
           <span className="eyebrow">
             <span className="pulse-dot" aria-hidden="true" />
-            Miễn phí · Không cần tài khoản · Mã nguồn công khai
+            Miễn phí · Không cần tài khoản
           </span>
           <h1>
             Git trực quan, làm bằng chuột.
@@ -301,29 +300,6 @@ export default async function HomePage() {
                   </span>
                 </li>
               </ol>
-              <p className="note bottom">
-                App tự cập nhật. Xem <a href={LINKS.changelogWindows}>có gì mới</a> ·{' '}
-                <a href={LINKS.releases}>mọi bản phát hành</a>.
-              </p>
-            </div>
-          </div>
-
-          <div className="dl-ring" data-reveal>
-            <div className="dl-card">
-              <h3>
-                <GitHubIcon size={24} /> Từ mã nguồn
-              </h3>
-              <p className="meta">Cần Xcode hoặc Command Line Tools · chạy được cả trên Mac Intel</p>
-              <CopyCode
-                className="spaced"
-                code={
-                  'git clone https://github.com/HoangThai18/thaigit.git\ncd thaigit\n./scripts/build-app.sh --install'
-                }
-              />
-              <p className="note">
-                Lệnh trên build bản release rồi chép vào /Applications. Chi tiết trong{' '}
-                <a href={LINKS.github}>README</a>.
-              </p>
             </div>
           </div>
         </div>
@@ -354,9 +330,6 @@ export default async function HomePage() {
               </article>
             ))}
           </div>
-          <p className="more-link">
-            <a href={LINKS.changelog}>Xem toàn bộ nhật ký thay đổi →</a>
-          </p>
         </section>
       )}
 
@@ -390,9 +363,6 @@ export default async function HomePage() {
           <p>Tải Thaigit miễn phí cho macOS và Windows.</p>
           <div className="cta">
             <DownloadButton initial={release} className="btn btn-white" />
-            <a className="btn btn-outline-light" href={LINKS.github}>
-              <GitHubIcon /> Mã nguồn trên GitHub
-            </a>
           </div>
         </div>
       </section>

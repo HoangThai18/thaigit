@@ -1,6 +1,4 @@
 import Link from 'next/link';
-import { LINKS } from '@/lib/site';
-import { GitHubIcon } from './Icons';
 
 export function Header() {
   return (
@@ -17,9 +15,6 @@ export function Header() {
           <a href="/#hoi-dap">Hỏi đáp</a>
         </nav>
         <div className="header-actions">
-          <a className="icon-link" href={LINKS.github} aria-label="Mã nguồn Thaigit trên GitHub">
-            <GitHubIcon />
-          </a>
           <a className="btn btn-primary btn-small" href="/#tai-ve">
             Tải về
           </a>

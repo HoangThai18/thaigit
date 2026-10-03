@@ -33,7 +33,7 @@ export function DownloadButton({
 }) {
   const release = useMacRelease(initial);
   return (
-    <a className={className} href={release ? LINKS.downloadMac : LINKS.releases} data-download="mac">
+    <a className={className} href={LINKS.downloadMac} data-download="mac">
       <AppleIcon />
       <span className="btn-stack">
         Tải cho macOS
@@ -51,7 +51,7 @@ export function DownloadButton({
 export function ReleaseDetails({ initial }: { initial: MacRelease | null }) {
   const release = useMacRelease(initial);
   if (!release) {
-    return <p className="note">Bản phát hành đầu tiên đang được chuẩn bị — có thể build ngay từ mã nguồn.</p>;
+    return <p className="note">Bản phát hành đầu tiên đang được chuẩn bị.</p>;
   }
   return (
     <p className="note">

@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Be_Vietnam_Pro } from 'next/font/google';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
-import { LINKS, SITE } from '@/lib/site';
+import { SITE } from '@/lib/site';
 import './globals.css';
 
 // Font tiếng Việt tự host lúc build (không gọi Google khi người dùng mở trang).
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     'giải conflict git',
     'git tiếng Việt',
   ],
-  authors: [{ name: SITE.author, url: LINKS.github }],
+  authors: [{ name: SITE.author }],
   creator: SITE.author,
   publisher: SITE.author,
   category: 'technology',

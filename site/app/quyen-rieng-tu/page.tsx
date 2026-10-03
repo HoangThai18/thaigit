@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { LINKS } from '@/lib/site';
+import { SITE } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Quyền riêng tư',
@@ -66,9 +66,7 @@ export default function PrivacyPage() {
       </p>
 
       <h2>Liên hệ</h2>
-      <p>
-        Câu hỏi về quyền riêng tư: mở issue trên <a href={LINKS.issues}>GitHub</a>.
-      </p>
+      <p>Câu hỏi về quyền riêng tư: gửi email cho {SITE.author}.</p>
     </article>
   );
 }

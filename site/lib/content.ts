@@ -127,9 +127,7 @@ export interface FaqItem {
 export const FAQ: FaqItem[] = [
   {
     q: 'Thaigit có miễn phí không?',
-    a: [
-      'Có. Thaigit miễn phí, không quảng cáo, không cần tài khoản, không giới hạn repo riêng tư. Mã nguồn công khai trên GitHub.',
-    ],
+    a: ['Có. Thaigit miễn phí, không quảng cáo, không cần tài khoản, không giới hạn repo riêng tư.'],
   },
   {
     q: 'Thaigit khác các Git client khác ở điểm nào?',

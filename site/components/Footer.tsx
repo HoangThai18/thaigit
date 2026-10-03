@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LINKS, SITE } from '@/lib/site';
+import { SITE } from '@/lib/site';
 
 export function Footer() {
   return (
@@ -17,9 +17,6 @@ export function Footer() {
           </div>
         </div>
         <nav className="footer-links" aria-label="Liên kết cuối trang">
-          <a href={LINKS.github}>GitHub</a>
-          <a href={LINKS.changelog}>Nhật ký thay đổi</a>
-          <a href={LINKS.issues}>Báo lỗi / góp ý</a>
           <Link href="/quyen-rieng-tu/">Quyền riêng tư</Link>
         </nav>
       </div>
