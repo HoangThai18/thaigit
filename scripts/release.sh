@@ -72,19 +72,24 @@ mkdir -p "$OUT"
 ZIP="$OUT/Thaigit-macOS.zip"
 rm -f "$ZIP"
 ditto -c -k --sequesterRsrc --keepParent build/Thaigit.app "$ZIP"
-URL="https://github.com/$REPO/releases/download/v$VERSION/Thaigit-macOS.zip"
+# Bộ tự cập nhật tải một bản sao tên khác (cùng nội dung, cùng chữ ký) để số lượt tải trên GitHub tách được "tải mới từ
+# trang chủ" (Thaigit-macOS.zip) với "tự cập nhật" (Thaigit-macOS-update.zip) — xem scripts/download-stats.mjs.
+UPDATE_ZIP="$OUT/Thaigit-macOS-update.zip"
+cp "$ZIP" "$UPDATE_ZIP"
+URL="https://github.com/$REPO/releases/download/v$VERSION/Thaigit-macOS-update.zip"
 NOTES_FILE="$OUT/notes-$VERSION.txt"
 printf '%s\n' "${NOTES:-Thaigit $VERSION}" > "$NOTES_FILE"
 swift scripts/release-tool.swift manifest "$ZIP" "$VERSION" "$URL" "$NOTES_FILE" > "$OUT/update.json"
 echo "✓ $ZIP"
+echo "✓ $UPDATE_ZIP"
 echo "✓ $OUT/update.json"
 
 if [ "$PUBLISH" = 1 ]; then
-  gh release create "v$VERSION" "$ZIP" "$OUT/update.json" \
+  gh release create "v$VERSION" "$ZIP" "$UPDATE_ZIP" "$OUT/update.json" \
     --repo "$REPO" --title "Thaigit $VERSION" --notes-file "$NOTES_FILE"
   echo "✓ Đã đăng Thaigit $VERSION — máy nào đang dùng Thaigit sẽ tự tải về, khởi động lại là có bản mới."
 else
   echo "Đăng lên GitHub:"
-  echo "  gh release create v$VERSION \"$ZIP\" \"$OUT/update.json\" --repo $REPO --title \"Thaigit $VERSION\" --notes-file \"$NOTES_FILE\""
+  echo "  gh release create v$VERSION \"$ZIP\" \"$UPDATE_ZIP\" \"$OUT/update.json\" --repo $REPO --title \"Thaigit $VERSION\" --notes-file \"$NOTES_FILE\""
 fi
 echo "Nhớ commit Resources/Info.plist và CHANGELOG.md (phiên bản $VERSION)."
