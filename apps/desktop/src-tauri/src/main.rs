@@ -6,5 +6,9 @@ fn main() {
     if thaigit_lib::askpass::should_exit_early() {
         std::process::exit(1);
     }
+    // git/ssh gọi binary này làm askpass tương tác (hồ sơ interactive): hỏi app qua 127.0.0.1 rồi in câu trả lời.
+    if let Some(code) = thaigit_lib::askpass::client_exit_code() {
+        std::process::exit(code);
+    }
     thaigit_lib::run()
 }

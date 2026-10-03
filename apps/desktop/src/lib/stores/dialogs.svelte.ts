@@ -26,6 +26,14 @@ export type FormField =
       readonly monospace?: boolean;
     }
   | {
+      /** Ô ẩn ký tự (mật khẩu, passphrase): không tự điền, không kiểm chính tả. */
+      readonly kind: 'password';
+      readonly id: string;
+      readonly label: string;
+      readonly value: string;
+      readonly placeholder?: string;
+    }
+  | {
       readonly kind: 'select';
       readonly id: string;
       readonly label: string;

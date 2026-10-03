@@ -32,7 +32,7 @@
     if (!current) return;
     if (current.kind === 'form' && firstField) {
       firstField.focus();
-      if (firstField instanceof HTMLInputElement && firstField.type === 'text') firstField.select();
+      if (firstField instanceof HTMLInputElement && firstField.type !== 'checkbox') firstField.select();
     } else if (confirmButton) {
       confirmButton.focus();
     }
@@ -58,7 +58,11 @@
     if (event.key === 'Escape') {
       event.preventDefault();
       store.answer('cancel');
-    } else if (event.key === 'Enter' && event.target instanceof HTMLInputElement && event.target.type === 'text') {
+    } else if (
+      event.key === 'Enter' &&
+      event.target instanceof HTMLInputElement &&
+      (event.target.type === 'text' || event.target.type === 'password')
+    ) {
       event.preventDefault();
       primary();
     }
@@ -94,6 +98,28 @@
                   onchange={(event) => (values[field.id] = event.currentTarget.checked)}
                 />
                 <span>{field.label}</span>
+              </label>
+            {:else if field.kind === 'password'}
+              <label class="field">
+                <span class="label">{field.label}</span>
+                {#if index === 0}
+                  <input
+                    type="password"
+                    bind:this={firstField}
+                    value={values[field.id]}
+                    placeholder={field.placeholder}
+                    autocomplete="off"
+                    oninput={(event) => (values[field.id] = event.currentTarget.value)}
+                  />
+                {:else}
+                  <input
+                    type="password"
+                    value={values[field.id]}
+                    placeholder={field.placeholder}
+                    autocomplete="off"
+                    oninput={(event) => (values[field.id] = event.currentTarget.value)}
+                  />
+                {/if}
               </label>
             {:else if field.kind === 'select'}
               <label class="field">
@@ -220,6 +246,7 @@
   }
 
   input[type='text'],
+  input[type='password'],
   select {
     box-sizing: border-box;
     width: 100%;
@@ -238,6 +265,7 @@
   }
 
   input[type='text']:focus,
+  input[type='password']:focus,
   select:focus {
     outline: 2px solid var(--accent);
     outline-offset: -1px;

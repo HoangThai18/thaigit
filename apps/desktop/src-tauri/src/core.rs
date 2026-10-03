@@ -136,6 +136,8 @@ pub struct Core {
     pub events: Arc<dyn EventSink>,
     /// Chương trình trả lời "từ chối" cho `GIT_ASKPASS`/`SSH_ASKPASS` của hồ sơ background.
     pub askpass_deny: Option<OsString>,
+    /// Máy chủ askpass tương tác (hỏi mật khẩu trong app) — có sau `askpass::init`; chưa có thì lệnh interactive không hỏi được.
+    pub askpass: std::sync::OnceLock<Arc<crate::askpass::AskpassServer>>,
     pub timing: CancelTiming,
     /// Giới hạn output của `git_exec`/`git_clone` (xem `MAX_EXEC_OUTPUT_BYTES`).
     pub exec_output_limit: u64,
@@ -205,6 +207,7 @@ impl Core {
             watchers: Watchers::new(events.clone()),
             events,
             askpass_deny,
+            askpass: std::sync::OnceLock::new(),
             timing: CancelTiming::default(),
             exec_output_limit: MAX_EXEC_OUTPUT_BYTES,
             internal_output_limit: MAX_INTERNAL_OUTPUT_BYTES,
@@ -240,6 +243,7 @@ impl Core {
             watchers: Watchers::new(events.clone()),
             events,
             askpass_deny,
+            askpass: std::sync::OnceLock::new(),
             timing: CancelTiming {
                 soft_wait: Duration::from_millis(600),
                 group_grace: Duration::from_millis(200),
@@ -264,14 +268,24 @@ impl Core {
 
     /// Dựng tiến trình git: argv (`-c` cứng + sub + args), env chuẩn của chính sách, ghi đè chế độ hạn chế.
     pub fn build_spec(&self, git: &GitInfo, options: SpawnOptions<'_>) -> ProcessSpec {
+        self.build_spec_with(git, options, None)
+    }
+
+    /// Như `build_spec`, kèm phiên askpass tương tác của lệnh (chỉ có tác dụng với hồ sơ `interactive`).
+    pub fn build_spec_with(&self, git: &GitInfo, options: SpawnOptions<'_>, askpass: Option<&crate::askpass::AskpassSession>) -> ProcessSpec {
         let policy = policy();
         let argv = policy.build_argv(options.sub, options.args);
+        let interactive = options.profile == EnvProfile::Interactive;
+        let mut extra = options.restrictions.map(Restrictions::env).unwrap_or_default();
+        if interactive && let Some(session) = askpass {
+            extra.extend(session.env());
+        }
         let env_options = EnvOptions {
             profile: options.profile,
             caller_env: options.caller_env,
-            askpass: None,
+            askpass: askpass.filter(|_| interactive).map(|session| session.program().clone()),
             askpass_deny: self.askpass_deny.clone(),
-            extra: options.restrictions.map(Restrictions::env).unwrap_or_default(),
+            extra,
         };
         let env = policy.build_env(self.base_env(), &env_options);
         ProcessSpec {
@@ -303,6 +317,11 @@ impl Core {
     pub async fn run_git(&self, options: SpawnOptions<'_>, timeout: Option<Duration>) -> Result<GitOutput> {
         let git = self.require_git(options.sub)?;
         let spec = self.build_spec(&git, options);
+        self.run_spec(spec, timeout).await
+    }
+
+    /// Chạy một tiến trình git đã dựng và gom toàn bộ output (giới hạn bộ nhớ + thời gian chờ).
+    pub(crate) async fn run_spec(&self, spec: ProcessSpec, timeout: Option<Duration>) -> Result<GitOutput> {
         let sink = Arc::new(CollectSink::default());
         let cancel = CancelToken::new();
         let capped = Arc::new(LimitedSink::new(sink.clone(), self.internal_output_limit, cancel.clone()));
@@ -536,7 +555,11 @@ impl Core {
                 Some(bytes)
             }
         };
-        let spec = self.build_spec(
+        // Lệnh mạng do người dùng bấm: git/ssh hỏi tên đăng nhập / mật khẩu / passphrase thì hiện hộp thoại trong cửa sổ này.
+        let askpass = (profile == EnvProfile::Interactive && kind == ExecKind::Network)
+            .then(|| self.askpass.get().map(|server| server.session(window, &request.op_id, &format!("git {}", request.sub))))
+            .flatten();
+        let spec = self.build_spec_with(
             &git,
             SpawnOptions {
                 cwd: &entry.root,
@@ -547,6 +570,7 @@ impl Core {
                 caller_env,
                 restrictions: entry.restrictions.as_ref(),
             },
+            askpass.as_ref(),
         );
 
         let cancel = CancelToken::new();
@@ -1208,10 +1232,67 @@ mod tests {
         let log = std::fs::read_to_string(&called).expect("git gọi askpass từ chối của app");
         assert!(log.contains("--askpass-deny"), "script bọc gọi lại exe với cờ từ chối: {log}");
         std::fs::remove_file(&called).unwrap();
-        // 2a: hồ sơ interactive chưa có askpass (2b) → git không có chỗ nào để hỏi, thất bại nhanh
+        // Lệnh interactive không có phiên askpass (vd. lệnh nội bộ) → git không có chỗ nào để hỏi, thất bại nhanh
         let output = run_credential(EnvProfile::Interactive).await;
         assert_ne!(output.exit.code, 0);
         assert!(!called.exists());
+    }
+
+    /// Askpass tương tác đầu-cuối với git thật: `git credential fill` (không helper nào) hỏi tên rồi mật khẩu qua askpass;
+    /// "tiến trình askpass" là script bash nói đúng giao thức của `askpass::run_client` qua /dev/tcp.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn interactive_askpass_answers_git_credential_prompts_through_the_window() {
+        use crate::askpass::{AskpassEvents, AskpassRequestEvent, AskpassServer};
+        struct AutoAnswer(std::sync::Mutex<Vec<AskpassRequestEvent>>, std::sync::OnceLock<Arc<AskpassServer>>);
+        impl AskpassEvents for AutoAnswer {
+            fn request(&self, window: &str, event: &AskpassRequestEvent) {
+                self.0.lock().unwrap().push(event.clone());
+                let answer = if event.kind == "username" { "thai" } else { "mat khau bi mat" };
+                let server = self.1.get().unwrap().clone();
+                let (window, id) = (window.to_string(), event.request_id.clone());
+                std::thread::spawn(move || server.reply(&window, &id, Some(answer.to_string())).unwrap());
+            }
+            fn closed(&self, _: &str, _: &str) {}
+        }
+        let repo = TestRepo::new();
+        let data = tempfile::tempdir().unwrap();
+        let client = repo.tmp().join("askpass-client.sh");
+        std::fs::write(
+            &client,
+            "#!/bin/bash\nexec 3<>\"/dev/tcp/127.0.0.1/$THAIGIT_ASKPASS_PORT\" || exit 1\nprintf '{\"token\":\"%s\",\"prompt\":\"%s\"}\\n' \"$THAIGIT_ASKPASS_TOKEN\" \"$1\" >&3\nIFS= read -r line <&3\ncase \"$line\" in *'\"answer\":\"'*) a=${line#*\\\"answer\\\":\\\"}; printf '%s\\n' \"${a%\\\"\\}*}\";; *) exit 1;; esac\n",
+        )
+        .unwrap();
+        make_executable(&client);
+        let events = Arc::new(AutoAnswer(Default::default(), Default::default()));
+        let server = AskpassServer::start(client.clone().into_os_string(), events.clone()).unwrap();
+        let _ = events.1.set(server.clone());
+        let core = Core::for_tests_with(data.path(), repo.env(), None).await;
+        let opened = open(&core, &repo).await;
+        let entry = core.registry.get(&opened.repo_id).unwrap();
+        let git = core.require_git("credential").unwrap();
+        let session = server.session("main", "op-cred", "git credential");
+        let spec = core.build_spec_with(
+            &git,
+            SpawnOptions {
+                cwd: &entry.root,
+                sub: "credential",
+                args: &["fill".to_string()],
+                stdin: Some(b"protocol=https\nhost=example.com\n\n".to_vec()),
+                profile: EnvProfile::Interactive,
+                caller_env: BTreeMap::new(),
+                restrictions: None,
+            },
+            Some(&session),
+        );
+        let output = core.run_spec(spec, Some(Duration::from_secs(20))).await.unwrap();
+        assert_eq!(output.exit.code, 0, "{}", output.stderr());
+        let stdout = output.stdout();
+        assert!(stdout.contains("username=thai\n"), "{stdout}");
+        assert!(stdout.contains("password=mat khau bi mat\n"), "{stdout}");
+        let asked: Vec<(&str, Option<String>)> = events.0.lock().unwrap().iter().map(|e| (e.kind, e.host.clone())).collect();
+        assert_eq!(asked, vec![("username", Some("example.com".into())), ("password", Some("example.com".into()))]);
+        drop(session);
     }
 
     // --- `diff --no-index` qua symlink do chính repo tạo ra ----------------------------------------------------------------

@@ -13,6 +13,8 @@
   import UpdateBar from './lib/shell/UpdateBar.svelte';
   import { appReady, onUpdateAvailable, onUpdateProgress, updateCheck, updateInstall } from './lib/ipc/update.ts';
   import { updates } from './lib/stores/update.svelte.ts';
+  import { askpassReply, onAskpassClosed, onAskpassRequest } from './lib/ipc/askpass.ts';
+  import { askpass } from './lib/stores/askpass.svelte.ts';
   import TrustPrompt from './lib/shell/TrustPrompt.svelte';
   import Welcome from './lib/shell/Welcome.svelte';
   import { vi } from './lib/strings.vi.ts';
@@ -56,10 +58,15 @@
           onProgress: onUpdateProgress,
         })
         .catch(() => undefined);
+      // Hỏi tên đăng nhập / mật khẩu / passphrase trong app khi git/ssh cần (fetch / pull / push / clone).
+      void askpass
+        .start({ reply: askpassReply, onRequest: onAskpassRequest, onClosed: onAskpassClosed })
+        .catch(() => undefined);
       void appReady().catch(() => undefined);
     }
     return () => {
       updates.stop();
+      askpass.stop();
       stopWatching();
       if (view.kind === 'repo') void view.store.dispose();
       prefs.flush();

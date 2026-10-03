@@ -130,6 +130,7 @@ export const Events = {
   repoChanged: 'repo-changed',
   gitEnvChanged: 'git-env-changed',
   askpassRequest: 'askpass-request',
+  askpassClosed: 'askpass-closed',
   updateAvailable: 'update-available',
   updateProgress: 'update-progress',
 } as const;
@@ -153,6 +154,11 @@ export interface AskpassRequestEvent {
   /** Host đã parse từ prompt (`github.com`), `null` nếu không có. */
   host: string | null;
   prompt: string;
+}
+
+/** Sự kiện `askpass-closed`: câu hỏi hết hiệu lực (lệnh đã xong / bị huỷ / quá 10 phút) — đóng hộp thoại, không trả lời nữa. */
+export interface AskpassClosedEvent {
+  requestId: string;
 }
 
 /** Tham số `askpass_reply`: `answer = null` nghĩa là người dùng bấm Huỷ (git nhận mã thoát ≠ 0). */

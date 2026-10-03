@@ -81,6 +81,20 @@ export const remote = {
     'Kiểm tra tài khoản / token của remote (Git Credential Manager trên Windows, Keychain trên macOS) rồi thử lại.',
   hostUnreachable: (operation: string) => `${operation}: không kết nối được tới remote`,
 
+  // Hỏi đăng nhập (askpass)
+  askpassUsernameTitle: (host: string | null) => (host ? `Đăng nhập ${host}` : 'Đăng nhập'),
+  askpassUsernameLabel: 'Tên đăng nhập',
+  askpassPasswordTitle: (host: string | null) => (host ? `Mật khẩu cho ${host}` : 'Mật khẩu'),
+  askpassPasswordLabel: 'Mật khẩu hoặc token',
+  askpassPassphraseTitle: 'Passphrase của khoá SSH',
+  askpassPassphraseLabel: 'Passphrase',
+  askpassOtherTitle: 'Git cần bạn xác nhận',
+  askpassOtherLabel: 'Câu trả lời',
+  askpassWaiting: (operation: string) => `${operation} đang chờ thông tin đăng nhập.`,
+  askpassGithubToken: 'GitHub không nhận mật khẩu tài khoản — hãy dùng Personal access token.',
+  askpassPrivacy: 'Thaigit chỉ chuyển câu trả lời cho git, không lưu lại.',
+  askpassContinue: 'Tiếp tục',
+
   // Nhật ký lệnh
   commandLogTitle: 'Nhật ký lệnh git',
   commandLogEmpty: 'Chưa chạy lệnh nào.',

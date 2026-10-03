@@ -246,9 +246,11 @@ impl Core {
             return Err(AppError::GitTooOld(git.warning.clone().unwrap_or_else(|| "Phiên bản git không đạt sàn bảo mật".into())));
         }
         let args = vec!["--progress".to_string(), "--".to_string(), url.to_string(), dest.to_string_lossy().into_owned()];
-        let spec = self.build_spec(
+        let askpass = self.askpass.get().map(|server| server.session(window, op_id, "git clone"));
+        let spec = self.build_spec_with(
             &git,
             SpawnOptions { cwd: &base, sub: "clone", args: &args, stdin: None, profile: EnvProfile::Interactive, caller_env: BTreeMap::new(), restrictions: None },
+            askpass.as_ref(),
         );
         let cancel = CancelToken::new();
         let (_op, _guard) = self.register_op(OpEntry {
