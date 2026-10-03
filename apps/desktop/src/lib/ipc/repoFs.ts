@@ -42,5 +42,7 @@ export function createRepoFs(repoId: string): RepoFs {
     async restoreTrash(token) {
       await call<void>(Commands.fsRestoreTrash, { repoId, token });
     },
+
+    prepareSnapshotIndex: (reset) => call<string>(Commands.fsSnapshotIndexPrepare, { repoId, reset }),
   };
 }

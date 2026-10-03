@@ -35,6 +35,8 @@ import type { RepoChangedEvent } from '@thaigit/contracts';
 import { compareNatural } from '../format/natural.ts';
 import { buildRefLabels, type RefLabel } from '../graph/pills.ts';
 import { DiffStore } from './diff.svelte.ts';
+import { TimelineStore } from '../snapshots/timeline.svelte.ts';
+import { RiskStore } from '../risk/risks.svelte.ts';
 import type { RepoPort } from '../platform/host.ts';
 import { vi } from '../strings.vi.ts';
 import { jsonEqual } from './equality.ts';
@@ -189,6 +191,10 @@ export class RepoStore {
   readonly diff: DiffStore;
   /** Ô soạn commit (giữ khi chuyển qua lại giữa WIP và commit khác). */
   commitDraft = $state({ summary: '', body: '', amend: false });
+  /** Dòng thời gian (snapshot tự động) — panel bên phải thay cho chi tiết khi mở. */
+  readonly timeline: TimelineStore;
+  /** Cờ rủi ro của thay đổi chưa commit (dải cảnh báo trên panel WIP). */
+  readonly risks: RiskStore;
 
   // --- nội bộ (không phản ứng) ---
   private rowIndex = new Map<string, number>();
@@ -213,6 +219,7 @@ export class RepoStore {
   private runningOperations = 0;
   private abort: AbortController | null = null;
   private lastProgressAt = 0;
+  private readonly workingTreeListeners = new Set<() => void>();
 
   constructor(port: RepoPort, options: RepoStoreOptions = {}) {
     this.port = port;
@@ -249,6 +256,40 @@ export class RepoStore {
       diffContext: () => store.prefs.value.diffContext,
       reportError: (title, error) => store.showError(title, error),
     });
+    this.risks = new RiskStore({
+      get git() {
+        return store.git;
+      },
+      get status() {
+        return store.status;
+      },
+    });
+    this.timeline = new TimelineStore({
+      get git() {
+        return store.git;
+      },
+      get rootPath() {
+        return store.rootPath;
+      },
+      get diff() {
+        return store.diff;
+      },
+      prefs: this.prefs,
+      perform: (title, work, options) => store.perform(title, work, options),
+      notify: (style, title, options) => store.notify(style, title, options),
+      showError: (title, error) => store.showError(title, error),
+    });
+  }
+
+  /** App đang chạy (hoặc xếp hàng) thao tác ghi trên repo này. */
+  get isPerforming(): boolean {
+    return this.runningOperations > 0;
+  }
+
+  /** Nghe "working tree đổi" (sự kiện watcher) — bộ lập lịch snapshot dùng. Trả hàm gỡ. */
+  onWorkingTreeChange(listener: () => void): () => void {
+    this.workingTreeListeners.add(listener);
+    return () => this.workingTreeListeners.delete(listener);
   }
 
   get name(): string {
@@ -289,6 +330,7 @@ export class RepoStore {
     // Toast của repo đã đóng mang nút gọi vào store này (Xem lại cấu hình, Tải thêm…): bấm vào sẽ tác động lên repo không còn mở.
     this.toasts.dismissOwner(this.ownerId);
     this.diff.close();
+    this.risks.dispose();
     this.abort?.abort();
     const stop = this.unwatch;
     this.unwatch = null;
@@ -445,6 +487,7 @@ export class RepoStore {
       if (statusResult.ok) {
         this.toasts.dismissTag(this.refreshErrorTag);
         if (!jsonEqual(statusResult.value, this.status)) this.status = statusResult.value;
+        this.risks.schedule();
         // Diff của thay đổi chưa commit đang mở: nạp lại (file vừa sửa / stage) hoặc đóng nếu file không còn.
         this.diff.statusDidChange();
       } else {
@@ -462,7 +505,7 @@ export class RepoStore {
       this.stashes = stashResult.value;
       const selected = this.selection;
       if (selected.kind === 'stash' && !stashResult.value.some((stash) => stash.sha === selected.sha)) {
-        this.select({ kind: 'none' });
+        this.applySelection({ kind: 'none' });
       }
     }
     if (remoteResult?.ok && !jsonEqual(remoteResult.value, this.remotes)) this.remotes = remoteResult.value;
@@ -642,17 +685,18 @@ export class RepoStore {
     if (!this.didChooseInitialSelection && (this.hasLoaded || this.entries.length > 0)) {
       this.didChooseInitialSelection = true;
       const head = this.headOid;
-      if (this.hasWorkingTreeRow) this.select({ kind: 'workingTree' }, true);
-      else if (head !== null && this.rowIndex.has(head)) this.select({ kind: 'commit', sha: head }, true);
+      if (this.hasWorkingTreeRow) this.applySelection({ kind: 'workingTree' }, true);
+      else if (head !== null && this.rowIndex.has(head))
+        this.applySelection({ kind: 'commit', sha: head }, true);
       return;
     }
     const selected = this.selection;
     if (selected.kind === 'workingTree' && !this.hasWorkingTreeRow) {
       const head = this.headOid;
-      if (head !== null && this.rowIndex.has(head)) this.select({ kind: 'commit', sha: head });
-      else this.select({ kind: 'none' });
+      if (head !== null && this.rowIndex.has(head)) this.applySelection({ kind: 'commit', sha: head });
+      else this.applySelection({ kind: 'none' });
     } else if (selected.kind === 'commit' && !this.rowIndex.has(selected.sha)) {
-      this.select({ kind: 'none' });
+      this.applySelection({ kind: 'none' });
     }
   }
 
@@ -666,6 +710,9 @@ export class RepoStore {
     if (event.kinds.includes('refs')) scope |= Scope.refs | Scope.status;
     if (event.kinds.includes('rescan')) scope |= Scope.all;
     if (scope === 0) return;
+    if (event.kinds.includes('workingTree') || event.kinds.includes('rescan')) {
+      for (const listener of this.workingTreeListeners) listener();
+    }
     // Đang chạy thao tác của chính app: việc làm mới diễn ra ngay sau khi thao tác xong (xem `perform`).
     if (this.runningOperations > 0) this.fileSystemPending |= scope;
     else this.requestRefresh(scope);
@@ -673,7 +720,14 @@ export class RepoStore {
 
   // MARK: - Chọn commit / stash
 
+  /** Người dùng chọn (graph, sidebar, tìm kiếm): luôn đóng Dòng thời gian để panel phải hiện đúng mục vừa chọn. */
   select(next: RepoSelection, reveal = false): void {
+    this.timeline.close();
+    this.applySelection(next, reveal);
+  }
+
+  /** Chọn mà không đóng Dòng thời gian — lựa chọn tự động khi nạp / làm mới (vd. WIP biến mất sau khi khôi phục). */
+  private applySelection(next: RepoSelection, reveal = false): void {
     if (!sameSelection(next, this.selection)) {
       this.selection = next;
       // Như Swift: chọn commit / stash / WIP khác thì đóng file đang xem, quay về graph.

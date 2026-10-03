@@ -8,6 +8,7 @@
   import { abortOperation, continueOperation, skipOperation } from '../actions/history.ts';
   import { beginCreateBranch } from '../actions/branches.ts';
   import { startAutoFetch } from '../actions/autoFetch.ts';
+  import { startAutoSnapshots } from '../snapshots/autoSnapshot.ts';
   import { completeHistory, fetch, pull, push } from '../actions/remote.ts';
   import ConflictPane from '../diff/ConflictPane.svelte';
   import DiffPane from '../diff/DiffPane.svelte';
@@ -53,6 +54,7 @@
   const search = untrack(() => new GraphSearch(store));
 
   $effect(() => startAutoFetch(store));
+  $effect(() => startAutoSnapshots(store));
 
   // Kéo-thả: nhánh / tag lên nhánh hoặc remote (menu chọn thao tác), file giữa "Chưa stage" và "Đã stage".
   $effect(() => {

@@ -370,5 +370,197 @@
 			<string>⚠︎ %lld conflicts</string>
 		</dict>
 	</dict>
+	<key>Khôi phục %lld file về mốc này?</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Restore %lld file to this snapshot?</string>
+			<key>other</key>
+			<string>Restore %lld files to this snapshot?</string>
+		</dict>
+	</dict>
+	<key>Đã khôi phục %lld file</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Restored %lld file</string>
+			<key>other</key>
+			<string>Restored %lld files</string>
+		</dict>
+	</dict>
+	<key>Xoá %lld file test</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld test file deleted</string>
+			<key>other</key>
+			<string>%lld test files deleted</string>
+		</dict>
+	</dict>
+	<key>Tắt bớt test (skip / only) trong %lld file</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Tests skipped or narrowed (skip / only) in %lld file</string>
+			<key>other</key>
+			<string>Tests skipped or narrowed (skip / only) in %lld files</string>
+		</dict>
+	</dict>
+	<key>Đổi thư viện phụ thuộc (%lld file)</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Dependencies changed (%lld file)</string>
+			<key>other</key>
+			<string>Dependencies changed (%lld files)</string>
+		</dict>
+	</dict>
+	<key>Đổi CI / Docker (%lld file)</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>CI / Docker changed (%lld file)</string>
+			<key>other</key>
+			<string>CI / Docker changed (%lld files)</string>
+		</dict>
+	</dict>
+	<key>%lld file lớn hơn 1 MB</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld file larger than 1 MB</string>
+			<key>other</key>
+			<string>%lld files larger than 1 MB</string>
+		</dict>
+	</dict>
+	<key>%lld file có thể chứa mật khẩu hoặc khoá bí mật</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld file may contain a password or secret key</string>
+			<key>other</key>
+			<string>%lld files may contain a password or secret key</string>
+		</dict>
+	</dict>
+	<key>và %lld file khác</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>and %lld more file</string>
+			<key>other</key>
+			<string>and %lld more files</string>
+		</dict>
+	</dict>
+	<key>%lld file khác HEAD</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld file differs from HEAD</string>
+			<key>other</key>
+			<string>%lld files differ from HEAD</string>
+		</dict>
+	</dict>
+	<key>Giữ mốc trong %lld ngày</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Keep snapshots for %lld day</string>
+			<key>other</key>
+			<string>Keep snapshots for %lld days</string>
+		</dict>
+	</dict>
+	<key>Tối đa %lld mốc mỗi repo</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>At most %lld snapshot per repo</string>
+			<key>other</key>
+			<string>At most %lld snapshots per repo</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

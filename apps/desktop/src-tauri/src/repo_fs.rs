@@ -34,8 +34,38 @@ const MAX_GITIGNORE_LINE: usize = 4096;
 /// Thùng rác tự dọn sau chừng này.
 pub const TRASH_RETENTION: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
+/// Index tạm của snapshot, tương đối git dir của worktree — khớp `indexFile` trong `packages/contracts/snapshot.json`.
+pub const SNAPSHOT_INDEX_REL: &str = "thaigit/snapshot.index";
+
 fn out_of_scope(rel: &str, reason: &str) -> AppError {
     AppError::OutOfScope(format!("Đường dẫn `{rel}` bị từ chối: {reason}"))
+}
+
+/// Tạo `<gitDir>/thaigit/` (thư mục thật, không phải symlink) và trả đường dẫn tuyệt đối của index tạm; `reset` xoá đúng index
+/// tạm và file `.lock` của nó (index hỏng hoặc khoá mồ côi khi app bị tắt giữa lúc `git add`).
+fn prepare_snapshot_index(entry: &RepoEntry, reset: bool) -> Result<PathBuf> {
+    let (dir_rel, file_name) = SNAPSHOT_INDEX_REL.split_once('/').expect("SNAPSHOT_INDEX_REL có dạng thư-mục/file");
+    let dir = entry.git_dir.join(dir_rel);
+    match std::fs::symlink_metadata(&dir) {
+        Ok(meta) if meta.is_dir() => {}
+        Ok(_) => return Err(out_of_scope(SNAPSHOT_INDEX_REL, "thư mục của index tạm không phải thư mục thật")),
+        Err(_) => std::fs::create_dir_all(&dir).map_err(|e| AppError::io("Tạo thư mục index tạm", &e))?,
+    }
+    let resolved = canonical(&dir).map_err(|e| AppError::io("Thư mục index tạm", &e))?;
+    if relative_to(&resolved, &entry.git_dir).is_none() {
+        return Err(out_of_scope(SNAPSHOT_INDEX_REL, "nằm ngoài git dir"));
+    }
+    let index = resolved.join(file_name);
+    if reset {
+        for path in [index.clone(), resolved.join(format!("{file_name}.lock"))] {
+            match std::fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(AppError::io("Xoá index tạm", &error)),
+            }
+        }
+    }
+    Ok(index)
 }
 
 /// Kiểm đường dẫn tương đối của working tree trước khi chạm đĩa.
@@ -510,6 +540,18 @@ impl Core {
             .map_err(|e| AppError::Internal(format!("Tác vụ nền lỗi: {e}")))?
     }
 
+    /// `fs_snapshot_index_prepare`: giữ khoá kiểu snapshot (repo bận thì `busy`) để không xoá index tạm khi một cửa sổ khác đang
+    /// `git add` vào nó.
+    pub async fn snapshot_index_prepare(&self, repo_id: &str, reset: bool) -> Result<String> {
+        let entry = self.registry.get(repo_id)?;
+        let holder = Holder { op_id: "fs-snapshot-index".into(), background: false, cancel: CancelToken::new() };
+        let _guard = self.locks.for_key(&entry.common_key).try_acquire_quiet(holder).map_err(AppError::from)?;
+        let path = tokio::task::spawn_blocking(move || prepare_snapshot_index(&entry, reset))
+            .await
+            .map_err(|e| AppError::Internal(format!("Tác vụ nền lỗi: {e}")))??;
+        Ok(path.to_string_lossy().into_owned())
+    }
+
     pub async fn restore_trash(&self, repo_id: &str, token: String) -> Result<()> {
         let entry = self.registry.get(repo_id)?;
         // Khôi phục có thể đặt lại một symlink vào working tree nên đi chung khoá độc quyền với lệnh ghi: `diff --no-index`
@@ -769,6 +811,51 @@ mod tests {
         assert_eq!(repo.read("dir/sub/b.txt"), b"b");
         assert!(!root.join(".git/thaigit/trash").join(&token).exists(), "thùng rác được dọn sau khi khôi phục");
         assert_eq!(core.restore_trash(&opened.repo_id, token).await.unwrap_err().code(), "not-found");
+    }
+
+    #[test]
+    fn snapshot_index_path_matches_the_shared_spec() {
+        let spec: serde_json::Value = serde_json::from_str(include_str!("../../../../packages/contracts/snapshot.json")).unwrap();
+        assert_eq!(spec["indexFile"], SNAPSHOT_INDEX_REL);
+    }
+
+    #[tokio::test]
+    async fn snapshot_index_prepare_creates_the_dir_and_reset_removes_only_the_index_and_its_lock() {
+        let repo = TestRepo::new();
+        repo.write("a.txt", "a");
+        repo.commit_all("init");
+        let (core, _data) = core_with(&repo).await;
+        let opened = open(&core, &repo).await;
+        let root = repo.canonical_root();
+        let dir = root.join(".git/thaigit");
+        assert!(!dir.exists());
+
+        let path = core.snapshot_index_prepare(&opened.repo_id, false).await.unwrap();
+        assert_eq!(PathBuf::from(&path), dir.join("snapshot.index"));
+        assert!(dir.is_dir());
+
+        std::fs::write(dir.join("snapshot.index"), "i").unwrap();
+        std::fs::write(dir.join("snapshot.index.lock"), "l").unwrap();
+        std::fs::write(dir.join("khac.txt"), "k").unwrap();
+        core.snapshot_index_prepare(&opened.repo_id, false).await.unwrap();
+        assert!(dir.join("snapshot.index").exists(), "không reset thì giữ nguyên index tạm");
+        core.snapshot_index_prepare(&opened.repo_id, true).await.unwrap();
+        assert!(!dir.join("snapshot.index").exists() && !dir.join("snapshot.index.lock").exists());
+        assert!(dir.join("khac.txt").exists(), "chỉ xoá đúng index tạm và file khoá của nó");
+        assert!(root.join(".git/index").exists(), "index thật không bị đụng tới");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn snapshot_index_prepare_refuses_a_symlinked_dir() {
+        let repo = TestRepo::new();
+        repo.write("a.txt", "a");
+        repo.commit_all("init");
+        let outside = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(outside.path(), repo.canonical_root().join(".git/thaigit")).unwrap();
+        let (core, _data) = core_with(&repo).await;
+        let opened = open(&core, &repo).await;
+        assert_eq!(core.snapshot_index_prepare(&opened.repo_id, true).await.unwrap_err().code(), "out-of-scope");
     }
 
     #[tokio::test]

@@ -102,6 +102,8 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - **So sánh** hai commit bất kỳ (giữ ⌘ và bấm 2 commit trên graph) hoặc một nhánh với nhánh hiện tại (chuột phải vào nhánh → *So sánh với …*): panel bên phải liệt kê các commit nằm giữa và các file khác nhau, bấm file để xem diff.
 - **Ẩn / solo nhánh trên graph**: rê chuột vào nhánh ở sidebar, bấm con mắt để ẩn (hoặc chuột phải → *Ẩn khỏi graph*); *Chỉ hiện nhánh này (solo)* để graph chỉ còn các nhánh đã chọn và nhánh đang checkout. Ẩn nhánh local thì nhánh remote nó theo dõi cũng ẩn theo; app nhớ riêng cho từng repo; dải báo ở đáy graph có nút *Hiện tất cả*.
 - **Blame** (chuột phải vào file → *Blame — ai sửa từng dòng*): mỗi dòng kèm tác giả, thời gian và commit đã sửa nó; theo dấu cả khi đoạn code được chuyển từ file khác sang.
+- **Dòng thời gian** (nút *Dòng thời gian* ở panel thay đổi, hoặc ⌘P): Thaigit tự lưu thư mục làm việc mỗi khi file thay đổi — kể cả file chưa commit — để quay lại được khi code (hay AI) làm hỏng. Chọn một mốc để xem khác gì so với bây giờ, khôi phục một file hoặc tất cả, luôn hỏi trước và có Hoàn tác. Mốc nằm trong `.git` của repo dưới dạng ref ẩn theo worktree (`refs/worktree/thaigit/snapshots`, kiểu `refs/stash`), không bao giờ được push, không đụng tới phần đã stage; mặc định giữ 7 ngày / 300 mốc.
+- **Cảnh báo trước khi commit**: panel thay đổi báo khi có file test bị xoá / bỏ qua, thư viện phụ thuộc hay CI / Docker bị sửa, file lớn hơn 1 MB, hoặc file trông như chứa mật khẩu / khoá bí mật — chỉ hiện tên file, không chặn commit.
 
 **Nhánh, remote, stash, tag**
 - Checkout bằng nhấp đúp; ⌘B để tìm & chuyển nhánh.

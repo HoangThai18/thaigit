@@ -1,0 +1,209 @@
+{
+  "$comment": "Ca kiểm thử dùng chung cho cờ rủi ro trước khi commit: TS (packages/core/src/risk/risk-flags.ts) và Swift (RiskFlags.swift) phải cho kết quả giống hệt. Đầu vào: mỗi file thay đổi chưa commit {path, status: added|modified|deleted, addedLines, size (byte, null = không rõ)}. Kết quả: các cờ theo thứ tự cố định tests-removed, tests-skipped, deps-changed, ci-changed, large-file, secret; mỗi cờ kèm đường dẫn đã sắp xếp. Không bao giờ trả nội dung bí mật — chỉ đường dẫn.",
+  "cases": [
+    {
+      "name": "không có gì đáng ngại",
+      "files": [
+        { "path": "src/app.ts", "status": "modified", "addedLines": ["const x = 1;"], "size": 120 },
+        { "path": "README.md", "status": "added", "addedLines": ["# Xin chào"], "size": 12 }
+      ],
+      "expected": []
+    },
+    {
+      "name": "xoá file test",
+      "files": [
+        { "path": "src/math.test.ts", "status": "deleted", "addedLines": [], "size": null },
+        { "path": "tests/test_api.py", "status": "deleted", "addedLines": [], "size": null },
+        {
+          "path": "Tests/NhanhCoreTests/DiffTests.swift",
+          "status": "deleted",
+          "addedLines": [],
+          "size": null
+        },
+        { "path": "src/__tests__/ui.jsx", "status": "deleted", "addedLines": [], "size": null },
+        { "path": "pkg/server_test.go", "status": "deleted", "addedLines": [], "size": null },
+        { "path": "src/contest.ts", "status": "deleted", "addedLines": [], "size": null },
+        { "path": "src/math.test.ts.bak", "status": "modified", "addedLines": [], "size": 10 }
+      ],
+      "expected": [
+        {
+          "code": "tests-removed",
+          "paths": [
+            "Tests/NhanhCoreTests/DiffTests.swift",
+            "pkg/server_test.go",
+            "src/__tests__/ui.jsx",
+            "src/math.test.ts",
+            "tests/test_api.py"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bỏ qua test",
+      "files": [
+        {
+          "path": "src/a.test.ts",
+          "status": "modified",
+          "addedLines": ["  it.skip('chạy', () => {});"],
+          "size": 50
+        },
+        {
+          "path": "src/b.spec.js",
+          "status": "modified",
+          "addedLines": ["describe.only('x', () => {})"],
+          "size": 50
+        },
+        { "path": "src/c.test.ts", "status": "modified", "addedLines": ["xit('cũ', () => {})"], "size": 50 },
+        { "path": "src/lib.rs", "status": "modified", "addedLines": ["#[ignore]"], "size": 50 },
+        {
+          "path": "tests/d_test.py",
+          "status": "modified",
+          "addedLines": ["@pytest.mark.skip(reason='chậm')"],
+          "size": 50
+        },
+        {
+          "path": "Tests/E.swift",
+          "status": "modified",
+          "addedLines": ["throw XCTSkip(\"chưa xong\")"],
+          "size": 50
+        },
+        { "path": "src/app.ts", "status": "modified", "addedLines": ["list.skip(2)"], "size": 50 },
+        { "path": "src/f.test.ts", "status": "modified", "addedLines": ["const skipped = true;"], "size": 50 }
+      ],
+      "expected": [
+        {
+          "code": "tests-skipped",
+          "paths": ["Tests/E.swift", "src/a.test.ts", "src/b.spec.js", "src/c.test.ts", "tests/d_test.py"]
+        }
+      ]
+    },
+    {
+      "name": "đổi thư viện phụ thuộc và CI",
+      "files": [
+        {
+          "path": "package.json",
+          "status": "modified",
+          "addedLines": ["\"left-pad\": \"^1.0.0\""],
+          "size": 900
+        },
+        { "path": "apps/web/pnpm-lock.yaml", "status": "modified", "addedLines": [], "size": 900 },
+        { "path": "Cargo.toml", "status": "modified", "addedLines": [], "size": 900 },
+        { "path": "Package.resolved", "status": "added", "addedLines": [], "size": 900 },
+        { "path": "requirements-dev.txt", "status": "modified", "addedLines": [], "size": 90 },
+        { "path": "go.mod", "status": "deleted", "addedLines": [], "size": null },
+        { "path": ".github/workflows/release.yml", "status": "modified", "addedLines": [], "size": 900 },
+        { "path": ".gitlab-ci.yml", "status": "added", "addedLines": [], "size": 900 },
+        { "path": "docker/Dockerfile", "status": "modified", "addedLines": [], "size": 900 },
+        { "path": "docker-compose.prod.yml", "status": "modified", "addedLines": [], "size": 900 },
+        { "path": "docs/package.json.md", "status": "modified", "addedLines": [], "size": 900 }
+      ],
+      "expected": [
+        {
+          "code": "deps-changed",
+          "paths": [
+            "Cargo.toml",
+            "Package.resolved",
+            "apps/web/pnpm-lock.yaml",
+            "go.mod",
+            "package.json",
+            "requirements-dev.txt"
+          ]
+        },
+        {
+          "code": "ci-changed",
+          "paths": [
+            ".github/workflows/release.yml",
+            ".gitlab-ci.yml",
+            "docker-compose.prod.yml",
+            "docker/Dockerfile"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "file lớn",
+      "files": [
+        { "path": "data/dump.sql", "status": "added", "addedLines": [], "size": 1048577 },
+        { "path": "assets/logo.png", "status": "modified", "addedLines": [], "size": 1048576 },
+        { "path": "build/app.zip", "status": "deleted", "addedLines": [], "size": 99999999 },
+        { "path": "src/x.ts", "status": "added", "addedLines": [], "size": null }
+      ],
+      "expected": [{ "code": "large-file", "paths": ["data/dump.sql"] }]
+    },
+    {
+      "name": "bí mật: theo tên file và theo nội dung",
+      "files": [
+        { "path": ".env", "status": "added", "addedLines": ["DEBUG=1"], "size": 8 },
+        { "path": "config/.env.production", "status": "modified", "addedLines": [], "size": 8 },
+        { "path": "keys/server.pem", "status": "added", "addedLines": [], "size": 900 },
+        {
+          "path": "src/aws.ts",
+          "status": "modified",
+          "addedLines": ["const key = 'AKIAIOSFODNN7EXAMPLE';"],
+          "size": 90
+        },
+        {
+          "path": "src/gh.ts",
+          "status": "modified",
+          "addedLines": ["token = ghp_0123456789abcdefghijABCDEFGHIJ012345"],
+          "size": 90
+        },
+        {
+          "path": "src/db.ts",
+          "status": "added",
+          "addedLines": ["const url = 'postgres://admin:S3cr3t!@db.local/app';"],
+          "size": 90
+        },
+        {
+          "path": "src/conf.py",
+          "status": "modified",
+          "addedLines": ["API_KEY = \"q8Zr2Lx9TfVb7WmN4pKs\""],
+          "size": 90
+        },
+        {
+          "path": "src/ok.ts",
+          "status": "modified",
+          "addedLines": [
+            "const password = process.env.PASSWORD;",
+            "apiKey: config.apiKey,",
+            "token = 'changeme'"
+          ],
+          "size": 90
+        },
+        { "path": ".env.example", "status": "deleted", "addedLines": [], "size": null }
+      ],
+      "expected": [
+        {
+          "code": "secret",
+          "paths": [
+            ".env",
+            "config/.env.production",
+            "keys/server.pem",
+            "src/aws.ts",
+            "src/conf.py",
+            "src/db.ts",
+            "src/gh.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "một file có nhiều cờ, thứ tự cờ cố định",
+      "files": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "status": "modified",
+          "addedLines": ["GITHUB_TOKEN: ghp_0123456789abcdefghijABCDEFGHIJ012345"],
+          "size": 2000000
+        },
+        { "path": "src/x.spec.ts", "status": "deleted", "addedLines": [], "size": null }
+      ],
+      "expected": [
+        { "code": "tests-removed", "paths": ["src/x.spec.ts"] },
+        { "code": "ci-changed", "paths": [".github/workflows/ci.yml"] },
+        { "code": "large-file", "paths": [".github/workflows/ci.yml"] },
+        { "code": "secret", "paths": [".github/workflows/ci.yml"] }
+      ]
+    }
+  ]
+}

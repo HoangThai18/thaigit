@@ -147,6 +147,7 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::fs_append_gitignore,
         commands::fs_trash_untracked,
         commands::fs_restore_trash,
+        commands::fs_snapshot_index_prepare,
         commands::watch_repo,
         commands::unwatch_repo,
         commands::git_locate,

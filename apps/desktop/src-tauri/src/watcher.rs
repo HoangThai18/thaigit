@@ -73,6 +73,9 @@ impl Change {
 }
 
 /// Phân loại thay đổi bên trong thư mục `.git` (port nguyên `RepoWatcher.classifyGitPath`).
+/// Thư mục của ref snapshot (`ref` trong `packages/contracts/snapshot.json`).
+const SNAPSHOT_REF_DIR: &str = "refs/worktree/thaigit/";
+
 pub fn classify_git_path(relative: &str) -> Change {
     if relative.is_empty() {
         return Change::NONE;
@@ -80,6 +83,10 @@ pub fn classify_git_path(relative: &str) -> Change {
     const IGNORED_PREFIXES: [&str; 10] =
         ["objects/", "logs/", "lfs/", "hooks/", "info/", "modules/", "fsmonitor", "gc.", "FETCH_HEAD", "ORIG_HEAD.lock"];
     if IGNORED_PREFIXES.iter().any(|p| relative.starts_with(p)) || relative.ends_with(".lock") {
+        return Change::NONE;
+    }
+    // Ref snapshot per-worktree của app (`snapshot.json`), kể cả của worktree khác thấy qua common dir.
+    if relative.starts_with(SNAPSHOT_REF_DIR) || relative.contains(&format!("/{SNAPSHOT_REF_DIR}")) {
         return Change::NONE;
     }
     if relative == "index" {
@@ -459,6 +466,12 @@ mod tests {
     use std::sync::mpsc;
 
     #[test]
+    fn snapshot_ref_dir_matches_the_shared_spec() {
+        let spec: serde_json::Value = serde_json::from_str(include_str!("../../../../packages/contracts/snapshot.json")).unwrap();
+        assert_eq!(spec["ref"], format!("{SNAPSHOT_REF_DIR}snapshots"));
+    }
+
+    #[test]
     fn classify_git_path_ports_the_swift_table() {
         for (path, expected) in [
             ("", Change::NONE),
@@ -492,6 +505,11 @@ mod tests {
             ("sequencer/todo", Change::BOTH),
             ("BISECT_LOG", Change::BOTH),
             ("worktrees/wt/HEAD", Change::BOTH),
+            // Snapshot của Thaigit (index tạm + ref per-worktree): không phải thay đổi của người dùng.
+            ("thaigit/snapshot.index", Change::NONE),
+            ("refs/worktree/thaigit/snapshots", Change::NONE),
+            ("worktrees/wt/refs/worktree/thaigit/snapshots", Change::NONE),
+            ("refs/worktree/khac", Change::BOTH),
         ] {
             assert_eq!(classify_git_path(path), expected, "{path:?}");
         }

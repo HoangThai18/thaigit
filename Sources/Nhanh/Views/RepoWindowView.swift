@@ -129,6 +129,14 @@ struct InspectorPanel: View {
     @Bindable var model: RepoModel
 
     var body: some View {
+        if model.timeline.isOpen {
+            TimelineView(model: model)
+        } else {
+            selectionPanel
+        }
+    }
+
+    @ViewBuilder private var selectionPanel: some View {
         switch model.selection {
         case .workingTree:
             StagingView(model: model)

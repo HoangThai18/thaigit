@@ -8,6 +8,7 @@
   import { fileMenu } from '../actions/menus.ts';
   import { discardFiles, stageAll, stageFiles, unstageAll, unstageFiles } from '../actions/staging.ts';
   import { showBidi } from '../format/bidi.ts';
+  import RiskBanner from '../risk/RiskBanner.svelte';
   import ChangeList from '../staging/ChangeList.svelte';
   import CommitComposer from '../staging/CommitComposer.svelte';
   import { vi } from '../strings.vi.ts';
@@ -44,7 +45,19 @@
         <span class="branch"><bdi>{showBidi(vi.staging.onBranch(store.currentBranch))}</bdi></span>
       {/if}
     </div>
+    <button
+      type="button"
+      class="timeline-btn"
+      title={vi.snapshots.openHint}
+      aria-label={vi.snapshots.title}
+      onclick={() => store.timeline.open()}
+    >
+      <Icon name="clock" size={14} />
+      <span>{vi.snapshots.title}</span>
+    </button>
   </header>
+
+  <RiskBanner flags={store.risks.flags} />
 
   {#if conflicts.length > 0}
     <div class="section conflicts">
@@ -132,8 +145,32 @@
 
   .titles {
     display: flex;
+    flex: 1;
     flex-direction: column;
     min-width: 0;
+  }
+
+  .timeline-btn {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+  }
+
+  .timeline-btn :global(svg) {
+    color: var(--accent);
+  }
+
+  .timeline-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   h2 {

@@ -23,6 +23,7 @@ const APP_COMMANDS: &[&str] = &[
     "fs_append_gitignore",
     "fs_trash_untracked",
     "fs_restore_trash",
+    "fs_snapshot_index_prepare",
     "watch_repo",
     "unwatch_repo",
     "git_locate",

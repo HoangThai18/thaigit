@@ -1,6 +1,7 @@
-<!-- Panel chi tiết bên phải: chọn theo `store.selection` (commit / stash / WIP / chưa chọn). -->
+<!-- Panel chi tiết bên phải: Dòng thời gian khi đang mở, không thì theo `store.selection` (commit / stash / WIP / chưa chọn). -->
 <script lang="ts">
   import { vi } from '../strings.vi.ts';
+  import TimelinePanel from '../snapshots/TimelinePanel.svelte';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import CommitDetail from './CommitDetail.svelte';
   import StashDetail from './StashDetail.svelte';
@@ -16,7 +17,9 @@
 </script>
 
 <div class="inspector" role="region" aria-label={vi.inspector.ariaLabel}>
-  {#if selection.kind === 'workingTree'}
+  {#if store.timeline.isOpen}
+    <TimelinePanel {store} />
+  {:else if selection.kind === 'workingTree'}
     <WipPanel {store} />
   {:else if selection.kind === 'commit'}
     {#key selection.sha}

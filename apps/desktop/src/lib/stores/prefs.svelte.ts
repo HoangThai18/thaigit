@@ -2,6 +2,7 @@
  * Cài đặt người dùng lưu ở localStorage (webview). Hôm nay chỉ vài giá trị mà graph/sidebar/bố cục cần; màn Cài đặt (4b)
  * sẽ sửa chính các trường này. Dữ liệu đọc ra luôn qua `sanitizePrefs` (localStorage có thể bị sửa/hỏng).
  */
+import { snapshotSpec } from '@thaigit/contracts';
 import type { LogOrder } from '@thaigit/core';
 import { DEFAULT_WIDTHS, sanitizePreferred, type PreferredWidths } from '../graph/columns.ts';
 import { jsonEqual } from './equality.ts';
@@ -47,6 +48,14 @@ export interface PrefsData {
   diffContext: number;
   /** Diff gộp (một cột) hay tách đôi (cũ | mới). */
   diffLayout: DiffLayout;
+  /** Tự lưu snapshot thư mục làm việc khi file đổi (Dòng thời gian). */
+  snapshotsEnabled: boolean;
+  snapshotKeepDays: number;
+  snapshotKeepCount: number;
+  /** Gốc repo (đường dẫn) đã tắt tự lưu riêng. */
+  snapshotsDisabledRepos: string[];
+  /** Đã hiện thông báo giải thích lần đầu tự lưu. */
+  snapshotNoticeShown: boolean;
 }
 
 export const SIDEBAR_LIMITS = { min: 210, max: 440, ideal: 260 } as const;
@@ -56,6 +65,10 @@ export const COMMIT_LIMIT_MAX = 200_000;
 /** 0 = tắt tự fetch; trần 24 giờ. */
 export const AUTO_FETCH_MINUTES_MAX = 1440;
 export const DIFF_CONTEXT_MAX = 100;
+export const SNAPSHOT_KEEP_DAYS = { min: 1, max: 90 } as const;
+export const SNAPSHOT_KEEP_COUNT = { min: 20, max: 2000 } as const;
+/** Trần số repo trong danh sách tắt tự lưu (localStorage không phình mãi). */
+const SNAPSHOT_DISABLED_MAX = 500;
 
 export function defaultPrefs(): PrefsData {
   return {
@@ -77,7 +90,18 @@ export function defaultPrefs(): PrefsData {
     autoFetchMinutes: 10,
     diffContext: 3,
     diffLayout: 'unified',
+    snapshotsEnabled: true,
+    snapshotKeepDays: snapshotSpec.defaults.keepDays,
+    snapshotKeepCount: snapshotSpec.defaults.keepCount,
+    snapshotsDisabledRepos: [],
+    snapshotNoticeShown: false,
   };
+}
+
+function stringList(value: unknown, max: number): string[] {
+  if (!Array.isArray(value)) return [];
+  const unique = new Set(value.filter((item): item is string => typeof item === 'string' && item !== ''));
+  return [...unique].slice(-max);
 }
 
 function bool(value: unknown, fallback: boolean): boolean {
@@ -129,6 +153,21 @@ export function sanitizePrefs(raw: unknown): PrefsData {
     autoFetchMinutes: clamp(source.autoFetchMinutes, 0, AUTO_FETCH_MINUTES_MAX, base.autoFetchMinutes),
     diffContext: clamp(source.diffContext, 0, DIFF_CONTEXT_MAX, base.diffContext),
     diffLayout: source.diffLayout === 'split' ? 'split' : 'unified',
+    snapshotsEnabled: bool(source.snapshotsEnabled, base.snapshotsEnabled),
+    snapshotKeepDays: clamp(
+      source.snapshotKeepDays,
+      SNAPSHOT_KEEP_DAYS.min,
+      SNAPSHOT_KEEP_DAYS.max,
+      base.snapshotKeepDays,
+    ),
+    snapshotKeepCount: clamp(
+      source.snapshotKeepCount,
+      SNAPSHOT_KEEP_COUNT.min,
+      SNAPSHOT_KEEP_COUNT.max,
+      base.snapshotKeepCount,
+    ),
+    snapshotsDisabledRepos: stringList(source.snapshotsDisabledRepos, SNAPSHOT_DISABLED_MAX),
+    snapshotNoticeShown: bool(source.snapshotNoticeShown, base.snapshotNoticeShown),
   };
 }
 

@@ -55,6 +55,18 @@
       },
       "GIT_INDEX_FILE": {
         "pathInside": "gitDir"
+      },
+      "GIT_AUTHOR_NAME": {
+        "values": ["Thaigit"]
+      },
+      "GIT_AUTHOR_EMAIL": {
+        "values": ["snapshot@thaigit.invalid"]
+      },
+      "GIT_COMMITTER_NAME": {
+        "values": ["Thaigit"]
+      },
+      "GIT_COMMITTER_EMAIL": {
+        "values": ["snapshot@thaigit.invalid"]
       }
     },
     "profiles": {
@@ -145,6 +157,9 @@
       "kind": "write",
       "allowShort": ["-c", "-C", "-u", "-o"]
     },
+    "commit-tree": {
+      "kind": "write"
+    },
     "config": {
       "kind": "read",
       "requireAny": ["--get", "--get-all", "--get-regexp", "--list", "-l"],
@@ -207,6 +222,10 @@
     },
     "rebase": {
       "kind": "write"
+    },
+    "reflog": {
+      "kind": "write",
+      "allowSecond": ["delete"]
     },
     "remote": {
       "kind": "write",
@@ -281,6 +300,9 @@
     },
     "version": {
       "kind": "read"
+    },
+    "write-tree": {
+      "kind": "write"
     }
   },
   "typedOnly": {

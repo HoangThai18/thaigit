@@ -109,6 +109,9 @@ private struct GitSettings: View {
     @AppStorage(Prefs.pullMode) private var pullMode = PullMode.merge.rawValue
     @AppStorage(Prefs.fetchPrune) private var fetchPrune = true
     @AppStorage(Prefs.autoFetchMinutes) private var autoFetchMinutes = 5
+    @AppStorage(Prefs.snapshotsEnabled) private var snapshotsEnabled = true
+    @AppStorage(Prefs.snapshotKeepDays) private var snapshotKeepDays = SnapshotSpec.defaultKeepDays
+    @AppStorage(Prefs.snapshotKeepCount) private var snapshotKeepCount = SnapshotSpec.defaultKeepCount
 
     var body: some View {
         Form {
@@ -147,6 +150,14 @@ private struct GitSettings: View {
                     Text("Mỗi 15 phút").tag(15)
                     Text("Mỗi 30 phút").tag(30)
                 }
+            }
+            Section("Dòng thời gian") {
+                Toggle("Tự lưu thư mục làm việc khi file thay đổi", isOn: $snapshotsEnabled)
+                Stepper("Giữ mốc trong \(snapshotKeepDays) ngày", value: $snapshotKeepDays, in: 1...90)
+                Stepper("Tối đa \(snapshotKeepCount) mốc mỗi repo", value: $snapshotKeepCount, in: 20...2000, step: 20)
+                Text("Mốc nằm trong thư mục .git của từng repo (ref ẩn theo worktree), không bao giờ được push. Tắt riêng cho một repo ở panel Dòng thời gian.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section {
                 Text("Xác thực: Thaigit dùng SSH key, ssh-agent và Keychain sẵn có trên máy (giống terminal). Đã đăng nhập GitHub (thẻ Tài khoản) thì repo HTTPS trên github.com dùng tài khoản đó. Nếu cần mật khẩu, token hoặc passphrase, một hộp thoại sẽ hiện ra.")

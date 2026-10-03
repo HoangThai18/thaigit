@@ -89,6 +89,14 @@ final class RepoModel {
     var confirmation: Confirmation?
     var dragRequest: DragRequest?
     var showInspector = true
+    /// Dòng thời gian (snapshot tự động) — xem RepoModel+Snapshots.swift.
+    var timeline = TimelineState()
+    @ObservationIgnored var snapshotTask: Task<Void, Never>?
+    @ObservationIgnored var lastSnapshotAt = Date.distantPast
+    @ObservationIgnored var lastSnapshotPruneAt = Date.distantPast
+    /// Cờ rủi ro của thay đổi chưa commit (dải cảnh báo trên panel WIP).
+    var riskFlags: [RiskFlag] = []
+    @ObservationIgnored var riskTask: Task<Void, Never>?
     var searchText = "" {
         didSet { if searchText != oldValue { updateSearch() } }
     }
@@ -106,7 +114,7 @@ final class RepoModel {
     @ObservationIgnored var diffTask: Task<Void, Never>?
     @ObservationIgnored private var operationChain: Task<Void, Never>?
     @ObservationIgnored private var currentOperationTask: Task<Void, Never>?
-    @ObservationIgnored private var runningOperations = 0
+    @ObservationIgnored private(set) var runningOperations = 0
     @ObservationIgnored private var autoFetchTask: Task<Void, Never>?
     @ObservationIgnored private var lastProgressUpdate = Date.distantPast
     @ObservationIgnored private var isActive = false
@@ -147,6 +155,8 @@ final class RepoModel {
         self.watcher = watcher
         scheduleAutoFetch()
         loadCommitterIdentity()
+        // Mở repo cũng chụp một mốc: file có thể đã đổi lúc app đóng.
+        noteWorkingTreeChangeForSnapshots()
     }
 
     func stop() {
@@ -155,6 +165,8 @@ final class RepoModel {
         watcher = nil
         autoFetchTask?.cancel()
         fileSystemDebounce?.cancel()
+        snapshotTask?.cancel()
+        riskTask?.cancel()
     }
 
     // MARK: - Thuộc tính tiện dụng
@@ -268,6 +280,8 @@ final class RepoModel {
                 status = value
                 statusChanged = true
             }
+            // Cả khi danh sách file không đổi: agent có thể vừa thêm một dòng token vào file vốn đã "sửa".
+            scheduleRiskCheck()
         case .failure(let error)?:
             if !FileManager.default.fileExists(atPath: repository.root.path) {
                 toast(.error, String(localized: "Không tìm thấy thư mục repository"), message: repository.root.path)
@@ -280,7 +294,7 @@ final class RepoModel {
         if case .success(let value)? = newRefs, value != refs { updateRefs(value) }
         if case .success(let value)? = newStashes, value != stashes {
             stashes = value
-            if case .stash(let sha) = selection, !value.contains(where: { $0.sha == sha }) { select(.none) }
+            if case .stash(let sha) = selection, !value.contains(where: { $0.sha == sha }) { applySelection(.none) }
         }
         if case .success(let value)? = newRemotes, value != remotes {
             remotes = value
@@ -402,17 +416,17 @@ final class RepoModel {
         if !didChooseInitialSelection, hasLoaded || !entries.isEmpty {
             didChooseInitialSelection = true
             if hasWorkingTreeRow {
-                select(.workingTree, reveal: true)
+                applySelection(.workingTree, reveal: true)
             } else if let head = headOID, rowIndex[head] != nil {
-                select(.commit(head), reveal: true)
+                applySelection(.commit(head), reveal: true)
             }
             return
         }
         switch selection {
         case .workingTree where !hasWorkingTreeRow:
-            if let head = headOID, rowIndex[head] != nil { select(.commit(head)) } else { select(.none) }
+            if let head = headOID, rowIndex[head] != nil { applySelection(.commit(head)) } else { applySelection(.none) }
         case .commit(let sha) where rowIndex[sha] == nil:
-            select(.none)
+            applySelection(.none)
         default:
             break
         }
@@ -476,6 +490,7 @@ final class RepoModel {
 
     private func handleFileSystemChange(_ change: RepoWatcher.Change) {
         guard isActive else { return }
+        if change.contains(.workingTree) { noteWorkingTreeChangeForSnapshots() }
         if change.contains(.workingTree) { fileSystemPending.insert(.status) }
         if change.contains(.refs) { fileSystemPending.formUnion([.refs, .status]) }
         // Khi đang chạy thao tác, việc làm mới sẽ diễn ra sau khi thao tác xong.
@@ -522,7 +537,14 @@ final class RepoModel {
 
     // MARK: - Chọn commit
 
+    /// Người dùng chọn (graph, sidebar, tìm kiếm): luôn đóng Dòng thời gian để panel phải hiện đúng mục vừa chọn.
     func select(_ newSelection: RepoSelection, reveal: Bool = false) {
+        timeline.isOpen = false
+        applySelection(newSelection, reveal: reveal)
+    }
+
+    /// Chọn mà không đóng Dòng thời gian — lựa chọn tự động khi nạp / làm mới (vd. WIP biến mất sau khi khôi phục).
+    func applySelection(_ newSelection: RepoSelection, reveal: Bool = false) {
         if newSelection != selection {
             selection = newSelection
             closeFile()

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { chmod, lstat, mkdir, readFile, readdir, stat, symlink, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, readFile, readdir, realpath, stat, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AdapterError, CancelledError, GitError, RepositoryError } from '../src/git/index.ts';
@@ -649,6 +649,39 @@ describe('NodeRepoFs: thùng rác của app', () => {
       const keep = new NodeRepoFs({ root: t.repo.root, gitDir: t.repo.gitDir, commonDir: t.repo.commonDir });
       await keep.restoreTrash(second).catch(() => undefined);
     }));
+});
+
+describe('NodeRepoFs: index tạm của snapshot', () => {
+  const fsFor = (t: TestRepo) =>
+    new NodeRepoFs({ root: t.repo.root, gitDir: t.repo.gitDir, commonDir: t.repo.commonDir });
+
+  it('tạo <gitDir>/thaigit/ và trả đường dẫn index tạm; reset chỉ xoá index tạm và file khoá của nó', () =>
+    withTestRepo(async (t) => {
+      const fs = fsFor(t);
+      const dir = join(await realpath(t.repo.gitDir), 'thaigit');
+      const path = await fs.prepareSnapshotIndex(false);
+      expect(path).toBe(join(dir, 'snapshot.index'));
+      expect((await stat(dir)).isDirectory()).toBe(true);
+      await writeFile(join(dir, 'snapshot.index'), 'i');
+      await writeFile(join(dir, 'snapshot.index.lock'), 'l');
+      await writeFile(join(dir, 'khac.txt'), 'k');
+      await fs.prepareSnapshotIndex(false);
+      expect(await fileExists(join(dir, 'snapshot.index'))).toBe(true);
+      await fs.prepareSnapshotIndex(true);
+      expect(await fileExists(join(dir, 'snapshot.index'))).toBe(false);
+      expect(await fileExists(join(dir, 'snapshot.index.lock'))).toBe(false);
+      expect(await fileExists(join(dir, 'khac.txt'))).toBe(true);
+    }));
+
+  it.skipIf(IS_WINDOWS)('từ chối khi thư mục thaigit là symlink', () =>
+    withTestRepo(async (t) => {
+      const outside = join(t.root, '..', 'ngoai-snapshot');
+      await mkdir(outside);
+      await symlink(outside, join(t.repo.gitDir, 'thaigit'));
+      const error = await rejection(fsFor(t).prepareSnapshotIndex(true));
+      expect((error as AdapterError).code).toBe('out-of-scope');
+    }),
+  );
 });
 
 describe('NodeGitHost', () => {

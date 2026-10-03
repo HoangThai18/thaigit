@@ -45,6 +45,13 @@ export {
   type RepositoryErrorKind,
 } from './repository.ts';
 export {
+  SnapshotStore,
+  type SnapshotEntry,
+  type SnapshotPruneOptions,
+  type SnapshotRestoreResult,
+  type SnapshotTakeOptions,
+} from './snapshot.ts';
+export {
   CommandLog,
   MAX_STDERR_CHARS,
   commandLine,

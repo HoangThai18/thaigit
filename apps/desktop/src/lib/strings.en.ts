@@ -4,8 +4,10 @@ import { ai } from './strings/ai.en.ts';
 import { branches } from './strings/branches.en.ts';
 import { dnd } from './strings/dnd.en.ts';
 import { remote } from './strings/remote.en.ts';
+import { risk } from './strings/risk.en.ts';
 import { settings } from './strings/settings.en.ts';
 import { shell } from './strings/shell.en.ts';
+import { snapshots } from './strings/snapshots.en.ts';
 import { staging } from './strings/staging.en.ts';
 import { update } from './strings/update.en.ts';
 import type { Strings } from './strings.vi.ts';
@@ -21,4 +23,6 @@ export const en: Strings = {
   dnd,
   accounts,
   pullRequests,
+  snapshots,
+  risk,
 };

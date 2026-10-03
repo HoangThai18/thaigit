@@ -14,6 +14,8 @@
     COMMIT_LIMIT_MAX,
     COMMIT_LIMIT_MIN,
     DIFF_CONTEXT_MAX,
+    SNAPSHOT_KEEP_COUNT,
+    SNAPSHOT_KEEP_DAYS,
     prefs as defaultPrefs,
     type ColorScheme,
     type PrefsStore,
@@ -243,6 +245,43 @@
               onchange={(event) => numberInput(event, (n) => prefs.update({ autoFetchMinutes: n }))}
             />
           </label>
+        </section>
+
+        <section>
+          <h3>{vi.snapshots.settingsTitle}</h3>
+          <label class="check">
+            <input
+              type="checkbox"
+              checked={value.snapshotsEnabled}
+              onchange={(event) => prefs.update({ snapshotsEnabled: event.currentTarget.checked })}
+            />
+            <span>{vi.snapshots.settingsEnabled}</span>
+          </label>
+          <label class="row">
+            <span>{vi.snapshots.keepDays}</span>
+            <input
+              type="number"
+              min={SNAPSHOT_KEEP_DAYS.min}
+              max={SNAPSHOT_KEEP_DAYS.max}
+              value={value.snapshotKeepDays}
+              data-current={value.snapshotKeepDays}
+              title={vi.settings.invalidNumber(SNAPSHOT_KEEP_DAYS.min, SNAPSHOT_KEEP_DAYS.max)}
+              onchange={(event) => numberInput(event, (n) => prefs.update({ snapshotKeepDays: n }))}
+            />
+          </label>
+          <label class="row">
+            <span>{vi.snapshots.keepCount}</span>
+            <input
+              type="number"
+              min={SNAPSHOT_KEEP_COUNT.min}
+              max={SNAPSHOT_KEEP_COUNT.max}
+              value={value.snapshotKeepCount}
+              data-current={value.snapshotKeepCount}
+              title={vi.settings.invalidNumber(SNAPSHOT_KEEP_COUNT.min, SNAPSHOT_KEEP_COUNT.max)}
+              onchange={(event) => numberInput(event, (n) => prefs.update({ snapshotKeepCount: n }))}
+            />
+          </label>
+          <p class="help">{vi.snapshots.settingsHelp}</p>
         </section>
 
         <section>

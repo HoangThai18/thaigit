@@ -15,3 +15,4 @@ export {
   unquoteGitPath,
   type LineEnding,
 } from './support/text.ts';
+export * from './risk/index.ts';

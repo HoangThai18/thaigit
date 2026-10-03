@@ -28,6 +28,7 @@
     "allow-fs-append-gitignore",
     "allow-fs-trash-untracked",
     "allow-fs-restore-trash",
+    "allow-fs-snapshot-index-prepare",
     "allow-watch-repo",
     "allow-unwatch-repo",
     "allow-git-locate",

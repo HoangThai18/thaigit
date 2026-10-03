@@ -243,6 +243,10 @@ describe('Parsers (port ParserTests.swift)', () => {
     expect(classifyGitPath('index.lock')).toEqual([]);
     expect(classifyGitPath('index')).toEqual(['workingTree']);
     expect(classifyGitPath('refs/heads/main')).toEqual(['refs', 'workingTree']);
+    expect(classifyGitPath('refs/worktree/thaigit/snapshots')).toEqual([]);
+    expect(classifyGitPath('worktrees/wt/refs/worktree/thaigit/snapshots')).toEqual([]);
+    expect(classifyGitPath('thaigit/snapshot.index')).toEqual([]);
+    expect(classifyGitPath('refs/worktree/khac')).toEqual(['refs', 'workingTree']);
     expect(classifyGitPath('HEAD')).toEqual(['refs', 'workingTree']);
     expect(classifyGitPath('MERGE_HEAD')).toEqual(['refs', 'workingTree']);
   });

@@ -113,6 +113,9 @@ public final class RepoWatcher: @unchecked Sendable {
         let ignoredPrefixes = ["objects/", "logs/", "lfs/", "hooks/", "info/", "modules/", "fsmonitor", "gc.", "FETCH_HEAD", "ORIG_HEAD.lock"]
         if ignoredPrefixes.contains(where: { relative.hasPrefix($0) }) { return [] }
         if relative.hasSuffix(".lock") { return [] }
+        // Snapshot của app (kể cả của worktree khác thấy qua common dir) không phải thay đổi của người dùng.
+        let snapshotRefs = SnapshotSpec.refDirectory
+        if relative.hasPrefix(snapshotRefs) || relative.contains("/" + snapshotRefs) { return [] }
         if relative == "index" { return .workingTree }
         if relative == "HEAD" || relative == "packed-refs" || relative.hasPrefix("refs/")
             || relative.hasPrefix("rebase-") || relative.hasSuffix("_HEAD") || relative.hasPrefix("sequencer")

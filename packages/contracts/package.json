@@ -7,7 +7,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./git-policy.json": "./git-policy.json",
-    "./git-policy.vectors.json": "./git-policy.vectors.json"
+    "./git-policy.vectors.json": "./git-policy.vectors.json",
+    "./snapshot.json": "./snapshot.json",
+    "./snapshot.vectors.json": "./snapshot.vectors.json",
+    "./risk-rules.vectors.json": "./risk-rules.vectors.json"
   },
   "scripts": {
     "test": "vitest run",

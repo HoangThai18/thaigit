@@ -22,6 +22,11 @@ enum Prefs {
     static let lastLaunchedVersion = "lastLaunchedVersion"
     static let pendingUpdateNotes = "pendingUpdateNotes"
     static let settingsTab = "settingsTab"
+    static let snapshotsEnabled = "snapshotsEnabled"
+    static let snapshotKeepDays = "snapshotKeepDays"
+    static let snapshotKeepCount = "snapshotKeepCount"
+    static let snapshotsDisabledRepos = "snapshotsDisabledRepos"
+    static let snapshotNoticeShown = "snapshotNoticeShown"
 
     static func register() {
         UserDefaults.standard.register(defaults: [
@@ -37,6 +42,9 @@ enum Prefs {
             showRemoteBranches: true,
             showTags: true,
             autoUpdate: true,
+            snapshotsEnabled: true,
+            snapshotKeepDays: SnapshotSpec.defaultKeepDays,
+            snapshotKeepCount: SnapshotSpec.defaultKeepCount,
         ])
     }
 
@@ -48,6 +56,13 @@ enum Prefs {
     static var diffContextValue: Int { min(20, max(0, UserDefaults.standard.integer(forKey: diffContext))) }
     static var showRemoteBranchesValue: Bool { UserDefaults.standard.bool(forKey: showRemoteBranches) }
     static var showTagsValue: Bool { UserDefaults.standard.bool(forKey: showTags) }
+    static var snapshotsEnabledValue: Bool { UserDefaults.standard.bool(forKey: snapshotsEnabled) }
+    static var snapshotKeepDaysValue: Int { min(90, max(1, UserDefaults.standard.integer(forKey: snapshotKeepDays))) }
+    static var snapshotKeepCountValue: Int { min(2000, max(20, UserDefaults.standard.integer(forKey: snapshotKeepCount))) }
+    static var snapshotsDisabledReposValue: [String] {
+        get { UserDefaults.standard.stringArray(forKey: snapshotsDisabledRepos) ?? [] }
+        set { UserDefaults.standard.set(Array(newValue.suffix(500)), forKey: snapshotsDisabledRepos) }
+    }
 }
 
 /// Trạng thái dùng chung toàn app: môi trường git, repo gần đây, yêu cầu mở từ Finder/Dock.

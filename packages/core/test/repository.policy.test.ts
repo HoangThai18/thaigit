@@ -32,6 +32,7 @@ const fakeFs: RepoFs = {
   appendGitignore: async () => undefined,
   trashUntracked: async () => 'token',
   restoreTrash: async () => undefined,
+  prepareSnapshotIndex: async () => '/repo/.git/thaigit/snapshot.index',
 };
 const typedCalls: string[] = [];
 const fakeTyped: TypedGit = {

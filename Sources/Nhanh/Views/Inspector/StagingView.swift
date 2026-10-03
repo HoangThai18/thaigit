@@ -8,6 +8,9 @@ struct StagingView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if !model.riskFlags.isEmpty {
+                RiskBanner(flags: model.riskFlags)
+            }
             Divider()
             if !model.status.conflicts.isEmpty {
                 ConflictList(model: model)
@@ -62,6 +65,12 @@ struct StagingView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            Button {
+                model.openTimeline()
+            } label: {
+                Label("Dòng thời gian", systemImage: "clock.arrow.circlepath")
+            }
+            .help("Các bản Thaigit tự lưu thư mục làm việc — quay lại khi có gì hỏng")
             Menu {
                 MenuSpecContent(items: model.workingTreeMenu())
             } label: {
@@ -399,5 +408,55 @@ struct CommitComposer: View {
                 .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(14)
+    }
+}
+
+/// Dải cảnh báo rủi ro (xoá / bỏ qua test, đổi thư viện, CI, file lớn, bí mật) kèm tên file — không bao giờ hiện nội dung bí
+/// mật. Chỉ là cảnh báo, không chặn commit.
+private struct RiskBanner: View {
+    let flags: [RiskFlag]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Nên xem lại trước khi commit", systemImage: "exclamationmark.triangle.fill")
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(.orange)
+            ForEach(flags) { flag in
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title(flag))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(flag.code == .secret ? Color.red : Color.primary)
+                    Text(files(flag))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10)
+        .padding(.bottom, 8)
+        .help("Chỉ là cảnh báo — Thaigit không chặn commit.")
+    }
+
+    private func title(_ flag: RiskFlag) -> String {
+        let count = flag.paths.count
+        return switch flag.code {
+        case .testsRemoved: String(localized: "Xoá \(count) file test")
+        case .testsSkipped: String(localized: "Tắt bớt test (skip / only) trong \(count) file")
+        case .depsChanged: String(localized: "Đổi thư viện phụ thuộc (\(count) file)")
+        case .ciChanged: String(localized: "Đổi CI / Docker (\(count) file)")
+        case .largeFile: String(localized: "\(count) file lớn hơn 1 MB")
+        case .secret: String(localized: "\(count) file có thể chứa mật khẩu hoặc khoá bí mật")
+        }
+    }
+
+    private func files(_ flag: RiskFlag) -> String {
+        let shown = flag.paths.prefix(3).joined(separator: ", ")
+        let rest = flag.paths.count - 3
+        return rest > 0 ? shown + " " + String(localized: "và \(rest) file khác") : shown
     }
 }

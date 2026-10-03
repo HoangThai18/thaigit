@@ -68,6 +68,7 @@ export function createDevBridgeHost(): Host | null {
     appendGitignore: refuse,
     trashUntracked: refuse,
     restoreTrash: refuse,
+    prepareSnapshotIndex: refuse,
   };
 
   const typedGit: TypedGit = { configSet: refuse, remoteAdd: refuse, remoteSetUrl: refuse };

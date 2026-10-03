@@ -60,6 +60,7 @@
         onsearch && { title: vi.graph.search, icon: 'search', shortcut: 'Ctrl/⌘ + F', run: onsearch },
         { title: vi.remote.refresh, icon: 'reset', run: () => store.refreshEverything() },
         { title: vi.remote.commandLog, icon: 'terminal', run: onshowlog },
+        { title: vi.snapshots.open, icon: 'clock', run: () => store.timeline.open() },
         { kind: 'separator' },
         ...repoForgeItems(store),
         { kind: 'separator' },

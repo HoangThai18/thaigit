@@ -186,12 +186,13 @@ struct CommandPaletteSheet: View {
             PaletteCommand(id: "merge.repo", title: String(localized: "Merge từ repository khác…"), systemImage: "arrow.triangle.merge") { model.beginMergeFromRepository() },
             PaletteCommand(id: "remote.add", title: String(localized: "Thêm remote…"), systemImage: "cloud") { model.sheet = .addRemote },
             PaletteCommand(id: "terminal.app", title: "Terminal trong app", systemImage: "apple.terminal", shortcut: "⌃`") { model.toggleTerminal() },
-            PaletteCommand(id: "terminal", title: "Mở trong Terminal", systemImage: "terminal", shortcut: "⌥⌘T") { model.openInTerminal() },
-            PaletteCommand(id: "finder", title: "Mở trong Finder", systemImage: "folder", shortcut: "⇧⌘R") { model.revealInFinder() },
-            PaletteCommand(id: "editor", title: "Mở bằng trình soạn thảo", systemImage: "chevron.left.forwardslash.chevron.right") { model.openInEditor() },
-            PaletteCommand(id: "log", title: "Nhật ký lệnh git…", systemImage: "list.bullet.rectangle") { model.sheet = .commandLog },
-            PaletteCommand(id: "refresh", title: "Làm mới", systemImage: "arrow.clockwise", shortcut: "⌘R") { model.refreshEverything() },
-            PaletteCommand(id: "github.account", title: "Tài khoản GitHub cho repo này…", systemImage: "person.crop.circle") {
+            PaletteCommand(id: "terminal", title: String(localized: "Mở trong Terminal"), systemImage: "terminal", shortcut: "⌥⌘T") { model.openInTerminal() },
+            PaletteCommand(id: "finder", title: String(localized: "Mở trong Finder"), systemImage: "folder", shortcut: "⇧⌘R") { model.revealInFinder() },
+            PaletteCommand(id: "editor", title: String(localized: "Mở bằng trình soạn thảo"), systemImage: "chevron.left.forwardslash.chevron.right") { model.openInEditor() },
+            PaletteCommand(id: "log", title: String(localized: "Nhật ký lệnh git…"), systemImage: "list.bullet.rectangle") { model.sheet = .commandLog },
+            PaletteCommand(id: "timeline", title: String(localized: "Dòng thời gian…"), systemImage: "clock.arrow.circlepath") { model.openTimeline() },
+            PaletteCommand(id: "refresh", title: String(localized: "Làm mới"), systemImage: "arrow.clockwise", shortcut: "⌘R") { model.refreshEverything() },
+            PaletteCommand(id: "github.account", title: String(localized: "Tài khoản GitHub cho repo này…"), systemImage: "person.crop.circle") {
                 model.sheet = .githubAccount(owner: nil)
             },
             PaletteCommand(id: "repo.close", title: String(localized: "Đóng repository"), systemImage: "xmark.square") { tabs.closeRepository(in: tabs.selected) },

@@ -14,4 +14,9 @@ export interface RepoFs {
   /** Dời file chưa track vào thùng rác của app (`<commonDir>/thaigit/trash/<thời điểm>/`), trả token để khôi phục. */
   trashUntracked(relatives: readonly string[]): Promise<string>;
   restoreTrash(token: string): Promise<void>;
+  /**
+   * Tạo `<gitDir>/thaigit/` (thư mục thật) và trả đường dẫn tuyệt đối của index tạm của snapshot (`indexFile` trong
+   * snapshot.json); `reset` xoá đúng index tạm và file `.lock` của nó. Repo đang có thao tác ghi → lỗi `busy`.
+   */
+  prepareSnapshotIndex(reset: boolean): Promise<string>;
 }

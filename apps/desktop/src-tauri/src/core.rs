@@ -678,7 +678,15 @@ impl Core {
             None
         } else {
             let holder = Holder { op_id: request.op_id.clone(), background: profile == EnvProfile::Background && kind == ExecKind::Network, cancel: cancel.clone() };
-            let acquired = if holder.background { lock.try_acquire_background(holder).map_err(AppError::from) } else { lock.acquire(holder, Some(&cancel)).await.map_err(AppError::from) };
+            // Lệnh ghi nền (snapshot: index tạm + ref per-worktree) chỉ chạy khi rảnh, không bị chen và không tắt tiếng watcher.
+            let quiet = profile == EnvProfile::Background && kind == ExecKind::Write;
+            let acquired = if holder.background {
+                lock.try_acquire_background(holder).map_err(AppError::from)
+            } else if quiet {
+                lock.try_acquire_quiet(holder).map_err(AppError::from)
+            } else {
+                lock.acquire(holder, Some(&cancel)).await.map_err(AppError::from)
+            };
             match acquired {
                 Ok(guard) => Some(guard),
                 Err(AppError::Busy(_)) if cancel.is_cancelled() => {
@@ -1151,6 +1159,85 @@ mod tests {
         assert_eq!(result.unwrap_err().code(), "busy", "auto-fetch chỉ chạy khi rảnh");
         assert!(sink.frames().is_empty());
         writer.await.unwrap().0.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn background_write_is_refused_when_busy_instead_of_queueing() {
+        let repo = TestRepo::new();
+        repo.write("a.txt", "1");
+        repo.commit_all("init");
+        let (core, _data) = core_with(&repo).await;
+        let opened = open(&core, &repo).await;
+        core.trust_repo(&opened.repo_id).await.unwrap();
+        let hook = repo.root().join(".git/hooks/pre-commit");
+        std::fs::write(&hook, "#!/bin/sh\nsleep 1\n").unwrap();
+        make_executable(&hook);
+        let writer = {
+            let (core, id) = (core.clone(), opened.repo_id.clone());
+            tokio::spawn(async move { run(&core, "main", request(&id, "writer", ExecKind::Write, "commit", &["--allow-empty", "-m", "w"])).await })
+        };
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        let mut snapshot = request(&opened.repo_id, "snapshot", ExecKind::Write, "write-tree", &[]);
+        snapshot.profile = Some(EnvProfile::Background);
+        let (result, sink) = run(&core, "main", snapshot).await;
+        assert_eq!(result.unwrap_err().code(), "busy", "snapshot không xếp hàng chờ sau thao tác của người dùng");
+        assert!(sink.frames().is_empty());
+        writer.await.unwrap().0.unwrap();
+    }
+
+    #[tokio::test]
+    async fn snapshot_commands_pass_the_policy_and_leave_the_real_index_untouched() {
+        let repo = TestRepo::new();
+        repo.write("a.txt", "1");
+        repo.commit_all("init");
+        repo.write("a.txt", "2");
+        repo.write("moi.txt", "m");
+        repo.git(&["config", "commit.gpgSign", "true"]);
+        let (core, _data) = core_with(&repo).await;
+        let opened = open(&core, &repo).await;
+        let id = opened.repo_id.clone();
+        let index = core.snapshot_index_prepare(&id, false).await.unwrap();
+        let identity: BTreeMap<String, String> = [
+            ("GIT_AUTHOR_NAME", "Thaigit"),
+            ("GIT_AUTHOR_EMAIL", "snapshot@thaigit.invalid"),
+            ("GIT_COMMITTER_NAME", "Thaigit"),
+            ("GIT_COMMITTER_EMAIL", "snapshot@thaigit.invalid"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        let step = |op: &str, sub: &str, args: &[&str], env: BTreeMap<String, String>, stdin: Option<&str>| {
+            let mut req = request(&id, op, ExecKind::Write, sub, args);
+            req.profile = Some(EnvProfile::Background);
+            req.env = Some(env);
+            req.stdin = stdin.map(|text| BASE64.encode(text));
+            req
+        };
+        let with_index: BTreeMap<String, String> = [("GIT_INDEX_FILE".to_string(), index.clone())].into();
+        let stdout = |sink: &Arc<CollectSink>| String::from_utf8(sink.collect().stdout).unwrap().trim().to_string();
+
+        // Index tạm chưa có: `add -A` dựng nó từ đầu (không cần `read-tree`).
+        let (result, sink) = run(&core, "main", step("s2", "add", &["-A"], with_index.clone(), None)).await;
+        result.unwrap();
+        assert_eq!(sink.collect().exit.unwrap().code, 0);
+        let (result, sink) = run(&core, "main", step("s3", "write-tree", &[], with_index.clone(), None)).await;
+        result.unwrap();
+        let tree = stdout(&sink);
+        assert_eq!(tree.len(), 40, "{tree}");
+        let (result, sink) =
+            run(&core, "main", step("s4", "commit-tree", &[&tree, "-p", "HEAD", "--no-gpg-sign", "-F", "-"], identity, Some("thaigit-snapshot v1\n"))).await;
+        result.unwrap();
+        let commit = stdout(&sink);
+        assert_eq!(commit.len(), 40, "{commit}");
+        let ref_args = ["--create-reflog", "-m", "thaigit-snapshot", "refs/worktree/thaigit/snapshots", commit.as_str()];
+        let (result, _) = run(&core, "main", step("s5", "update-ref", &ref_args, BTreeMap::new(), None)).await;
+        result.unwrap();
+
+        assert_eq!(repo.git(&["rev-parse", "refs/worktree/thaigit/snapshots"]).trim(), commit);
+        assert_eq!(repo.git(&["show", &format!("{commit}:moi.txt")]), "m", "file chưa track có trong snapshot");
+        assert_eq!(repo.git(&["log", "-1", "--format=%an <%ae>", &commit]).trim(), "Thaigit <snapshot@thaigit.invalid>");
+        assert_eq!(repo.git(&["status", "--porcelain"]), " M a.txt\n?? moi.txt\n", "index thật không đổi");
     }
 
     #[tokio::test]

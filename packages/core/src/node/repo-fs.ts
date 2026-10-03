@@ -5,6 +5,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
+import { snapshotSpec } from '@thaigit/contracts';
 import { decodeUtf8, encodeUtf8 } from '../git/bytes.ts';
 import { AdapterError } from '../git/runner.ts';
 import type { RepoFs } from '../ports/index.ts';
@@ -257,6 +258,26 @@ export class NodeRepoFs implements RepoFs {
       throw ioError('Không dời được file vào thùng rác', error);
     }
     return token;
+  }
+
+  async prepareSnapshotIndex(reset: boolean): Promise<string> {
+    const roots = await this.roots();
+    const [dirName = '', fileName = ''] = snapshotSpec.indexFile.split('/');
+    const dir = join(roots.gitDir, dirName);
+    const info = await fsp.lstat(dir).catch(() => null);
+    if (info !== null && !info.isDirectory())
+      throw new AdapterError('out-of-scope', 'Thư mục của index tạm không phải thư mục thật.');
+    try {
+      if (info === null) await fsp.mkdir(dir, { recursive: true });
+      const index = join(dir, fileName);
+      if (reset) {
+        await fsp.rm(index, { force: true });
+        await fsp.rm(`${index}.lock`, { force: true });
+      }
+      return index;
+    } catch (error) {
+      throw ioError('Không chuẩn bị được index tạm của snapshot', error);
+    }
   }
 
   async restoreTrash(token: string): Promise<void> {

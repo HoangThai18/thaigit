@@ -108,6 +108,7 @@ export const Commands = {
   fsAppendGitignore: 'fs_append_gitignore',
   fsTrashUntracked: 'fs_trash_untracked',
   fsRestoreTrash: 'fs_restore_trash',
+  fsSnapshotIndexPrepare: 'fs_snapshot_index_prepare',
   watchRepo: 'watch_repo',
   unwatchRepo: 'unwatch_repo',
   gitLocate: 'git_locate',

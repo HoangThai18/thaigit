@@ -1,0 +1,84 @@
+{
+  "$comment": "Ca kiểm thử dùng chung cho TS (src/snapshot.ts) và Swift (SnapshotTests.swift). `parse`: message commit (%B) → metadata, null = không phải snapshot của Thaigit. `expired`: `times` là thời điểm (giây) của các mục reflog từ MỚI NHẤT (@{0}) tới cũ nhất; `expected` là chỉ số mục cần xoá, xếp GIẢM dần (xoá từ cũ nhất để chỉ số còn lại không đổi). Mục @{0} không bao giờ bị xoá; mục có thời điểm ở tương lai (lệch đồng hồ) chỉ bị xoá khi vượt `keepCount`.",
+  "parse": [
+    {
+      "message": "thaigit-snapshot v1\n\nreason: auto\nfiles: 3\n",
+      "expected": { "reason": "auto", "files": 3 }
+    },
+    {
+      "message": "thaigit-snapshot v1\n\nreason: before-restore\nfiles: 0",
+      "expected": { "reason": "before-restore", "files": 0 }
+    },
+    {
+      "message": "thaigit-snapshot v1\n\nreason: manual\n",
+      "expected": { "reason": "manual", "files": null }
+    },
+    { "message": "thaigit-snapshot v1\n", "expected": { "reason": "auto", "files": null } },
+    {
+      "message": "thaigit-snapshot v1\n\nreason: la-lam\nfiles: -2\n",
+      "expected": { "reason": "auto", "files": null }
+    },
+    {
+      "message": "thaigit-snapshot v1\n\nfiles: 12abc\nreason:   manual  \n",
+      "expected": { "reason": "manual", "files": null }
+    },
+    {
+      "message": "thaigit-snapshot v1\r\n\r\nreason: auto\r\nfiles: 7\r\n",
+      "expected": { "reason": "auto", "files": 7 }
+    },
+    { "message": "thaigit-snapshot v2\n\nreason: auto\n", "expected": null },
+    { "message": "WIP on main: abc123 sửa lỗi\n", "expected": null },
+    { "message": "", "expected": null }
+  ],
+  "format": [
+    { "reason": "auto", "files": 3, "expected": "thaigit-snapshot v1\n\nreason: auto\nfiles: 3\n" },
+    {
+      "reason": "before-restore",
+      "files": 0,
+      "expected": "thaigit-snapshot v1\n\nreason: before-restore\nfiles: 0\n"
+    }
+  ],
+  "expired": [
+    { "times": [], "now": 1000000, "keepDays": 7, "keepCount": 300, "expected": [] },
+    { "times": [1000000], "now": 99999999, "keepDays": 7, "keepCount": 300, "expected": [] },
+    { "times": [1000000, 999000, 998000], "now": 1000100, "keepDays": 7, "keepCount": 300, "expected": [] },
+    {
+      "times": [1000000, 999000, 998000, 997000],
+      "now": 1000100,
+      "keepDays": 7,
+      "keepCount": 2,
+      "expected": [3, 2]
+    },
+    { "times": [1000000, 999000, 998000], "now": 1000100, "keepDays": 7, "keepCount": 1, "expected": [2, 1] },
+    {
+      "times": [1700000000, 1699500000, 1699395400, 1699395300],
+      "now": 1700000100,
+      "keepDays": 7,
+      "keepCount": 300,
+      "expected": []
+    },
+    {
+      "times": [1700000000, 1699396000, 1699395000, 1699000000],
+      "now": 1700000100,
+      "keepDays": 7,
+      "keepCount": 300,
+      "expected": [3, 2]
+    },
+    {
+      "times": [1700000000, 1699000000],
+      "now": 1700000100,
+      "keepDays": 7,
+      "keepCount": 300,
+      "expected": [1]
+    },
+    { "times": [1800000000, 1700000000], "now": 1700000100, "keepDays": 7, "keepCount": 300, "expected": [] },
+    {
+      "times": [1800000000, 1800000000, 1700000000],
+      "now": 1700000100,
+      "keepDays": 7,
+      "keepCount": 2,
+      "expected": [2]
+    },
+    { "times": [1699000000, 1698000000], "now": 1700000100, "keepDays": 7, "keepCount": 300, "expected": [1] }
+  ]
+}

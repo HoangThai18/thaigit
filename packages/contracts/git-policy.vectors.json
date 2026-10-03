@@ -100,7 +100,35 @@
       "args": [],
       "env": { "GIT_OPTIONAL_LOCKS": "0", "GIT_LITERAL_PATHSPECS": "1" },
       "reject": null
-    }
+    },
+    { "sub": "read-tree", "args": ["HEAD"], "reject": "sub-not-allowed" },
+    { "sub": "write-tree", "args": [], "reject": null },
+    { "sub": "commit-tree", "args": ["4b825dc", "-p", "HEAD", "--no-gpg-sign", "-F", "-"], "reject": null },
+    {
+      "sub": "commit-tree",
+      "args": ["4b825dc", "--no-gpg-sign", "-F", "-"],
+      "env": {
+        "GIT_AUTHOR_NAME": "Thaigit",
+        "GIT_AUTHOR_EMAIL": "snapshot@thaigit.invalid",
+        "GIT_COMMITTER_NAME": "Thaigit",
+        "GIT_COMMITTER_EMAIL": "snapshot@thaigit.invalid"
+      },
+      "reject": null
+    },
+    {
+      "sub": "commit-tree",
+      "args": ["4b825dc", "-F", "-"],
+      "env": { "GIT_AUTHOR_NAME": "Người khác" },
+      "reject": "env-rejected"
+    },
+    {
+      "sub": "reflog",
+      "args": ["delete", "--rewrite", "--updateref", "refs/worktree/thaigit/snapshots@{3}"],
+      "reject": null
+    },
+    { "sub": "reflog", "args": [], "reject": "second-not-allowed" },
+    { "sub": "reflog", "args": ["expire", "--expire=now", "--all"], "reject": "second-not-allowed" },
+    { "sub": "reflog", "args": ["show"], "reject": "second-not-allowed" }
   ],
   "kindsComment": "Loại thao tác hiệu lực (khoá theo repo): dạng chỉ-đọc của subcommand `write` (`readForms` trong git-policy.json) khớp theo TOÀN BỘ hình dạng args mới là `read`. `kind` null = subcommand không có trong chính sách. TS (`effectiveKind`/`execKindOf`) và Rust (`derived_kind`) phải khớp trên mọi ca.",
   "kinds": [
@@ -139,6 +167,9 @@
     { "sub": "push", "args": ["origin", "main"], "kind": "network" },
     { "sub": "commit", "args": ["list"], "kind": "write" },
     { "sub": "checkout", "args": ["show"], "kind": "write" },
+    { "sub": "write-tree", "args": [], "kind": "write" },
+    { "sub": "commit-tree", "args": ["4b825dc", "--no-gpg-sign"], "kind": "write" },
+    { "sub": "reflog", "args": ["delete", "x@{1}"], "kind": "write" },
     { "sub": "nope", "args": [], "kind": null },
     { "sub": "__proto__", "args": ["list"], "kind": null }
   ]

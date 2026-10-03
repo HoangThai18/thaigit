@@ -204,6 +204,11 @@ pub async fn fs_restore_trash(core: CoreState<'_>, repo_id: String, token: Strin
     core.restore_trash(&repo_id, token).await
 }
 
+#[tauri::command]
+pub async fn fs_snapshot_index_prepare(core: CoreState<'_>, repo_id: String, reset: bool) -> Result<String> {
+    core.snapshot_index_prepare(&repo_id, reset).await
+}
+
 // --- watcher ------------------------------------------------------------------------------------------------------------
 
 #[tauri::command]
