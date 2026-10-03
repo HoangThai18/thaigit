@@ -363,6 +363,17 @@ export default async function HomePage() {
           <p>Tải Thaigit miễn phí cho macOS và Windows.</p>
           <div className="cta">
             <DownloadButton initial={release} className="btn btn-white" />
+            <a
+              className="btn btn-outline-light"
+              href={LINKS.downloadWindows}
+              title="Thaigit cho Windows 10 / 11"
+            >
+              <WindowsIcon />
+              <span className="btn-stack">
+                Tải cho Windows
+                <span className="sub">Windows 10 / 11 · miễn phí</span>
+              </span>
+            </a>
           </div>
         </div>
       </section>
