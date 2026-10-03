@@ -68,6 +68,13 @@ export const shell = {
   },
 
   graph: {
+    searchPlaceholder: 'Tìm commit: tiêu đề, tác giả, SHA, nhánh…',
+    searchNone: 'Không tìm thấy commit nào',
+    searchCount: (count: number) => `${count} commit khớp`,
+    searchPrevious: 'Kết quả trước (Shift + Enter)',
+    searchNext: 'Kết quả sau (Enter)',
+    searchClose: 'Đóng tìm kiếm (Esc)',
+    search: 'Tìm commit',
     columns: {
       refs: 'Nhánh / Tag',
       graph: 'Graph',

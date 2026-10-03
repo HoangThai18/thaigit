@@ -13,6 +13,9 @@
   import DiffPane from '../diff/DiffPane.svelte';
   import { showBidi } from '../format/bidi.ts';
   import GraphView from '../graph/GraphView.svelte';
+  import SearchBar from '../graph/SearchBar.svelte';
+  import { GraphSearch } from '../graph/search.svelte.ts';
+  import { untrack } from 'svelte';
   import Inspector from '../inspector/Inspector.svelte';
   import Sidebar from '../sidebar/Sidebar.svelte';
   import { vi } from '../strings.vi.ts';
@@ -41,6 +44,7 @@
   const showInspector = $derived(prefs.value.showInspector);
   const conflicts = $derived(store.status.conflicts.length);
   let showLog = $state(false);
+  const search = untrack(() => new GraphSearch(store));
 
   $effect(() => startAutoFetch(store));
 
@@ -65,6 +69,11 @@
     if (event.defaultPrevented || dialogs.current !== null || menus.current !== null || showLog) return;
     if (!(event.ctrlKey || event.metaKey)) return;
     const code = event.code;
+    if (!event.shiftKey && !event.altKey && code === 'KeyF' && store.diff.file === null) {
+      event.preventDefault();
+      search.show();
+      return;
+    }
     if (event.altKey && !event.shiftKey && code === 'KeyF') void fetch(store);
     else if (event.shiftKey && !event.altKey && code === 'KeyL') void pull(store);
     else if (event.shiftKey && !event.altKey && code === 'KeyP') void push(store);
@@ -123,7 +132,7 @@
         <span class="subtitle" data-tauri-drag-region><bdi>{showBidi(store.branchSubtitle)}</bdi></span>
       </div>
       <span class="grow" data-tauri-drag-region></span>
-      <ActionBar {store} onshowlog={() => (showLog = true)} />
+      <ActionBar {store} onshowlog={() => (showLog = true)} onsearch={() => search.show()} />
       <span class="divider" data-tauri-drag-region></span>
       <button
         type="button"
@@ -180,7 +189,10 @@
           </div>
         {/if}
         <!-- Graph giữ nguyên khi mở diff (ẩn đi) để quay lại không phải dựng lại / mất vị trí cuộn. -->
-        <div class="graph-area" class:hidden={store.diff.file !== null}><GraphView {store} /></div>
+        <div class="graph-area" class:hidden={store.diff.file !== null}>
+          <GraphView {store} {search} />
+          <SearchBar {search} />
+        </div>
         {#if store.diff.file?.source.kind === 'conflict'}
           <div class="graph-area"><ConflictPane {store} /></div>
         {:else if store.diff.file !== null}
@@ -337,6 +349,7 @@
   }
 
   .graph-area {
+    position: relative;
     flex: 1;
     min-height: 0;
   }

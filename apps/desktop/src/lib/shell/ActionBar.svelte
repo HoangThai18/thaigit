@@ -18,9 +18,10 @@
   interface Props {
     store: RepoStore;
     onshowlog: () => void;
+    onsearch?: () => void;
   }
 
-  let { store, onshowlog }: Props = $props();
+  let { store, onshowlog, onsearch }: Props = $props();
 
   const behind = $derived(store.status.behind);
   const ahead = $derived(store.status.ahead);
@@ -53,6 +54,7 @@
     menus.openBelow(
       moreButton,
       tidyMenu([
+        onsearch && { title: vi.graph.search, icon: 'search', shortcut: 'Ctrl/⌘ + F', run: onsearch },
         { title: vi.remote.refresh, icon: 'reset', run: () => store.refreshEverything() },
         { title: vi.remote.commandLog, icon: 'terminal', run: onshowlog },
         { kind: 'separator' },

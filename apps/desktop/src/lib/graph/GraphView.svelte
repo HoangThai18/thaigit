@@ -4,6 +4,7 @@
   tải thêm khi cuộn gần cuối.
 -->
 <script lang="ts">
+  import type { GraphSearch } from './search.svelte.ts';
   import { drag as dragDrop, dropAttr, parseDropTarget } from '../dnd/drag.svelte.ts';
   import { isMergeCommit, isWorkingTreeCommit, shortSha } from '@thaigit/core';
   import { untrack } from 'svelte';
@@ -37,9 +38,11 @@
     store: RepoStore;
     /** Double-click / Enter trên một hàng (checkout ở phase sau). */
     onactivate?: (entry: GraphEntry) => void;
+    /** Tìm kiếm đang mở: tô hàng khớp, làm mờ hàng còn lại. */
+    search?: GraphSearch;
   }
 
-  let { store, onactivate }: Props = $props();
+  let { store, onactivate, search }: Props = $props();
 
   const ROW = GraphStyle.rowHeight;
   const laneColors = readLaneColors(document.documentElement);
@@ -246,6 +249,8 @@
     class="g-row"
     class:selected={index === selectedRow}
     class:wip={isWip}
+    class:match={search?.active === true && search.matchSet.has(index)}
+    class:dim={search?.active === true && !search.matchSet.has(index)}
     id={rowId(index)}
     role="option"
     aria-selected={index === selectedRow}
@@ -518,6 +523,14 @@
 
   .g-row.selected {
     background: var(--row-selected);
+  }
+
+  .g-row.dim {
+    opacity: 0.38;
+  }
+
+  .g-row.match:not(.selected) {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
   }
 
   .graph-table:focus-within .g-row.selected {
