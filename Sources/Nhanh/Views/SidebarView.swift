@@ -68,31 +68,7 @@ struct SidebarView: View {
                 }
             }
 
-            if let flow = model.extras.gitFlow {
-                Section(isExpanded: $showGitFlow) {
-                    if showGitFlow { gitFlowRows(flow) }
-                } header: {
-                    SidebarHeader(title: "GIT FLOW", count: flowBranches(flow).count, systemImage: "flag") {
-                        model.sheet = .gitFlowStart(.feature)
-                    }
-                }
-            }
-
-            if !model.extras.submodules.isEmpty {
-                Section(isExpanded: $showSubmodules) {
-                    if showSubmodules { submoduleRows }
-                } header: {
-                    SidebarHeader(title: "SUBMODULES", count: model.extras.submodules.count, systemImage: "shippingbox", addAction: nil)
-                }
-            }
-
-            Section(isExpanded: $showWorktrees) {
-                if showWorktrees { worktreeRows }
-            } header: {
-                SidebarHeader(title: "WORKTREES", count: model.extras.linkedWorktrees.count, systemImage: "square.on.square") {
-                    model.sheet = .addWorktree
-                }
-            }
+            extraSections
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -140,6 +116,36 @@ struct SidebarView: View {
         }
         .background {
             SidebarSelectionSync(model: model, selection: $selection)
+        }
+    }
+
+    /// Git Flow, submodule, worktree — tách khỏi `body` để biểu thức của List không quá nặng cho trình biên dịch.
+    @ViewBuilder
+    private var extraSections: some View {
+        if let flow = model.extras.gitFlow {
+            Section(isExpanded: $showGitFlow) {
+                if showGitFlow { gitFlowRows(flow) }
+            } header: {
+                SidebarHeader(title: "GIT FLOW", count: flowBranches(flow).count, systemImage: "flag") {
+                    model.sheet = .gitFlowStart(.feature)
+                }
+            }
+        }
+
+        if !model.extras.submodules.isEmpty {
+            Section(isExpanded: $showSubmodules) {
+                if showSubmodules { submoduleRows }
+            } header: {
+                SidebarHeader(title: "SUBMODULES", count: model.extras.submodules.count, systemImage: "shippingbox", addAction: nil)
+            }
+        }
+
+        Section(isExpanded: $showWorktrees) {
+            if showWorktrees { worktreeRows }
+        } header: {
+            SidebarHeader(title: "WORKTREES", count: model.extras.linkedWorktrees.count, systemImage: "square.on.square") {
+                model.sheet = .addWorktree
+            }
         }
     }
 
@@ -252,10 +258,15 @@ struct SidebarView: View {
                     Image(systemName: badge.symbol).foregroundStyle(badge.color)
                 }
             }
-            .help([module.path + " @ " + String(module.sha.prefix(7)), Self.submoduleBadge(module.state)?.hint]
-                .compactMap { $0 }.joined(separator: "\n"))
+            .help(Self.submoduleTooltip(module))
             .tag("sub:" + module.path)
         }
+    }
+
+    private static func submoduleTooltip(_ module: Submodule) -> String {
+        let head = module.path + " @ " + String(module.sha.prefix(7))
+        guard let hint = submoduleBadge(module.state)?.hint else { return head }
+        return head + "\n" + hint
     }
 
     private static func submoduleBadge(_ state: Submodule.State) -> (symbol: String, color: Color, hint: String)? {
@@ -480,6 +491,20 @@ private struct PullRequestRow: View {
     /// PR của nhánh đang đứng.
     let isCurrent: Bool
 
+    /// Tách riêng khỏi `body`: viết gộp trong `.help(...)` làm trình biên dịch trên CI hết thời gian suy kiểu.
+    private var tooltip: String {
+        var title = "#\(pull.number) \(pull.title)"
+        if pull.isDraft { title += " (nháp)" }
+        var branches = ""
+        if let repository = pull.headRepository, let owner = repository.split(separator: "/").first {
+            branches = String(owner) + ":"
+        }
+        branches += pull.headBranch + " → " + pull.baseBranch
+        var author = "Tác giả: @" + pull.author
+        if let updated = pull.updatedAt { author += " · cập nhật " + VietnameseDate.relative(updated) }
+        return title + "\n" + branches + "\n" + author
+    }
+
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "arrow.triangle.pull")
@@ -494,11 +519,7 @@ private struct PullRequestRow: View {
                 .truncationMode(.tail)
             Spacer(minLength: 0)
         }
-        .help([
-            "#\(pull.number) \(pull.title)" + (pull.isDraft ? " (nháp)" : ""),
-            "\(pull.headRepository.map { $0.split(separator: "/").first.map(String.init) ?? $0 }.map { "\($0):" } ?? "")\(pull.headBranch) → \(pull.baseBranch)",
-            "Tác giả: @\(pull.author)" + (pull.updatedAt.map { " · cập nhật \(VietnameseDate.relative($0))" } ?? ""),
-        ].joined(separator: "\n"))
+        .help(tooltip)
     }
 }
 
