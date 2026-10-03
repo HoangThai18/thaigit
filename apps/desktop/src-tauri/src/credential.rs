@@ -11,7 +11,6 @@
 
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::path::PathBuf;
 use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -248,7 +247,7 @@ pub fn helper_program(data_dir: &std::path::Path, exe: &std::path::Path) -> OsSt
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let path: PathBuf = data_dir.join("credential.sh");
+        let path: std::path::PathBuf = data_dir.join("credential.sh");
         let quoted = format!("'{}'", exe.to_string_lossy().replace('\'', r"'\''"));
         let script = format!("#!/bin/sh\n# Thaigit: trả token của tài khoản cho host đó khi git hỏi credential.\nexec {quoted} {HELPER_FLAG} \"$@\"\n");
         let current = std::fs::read_to_string(&path).ok();
@@ -262,7 +261,7 @@ pub fn helper_program(data_dir: &std::path::Path, exe: &std::path::Path) -> OsSt
     #[cfg(not(unix))]
     {
         let _ = data_dir;
-        exe.to_os_string()
+        exe.as_os_str().to_os_string()
     }
 }
 
@@ -542,7 +541,7 @@ mod tests {
     fn the_helper_program_is_a_script_that_execs_the_app() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
-        let program = PathBuf::from(helper_program(dir.path(), std::path::Path::new("/Applications/Thaigit's App.app/Contents/MacOS/thaigit")));
+        let program = std::path::PathBuf::from(helper_program(dir.path(), std::path::Path::new("/Applications/Thaigit's App.app/Contents/MacOS/thaigit")));
         assert_eq!(program, dir.path().join("credential.sh"));
         assert_eq!(std::fs::metadata(&program).unwrap().permissions().mode() & 0o111, 0o111);
         let script = std::fs::read_to_string(&program).unwrap();
