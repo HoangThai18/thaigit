@@ -114,15 +114,15 @@ Một người làm tuần tự. P7 chỉ đụng `server/**`, `docs/deploy-serv
 
 | Phase | Name | Mốc | Status |
 |-------|------|-----|--------|
-| 1 | [Foundation & Branding](./phase-01-foundation-branding.md) | M1a | In progress (xong: repo, đổi tên Swift, logo, workspace pnpm + scaffold Tauri; CI chưa chạy trên GitHub) |
-| 2 | [Rust Backend Bridge](./phase-02-rust-backend-bridge.md) | 2a M1a · 2b M1b | In progress (2a xong trên macOS: 31 lệnh IPC, 178 test; chờ review bảo mật + CI Windows; 2b askpass chưa làm) |
-| 3 | [TypeScript Core Port](./phase-03-typescript-core-port.md) | M1a | In progress (git/diff/graph + adapter Node xong, 586 test; còn adapter Tauri) |
-| 4 | [UI Shell Graph & Sidebar](./phase-04-ui-shell-graph-sidebar.md) | 4a M1a · 4b M1b | In progress (4a phần 1 xong: graph, sidebar, inspector, Welcome, sáng/tối; repo 30k commit hiện sau ~0,45 s, cuộn 60 fps; còn menu chuột phải, tìm kiếm, E2E, hiệu ứng kính) |
-| 5 | [Staging Diff Conflicts & Drag-Drop](./phase-05-staging-diff-conflicts-drag-drop.md) | 5a–5c M1b · 5d GA | Pending |
-| 6 | [AI Commit Features (Hermes)](./phase-06-ai-commit-features-hermes.md) | M2 | Pending |
-| 7 | [VPS Server: AI Proxy & Stats](./phase-07-vps-server-ai-proxy-stats.md) | S1+7a M2 · 7b M3 | Pending |
-| 8 | [Release Pipeline, Updater & Landing](./phase-08-landing-page-release-pipeline.md) | 8a M1b · 8b M3 | In progress (trang chủ `site/` + workflow Pages đã push; chờ bật Pages + DNS) |
-| 9 | [Windows Hardening QA & Launch](./phase-09-windows-hardening-qa-launch.md) | GA | Pending |
+| 1 | [Foundation & Branding](./phase-01-foundation-branding.md) | M1a | Done (repo, đổi tên, logo, workspace pnpm, Tauri chạy Windows + macOS, CI 2 OS xanh). Còn thủ tục: chứng chỉ ký mã Windows, Apple Developer |
+| 2 | [Rust Backend Bridge](./phase-02-rust-backend-bridge.md) | 2a M1a · 2b M1b | Done (IPC, policy, trust, watcher, RepoFs, askpass bằng chính binary app; Rust test xanh CI 2 OS) |
+| 3 | [TypeScript Core Port](./phase-03-typescript-core-port.md) | M1a | Done (core + adapter Tauri; 540+ test) |
+| 4 | [UI Shell Graph & Sidebar](./phase-04-ui-shell-graph-sidebar.md) | 4a M1a · 4b M1b | Done trừ: đăng nhập GitHub trong app (chờ Client ID OAuth App — Windows dùng GCM), mỗi repo một cửa sổ (Ctrl+T), E2E WebdriverIO (thay bằng kiểm thử khói app thật trong CI) |
+| 5 | [Staging Diff Conflicts & Drag-Drop](./phase-05-staging-diff-conflicts-drag-drop.md) | 5a–5c M1b · 5d GA | Done (staging theo dòng, conflict, menu; 5d: diff tách đôi, diff ảnh, kéo-thả pointer events) |
+| 6 | [AI Commit Features (Hermes)](./phase-06-ai-commit-features-hermes.md) | M2 | Done phía app (viết commit, giải thích commit, mô tả PR, đồng ý + xem trước, lọc bí mật); chờ máy chủ chạy thật để đo TTFT |
+| 7 | [VPS Server: AI Proxy & Stats](./phase-07-vps-server-ai-proxy-stats.md) | S1+7a M2 · 7b M3 | Code xong (`server/`, test với Hermes giả, chạy thật bằng Node); chờ dựng trên VPS + spike S1 với Hermes thật (`docs/deploy-server.md`) |
+| 8 | [Release Pipeline, Updater & Landing](./phase-08-landing-page-release-pipeline.md) | 8a M1b · 8b M3 | Done (release-desktop.yml, minisign, kênh beta/stable, chế độ an toàn, trang chủ trên VPS, Cài đặt + thống kê có đồng ý). Chờ: ký số, trỏ nút tải qua `/download/*` khi máy chủ chạy |
+| 9 | [Windows Hardening QA & Launch](./phase-09-windows-hardening-qa-launch.md) | GA | In progress (kiểm thử khói CI 2 OS, `docs/qa-windows-beta.md`, `docs/security-review-ai-stats.md`); còn chạy tay trên Windows thật + cửa sổ beta ≥ 7 ngày |
 
 ## Dependencies
 
