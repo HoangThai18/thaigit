@@ -43,7 +43,7 @@ fn join_error(error: tokio::task::JoinError) -> AppError {
 /// Hộp thoại native chọn thư mục; trả token (không phải đường dẫn tuỳ ý) để `open_repo`/`git_clone`/`git_init` dùng.
 #[tauri::command]
 pub async fn pick_repo_folder<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, core: CoreState<'_>) -> Result<Option<PickedFolder>> {
-    let dialog = app.dialog().file().set_parent(&window).set_title("Chọn thư mục");
+    let dialog = app.dialog().file().set_parent(&window).set_title(crate::locale::current(&app).texts().pick_folder);
     let picked = tokio::task::spawn_blocking(move || dialog.blocking_pick_folder()).await.map_err(join_error)?;
     let Some(picked) = picked else { return Ok(None) };
     let path = picked.into_path().map_err(|e| AppError::Io(format!("Đường dẫn đã chọn không hợp lệ: {e}")))?;
@@ -241,7 +241,7 @@ pub async fn set_git_path(core: CoreState<'_>, path: Option<String>) -> Result<G
 /// Chọn file git bằng hộp thoại native.
 #[tauri::command]
 pub async fn pick_git_path<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, core: CoreState<'_>) -> Result<Option<GitInfo>> {
-    let dialog = app.dialog().file().set_parent(&window).set_title("Chọn chương trình git");
+    let dialog = app.dialog().file().set_parent(&window).set_title(crate::locale::current(&app).texts().pick_git);
     let picked = tokio::task::spawn_blocking(move || dialog.blocking_pick_file()).await.map_err(join_error)?;
     let Some(picked) = picked else { return Ok(None) };
     let path = picked.into_path().map_err(|e| AppError::Io(format!("Đường dẫn đã chọn không hợp lệ: {e}")))?;
@@ -435,6 +435,12 @@ pub async fn update_install<R: Runtime>(app: AppHandle<R>) -> Result<()> {
 #[tauri::command]
 pub fn update_set_channel<R: Runtime>(app: AppHandle<R>, channel: updater::Channel) -> Result<()> {
     updater::set_channel(&app, channel)
+}
+
+/// Ngôn ngữ giao diện (Cài đặt): Rust dùng cho tiêu đề hộp chọn thư mục và hộp "chế độ an toàn".
+#[tauri::command]
+pub fn app_set_locale<R: Runtime>(app: AppHandle<R>, locale: crate::locale::Locale) -> Result<()> {
+    crate::locale::set(&app, locale)
 }
 
 /// Mở thêm một cửa sổ (Ctrl/⌘+T).

@@ -24,6 +24,11 @@ export function openUrl(url: string, confirmed = false): Promise<void> {
   return call<void>(Commands.openUrl, { url, confirmed });
 }
 
+/** Báo Rust ngôn ngữ giao diện (tiêu đề hộp chọn thư mục, hộp "chế độ an toàn" lúc khởi động). */
+export function setNativeLocale(locale: 'vi' | 'en'): Promise<void> {
+  return call<void>(Commands.appSetLocale, { locale });
+}
+
 /** Mở thêm một cửa sổ Thaigit (màn hình chính) để làm việc với repo khác song song. */
 export function newWindow(): Promise<void> {
   return call<void>(Commands.newWindow);

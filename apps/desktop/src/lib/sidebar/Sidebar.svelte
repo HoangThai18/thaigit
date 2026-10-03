@@ -299,7 +299,7 @@
         {:else}
           <LimitedRows items={store.stashes} noun={vi.sidebar.nounStash} keyOf={(stash) => stash.selector}>
             {#snippet row(stash: Stash)}
-              {@const message = stashDisplayMessage(stash)}
+              {@const message = stashDisplayMessage(stash, vi.sidebar.stashWip)}
               <button
                 type="button"
                 class="sb-row"

@@ -2,10 +2,12 @@
 // bắt đầu bằng "-" (bị hiểu thành tuỳ chọn); cảnh báo URL chứa mật khẩu / token (sẽ nằm nguyên trong `.git/config`);
 // đoán tên thư mục như `git clone`.
 
+import { vi } from '../strings.vi.ts';
+
 export type CloneUrlCheck =
   | {
       readonly ok: true;
-      /** "github.com" · "gitlab.example.com:2222" · "thư mục trên máy". */
+      /** "github.com" · "gitlab.example.com:2222" · `vi.welcome.cloneLocalFolder` ("thư mục trên máy"). */
       readonly host: string;
       /** "HoangThai18/thaigit". */
       readonly path: string;
@@ -44,7 +46,7 @@ export function checkCloneUrl(input: string): CloneUrlCheck {
       return { ok: false, reason: 'invalid' };
     try {
       const parsed = new URL(url);
-      const host = protocol === 'file' ? 'thư mục trên máy' : parsed.host;
+      const host = protocol === 'file' ? vi.welcome.cloneLocalFolder : parsed.host;
       if (protocol !== 'file' && host === '') return { ok: false, reason: 'invalid' };
       return {
         ok: true,
@@ -73,7 +75,7 @@ export function checkCloneUrl(input: string): CloneUrlCheck {
   }
   // Đường dẫn trên máy (/a/b, C:\a\b, ../a).
   if (/^(\/|~|\.{1,2}[\\/]|[a-z]:[\\/])/i.test(url)) {
-    return { ok: true, host: 'thư mục trên máy', path: url, hasCredentials: false, defaultName };
+    return { ok: true, host: vi.welcome.cloneLocalFolder, path: url, hasCredentials: false, defaultName };
   }
   return { ok: false, reason: 'invalid' };
 }

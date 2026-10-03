@@ -5,7 +5,6 @@
 -->
 <script lang="ts">
   import {
-    conflictDescription,
     fileChangeDirectory,
     fileChangeName,
     type ConflictBlock,
@@ -154,7 +153,9 @@
       <div class="banner">
         <span class="warn"><Icon name="warning" size={18} /></span>
         <div class="banner-text">
-          <strong>{conflict ? vi.branches.conflictBlocks(total) : conflictDescription(entry.kind)}</strong>
+          <strong
+            >{conflict ? vi.branches.conflictBlocks(total) : vi.branches.conflictKinds[entry.kind]}</strong
+          >
           <span>{vi.branches.conflictLegend}</span>
         </div>
         <span class="grow"></span>
@@ -181,7 +182,7 @@
           <p>
             {whole.reason === 'not-utf8'
               ? vi.branches.notUtf8
-              : vi.branches.wholeFileOnly(conflictDescription(whole.entry.kind))}
+              : vi.branches.wholeFileOnly(vi.branches.conflictKinds[whole.entry.kind])}
           </p>
           <button type="button" class="button" onclick={() => void markResolved(store, [whole.entry.path])}>
             {vi.branches.markResolved}

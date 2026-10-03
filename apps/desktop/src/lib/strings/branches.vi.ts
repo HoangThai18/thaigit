@@ -210,6 +210,16 @@ export const branches = {
   notUtf8:
     'File không phải UTF-8 nên không giải từng đoạn trong app được. Chọn cả file, hoặc sửa bằng trình soạn thảo rồi bấm “Đánh dấu đã giải quyết”.',
   openConflict: 'Giải xung đột',
+  conflictKinds: {
+    bothModified: 'Cả hai bên đều sửa',
+    bothAdded: 'Cả hai bên đều thêm',
+    deletedByUs: 'Bên hiện tại đã xoá',
+    deletedByThem: 'Bên kia đã xoá',
+    addedByUs: 'Bên hiện tại thêm',
+    addedByThem: 'Bên kia thêm',
+    bothDeleted: 'Cả hai bên đều xoá',
+    unknown: 'Xung đột',
+  },
 
   // Menu ngữ cảnh
   menuPull: 'Pull',

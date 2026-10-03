@@ -1,0 +1,105 @@
+/** Bản tiếng Anh của `ai.vi.ts` (cùng khoá, cùng tham số). */
+import type { ai as source } from './ai.vi.ts';
+import type { Translation } from './types.ts';
+
+export const ai: Translation<typeof source> = {
+  write: 'Write with AI',
+  writeTip: 'Write a commit message from the staged changes (Ctrl/⌘ + Shift + G)',
+  stop: 'Stop',
+  regenerate: 'Regenerate',
+  undo: 'Undo',
+  undoTip: 'Restore the message to what it was before the AI wrote it',
+  options: 'AI options',
+  writing: 'AI is writing…',
+  queued: (position: number) => `Waiting for the AI server (position ${position})…`,
+  remaining: (left: number) => `${left} ${left === 1 ? 'use' : 'uses'} left today`,
+
+  menuLanguage: 'Language',
+  languageAuto: 'Automatic (follow recent commits)',
+  languageVi: 'Tiếng Việt',
+  languageEn: 'English',
+  menuLength: 'Length',
+  lengthShort: 'Short — one line',
+  lengthNormal: 'Medium',
+  lengthDetailed: 'Detailed — with a description',
+  conventional: 'Conventional Commits (feat:, fix:…)',
+  previewMenu: 'Preview the data to be sent…',
+  disable: 'Turn off AI',
+  disabledToast: 'AI turned off. The AI installation ID on this computer was deleted.',
+
+  stageAllTitle: 'Nothing staged',
+  stageAllMessage: 'Stage all changes so the AI can read them and write a commit message?',
+  stageAllConfirm: 'Stage all & write',
+  nothingToSend: 'There are no staged changes for the AI to read yet.',
+
+  consentTitle: 'Use AI to write commits?',
+  consentWhat: 'What is sent',
+  consentWhatText:
+    "The staged changes for this commit, the branch name and the subjects of the 10 most recent commits (so the AI matches the repository's style). Before sending, Thaigit removes sensitive files (.env, SSH keys, certificates…), lockfiles, generated files, images/binaries and anything that looks like a password, token or key.",
+  consentWhere: 'Where it goes',
+  consentWhereText:
+    "To the Thaigit server run by Thaigit's author. The AI model (Hermes) runs on that server — nothing goes to third parties and no content is stored. The server only keeps technical data (token counts, timing, error codes) for 30 days.",
+  consentLimits: 'Limits',
+  consentLimitsText:
+    'Free, with a number of uses per computer per day. Only sent when you click the AI button. Turn it off any time in the AI options menu.',
+  consentPreview: 'Preview the data to be sent',
+  consentHidePreview: 'Hide data',
+  consentAccept: 'Agree & write',
+  cancel: 'Cancel',
+
+  previewTitle: 'Data to be sent to the AI',
+  previewSent: (count: number) => `Content of ${count} ${count === 1 ? 'file' : 'files'} sent`,
+  previewSkipped: (count: number) => `Only the names of ${count} ${count === 1 ? 'file' : 'files'} sent`,
+  previewRedacted: (count: number) =>
+    `Removed ${count} ${count === 1 ? 'part' : 'parts'} that may contain secrets`,
+  previewTruncated: 'truncated',
+  previewStatus: {
+    added: 'new',
+    modified: 'modified',
+    deleted: 'deleted',
+    renamed: 'renamed',
+    copied: 'copied',
+    typechange: 'type changed',
+  },
+  previewSubjects: 'Recent commit subjects',
+  previewBranch: (branch: string) => `Branch: ${branch}`,
+  previewClose: 'Close',
+  skipReason: {
+    lockfile: 'lockfile',
+    generated: 'generated file',
+    binary: 'binary / image',
+    sensitive: 'sensitive file',
+    secret: 'may contain secrets',
+    undecodable: 'not UTF-8',
+    budget: 'too long',
+  },
+
+  explain: 'Explain with AI',
+  explainTitle: 'AI commit explanation',
+  explainTip: 'Summary, main changes and risks of this commit',
+  prDescription: 'Write PR description with AI…',
+  prTitle: (head: string) => `Pull Request description for ${head}`,
+  prBaseTitle: 'Write a Pull Request description',
+  prBaseMessage: (head: string) =>
+    `The AI reads the commits and changes of ${head} compared with the target branch.`,
+  prBaseLabel: 'Target branch',
+  prBaseConfirm: 'Write description',
+  prNoChanges: 'This branch has no changes compared with the target branch.',
+  copy: 'Copy',
+  copied: 'Copied',
+  close: 'Close',
+
+  errors: {
+    title: "The AI couldn't write it",
+    quota_exhausted: 'No AI uses left today — new uses arrive at 0:00 (Vietnam time).',
+    ip_rate_limited: (seconds: number) => `You're using the AI a bit fast — try again in ${seconds} seconds.`,
+    ai_busy: (seconds: number) => `The AI server is busy — try again in ${seconds} seconds.`,
+    ai_unavailable: 'The AI server is temporarily down — try again later.',
+    ai_disabled: 'AI is temporarily turned off on the server — try again later.',
+    too_large: 'The changes are too large for the AI — stage fewer and try again.',
+    invalid_token: "Couldn't authenticate with the AI server — try again later.",
+    server: "The AI server couldn't handle the request — try again later.",
+    network: "Couldn't connect to the AI server — check your network and try again.",
+    empty: 'The AI returned nothing — click Regenerate to try again.',
+  },
+};

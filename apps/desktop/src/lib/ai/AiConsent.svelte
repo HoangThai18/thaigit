@@ -28,14 +28,7 @@
     if (pending && primaryButton) primaryButton.focus();
   });
 
-  const statusText: Record<string, string> = {
-    added: 'mới',
-    modified: 'sửa',
-    deleted: 'xoá',
-    renamed: 'đổi tên',
-    copied: 'chép',
-    typechange: 'đổi kiểu',
-  };
+  const statusText: Record<string, string> = vi.ai.previewStatus;
 
   function onwindowkeydown(event: KeyboardEvent): void {
     if (!pending || event.key !== 'Escape') return;

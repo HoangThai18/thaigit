@@ -39,6 +39,7 @@ const APP_COMMANDS: &[&str] = &[
     "update_set_channel",
     "app_ready",
     "new_window",
+    "app_set_locale",
     "accounts_list",
     "accounts_add_token",
     "accounts_start_login",

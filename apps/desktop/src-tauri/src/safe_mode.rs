@@ -49,12 +49,10 @@ pub fn init<R: Runtime>(app: &AppHandle<R>, data_dir: &Path) {
         return;
     }
     use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+    let texts = crate::locale::current(app).texts();
     app.dialog()
-        .message(
-            "Thaigit đã không khởi động được vài lần liên tiếp. Thaigit đang kiểm tra bản sửa lỗi — nếu có, thanh cập nhật sẽ hiện \
-             ở đầu cửa sổ. Bạn vẫn dùng tiếp được.",
-        )
-        .title("Thaigit — chế độ an toàn")
+        .message(texts.safe_mode_message)
+        .title(texts.safe_mode_title)
         .kind(MessageDialogKind::Warning)
         .show(|_| {});
     if !cfg!(debug_assertions) {

@@ -44,6 +44,7 @@
     "allow-update-set-channel",
     "allow-app-ready",
     "allow-new-window",
+    "allow-app-set-locale",
     "allow-accounts-list",
     "allow-accounts-add-token",
     "allow-accounts-start-login",

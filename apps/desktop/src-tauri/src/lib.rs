@@ -17,6 +17,7 @@ pub mod exec;
 pub mod forge;
 pub mod frames;
 pub mod health;
+pub mod locale;
 pub mod locate;
 pub mod locks;
 pub mod os_integration;
@@ -162,6 +163,7 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::update_set_channel,
         commands::app_ready,
         commands::new_window,
+        commands::app_set_locale,
         commands::accounts_list,
         commands::accounts_add_token,
         commands::accounts_start_login,
@@ -185,6 +187,7 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             // Đếm lần khởi động trước khi nạp giao diện (giao diện không lên được thì vẫn đếm).
+            locale::init(app.handle(), &data_dir);
             safe_mode::init(app.handle(), &data_dir);
             let askpass_deny = std::env::current_exe().ok().and_then(|exe| askpass::prepare_deny_program(&data_dir, &exe));
             let core = Core::new(data_dir, Arc::new(TauriEvents(app.handle().clone())), askpass_deny);

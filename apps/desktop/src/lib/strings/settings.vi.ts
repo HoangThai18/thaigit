@@ -8,6 +8,8 @@ export const settings = {
   close: 'Xong',
 
   appearance: 'Giao diện',
+  language: 'Ngôn ngữ / Language',
+  languageHelp: 'Đổi ngôn ngữ thì cửa sổ tải lại để áp dụng; cửa sổ khác đổi theo khi mở lại.',
   scheme: 'Chế độ màu',
   schemeSystem: 'Theo hệ thống',
   schemeLight: 'Sáng',

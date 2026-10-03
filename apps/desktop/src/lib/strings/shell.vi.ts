@@ -25,6 +25,7 @@ export const shell = {
     cloneUrl: 'Địa chỉ repository (HTTPS hoặc SSH)',
     cloneUrlPlaceholder: 'https://github.com/ten/repo.git',
     cloneHost: (host: string, path: string) => (path ? `${host} · ${path}` : host),
+    cloneLocalFolder: 'thư mục trên máy',
     cloneDangerous: 'Địa chỉ này có thể chạy lệnh trên máy nên Thaigit không clone.',
     cloneInvalid: 'Chưa nhận ra địa chỉ repository.',
     cloneCredentials:
@@ -133,6 +134,7 @@ export const shell = {
     tag: 'Tag',
     stashFrom: (branch: string) => `Nhánh: ${branch}`,
     stashNoMessage: '(không có lời nhắn)',
+    stashWip: (branch: string, subject: string) => `WIP trên ${branch}: ${subject}`,
     section: (title: string) => `Mở/đóng mục ${title}`,
     ariaLabel: 'Nhánh, tag và stash',
   },

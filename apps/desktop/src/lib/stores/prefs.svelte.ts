@@ -29,7 +29,13 @@ export interface PrefsData {
   showInspector: boolean;
   sidebarWidth: number;
   inspectorWidth: number;
-  sidebarSections: { local: boolean; remote: boolean; tags: boolean; stashes: boolean; pullRequests: boolean };
+  sidebarSections: {
+    local: boolean;
+    remote: boolean;
+    tags: boolean;
+    stashes: boolean;
+    pullRequests: boolean;
+  };
   columns: PreferredWidths;
   /** Kiểu pull của nút Pull (mặc định `merge`). */
   pullMode: PullModePref;

@@ -4,6 +4,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## Chưa phát hành
 
+- Giao diện tiếng Anh: chọn ở Cài đặt → Giao diện → Ngôn ngữ / Language
 - Tài khoản GitHub / GitLab / Bitbucket (Cài đặt → Tài khoản): dán token hoặc đăng nhập bằng mã; token nằm trong Credential Manager của Windows, fetch / pull / push không phải nhập lại
 - Nhiều tài khoản trên cùng một máy chủ (cá nhân + công ty): app tự chọn tài khoản theo owner của repo, hoặc bạn tự gán ở menu Thêm → "Tài khoản cho repo này" (kèm đề nghị ghi tên / email commit của tài khoản đó vào repo)
 - Hộp Clone liệt kê repo của tài khoản đã đăng nhập, bấm là điền địa chỉ

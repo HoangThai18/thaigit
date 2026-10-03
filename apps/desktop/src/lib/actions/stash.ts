@@ -78,7 +78,8 @@ export function popStash(store: RepoStore, entry: Stash): Promise<void> {
 export function applyStash(store: RepoStore, entry: Stash): Promise<void> {
   return store.perform(vi.branches.applyStashTitle, (git) => git.stashApply(entry.selector), {
     refresh: Scope.all,
-    onSuccess: () => store.notify('success', vi.branches.stashApplied(stashDisplayMessage(entry))),
+    onSuccess: () =>
+      store.notify('success', vi.branches.stashApplied(stashDisplayMessage(entry, vi.sidebar.stashWip))),
     onError: (error) => handleConflictError(store, error, vi.branches.applyStashTitle),
   });
 }
@@ -88,7 +89,7 @@ export async function dropStash(
   entry: Stash,
   options: { dialogs?: DialogStore } = {},
 ): Promise<void> {
-  const label = stashDisplayMessage(entry);
+  const label = stashDisplayMessage(entry, vi.sidebar.stashWip);
   const confirmed = await (options.dialogs ?? globalDialogs).confirm({
     title: vi.branches.dropStashConfirmTitle(label),
     message: vi.branches.undoHint,

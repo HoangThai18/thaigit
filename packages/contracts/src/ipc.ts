@@ -127,6 +127,8 @@ export const Commands = {
   appReady: 'app_ready',
   // Cửa sổ thêm (Ctrl/⌘+T) để làm việc với repo khác song song.
   newWindow: 'new_window',
+  // Ngôn ngữ giao diện cho chữ do Rust tự hiện (hộp chọn thư mục, chế độ an toàn).
+  appSetLocale: 'app_set_locale',
   // Tài khoản git: token trong kho bí mật của hệ điều hành, chọn theo owner của repo.
   accountsList: 'accounts_list',
   accountsAddToken: 'accounts_add_token',

@@ -175,9 +175,13 @@ function splitOnceOmittingEmpty(text: string, separator: string): string[] {
 
 /**
  * "On main: tin nhắn" → "tin nhắn". Stash tự đặt tên "WIP on main: abc123 msg" → "WIP trên main: msg"
- * (giữ chữ WIP để không bị nhầm với tên commit).
+ * (giữ chữ WIP để không bị nhầm với tên commit). `wipLabel` cho giao diện đổi chữ theo ngôn ngữ.
  */
-export function stashDisplayMessage(stash: Pick<Stash, 'message'>): string {
+export function stashDisplayMessage(
+  stash: Pick<Stash, 'message'>,
+  wipLabel: (branch: string, subject: string) => string = (branch, subject) =>
+    `WIP trên ${branch}: ${subject}`,
+): string {
   const { message } = stash;
   const parts = splitOnceOmittingEmpty(message, ':');
   const [head, tail] = parts;
@@ -191,7 +195,7 @@ export function stashDisplayMessage(stash: Pick<Stash, 'message'>): string {
       words.length === 2 && first !== undefined && remainder !== undefined && /^[0-9A-Fa-f]{7,}$/.test(first)
         ? remainder
         : rest;
-    return `WIP trên ${branch}: ${subject}`;
+    return wipLabel(branch, subject);
   }
   return rest;
 }

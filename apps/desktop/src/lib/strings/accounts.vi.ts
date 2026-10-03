@@ -94,7 +94,7 @@ export const pullRequests = {
   createFrom: (branch: string) => `Tạo Pull Request từ ${branch}`,
   title: 'Tiêu đề',
   body: 'Mô tả',
-  bodyHint: 'Markdown được. Gợi ý sẽ viết từ các commit của nhánh.',
+  bodyHint: 'Viết được Markdown.',
   writeWithAi: '✨ Viết mô tả bằng AI',
   writing: 'Đang viết…',
   draftRequest: 'Tạo ở dạng nháp',

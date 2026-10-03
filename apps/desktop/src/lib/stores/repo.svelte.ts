@@ -759,7 +759,7 @@ export class RepoStore {
               committerName: '',
               committerEmail: '',
               commitDate: stash.date,
-              subject: stashDisplayMessage(stash),
+              subject: stashDisplayMessage(stash, vi.sidebar.stashWip),
             };
             this.details = { commit, message: stash.message, files: result.value };
           } else {

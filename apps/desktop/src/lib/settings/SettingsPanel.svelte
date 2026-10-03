@@ -1,5 +1,5 @@
 <!--
-  Màn Cài đặt (Ctrl/⌘ + ,): giao diện, lịch sử, đồng bộ, diff, AI, quyền riêng tư, kênh cập nhật. Mọi thay đổi áp ngay và lưu
+  Màn Cài đặt (Ctrl/⌘ + ,): giao diện (cả ngôn ngữ), lịch sử, đồng bộ, diff, AI, quyền riêng tư, kênh cập nhật. Mọi thay đổi áp ngay và lưu
   (prefs kẹp giá trị về khoảng hợp lệ). Esc / Xong / bấm nền để đóng.
 -->
 <script lang="ts">
@@ -24,6 +24,8 @@
   import { toasts } from '../stores/toasts.svelte.ts';
   import { accounts as defaultAccounts } from '../stores/accounts.svelte.ts';
   import AccountsSection from './AccountsSection.svelte';
+  import { LOCALES, locale as currentLocale, saveLocale, type Locale } from '../i18n/locale.ts';
+  import { setNativeLocale } from '../ipc/os.ts';
 
   interface Props {
     settings?: SettingsStore;
@@ -31,6 +33,8 @@
     ai?: AiStore;
     telemetry?: TelemetryStore;
     setChannel?: (channel: UpdateChannel) => Promise<void>;
+    /** Đổi ngôn ngữ: lưu, báo Rust rồi tải lại cửa sổ (test thay bằng hàm giả). */
+    changeLocale?: (next: Locale) => void;
   }
 
   let {
@@ -39,6 +43,12 @@
     ai = defaultAi,
     telemetry = defaultTelemetry,
     setChannel = updateSetChannel,
+    changeLocale = (next: Locale) => {
+      saveLocale(next);
+      void setNativeLocale(next)
+        .catch(() => undefined)
+        .finally(() => location.reload());
+    },
   }: Props = $props();
 
   const value = $derived(prefs.value);
@@ -123,6 +133,20 @@
               <option value="system">{vi.settings.schemeSystem}</option>
               <option value="light">{vi.settings.schemeLight}</option>
               <option value="dark">{vi.settings.schemeDark}</option>
+            </select>
+          </label>
+          <label class="row" title={vi.settings.languageHelp}>
+            <span>{vi.settings.language}</span>
+            <select
+              value={currentLocale}
+              onchange={(event) => {
+                const next = event.currentTarget.value as Locale;
+                if (next !== currentLocale) changeLocale(next);
+              }}
+            >
+              {#each LOCALES as item (item.id)}
+                <option value={item.id} lang={item.id}>{item.name}</option>
+              {/each}
             </select>
           </label>
           <label class="check">

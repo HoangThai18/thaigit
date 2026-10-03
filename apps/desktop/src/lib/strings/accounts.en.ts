@@ -1,0 +1,116 @@
+/** Bản tiếng Anh của `accounts.vi.ts` (cùng khoá, cùng tham số). */
+import type { accounts as accountsSource, pullRequests as pullRequestsSource } from './accounts.vi.ts';
+import type { Translation } from './types.ts';
+
+export const accounts: Translation<typeof accountsSource> = {
+  title: 'Accounts',
+  help: "Thaigit keeps tokens in the operating system's secret store (Keychain on macOS, Credential Manager on Windows) and automatically uses the right account for each repository based on its owner.",
+  add: 'Add account',
+  empty: 'No accounts yet — add a token so fetch / pull / push stop asking for credentials.',
+  host: 'Server',
+  hostPlaceholder: 'github.com',
+  provider: 'Server type',
+  token: 'Personal access token',
+  tokenPlaceholder: 'Paste a token (repo + read:org to pick accounts by organization)',
+  tokenHelp: (host: string) =>
+    `Create one under Settings → Developer settings on ${host}. Paste it here: the token only lives in this computer's secret store.`,
+  addSubmit: 'Add',
+  adding: 'Checking token…',
+  loginByCode: 'Sign in with a code',
+  loginHelp:
+    'Open the sign-in page and enter the code shown above. The code expires, or closing the dialog cancels it.',
+  codeLabel: 'Sign-in code',
+  openPage: 'Open sign-in page',
+  waiting: 'Waiting for you to confirm on the server page…',
+  noClientId:
+    "This server has no OAuth App Client ID yet, so signing in with a code isn't available — paste a token.",
+  clientId: 'OAuth App Client ID',
+  clientIdHelp:
+    'When a maintainer fills this in, users can sign in with a code; leave it empty to only paste tokens.',
+  saveClientId: 'Save Client ID',
+  cancel: 'Cancel',
+  remove: 'Remove account',
+  removeConfirm: (login: string) =>
+    `Remove ${login}? This account's token will be deleted from this computer.`,
+  setDefault: 'Make default',
+  isDefault: 'Default',
+  owner: 'Owner',
+  ownerHelp:
+    "Choose the account for this owner (user or organization) — git commands to that owner's repositories will use it.",
+  ownerNone: 'Automatic (default account)',
+  ownerForRepo: 'Account for this repository',
+  identity: 'Commit name and email',
+  identityHelp:
+    'Used when you assign this account to a repository: Thaigit offers to write this name / email into the repository config.',
+  identityName: 'Name',
+  identityEmail: 'Email',
+  identitySave: 'Save',
+  reasonAssigned: 'assigned',
+  reasonLogin: 'same as account name',
+  reasonOrganization: 'organization member',
+  reasonFallback: 'default',
+  organizations: 'Organizations / groups',
+  repositories: "Account's repositories",
+  showRepositories: 'Show repositories…',
+  loadingRepositories: 'Loading…',
+  private: 'private',
+  usedAccount: (owner: string, login: string) => `Repositories of ${owner} will use the account ${login}.`,
+  noAccountForOwner: (owner: string) => `No account for ${owner} yet — git will ask you to sign in as usual.`,
+  identityForRepo: 'Commit name and email',
+  identityForRepoMessage: (name: string, email: string) =>
+    `Write "${name} <${email}>" as this repository's commit name / email? New commits will be credited to the chosen account.`,
+  identityWrite: 'Write to repository',
+  identityKeep: 'Keep as is',
+  openAccounts: 'Accounts…',
+  tokenMissing: "No token on this computer — paste this account's token again.",
+  addedToast: (login: string) => `Added account ${login}.`,
+  removedToast: (login: string) => `Removed ${login}.`,
+  errors: {
+    auth: "The server didn't accept the sign-in — the token is wrong, expired or missing permissions (or this computer's secret store is locked). Sign in to that account again.",
+    notFound:
+      "Not found on the server — check the repository name, or the account doesn't have access to it.",
+    network: "Couldn't connect to the server, or the server is having problems — try again later.",
+    rejected: "The server didn't accept this request.",
+    busy: 'Too many sign-ins are open — close some and try again.',
+    invalid: 'Some details are invalid — check the server, token or Client ID.',
+  },
+};
+
+export const pullRequests: Translation<typeof pullRequestsSource> = {
+  section: 'PULL REQUESTS',
+  noun: (count: number) => (count === 1 ? 'pull request' : 'pull requests'),
+  mergeRequestNoun: (count: number) => (count === 1 ? 'merge request' : 'merge requests'),
+  empty: 'No open Pull Requests.',
+  notConnected:
+    "This repository isn't connected to a server the app recognizes (GitHub / GitLab / Bitbucket).",
+  noAccount: 'Not signed in to this server — add an account in Settings → Accounts.',
+  loading: 'Loading…',
+  refresh: 'Reload',
+  openOnWeb: 'Open on the web',
+  checkout: 'Checkout PR branch',
+  draft: 'Draft',
+  merged: 'Merged',
+  closed: 'Closed',
+  byAuthor: (author: string) => `by ${author}`,
+  branchTo: (target: string) => `→ ${target}`,
+  create: 'Create Pull Request',
+  createFrom: (branch: string) => `Create Pull Request from ${branch}`,
+  title: 'Title',
+  body: 'Description',
+  bodyHint: 'Markdown is supported.',
+  writeWithAi: '✨ Write description with AI',
+  writing: 'Writing…',
+  draftRequest: 'Create as draft',
+  submit: 'Create Pull Request',
+  creating: 'Creating…',
+  targetBranch: 'Target branch',
+  sourceBranch: 'Source branch',
+  sameBranch: 'The source and target branches must be different.',
+  noBase: 'The remote has no other branch to use as the target.',
+  notPushed: (branch: string) =>
+    `Branch ${branch} isn't on the remote yet — push it first, then create the Pull Request.`,
+  rejected:
+    "The server didn't accept the Pull Request — has the source branch been pushed, or does it already have an open Pull Request?",
+  createdToast: (number: string) => `Created Pull Request #${number}.`,
+  needsTitle: 'The title cannot be empty.',
+};

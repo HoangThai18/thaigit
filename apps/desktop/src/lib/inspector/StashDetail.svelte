@@ -18,7 +18,7 @@
   let { store, sha }: Props = $props();
 
   const stash = $derived(store.stashes.find((candidate) => candidate.sha === sha));
-  const message = $derived(stash ? stashDisplayMessage(stash) : '');
+  const message = $derived(stash ? stashDisplayMessage(stash, vi.sidebar.stashWip) : '');
   const branch = $derived(stash ? stashBranchName(stash) : null);
   const details = $derived(store.details?.commit.id === sha ? store.details : null);
   const openPath = $derived.by(() => {
