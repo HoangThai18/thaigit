@@ -7,6 +7,9 @@ import FoundationModels
 /// Viết commit message bằng mô hình ngôn ngữ chạy NGAY TRÊN MÁY (Apple Intelligence, macOS 26+): diff không rời khỏi
 /// máy, không cần tài khoản hay API key.
 enum CommitMessageAI {
+    /// Công tắc chung: đang TẠM TẮT — nút ✨ và lệnh trong bảng lệnh ⌘P đều ẩn. Bật lại: đổi thành `true`.
+    static let isEnabled = false
+
     /// nil nếu dùng được; không thì lý do (hiện trong tooltip của nút).
     static var unavailableReason: String? {
         #if canImport(FoundationModels)

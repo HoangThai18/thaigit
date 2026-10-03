@@ -214,7 +214,7 @@ struct CommandPaletteSheet: View {
         }
         list.append(PaletteCommand(id: "issues", title: "Issues (GitHub / Jira)…", subtitle: "Tạo nhánh từ issue, gắn issue vào commit",
                                    systemImage: "checklist", shortcut: "⌥⌘J") { model.sheet = .issues })
-        if CommitMessageAI.unavailableReason == nil, !model.status.staged.isEmpty {
+        if CommitMessageAI.isEnabled, CommitMessageAI.unavailableReason == nil, !model.status.staged.isEmpty {
             list.append(PaletteCommand(id: "ai.commit", title: "AI viết commit message", subtitle: "Chạy trên máy (Apple Intelligence)",
                                        systemImage: "sparkles") { Task { await model.fillCommitMessageWithAI() } })
         }

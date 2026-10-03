@@ -308,7 +308,9 @@ struct CommitComposer: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Commit").font(.headline)
-                aiButton
+                if CommitMessageAI.isEnabled {
+                    aiButton
+                }
                 Button { model.sheet = .issues } label: { Image(systemName: "number") }
                     .buttonStyle(.borderless)
                     .help("Gắn issue GitHub / Jira vào commit message (⌥⌘J)")
