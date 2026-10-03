@@ -2,6 +2,19 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## Chưa phát hành
+
+- AI viết commit message (nút ✨ Viết bằng AI, Ctrl+Shift+G): chữ hiện dần, Dừng / Tạo lại / Hoàn tác, chọn ngôn ngữ, độ dài, Conventional Commits; hỏi đồng ý và cho xem đúng dữ liệu sẽ gửi trước lần đầu, tự bỏ file nhạy cảm và đoạn trông như mật khẩu / token
+- Giải thích commit và viết mô tả Pull Request bằng AI
+- Màn Cài đặt (Ctrl+,): giao diện, lịch sử, đồng bộ, diff, AI, quyền riêng tư, kênh cập nhật Beta / Ổn định
+- Thống kê ẩn danh mặc định tắt — chỉ gửi khi bạn bật
+- Clone và Tạo repo mới ngay ở màn hình chính
+- Diff tách đôi (cũ | mới), xem ảnh cũ / mới cạnh nhau
+- Kéo-thả: nhánh lên nhánh để merge / rebase, lên remote để push; file giữa "Chưa stage" và "Đã stage"
+- Tìm commit trên graph (Ctrl+F), gõ không dấu vẫn ra
+- Mở Terminal, trình soạn thảo, thư mục repo từ menu
+- Chế độ an toàn: app không mở lên được vài lần liên tiếp thì tự kiểm bản sửa lỗi
+
 ## 2.0.0-beta.1 — 2026-10-03
 
 Bản thử đầu tiên cho Windows.
