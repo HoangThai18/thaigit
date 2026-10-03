@@ -51,12 +51,12 @@ extension RepoModel {
 
     /// Ghi tên / email commit vào config LOCAL của repo này (`git config user.name|user.email`, không --global).
     func applyCommitIdentity(name: String, email: String) {
-        perform("Ghi tên & email commit cho repo", refresh: []) { repo in
+        perform(String(localized: "Ghi tên & email commit cho repo"), refresh: []) { repo in
             try await repo.setConfig("user.name", name, global: false)
             try await repo.setConfig("user.email", email, global: false)
         } onSuccess: { [weak self] in
             self?.loadCommitterIdentity()
-            self?.toast(.success, "Repo này giờ commit với tên \(name) <\(email)>")
+            self?.toast(.success, String(localized: "Repo này giờ commit với tên \(name) <\(email)>"))
         }
     }
 
@@ -68,34 +68,34 @@ extension RepoModel {
         guard let gitError = error as? GitError, let failure = GitHubAuthFailure.detect(in: gitError) else { return false }
         let github = GitHubAccountManager.shared
         guard let used = github.resolution(forOwner: failure.owner)?.profile else {
-            showError("\(name) bị GitHub từ chối — chưa đăng nhập GitHub", error, actions: githubLoginActions("Đăng nhập GitHub"))
+            showError(String(localized: "\(name) bị GitHub từ chối — chưa đăng nhập GitHub"), error, actions: githubLoginActions(String(localized: "Đăng nhập GitHub")))
             return true
         }
         // Tài khoản của owner chưa đọc được token (Keychain lỗi / bị từ chối): git không dùng token tài khoản khác thay vào.
         if !github.loginsWithToken.contains(used.login) {
-            showError("Chưa đọc được token của @\(used.login) — đăng nhập lại tài khoản này", error,
-                      actions: githubLoginActions("Đăng nhập lại @\(used.login)"))
+            showError(String(localized: "Chưa đọc được token của @\(used.login) — đăng nhập lại tài khoản này"), error,
+                      actions: githubLoginActions(String(localized: "Đăng nhập lại @\(used.login)")))
             return true
         }
-        let target = failure.owner.map { "github.com/\($0)" } ?? "repo này"
+        let target = failure.owner.map { "github.com/\($0)" } ?? String(localized: "repo này")
         var actions: [ToastAction] = []
         if let owner = failure.owner {
-            actions.append(ToastAction(title: "Dùng tài khoản khác cho \(owner)…") { [weak self] in
+            actions.append(ToastAction(title: String(localized: "Dùng tài khoản khác cho \(owner)…")) { [weak self] in
                 self?.sheet = .githubAccount(owner: owner)
             })
         }
         switch failure.kind {
         case .unauthenticated:
-            showError("Token GitHub của @\(used.login) không còn hợp lệ — đăng nhập lại", error,
-                      actions: githubLoginActions("Đăng nhập lại") + actions)
+            showError(String(localized: "Token GitHub của @\(used.login) không còn hợp lệ — đăng nhập lại"), error,
+                      actions: githubLoginActions(String(localized: "Đăng nhập lại")) + actions)
         case .forbidden:
             let settings = github.authorizationSettingsURL
-            showError("GitHub từ chối quyền của @\(used.login) với \(target)", error, actions: actions + [
-                ToastAction(title: "Xem quyền của Thaigit") { NSWorkspace.shared.open(settings) },
+            showError(String(localized: "GitHub từ chối quyền của @\(used.login) với \(target)"), error, actions: actions + [
+                ToastAction(title: String(localized: "Xem quyền của Thaigit")) { NSWorkspace.shared.open(settings) },
             ])
         case .notFound:
-            showError("@\(used.login) không thấy repo trên \(target) — repo riêng tư có thể cần tài khoản khác", error,
-                      actions: actions + githubLoginActions("Thêm tài khoản…"))
+            showError(String(localized: "@\(used.login) không thấy repo trên \(target) — repo riêng tư có thể cần tài khoản khác"), error,
+                      actions: actions + githubLoginActions(String(localized: "Thêm tài khoản…")))
         }
         return true
     }

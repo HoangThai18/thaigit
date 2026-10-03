@@ -25,7 +25,7 @@ struct GitHubRepoAccountSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label(owner == nil ? "Tài khoản GitHub cho repo này" : "Tài khoản GitHub cho \(owner ?? "")", systemImage: "person.badge.key")
+            Label(owner == nil ? String(localized: "Tài khoản GitHub cho repo này") : String(localized: "Tài khoản GitHub cho \(owner ?? "")"), systemImage: "person.badge.key")
                 .font(.title3.bold())
 
             if !github.isConfigured {
@@ -47,7 +47,7 @@ struct GitHubRepoAccountSheet: View {
                 Button("Huỷ") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 if !github.accounts.isEmpty {
-                    Button(targetOwner == nil ? "Ghi danh tính" : "Gán tài khoản", action: confirm)
+                    Button(targetOwner == nil ? String(localized: "Ghi danh tính") : String(localized: "Gán tài khoản"), action: confirm)
                         .keyboardShortcut(.defaultAction)
                         .disabled(selected == nil || (targetOwner == nil && !writeIdentity))
                 }
@@ -110,10 +110,10 @@ struct GitHubRepoAccountSheet: View {
 
     private func reason(_ match: GitHubAccountsState.Match) -> String {
         switch match {
-        case .assigned: return "bạn đã gán"
-        case .login: return "owner là chính tài khoản này"
-        case .organization: return "tài khoản là thành viên tổ chức"
-        case .fallback: return "tài khoản mặc định"
+        case .assigned: return String(localized: "bạn đã gán")
+        case .login: return String(localized: "owner là chính tài khoản này")
+        case .organization: return String(localized: "tài khoản là thành viên tổ chức")
+        case .fallback: return String(localized: "tài khoản mặc định")
         }
     }
 

@@ -19,7 +19,7 @@ enum VietnameseDate {
     /// "3 giờ trước", "vừa xong"
     static func relative(_ date: Date, to now: Date = Date()) -> String {
         let interval = now.timeIntervalSince(date)
-        if interval < 60, interval > -60 { return "vừa xong" }
+        if interval < 60, interval > -60 { return String(localized: "vừa xong") }
         return relativeFormatter.localizedString(for: date, relativeTo: now)
     }
 

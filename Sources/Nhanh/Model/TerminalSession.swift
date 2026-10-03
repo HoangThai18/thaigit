@@ -79,9 +79,9 @@ final class TerminalSession {
                 self?.appendOutput(buffer.take())
                 finalDirectory = result.directory
                 if Task.isCancelled {
-                    self?.append(.info, "Đã dừng lệnh")
+                    self?.append(.info, String(localized: "Đã dừng lệnh"))
                 } else if result.exitCode != 0 {
-                    self?.append(.info, "↳ thoát với mã \(result.exitCode)")
+                    self?.append(.info, String(localized: "↳ thoát với mã \(result.exitCode)"))
                 }
             } catch {
                 flusher.cancel()

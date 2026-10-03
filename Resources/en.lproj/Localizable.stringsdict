@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%@ %lld file</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%2$#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%1$@ %2$lld file</string>
+			<key>other</key>
+			<string>%1$@ %2$lld files</string>
+		</dict>
+	</dict>
+	<key>%lld commit chưa push</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld commit not pushed yet</string>
+			<key>other</key>
+			<string>%lld commits not pushed yet</string>
+		</dict>
+	</dict>
+	<key>%lld commit khớp</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld matching commit</string>
+			<key>other</key>
+			<string>%lld matching commits</string>
+		</dict>
+	</dict>
+	<key>%lld commit mới trên remote chưa pull</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld new commit on the remote not pulled yet</string>
+			<key>other</key>
+			<string>%lld new commits on the remote not pulled yet</string>
+		</dict>
+	</dict>
+	<key>%lld dòng</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld line</string>
+			<key>other</key>
+			<string>%lld lines</string>
+		</dict>
+	</dict>
+	<key>%lld file thay đổi</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld file changed</string>
+			<key>other</key>
+			<string>%lld files changed</string>
+		</dict>
+	</dict>
+	<key>%lld lệnh gần nhất</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Last %lld command</string>
+			<key>other</key>
+			<string>Last %lld commands</string>
+		</dict>
+	</dict>
+	<key>%lld đoạn xung đột</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld conflict</string>
+			<key>other</key>
+			<string>%lld conflicts</string>
+		</dict>
+	</dict>
+	<key>%lld%@ commit có ở “Tới” mà “Từ” chưa có</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%1$lld%2$@ commit in “To” that “From” doesn't have</string>
+			<key>other</key>
+			<string>%1$lld%2$@ commits in “To” that “From” doesn't have</string>
+		</dict>
+	</dict>
+	<key>%lld%@ commit sẽ vào %@</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%1$lld%2$@ commit will go into %3$@</string>
+			<key>other</key>
+			<string>%1$lld%2$@ commits will go into %3$@</string>
+		</dict>
+	</dict>
+	<key>Chỉ hiện %lld nhánh (và nhánh đang checkout)</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Showing only %lld branch (and the checked-out branch)</string>
+			<key>other</key>
+			<string>Showing only %lld branches (and the checked-out branch)</string>
+		</dict>
+	</dict>
+	<key>Commit %lld file vào %@</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Commit %1$lld File to %2$@</string>
+			<key>other</key>
+			<string>Commit %1$lld Files to %2$@</string>
+		</dict>
+	</dict>
+	<key>Còn %lld file xung đột chưa giải quyết</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld conflicted file still unresolved</string>
+			<key>other</key>
+			<string>%lld conflicted files still unresolved</string>
+		</dict>
+	</dict>
+	<key>Còn %lld file xung đột — bấm vào từng file ở panel bên phải để chọn bản giữ lại.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld conflicted file left — click it in the right panel to choose what to keep.</string>
+			<key>other</key>
+			<string>%lld conflicted files left — click each in the right panel to choose what to keep.</string>
+		</dict>
+	</dict>
+	<key>Huỷ thay đổi %lld file…</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Discard Changes in %lld File…</string>
+			<key>other</key>
+			<string>Discard Changes in %lld Files…</string>
+		</dict>
+	</dict>
+	<key>Viết lại %lld commit sau %@. Commit mới ở trên, cũ ở dưới; “Gộp” là gộp vào commit ngay bên dưới.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Rewrite %1$lld commit after %2$@. Newer commits are on top, older below; “Squash” merges into the commit right below.</string>
+			<key>other</key>
+			<string>Rewrite %1$lld commits after %2$@. Newer commits are on top, older below; “Squash” merges into the commit right below.</string>
+		</dict>
+	</dict>
+	<key>Đang chờ bạn xác nhận trên GitHub… Mã hết hạn sau %lld phút.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Waiting for you to verify on GitHub… The code expires in %lld minute.</string>
+			<key>other</key>
+			<string>Waiting for you to verify on GitHub… The code expires in %lld minutes.</string>
+		</dict>
+	</dict>
+	<key>Đang ẩn %lld nhánh</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld branch hidden</string>
+			<key>other</key>
+			<string>%lld branches hidden</string>
+		</dict>
+	</dict>
+	<key>Đã chọn %lld dòng</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld line selected</string>
+			<key>other</key>
+			<string>%lld lines selected</string>
+		</dict>
+	</dict>
+	<key>Đã viết lại %lld commit trên %@</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Rewrote %1$lld commit on %2$@</string>
+			<key>other</key>
+			<string>Rewrote %1$lld commits on %2$@</string>
+		</dict>
+	</dict>
+	<key>… %lld dòng không đổi — bấm để xem</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>… %lld unchanged line — click to show</string>
+			<key>other</key>
+			<string>… %lld unchanged lines — click to show</string>
+		</dict>
+	</dict>
+	<key>… và %lld commit nữa</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>… and %lld more commit</string>
+			<key>other</key>
+			<string>… and %lld more commits</string>
+		</dict>
+	</dict>
+	<key>⚠︎ %lld xung đột</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>⚠︎ %lld conflict</string>
+			<key>other</key>
+			<string>⚠︎ %lld conflicts</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

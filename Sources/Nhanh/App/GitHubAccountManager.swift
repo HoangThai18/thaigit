@@ -28,7 +28,7 @@ final class GitHubAccountManager {
     }
 
     /// "Chưa cấu hình (thiếu Client ID của GitHub OAuth App)" — Info.plist để trống `ThaigitGitHubClientID`.
-    static let notConfiguredMessage = GitHubError.notConfigured(nil).errorDescription ?? "Chưa cấu hình"
+    static let notConfiguredMessage = GitHubError.notConfigured(nil).errorDescription ?? String(localized: "Chưa cấu hình")
     /// OAuth App không tự thu hồi token được (cần client secret): người dùng thu hồi ở trang này.
     static let revokeURL = URL(string: "https://github.com/settings/applications")!
 
@@ -95,7 +95,7 @@ final class GitHubAccountManager {
             do {
                 helperPath = try GitHubCredentialHelper.install(in: directory).path
             } catch {
-                problem = "Không cài được credential helper cho GitHub: \(Self.describe(error))"
+                problem = String(localized: "Không cài được credential helper cho GitHub: \(Self.describe(error))")
             }
         }
         state = store.loadState()
@@ -106,8 +106,8 @@ final class GitHubAccountManager {
             let errors = await Task.detached(priority: .userInitiated) { tokens.loadTokens() }.value
             publish()
             if !errors.isEmpty {
-                problem = "Không đọc được token của " + errors.keys.sorted().map { "@\($0)" }.joined(separator: ", ")
-                    + " trong Keychain — hãy đăng nhập lại tài khoản đó."
+                problem = String(localized: "Không đọc được token của ") + errors.keys.sorted().map { "@\($0)" }.joined(separator: ", ")
+                    + String(localized: " trong Keychain — hãy đăng nhập lại tài khoản đó.")
             }
         }
     }
@@ -175,7 +175,7 @@ final class GitHubAccountManager {
         publish()
         // Chỉ báo "đã xoá token khỏi máy" khi Keychain thật sự xoá được.
         removedLogin = result.tokenError == nil ? login : nil
-        problem = result.tokenError.map { "Không xoá được token của @\(login) khỏi Keychain: \(Self.describe($0))" }
+        problem = result.tokenError.map { String(localized: "Không xoá được token của @\(login) khỏi Keychain: \(Self.describe($0))") }
     }
 
     func setDefault(login: String) {

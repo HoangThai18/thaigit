@@ -107,16 +107,16 @@ public enum GitHubError: LocalizedError, Equatable, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .notConfigured(nil): return "Chưa cấu hình (thiếu Client ID của GitHub OAuth App)"
-        case .notConfigured(let detail?): return "Chưa cấu hình đúng GitHub OAuth App: \(detail)."
-        case .expired: return "Mã xác nhận đã hết hạn — hãy đăng nhập lại để lấy mã mới."
-        case .accessDenied: return "Bạn đã từ chối cấp quyền cho Thaigit trên GitHub."
-        case .unauthorized: return "Token GitHub không còn hợp lệ — đăng nhập lại."
-        case .network(let detail): return "Không kết nối được tới GitHub: \(detail)"
-        case .badResponse(let status): return "GitHub trả về lỗi \(status)."
-        case .invalidResponse: return "Phản hồi của GitHub không đúng định dạng."
-        case .oauth(let detail): return "GitHub từ chối đăng nhập: \(detail)"
-        case .keychain(let status): return "Không truy cập được Keychain (mã lỗi \(status))."
+        case .notConfigured(nil): return String(localized: "Chưa cấu hình (thiếu Client ID của GitHub OAuth App)")
+        case .notConfigured(let detail?): return String(localized: "Chưa cấu hình đúng GitHub OAuth App: \(detail).")
+        case .expired: return String(localized: "Mã xác nhận đã hết hạn — hãy đăng nhập lại để lấy mã mới.")
+        case .accessDenied: return String(localized: "Bạn đã từ chối cấp quyền cho Thaigit trên GitHub.")
+        case .unauthorized: return String(localized: "Token GitHub không còn hợp lệ — đăng nhập lại.")
+        case .network(let detail): return String(localized: "Không kết nối được tới GitHub: \(detail)")
+        case .badResponse(let status): return String(localized: "GitHub trả về lỗi \(status).")
+        case .invalidResponse: return String(localized: "Phản hồi của GitHub không đúng định dạng.")
+        case .oauth(let detail): return String(localized: "GitHub từ chối đăng nhập: \(detail)")
+        case .keychain(let status): return String(localized: "Không truy cập được Keychain (mã lỗi \(status)).")
         }
     }
 }

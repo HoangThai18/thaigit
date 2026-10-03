@@ -39,8 +39,8 @@ extension RepoModel {
             fileEditor = FileEditorSession(file: try EditableTextFile.open(path: file.change.path, in: repository.root))
         } catch {
             let message = FriendlyError.message(for: error)
-            toast(.warning, "Không sửa được \(file.change.fileName) trong app", message: message, actions: [
-                ToastAction(title: "Mở bằng trình soạn thảo") { [weak self] in self?.openInEditor(path: file.change.path) },
+            toast(.warning, String(localized: "Không sửa được \(file.change.fileName) trong app"), message: message, actions: [
+                ToastAction(title: String(localized: "Mở bằng trình soạn thảo")) { [weak self] in self?.openInEditor(path: file.change.path) },
             ])
         }
     }
@@ -53,20 +53,20 @@ extension RepoModel {
         do {
             let saved = try session.file.save(session.text, in: repository.root, overwrite: overwrite)
             session.didSave(saved)
-            toast(.success, "Đã lưu \((session.path as NSString).lastPathComponent)", tag: "editor")
+            toast(.success, String(localized: "Đã lưu \((session.path as NSString).lastPathComponent)"), tag: "editor")
             requestRefresh(.status)
             loadDiff()
         } catch EditableTextFile.Problem.changedOnDisk {
             confirmation = Confirmation(
-                title: "Ghi đè \((session.path as NSString).lastPathComponent)?",
-                message: "File vừa bị sửa ở nơi khác (trình soạn thảo, lệnh git…) sau khi bạn mở. Lưu bây giờ sẽ thay bằng bản của bạn.",
-                confirmTitle: "Ghi đè",
+                title: String(localized: "Ghi đè \((session.path as NSString).lastPathComponent)?"),
+                message: String(localized: "File vừa bị sửa ở nơi khác (trình soạn thảo, lệnh git…) sau khi bạn mở. Lưu bây giờ sẽ thay bằng bản của bạn."),
+                confirmTitle: String(localized: "Ghi đè"),
                 isDestructive: true
             ) { [weak self] in
                 self?.saveEditor(overwrite: true)
             }
         } catch {
-            showError("Không lưu được \((session.path as NSString).lastPathComponent)", error)
+            showError(String(localized: "Không lưu được \((session.path as NSString).lastPathComponent)"), error)
         }
     }
 
@@ -78,9 +78,9 @@ extension RepoModel {
             return
         }
         confirmation = Confirmation(
-            title: "Bỏ các thay đổi chưa lưu?",
-            message: "Những gì bạn vừa gõ trong \((session.path as NSString).lastPathComponent) sẽ mất.",
-            confirmTitle: "Bỏ thay đổi",
+            title: String(localized: "Bỏ các thay đổi chưa lưu?"),
+            message: String(localized: "Những gì bạn vừa gõ trong \((session.path as NSString).lastPathComponent) sẽ mất."),
+            confirmTitle: String(localized: "Bỏ thay đổi"),
             isDestructive: true
         ) { [weak self] in
             self?.fileEditor = nil
@@ -95,8 +95,8 @@ extension RepoModel {
             return
         }
         let path = session.path
-        toast(.warning, "\((path as NSString).lastPathComponent) còn thay đổi chưa lưu", message: "Bản đang sửa vẫn được giữ.",
-              actions: [ToastAction(title: "Quay lại sửa") { [weak self] in self?.reopenEditor(path: path) }], tag: "editor")
+        toast(.warning, String(localized: "\((path as NSString).lastPathComponent) còn thay đổi chưa lưu"), message: String(localized: "Bản đang sửa vẫn được giữ."),
+              actions: [ToastAction(title: String(localized: "Quay lại sửa")) { [weak self] in self?.reopenEditor(path: path) }], tag: "editor")
     }
 
     private func reopenEditor(path: String) {

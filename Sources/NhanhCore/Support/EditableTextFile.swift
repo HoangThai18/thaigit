@@ -18,16 +18,16 @@ public struct EditableTextFile: Sendable, Equatable {
 
         public var errorDescription: String? {
             switch self {
-            case .notFound: return "File không còn trong thư mục làm việc."
-            case .notRegularFile: return "Không phải file thường."
-            case .symlink: return "File là symlink — sửa file gốc mà nó trỏ tới."
-            case .outsideRepository: return "File nằm ngoài repository."
+            case .notFound: return String(localized: "File không còn trong thư mục làm việc.")
+            case .notRegularFile: return String(localized: "Không phải file thường.")
+            case .symlink: return String(localized: "File là symlink — sửa file gốc mà nó trỏ tới.")
+            case .outsideRepository: return String(localized: "File nằm ngoài repository.")
             case .tooLarge(let bytes):
-                return "File lớn (\(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))) — mở bằng trình soạn thảo."
-            case .binary: return "File nhị phân — không sửa được trong app."
-            case .notUTF8: return "File không phải UTF-8 — mở bằng trình soạn thảo để giữ đúng bảng mã."
-            case .mixedLineEndings: return "File lẫn lộn kiểu xuống dòng (CRLF và LF) — mở bằng trình soạn thảo để không đổi các dòng khác."
-            case .changedOnDisk: return "File vừa bị sửa ở nơi khác sau khi bạn mở."
+                return String(localized: "File lớn (\(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))) — mở bằng trình soạn thảo.")
+            case .binary: return String(localized: "File nhị phân — không sửa được trong app.")
+            case .notUTF8: return String(localized: "File không phải UTF-8 — mở bằng trình soạn thảo để giữ đúng bảng mã.")
+            case .mixedLineEndings: return String(localized: "File lẫn lộn kiểu xuống dòng (CRLF và LF) — mở bằng trình soạn thảo để không đổi các dòng khác.")
+            case .changedOnDisk: return String(localized: "File vừa bị sửa ở nơi khác sau khi bạn mở.")
             }
         }
     }

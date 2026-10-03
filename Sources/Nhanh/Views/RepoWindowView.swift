@@ -296,7 +296,7 @@ struct BranchSwitcher: View {
         Menu {
             // Repo có hàng trăm nhánh: menu chỉ liệt kê nhánh gần đây, còn lại tìm trong "Chuyển nhánh…".
             let branches = model.recentLocalBranches(limit: 15)
-            Section(branches.count < model.localBranches.count ? "Nhánh gần đây" : "Nhánh local") {
+            Section(branches.count < model.localBranches.count ? String(localized: "Nhánh gần đây") : String(localized: "Nhánh local")) {
                 ForEach(branches) { ref in
                     Button {
                         model.checkout(ref)
@@ -329,9 +329,9 @@ struct HistoryGapsBanner: View {
     private var detail: String {
         var parts: [String] = []
         if !gaps.narrowRemotes.isEmpty {
-            parts.append("Repo chỉ đang lấy một vài nhánh của \(gaps.narrowRemotes.joined(separator: ", ")) nên các nhánh khác trên remote không hiện, kể cả khi Fetch.")
+            parts.append(String(localized: "Repo chỉ đang lấy một vài nhánh của \(gaps.narrowRemotes.joined(separator: ", ")) nên các nhánh khác trên remote không hiện, kể cả khi Fetch."))
         }
-        if gaps.shallow { parts.append("Đây là bản clone nông nên còn thiếu các commit cũ.") }
+        if gaps.shallow { parts.append(String(localized: "Đây là bản clone nông nên còn thiếu các commit cũ.")) }
         return parts.joined(separator: " ")
     }
 
@@ -341,7 +341,7 @@ struct HistoryGapsBanner: View {
                 .font(.title2)
                 .foregroundStyle(Brand.blue)
             VStack(alignment: .leading, spacing: 2) {
-                Text(gaps.narrowRemotes.isEmpty ? "Repo chưa có đủ lịch sử từ remote" : "Repo chưa có đủ nhánh từ remote")
+                Text(gaps.narrowRemotes.isEmpty ? String(localized: "Repo chưa có đủ lịch sử từ remote") : String(localized: "Repo chưa có đủ nhánh từ remote"))
                     .font(.headline)
                 Text(detail)
                     .font(.callout)
@@ -492,7 +492,7 @@ struct ToastView: View {
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                     if message.count > 220 || message.filter({ $0 == "\n" }).count > 3 {
-                        Button(expanded ? "Thu gọn" : "Xem đầy đủ") { expanded.toggle() }
+                        Button(expanded ? String(localized: "Thu gọn") : String(localized: "Xem đầy đủ")) { expanded.toggle() }
                             .buttonStyle(.link)
                             .font(.caption)
                     }

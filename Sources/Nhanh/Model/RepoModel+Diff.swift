@@ -154,12 +154,12 @@ extension RepoModel {
         case .compare(let from, let to):
             diff = try await repo.diff(commit: to, parent: from, file: change, context: context)
         case .stash:
-            guard let stash else { return .message("Stash không còn tồn tại.") }
+            guard let stash else { return .message(String(localized: "Stash không còn tồn tại.")) }
             diff = try await repo.stashDiff(stash, file: change)
         }
 
         guard let diff else {
-            return .message("Không có thay đổi để hiển thị.")
+            return .message(String(localized: "Không có thay đổi để hiển thị."))
         }
         if diff.isBinary {
             let ext = (change.path as NSString).pathExtension.lowercased()
@@ -170,14 +170,14 @@ extension RepoModel {
         }
         if diff.hunks.isEmpty {
             if diff.isModeChangeOnly {
-                return .message("Chỉ đổi quyền file: \(diff.oldMode ?? "?") → \(diff.newMode ?? "?")")
+                return .message(String(localized: "Chỉ đổi quyền file: \(diff.oldMode ?? "?") → \(diff.newMode ?? "?")"))
             }
             if let old = diff.oldPath, let new = diff.newPath, old != new {
-                return .message("Đổi tên “\(old)” → “\(new)”, nội dung không đổi.")
+                return .message(String(localized: "Đổi tên “\(old)” → “\(new)”, nội dung không đổi."))
             }
-            if diff.isNewFile { return .message("File mới, rỗng.") }
-            if diff.isDeletedFile { return .message("Đã xoá file rỗng.") }
-            return .message("Không có thay đổi nội dung.")
+            if diff.isNewFile { return .message(String(localized: "File mới, rỗng.")) }
+            if diff.isDeletedFile { return .message(String(localized: "Đã xoá file rỗng.")) }
+            return .message(String(localized: "Không có thay đổi nội dung."))
         }
         if diff.lineCount > 25_000 { return .tooLarge(diff) }
         return .text(await DiffPresentation.make(diff))
@@ -316,25 +316,25 @@ extension RepoModel {
 
     func applySelectedLines(_ action: HunkAction) {
         guard !lineSelection.isEmpty else { return }
-        applyPatch(action, selection: lineSelection, title: Self.title(action, unit: "\(selectedLineCount) dòng"))
+        applyPatch(action, selection: lineSelection, title: Self.title(action, unit: String(localized: "\(selectedLineCount) dòng")))
     }
 
     private static func title(_ action: HunkAction, unit: String) -> String {
         switch action {
         case .stage: return "Stage \(unit)"
-        case .unstage: return "Bỏ stage \(unit)"
-        case .discard: return "Huỷ \(unit)"
+        case .unstage: return String(localized: "Bỏ stage \(unit)")
+        case .discard: return String(localized: "Huỷ \(unit)")
         }
     }
 
     private func applyPatch(_ action: HunkAction, selection: [Int: Set<Int>], title: String) {
         guard case .text(let presentation) = diffState, let file = openFile else { return }
         guard presentation.diff.isValidUTF8 else {
-            toast(.warning, "File không phải UTF-8 — chỉ thao tác được trên cả file")
+            toast(.warning, String(localized: "File không phải UTF-8 — chỉ thao tác được trên cả file"))
             return
         }
         guard let patch = PatchBuilder.makePatch(file: presentation.diff, selection: selection, reverse: action.reverse) else {
-            toast(.warning, "Không có thay đổi nào được chọn")
+            toast(.warning, String(localized: "Không có thay đổi nào được chọn"))
             return
         }
         let path = file.change.path
@@ -348,18 +348,18 @@ extension RepoModel {
             guard let self else { return }
             lineSelection = [:]
             if action == .discard, let snapshot {
-                toast(.success, "Đã huỷ thay đổi trong \((path as NSString).lastPathComponent)", actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in self?.restoreFiles([path], from: snapshot) },
+                toast(.success, String(localized: "Đã huỷ thay đổi trong \((path as NSString).lastPathComponent)"), actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.restoreFiles([path], from: snapshot) },
                 ])
             }
         } onError: { [weak self] error in
-            self?.showError("\(title) thất bại — thử thao tác trên cả hunk hoặc cả file", error)
+            self?.showError(String(localized: "\(title) thất bại — thử thao tác trên cả hunk hoặc cả file"), error)
             return true
         }
     }
 
     func restoreFiles(_ paths: [String], from snapshot: String) {
-        perform("Hoàn tác huỷ thay đổi", refresh: [.status]) { repo in
+        perform(String(localized: "Hoàn tác huỷ thay đổi"), refresh: [.status]) { repo in
             try await repo.restoreWorkingFiles(from: snapshot, paths: paths)
         }
     }
@@ -367,25 +367,25 @@ extension RepoModel {
     // MARK: - Xung đột
 
     func resolveConflict(_ entry: ConflictEntry, useOurs: Bool) {
-        perform(useOurs ? "Dùng bản Current" : "Dùng bản Incoming", refresh: [.status]) { repo in
+        perform(useOurs ? String(localized: "Dùng bản Current") : String(localized: "Dùng bản Incoming"), refresh: [.status]) { repo in
             try await repo.resolveConflict(path: entry.path, kind: entry.kind, useOurs: useOurs)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã giải quyết \((entry.path as NSString).lastPathComponent)")
+            self?.toast(.success, String(localized: "Đã giải quyết \((entry.path as NSString).lastPathComponent)"))
         }
     }
 
     func saveConflictResolution(_ entry: ConflictEntry, file: ConflictFile, choices: [Int: ConflictFile.Resolution]) {
         // Ghép theo byte: BOM, kiểu xuống dòng và mọi byte ngoài các khối xung đột giữ nguyên văn.
         guard let content = file.resolvedData(with: choices) else {
-            toast(.warning, "Còn xung đột chưa chọn cách giải quyết")
+            toast(.warning, String(localized: "Còn xung đột chưa chọn cách giải quyết"))
             return
         }
-        perform("Lưu file đã giải quyết", refresh: [.status]) { repo in
+        perform(String(localized: "Lưu file đã giải quyết"), refresh: [.status]) { repo in
             // Chỉ ghi khi file trên đĩa vẫn là bản đã mở: sửa bên ngoài trong lúc giải thì không ghi đè mất.
             try repo.replaceWorkingFile(entry.path, data: content, expecting: Data(file.bytes))
             try await repo.markResolved(paths: [entry.path])
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã giải quyết \((entry.path as NSString).lastPathComponent)")
+            self?.toast(.success, String(localized: "Đã giải quyết \((entry.path as NSString).lastPathComponent)"))
         } onError: { [weak self] error in
             // File đã đổi trên đĩa: nạp lại để người dùng thấy nội dung mới (lựa chọn cũ không còn khớp).
             if case RepositoryError.changedOnDisk = error { self?.loadDiff() }
@@ -394,7 +394,7 @@ extension RepoModel {
     }
 
     func markResolved(_ paths: [String]) {
-        perform("Đánh dấu đã giải quyết", refresh: [.status]) { repo in
+        perform(String(localized: "Đánh dấu đã giải quyết"), refresh: [.status]) { repo in
             try await repo.markResolved(paths: paths)
         }
     }

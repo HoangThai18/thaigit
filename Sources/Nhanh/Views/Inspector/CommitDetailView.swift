@@ -32,10 +32,10 @@ struct StashDetailView: View {
                         Text(stash.selector).font(.caption.monospaced()).foregroundStyle(.secondary)
                         Spacer()
                     }
-                    Text(stash.displayMessage.isEmpty ? "(không có lời nhắn)" : stash.displayMessage)
+                    Text(stash.displayMessage.isEmpty ? String(localized: "(không có lời nhắn)") : stash.displayMessage)
                         .font(.title3.weight(.semibold))
                         .textSelection(.enabled)
-                    Text([stash.branchName.map { "Từ nhánh \($0)" }, VietnameseDate.absolute(stash.date)]
+                    Text([stash.branchName.map { String(localized: "Từ nhánh \($0)") }, VietnameseDate.absolute(stash.date)]
                         .compactMap { $0 }.joined(separator: " · "))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -158,7 +158,7 @@ private struct DetailContent: View {
                 .lineLimit(6)
         }
         if isLong {
-            Button(showFullBody ? "Thu gọn" : "Xem toàn bộ mô tả") { showFullBody.toggle() }
+            Button(showFullBody ? String(localized: "Thu gọn") : String(localized: "Xem toàn bộ mô tả")) { showFullBody.toggle() }
                 .buttonStyle(.link)
                 .font(.caption)
         }
@@ -167,18 +167,18 @@ private struct DetailContent: View {
     @ViewBuilder
     private func actionBar(_ commit: Commit) -> some View {
         HStack(spacing: 4) {
-            QuickButton(symbol: "arrow.triangle.branch", help: "Tạo nhánh tại commit này") { model.beginCreateBranch(at: commit) }
-            QuickButton(symbol: "tag", help: "Tạo tag tại commit này") { model.beginCreateTag(at: commit) }
-            QuickButton(symbol: "arrow.uturn.right", help: "Checkout commit này") {
+            QuickButton(symbol: "arrow.triangle.branch", help: String(localized: "Tạo nhánh tại commit này")) { model.beginCreateBranch(at: commit) }
+            QuickButton(symbol: "tag", help: String(localized: "Tạo tag tại commit này")) { model.beginCreateTag(at: commit) }
+            QuickButton(symbol: "arrow.uturn.right", help: String(localized: "Checkout commit này")) {
                 model.checkoutDetached(commit.id, label: "commit \(commit.shortSHA)")
             }
             .disabled(commit.id == model.headOID)
-            QuickButton(symbol: "leaf", help: "Cherry-pick vào nhánh hiện tại") { model.cherryPick(commit) }
+            QuickButton(symbol: "leaf", help: String(localized: "Cherry-pick vào nhánh hiện tại")) { model.cherryPick(commit) }
                 .disabled(commit.id == model.headOID)
-            QuickButton(symbol: "arrow.uturn.backward", help: "Revert commit này…") { model.revert(commit) }
+            QuickButton(symbol: "arrow.uturn.backward", help: String(localized: "Revert commit này…")) { model.revert(commit) }
             Spacer()
             if let url = model.webURL(forCommit: commit.id) {
-                QuickButton(symbol: "safari", help: "Mở trên web") { NSWorkspace.shared.open(url) }
+                QuickButton(symbol: "safari", help: String(localized: "Mở trên web")) { NSWorkspace.shared.open(url) }
             }
             Menu {
                 MenuSpecContent(items: model.menu(for: GraphEntry(commit: commit, row: GraphRow(lane: 0, color: 0, lines: [], width: 1),
@@ -309,7 +309,7 @@ private struct SignatureRow: View {
     private func result(_ value: SignatureVerification) -> some View {
         switch value {
         case .good(let signer, _, let trusted):
-            Label(trusted ? "Hợp lệ" : "Hợp lệ (khoá chưa tin cậy)", systemImage: "checkmark.seal.fill")
+            Label(trusted ? String(localized: "Hợp lệ") : String(localized: "Hợp lệ (khoá chưa tin cậy)"), systemImage: "checkmark.seal.fill")
                 .font(.caption).foregroundStyle(trusted ? .green : .orange)
                 .help(signer)
         case .bad:

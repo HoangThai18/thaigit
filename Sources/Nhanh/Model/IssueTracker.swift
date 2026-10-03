@@ -62,8 +62,8 @@ extension RepoModel {
         guard let repo = githubRemote?.repo else { return [] }
         // Kịch bản chụp ảnh: dữ liệu mẫu, không gọi GitHub.
         if AutomationHarness.isActive {
-            return [GitHubIssue(number: 42, title: "Đăng nhập bị lỗi khi mật khẩu có dấu", author: "ngoc-anh", labels: ["bug"]),
-                    GitHubIssue(number: 38, title: "Thêm mã giảm giá vào giỏ hàng", author: "tuan-bui", labels: ["tính năng"])]
+            return [GitHubIssue(number: 42, title: String(localized: "Đăng nhập bị lỗi khi mật khẩu có dấu"), author: "ngoc-anh", labels: ["bug"]),
+                    GitHubIssue(number: 38, title: String(localized: "Thêm mã giảm giá vào giỏ hàng"), author: "tuan-bui", labels: [String(localized: "tính năng")])]
         }
         let token = await Task.detached { GitHubAccountManager.shared.apiToken(forOwner: repo.owner) }.value
         do {
@@ -93,7 +93,7 @@ extension RepoModel {
             commitSummary = summary.isEmpty ? "(\(reference))" : "\(summary) (\(reference))"
         }
         selectWorkingTree()
-        toast(.success, "Đã gắn \(reference) vào commit message", tag: "issue")
+        toast(.success, String(localized: "Đã gắn \(reference) vào commit message"), tag: "issue")
     }
 }
 
@@ -104,7 +104,7 @@ enum IssueLoadError: LocalizedError, UserFacingError {
 
     var errorDescription: String? {
         switch self {
-        case .needsGitHubLogin: return "Repo riêng tư — đăng nhập GitHub để xem issue."
+        case .needsGitHubLogin: return String(localized: "Repo riêng tư — đăng nhập GitHub để xem issue.")
         }
     }
 }

@@ -151,36 +151,50 @@ public final class GitEnvironmentStore: @unchecked Sendable {
 /// Script askpass: khi git/ssh cần username, password, token hoặc passphrase,
 /// hiện hộp thoại macOS thay vì treo chờ terminal.
 public enum AskPass {
-    public static let script = #"""
+    public static var script: String { #"""
     #!/bin/sh
     # Thaigit — hộp thoại xác thực cho git/ssh (GIT_ASKPASS / SSH_ASKPASS).
     prompt="$1"
-    [ -z "$prompt" ] && prompt="Git cần thông tin xác thực"
+    [ -z "$prompt" ] && prompt="\#(Labels.fallbackPrompt)"
     case "$prompt" in
       *"(yes/no"*)
         exec /usr/bin/osascript \
           -e 'on run argv' \
           -e 'activate' \
-          -e 'set r to display dialog (item 1 of argv) buttons {"Không", "Đồng ý"} default button "Đồng ý" with title "Thaigit" with icon caution' \
-          -e 'if button returned of r is "Đồng ý" then return "yes"' \
+          -e 'set r to display dialog (item 1 of argv) buttons {"\#(Labels.no)", "\#(Labels.yes)"} default button "\#(Labels.yes)" with title "Thaigit" with icon caution' \
+          -e 'if button returned of r is "\#(Labels.yes)" then return "yes"' \
           -e 'return "no"' \
           -e 'end run' "$prompt" ;;
       *[Pp]assword*|*[Pp]assphrase*|*PIN*|*[Tt]oken*)
         exec /usr/bin/osascript \
           -e 'on run argv' \
           -e 'activate' \
-          -e 'set r to display dialog (item 1 of argv) default answer "" with hidden answer buttons {"Huỷ", "OK"} default button "OK" cancel button "Huỷ" with title "Thaigit" with icon note' \
+          -e 'set r to display dialog (item 1 of argv) default answer "" with hidden answer buttons {"\#(Labels.cancel)", "OK"} default button "OK" cancel button "\#(Labels.cancel)" with title "Thaigit" with icon note' \
           -e 'return text returned of r' \
           -e 'end run' "$prompt" ;;
       *)
         exec /usr/bin/osascript \
           -e 'on run argv' \
           -e 'activate' \
-          -e 'set r to display dialog (item 1 of argv) default answer "" buttons {"Huỷ", "OK"} default button "OK" cancel button "Huỷ" with title "Thaigit" with icon note' \
+          -e 'set r to display dialog (item 1 of argv) default answer "" buttons {"\#(Labels.cancel)", "OK"} default button "OK" cancel button "\#(Labels.cancel)" with title "Thaigit" with icon note' \
           -e 'return text returned of r' \
           -e 'end run' "$prompt" ;;
     esac
     """#
+    }
+
+    /// Chữ trong hộp thoại, theo ngôn ngữ của app. Bỏ ký tự có nghĩa đặc biệt với shell / AppleScript để bản dịch nào cũng
+    /// không phá được lệnh.
+    enum Labels {
+        static var fallbackPrompt: String { safe(String(localized: "Git cần thông tin xác thực")) }
+        static var no: String { safe(String(localized: "Không")) }
+        static var yes: String { safe(String(localized: "Đồng ý")) }
+        static var cancel: String { safe(String(localized: "Huỷ")) }
+
+        static func safe(_ text: String) -> String {
+            String(text.filter { !"\"'\\$`".contains($0) })
+        }
+    }
 
     /// Ghi script vào ~/Library/Application Support/Thaigit/askpass.sh và trả về đường dẫn.
     public static func install() -> String? {

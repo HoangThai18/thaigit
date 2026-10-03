@@ -104,7 +104,7 @@ struct CommandPaletteSheet: View {
                 }
             }
             HStack {
-                Text(items.isEmpty ? "Không có lệnh nào khớp" : "↑↓ chọn · ↩ chạy · Esc đóng")
+                Text(items.isEmpty ? String(localized: "Không có lệnh nào khớp") : String(localized: "↑↓ chọn · ↩ chạy · Esc đóng"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -148,23 +148,23 @@ struct CommandPaletteSheet: View {
             list += repositoryCommands(model)
         }
         list += [
-            PaletteCommand(id: "tab.new", title: "Tab mới", systemImage: "plus.square", shortcut: "⌘T") { _ = tabs.newTab() },
-            PaletteCommand(id: "tab.home", title: "Trang chủ", systemImage: "house", shortcut: "⌘1") { tabs.select(tabs.home.id) },
-            PaletteCommand(id: "open.repo", title: "Mở repository…", systemImage: "folder", shortcut: "⌘O") {
+            PaletteCommand(id: "tab.new", title: String(localized: "Tab mới"), systemImage: "plus.square", shortcut: "⌘T") { _ = tabs.newTab() },
+            PaletteCommand(id: "tab.home", title: String(localized: "Trang chủ"), systemImage: "house", shortcut: "⌘1") { tabs.select(tabs.home.id) },
+            PaletteCommand(id: "open.repo", title: String(localized: "Mở repository…"), systemImage: "folder", shortcut: "⌘O") {
                 if let path = appState.chooseRepositoryFolder() { tabs.open(path: path) }
             },
             PaletteCommand(id: "clone", title: "Clone repository…", systemImage: "arrow.down.circle", shortcut: "⇧⌘O") { windowActions.showClone() },
-            PaletteCommand(id: "init", title: "Tạo repository mới…", systemImage: "plus.rectangle.on.folder", shortcut: "⌥⌘N") { windowActions.showInit() },
-            PaletteCommand(id: "notes", title: "Có gì mới trong Thaigit", systemImage: "sparkles") { tabs.openReleaseNotes() },
-            PaletteCommand(id: "settings", title: "Cài đặt…", systemImage: "gearshape", shortcut: "⌘,") { openSettings() },
+            PaletteCommand(id: "init", title: String(localized: "Tạo repository mới…"), systemImage: "plus.rectangle.on.folder", shortcut: "⌥⌘N") { windowActions.showInit() },
+            PaletteCommand(id: "notes", title: String(localized: "Có gì mới trong Thaigit"), systemImage: "sparkles") { tabs.openReleaseNotes() },
+            PaletteCommand(id: "settings", title: String(localized: "Cài đặt…"), systemImage: "gearshape", shortcut: "⌘,") { openSettings() },
         ]
         for tab in tabs.tabs where tab.kind != .home && tab.id != tabs.selectedID {
-            list.append(PaletteCommand(id: "tab." + tab.id.uuidString, title: "Chuyển tới tab \(tab.title)", subtitle: tab.repositoryPath,
+            list.append(PaletteCommand(id: "tab." + tab.id.uuidString, title: String(localized: "Chuyển tới tab \(tab.title)"), subtitle: tab.repositoryPath,
                                        systemImage: tab.systemImage) { tabs.select(tab.id) })
         }
         let open = Set(tabs.tabs.compactMap(\.repositoryPath))
         for path in appState.recentRepositories where !open.contains(path) {
-            list.append(PaletteCommand(id: "recent." + path, title: "Mở repo \((path as NSString).lastPathComponent)",
+            list.append(PaletteCommand(id: "recent." + path, title: String(localized: "Mở repo \((path as NSString).lastPathComponent)"),
                                        subtitle: (path as NSString).abbreviatingWithTildeInPath, systemImage: "clock") { tabs.open(path: path) })
         }
         return list
@@ -176,15 +176,15 @@ struct CommandPaletteSheet: View {
             PaletteCommand(id: "pull", title: "Pull", systemImage: "arrow.down.circle", shortcut: "⇧⌘L") { model.pull() },
             PaletteCommand(id: "pull.rebase", title: "Pull (rebase)", systemImage: "arrow.down.circle") { model.pull(mode: .rebase) },
             PaletteCommand(id: "push", title: "Push", systemImage: "arrow.up.circle", shortcut: "⇧⌘P") { model.push() },
-            PaletteCommand(id: "branch.switch", title: "Chuyển nhánh…", systemImage: "arrow.triangle.branch", shortcut: "⌘B") { model.sheet = .switchBranch },
-            PaletteCommand(id: "branch.new", title: "Tạo nhánh mới…", systemImage: "plus", shortcut: "⇧⌘B") { model.beginCreateBranchAtHead() },
-            PaletteCommand(id: "stash", title: "Stash thay đổi…", systemImage: "archivebox", shortcut: "⇧⌘S") { model.beginStash() },
-            PaletteCommand(id: "stash.pop", title: "Pop stash mới nhất", systemImage: "archivebox.circle") { model.popLatestStash() },
-            PaletteCommand(id: "stage.all", title: "Stage tất cả", systemImage: "plus.circle", shortcut: "⇧⌘A") { model.stageAll() },
-            PaletteCommand(id: "go.wip", title: "Tới thay đổi đang làm (WIP)", systemImage: "pencil", shortcut: "⌘0") { model.selectWorkingTree() },
-            PaletteCommand(id: "go.head", title: "Tới HEAD", systemImage: "scope", shortcut: "⇧⌘H") { model.revealHead() },
-            PaletteCommand(id: "merge.repo", title: "Merge từ repository khác…", systemImage: "arrow.triangle.merge") { model.beginMergeFromRepository() },
-            PaletteCommand(id: "remote.add", title: "Thêm remote…", systemImage: "cloud") { model.sheet = .addRemote },
+            PaletteCommand(id: "branch.switch", title: String(localized: "Chuyển nhánh…"), systemImage: "arrow.triangle.branch", shortcut: "⌘B") { model.sheet = .switchBranch },
+            PaletteCommand(id: "branch.new", title: String(localized: "Tạo nhánh mới…"), systemImage: "plus", shortcut: "⇧⌘B") { model.beginCreateBranchAtHead() },
+            PaletteCommand(id: "stash", title: String(localized: "Stash thay đổi…"), systemImage: "archivebox", shortcut: "⇧⌘S") { model.beginStash() },
+            PaletteCommand(id: "stash.pop", title: String(localized: "Pop stash mới nhất"), systemImage: "archivebox.circle") { model.popLatestStash() },
+            PaletteCommand(id: "stage.all", title: String(localized: "Stage tất cả"), systemImage: "plus.circle", shortcut: "⇧⌘A") { model.stageAll() },
+            PaletteCommand(id: "go.wip", title: String(localized: "Tới thay đổi đang làm (WIP)"), systemImage: "pencil", shortcut: "⌘0") { model.selectWorkingTree() },
+            PaletteCommand(id: "go.head", title: String(localized: "Tới HEAD"), systemImage: "scope", shortcut: "⇧⌘H") { model.revealHead() },
+            PaletteCommand(id: "merge.repo", title: String(localized: "Merge từ repository khác…"), systemImage: "arrow.triangle.merge") { model.beginMergeFromRepository() },
+            PaletteCommand(id: "remote.add", title: String(localized: "Thêm remote…"), systemImage: "cloud") { model.sheet = .addRemote },
             PaletteCommand(id: "terminal.app", title: "Terminal trong app", systemImage: "apple.terminal", shortcut: "⌃`") { model.toggleTerminal() },
             PaletteCommand(id: "terminal", title: "Mở trong Terminal", systemImage: "terminal", shortcut: "⌥⌘T") { model.openInTerminal() },
             PaletteCommand(id: "finder", title: "Mở trong Finder", systemImage: "folder", shortcut: "⇧⌘R") { model.revealInFinder() },
@@ -194,16 +194,16 @@ struct CommandPaletteSheet: View {
             PaletteCommand(id: "github.account", title: "Tài khoản GitHub cho repo này…", systemImage: "person.crop.circle") {
                 model.sheet = .githubAccount(owner: nil)
             },
-            PaletteCommand(id: "repo.close", title: "Đóng repository", systemImage: "xmark.square") { tabs.closeRepository(in: tabs.selected) },
+            PaletteCommand(id: "repo.close", title: String(localized: "Đóng repository"), systemImage: "xmark.square") { tabs.closeRepository(in: tabs.selected) },
         ]
         if let commit = model.selectedCommit, model.canInteractiveRebase(from: commit) {
-            list.append(PaletteCommand(id: "irebase", title: "Interactive rebase từ commit đang chọn…", subtitle: commit.subject,
+            list.append(PaletteCommand(id: "irebase", title: String(localized: "Interactive rebase từ commit đang chọn…"), subtitle: commit.subject,
                                        systemImage: "list.bullet.indent", shortcut: "⇧⌘I") { model.beginInteractiveRebase(from: commit) })
         }
         if model.githubRemote != nil {
-            list.append(PaletteCommand(id: "pr.new", title: "Tạo Pull Request…", subtitle: model.currentBranch.map { "Từ nhánh \($0)" },
+            list.append(PaletteCommand(id: "pr.new", title: String(localized: "Tạo Pull Request…"), subtitle: model.currentBranch.map { String(localized: "Từ nhánh \($0)") },
                                        systemImage: "arrow.triangle.pull") { model.beginCreatePullRequest() })
-            list.append(PaletteCommand(id: "pr.reload", title: "Tải lại danh sách Pull Request", systemImage: "arrow.clockwise") {
+            list.append(PaletteCommand(id: "pr.reload", title: String(localized: "Tải lại danh sách Pull Request"), systemImage: "arrow.clockwise") {
                 model.loadPullRequests(force: true)
             })
             for pull in model.pullRequests.items.prefix(100) {
@@ -212,46 +212,46 @@ struct CommandPaletteSheet: View {
                                            systemImage: "arrow.triangle.pull") { model.revealPullRequest(pull) })
             }
         }
-        list.append(PaletteCommand(id: "issues", title: "Issues (GitHub / Jira)…", subtitle: "Tạo nhánh từ issue, gắn issue vào commit",
+        list.append(PaletteCommand(id: "issues", title: "Issues (GitHub / Jira)…", subtitle: String(localized: "Tạo nhánh từ issue, gắn issue vào commit"),
                                    systemImage: "checklist", shortcut: "⌥⌘J") { model.sheet = .issues })
         if CommitMessageAI.isEnabled, CommitMessageAI.unavailableReason == nil, !model.status.staged.isEmpty {
-            list.append(PaletteCommand(id: "ai.commit", title: "AI viết commit message", subtitle: "Chạy trên máy (Apple Intelligence)",
+            list.append(PaletteCommand(id: "ai.commit", title: String(localized: "AI viết commit message"), subtitle: String(localized: "Chạy trên máy (Apple Intelligence)"),
                                        systemImage: "sparkles") { Task { await model.fillCommitMessageWithAI() } })
         }
-        list.append(PaletteCommand(id: "signing", title: "Ký commit (GPG / SSH)…", systemImage: "signature") { model.sheet = .commitSigning })
-        list.append(PaletteCommand(id: "worktree.add", title: "Thêm worktree…", systemImage: "square.on.square") { model.sheet = .addWorktree })
+        list.append(PaletteCommand(id: "signing", title: String(localized: "Ký commit (GPG / SSH)…"), systemImage: "signature") { model.sheet = .commitSigning })
+        list.append(PaletteCommand(id: "worktree.add", title: String(localized: "Thêm worktree…"), systemImage: "square.on.square") { model.sheet = .addWorktree })
         for worktree in model.extras.linkedWorktrees {
-            list.append(PaletteCommand(id: "worktree." + worktree.path, title: "Mở worktree \(worktree.branch ?? (worktree.path as NSString).lastPathComponent)",
+            list.append(PaletteCommand(id: "worktree." + worktree.path, title: String(localized: "Mở worktree \(worktree.branch ?? (worktree.path as NSString).lastPathComponent)"),
                                        subtitle: (worktree.path as NSString).abbreviatingWithTildeInPath, systemImage: "folder") {
                 model.openInNewTab(worktree.path)
             })
         }
         if !model.extras.submodules.isEmpty {
-            list.append(PaletteCommand(id: "submodule.update", title: "Tải / cập nhật mọi submodule", systemImage: "shippingbox") {
+            list.append(PaletteCommand(id: "submodule.update", title: String(localized: "Tải / cập nhật mọi submodule"), systemImage: "shippingbox") {
                 model.updateSubmodules()
             })
         }
         if let flow = model.extras.gitFlow {
             for kind in GitFlowKind.allCases {
-                list.append(PaletteCommand(id: "flow.start." + kind.rawValue, title: "Git Flow: bắt đầu \(kind.title.lowercased())…",
-                                           subtitle: "Từ \(flow.base(kind))", systemImage: "flag") { model.sheet = .gitFlowStart(kind) })
+                list.append(PaletteCommand(id: "flow.start." + kind.rawValue, title: String(localized: "Git Flow: bắt đầu \(kind.title.lowercased())…"),
+                                           subtitle: String(localized: "Từ \(flow.base(kind))"), systemImage: "flag") { model.sheet = .gitFlowStart(kind) })
             }
             if let branch = model.currentBranch, let current = flow.classify(branch) {
-                list.append(PaletteCommand(id: "flow.finish", title: "Git Flow: kết thúc \(current.kind.title.lowercased()) \(current.name)…",
+                list.append(PaletteCommand(id: "flow.finish", title: String(localized: "Git Flow: kết thúc \(current.kind.title.lowercased()) \(current.name)…"),
                                            systemImage: "flag.checkered") { model.finishFlow(current.kind, name: current.name) })
             }
         } else {
-            list.append(PaletteCommand(id: "flow.init", title: "Git Flow: khởi tạo…", systemImage: "flag") { model.sheet = .gitFlowInit })
+            list.append(PaletteCommand(id: "flow.init", title: String(localized: "Git Flow: khởi tạo…"), systemImage: "flag") { model.sheet = .gitFlowInit })
         }
         list.append(PaletteCommand(id: "lfs.pull", title: "Git LFS: pull", systemImage: "externaldrive") { model.runLFS(.pull) })
-        list.append(PaletteCommand(id: "lfs.track", title: "Git LFS: theo dõi kiểu file…", systemImage: "externaldrive") { model.sheet = .lfsTrack })
+        list.append(PaletteCommand(id: "lfs.track", title: String(localized: "Git LFS: theo dõi kiểu file…"), systemImage: "externaldrive") { model.sheet = .lfsTrack })
         if model.graphFilter.isActive {
-            list.append(PaletteCommand(id: "graph.showall", title: "Hiện tất cả nhánh trên graph", systemImage: "eye") {
+            list.append(PaletteCommand(id: "graph.showall", title: String(localized: "Hiện tất cả nhánh trên graph"), systemImage: "eye") {
                 model.showAllBranchesOnGraph()
             })
         }
         if let file = model.openFile, model.canEditInApp(file) {
-            list.append(PaletteCommand(id: "edit", title: "Sửa \(file.change.fileName) trong app", systemImage: "pencil") {
+            list.append(PaletteCommand(id: "edit", title: String(localized: "Sửa \(file.change.fileName) trong app"), systemImage: "pencil") {
                 model.beginEditing(file)
             })
         }
@@ -260,11 +260,11 @@ struct CommandPaletteSheet: View {
                                        shortcut: "⌃⌘B") { model.sheet = blame })
         }
         for ref in model.localBranches where !ref.isHead {
-            list.append(PaletteCommand(id: "checkout." + ref.fullName, title: "Checkout \(ref.name)", subtitle: "Nhánh local",
+            list.append(PaletteCommand(id: "checkout." + ref.fullName, title: "Checkout \(ref.name)", subtitle: String(localized: "Nhánh local"),
                                        systemImage: "arrow.uturn.right") { model.checkout(ref) })
             if let current = model.currentBranch {
-                list.append(PaletteCommand(id: "compare." + ref.fullName, title: "So sánh \(ref.name) với \(current)",
-                                           subtitle: "\(ref.name) có gì mới", systemImage: "arrow.left.arrow.right") {
+                list.append(PaletteCommand(id: "compare." + ref.fullName, title: String(localized: "So sánh \(ref.name) với \(current)"),
+                                           subtitle: String(localized: "\(ref.name) có gì mới"), systemImage: "arrow.left.arrow.right") {
                     model.compareWithCurrent(ref)
                 })
             }
@@ -272,7 +272,7 @@ struct CommandPaletteSheet: View {
         // Nhánh remote đã có nhánh local cùng tên thì checkout cũng chỉ là chuyển sang nhánh local đó — bỏ cho đỡ rối.
         let localNames = Set(model.localBranches.map(\.name))
         for ref in model.remoteBranches.lazy.filter({ !localNames.contains($0.shortBranchName) && $0.shortBranchName != "HEAD" }).prefix(300) {
-            list.append(PaletteCommand(id: "checkout." + ref.fullName, title: "Checkout \(ref.name)", subtitle: "Nhánh remote",
+            list.append(PaletteCommand(id: "checkout." + ref.fullName, title: "Checkout \(ref.name)", subtitle: String(localized: "Nhánh remote"),
                                        systemImage: "cloud") { model.checkout(ref) })
         }
         return list

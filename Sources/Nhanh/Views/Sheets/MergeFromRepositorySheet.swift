@@ -125,7 +125,7 @@ struct MergeFromRepositorySheet: View {
                         }
                         Picker("Merge vào", selection: Binding(get: { target }, set: { target = $0; targetEdited = true })) {
                             ForEach(targets, id: \.self) { name in
-                                Text(name == model.currentBranch ? "\(name) (đang checkout)" : name).tag(name)
+                                Text(name == model.currentBranch ? String(localized: "\(name) (đang checkout)") : name).tag(name)
                             }
                         }
                         if !target.isEmpty, target != model.currentBranch {
@@ -186,7 +186,7 @@ struct MergeFromRepositorySheet: View {
     }
 
     private func chooseFolder() {
-        guard let path = AppState.shared.chooseRepositoryFolder(prompt: "Chọn") else { return }
+        guard let path = AppState.shared.chooseRepositoryFolder(prompt: String(localized: "Chọn")) else { return }
         source = path
         loadBranches()
     }
@@ -233,11 +233,11 @@ struct MergeFromRepositorySheet: View {
         let source = GitRepository.anonymizedSource(rawSource)
         if let gitError = error as? GitError {
             if gitError.contains("does not appear to be a git repository") || gitError.contains("not a git repository") {
-                return "“\(source)” không phải Git repository — hãy chọn thư mục gốc của repo (nơi có thư mục .git)."
+                return String(localized: "“\(source)” không phải Git repository — hãy chọn thư mục gốc của repo (nơi có thư mục .git).")
             }
             if gitError.contains("Authentication failed") || gitError.contains("could not read Username")
                 || gitError.contains("Permission denied") {
-                return "Không đăng nhập được vào \(source). Kiểm tra tài khoản / token, hoặc dùng bản clone của repo đó trên máy (không cần đăng nhập)."
+                return String(localized: "Không đăng nhập được vào \(source). Kiểm tra tài khoản / token, hoặc dùng bản clone của repo đó trên máy (không cần đăng nhập).")
             }
         }
         return FriendlyError.message(for: error)

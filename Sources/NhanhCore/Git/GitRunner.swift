@@ -22,7 +22,7 @@ public struct GitError: LocalizedError, Sendable, CustomStringConvertible {
         }
         if !err.isEmpty { return err }
         if !out.isEmpty { return out }
-        return "Lệnh git \(arguments.first ?? "") thất bại (mã thoát \(exitCode))."
+        return String(localized: "Lệnh git \(arguments.first ?? "") thất bại (mã thoát \(exitCode)).")
     }
 
     public var errorDescription: String? { message }

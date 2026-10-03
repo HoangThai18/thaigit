@@ -100,7 +100,7 @@ final class AppUpdater {
 
     func check(userInitiated: Bool) async {
         guard let client, let installer else {
-            if userInitiated { Self.alert("Bản này không tự cập nhật được", "Bản build từ mã nguồn không có khoá ký bản cập nhật.") }
+            if userInitiated { Self.alert(String(localized: "Bản này không tự cập nhật được"), String(localized: "Bản build từ mã nguồn không có khoá ký bản cập nhật.")) }
             return
         }
         if case .ready(let staged) = phase {
@@ -114,7 +114,7 @@ final class AppUpdater {
             lastChecked = Date()
             guard case .available(let manifest) = result else {
                 phase = .idle
-                if userInitiated { Self.alert("Bạn đang dùng bản mới nhất", "Thaigit \(currentVersion) là phiên bản mới nhất.") }
+                if userInitiated { Self.alert(String(localized: "Bạn đang dùng bản mới nhất"), String(localized: "Thaigit \(currentVersion) là phiên bản mới nhất.")) }
                 return
             }
             phase = .downloading(version: manifest.version)
@@ -128,16 +128,16 @@ final class AppUpdater {
         } catch {
             let message = FriendlyError.message(for: error)
             phase = .failed(message)
-            if userInitiated { Self.alert("Không kiểm tra được bản cập nhật", message) }
+            if userInitiated { Self.alert(String(localized: "Không kiểm tra được bản cập nhật"), message) }
         }
     }
 
     private func offerRestart(_ staged: StagedUpdate) {
         let alert = NSAlert()
-        alert.messageText = "Thaigit \(staged.version) đã sẵn sàng"
-        alert.informativeText = (staged.notes.map { $0 + "\n\n" } ?? "") + "Khởi động lại để dùng bản mới, hoặc để sau — bản mới sẽ được cài khi bạn thoát app."
-        alert.addButton(withTitle: "Khởi động lại")
-        alert.addButton(withTitle: "Để sau")
+        alert.messageText = String(localized: "Thaigit \(staged.version) đã sẵn sàng")
+        alert.informativeText = (staged.notes.map { $0 + "\n\n" } ?? "") + String(localized: "Khởi động lại để dùng bản mới, hoặc để sau — bản mới sẽ được cài khi bạn thoát app.")
+        alert.addButton(withTitle: String(localized: "Khởi động lại"))
+        alert.addButton(withTitle: String(localized: "Để sau"))
         if alert.runModal() == .alertFirstButtonReturn { installAndRelaunch() }
     }
 
@@ -145,8 +145,8 @@ final class AppUpdater {
         guard case .ready(let staged) = phase else { return }
         guard canInstallInPlace else {
             Self.alert(
-                "Chưa tự cập nhật được",
-                "Thaigit đang chạy từ \(Bundle.main.bundleURL.deletingLastPathComponent().path). Hãy chép Thaigit vào thư mục Applications rồi mở lại, hoặc tải bản \(staged.version) trên trang GitHub của Thaigit."
+                String(localized: "Chưa tự cập nhật được"),
+                String(localized: "Thaigit đang chạy từ \(Bundle.main.bundleURL.deletingLastPathComponent().path). Hãy chép Thaigit vào thư mục Applications rồi mở lại, hoặc tải bản \(staged.version) trên trang GitHub của Thaigit.")
             )
             return
         }
@@ -154,20 +154,12 @@ final class AppUpdater {
         do {
             try UpdateInstaller.install(staged, replacing: app)
         } catch {
-            Self.alert("Không cài được bản cập nhật", FriendlyError.message(for: error))
+            Self.alert(String(localized: "Không cài được bản cập nhật"), FriendlyError.message(for: error))
             return
         }
         phase = .idle
         // Chờ tiến trình này thoát hẳn rồi mở lại app (lúc này đã là bản mới).
-        let reopen = Process()
-        reopen.executableURL = URL(fileURLWithPath: "/bin/sh")
-        reopen.arguments = [
-            "-c",
-            "while /bin/kill -0 \(ProcessInfo.processInfo.processIdentifier) 2>/dev/null; do /bin/sleep 0.2; done; /usr/bin/open \"$0\"",
-            app.path,
-        ]
-        try? reopen.run()
-        NSApp.terminate(nil)
+        AppRelauncher.relaunch()
     }
 
     /// Gọi khi app thoát: có bản mới đã tải xong thì cài luôn, lần mở sau là bản mới.
@@ -196,7 +188,7 @@ struct UpdateBanner: View {
                 card(
                     icon: "checkmark.seal.fill",
                     tint: .green,
-                    title: "Đã cập nhật lên Thaigit \(done.version)",
+                    title: String(localized: "Đã cập nhật lên Thaigit \(done.version)"),
                     detail: done.notes
                 ) {
                     Button("Có gì mới") { tabs.openReleaseNotes() }
@@ -208,8 +200,8 @@ struct UpdateBanner: View {
                 card(
                     icon: "arrow.down.circle.fill",
                     tint: Brand.orange,
-                    title: "Thaigit \(staged.version) đã sẵn sàng",
-                    detail: staged.notes ?? "Khởi động lại để dùng bản mới."
+                    title: String(localized: "Thaigit \(staged.version) đã sẵn sàng"),
+                    detail: staged.notes ?? String(localized: "Khởi động lại để dùng bản mới.")
                 ) {
                     Button("Khởi động lại") { updater.installAndRelaunch() }
                         .glassButtonStyle(prominent: true)
@@ -281,13 +273,13 @@ struct UpdateSettingsSection: View {
 
     private var status: String {
         switch updater.phase {
-        case .checking: return "Đang kiểm tra…"
-        case .downloading(let version): return "Đang tải bản \(version)…"
-        case .ready(let staged): return "Bản \(staged.version) đã sẵn sàng"
+        case .checking: return String(localized: "Đang kiểm tra…")
+        case .downloading(let version): return String(localized: "Đang tải bản \(version)…")
+        case .ready(let staged): return String(localized: "Bản \(staged.version) đã sẵn sàng")
         case .failed(let message): return message
         case .idle:
             guard let checked = updater.lastChecked else { return "" }
-            return "Đã kiểm tra lúc " + checked.formatted(date: .omitted, time: .shortened)
+            return String(localized: "Đã kiểm tra lúc ") + checked.formatted(date: .omitted, time: .shortened)
         }
     }
 }

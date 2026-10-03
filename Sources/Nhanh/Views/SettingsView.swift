@@ -36,9 +36,31 @@ private struct GeneralSettings: View {
     @AppStorage(Prefs.diffContext) private var diffContext = 3
     @AppStorage(Prefs.diffSplit) private var diffSplit = false
     @Bindable private var avatars = AvatarStore.shared
+    @State private var pendingLanguage: AppLanguage?
 
     var body: some View {
         Form {
+            Section {
+                Picker("Ngôn ngữ / Language", selection: Binding(
+                    get: { AppLanguage.current },
+                    set: { language in if language != AppLanguage.current { pendingLanguage = language } }
+                )) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(verbatim: language.name).tag(language)
+                    }
+                }
+            }
+            .alert("Khởi động lại Thaigit để đổi ngôn ngữ?", isPresented: Binding(
+                get: { pendingLanguage != nil },
+                set: { if !$0 { pendingLanguage = nil } }
+            )) {
+                Button("Khởi động lại") {
+                    if let language = pendingLanguage { AppLanguage.switchTo(language) }
+                }
+                Button("Huỷ", role: .cancel) { pendingLanguage = nil }
+            } message: {
+                Text("Các tab đang mở sẽ được mở lại.")
+            }
             Section("Graph") {
                 Picker("Số commit tải lên graph", selection: $commitLimit) {
                     ForEach([500, 1000, 2000, 5000, 10000, 20000], id: \.self) { value in
@@ -92,7 +114,7 @@ private struct GitSettings: View {
         Form {
             Section("Chương trình git") {
                 HStack {
-                    TextField("Đường dẫn git", text: $gitPath, prompt: Text("Tự động"))
+                    TextField("Đường dẫn git", text: $gitPath, prompt: Text(String(localized: "Tự động")))
                     Button("Chọn…") {
                         let panel = NSOpenPanel()
                         panel.canChooseFiles = true
@@ -204,7 +226,7 @@ private struct AccountSettings: View {
                         .font(.callout)
                 }
                 Spacer()
-                Button(github.accounts.isEmpty ? "Đăng nhập GitHub…" : "Thêm tài khoản…") { github.settingsLoginRequested = true }
+                Button(github.accounts.isEmpty ? String(localized: "Đăng nhập GitHub…") : String(localized: "Thêm tài khoản…")) { github.settingsLoginRequested = true }
             }
             if let removed = github.removedLogin {
                 VStack(alignment: .leading, spacing: 4) {
@@ -367,7 +389,7 @@ private struct GitHubAccountRow: View {
 
     private var subtitle: String {
         var text = "@\(profile.login)"
-        if !profile.organizations.isEmpty { text += " · tổ chức: " + profile.organizations.joined(separator: ", ") }
+        if !profile.organizations.isEmpty { text += String(localized: " · tổ chức: ") + profile.organizations.joined(separator: ", ") }
         return text
     }
 }

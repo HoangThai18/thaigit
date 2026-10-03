@@ -6,11 +6,11 @@ extension RebaseAction: Identifiable {
 
     var title: String {
         switch self {
-        case .pick: return "Giữ"
-        case .reword: return "Sửa lời"
-        case .squash: return "Gộp"
-        case .fixup: return "Gộp, bỏ lời"
-        case .drop: return "Bỏ"
+        case .pick: return String(localized: "Giữ")
+        case .reword: return String(localized: "Sửa lời")
+        case .squash: return String(localized: "Gộp")
+        case .fixup: return String(localized: "Gộp, bỏ lời")
+        case .drop: return String(localized: "Bỏ")
         }
     }
 
@@ -100,7 +100,7 @@ struct InteractiveRebaseSheet: View {
 
             HStack {
                 let warning = problem.flatMap { $0 == RebasePlan.unchanged || isLoading ? nil : $0 }
-                Text(warning ?? "P giữ · R sửa lời · S gộp · F gộp bỏ lời · D bỏ · kéo để đổi thứ tự")
+                Text(warning ?? String(localized: "P giữ · R sửa lời · S gộp · F gộp bỏ lời · D bỏ · kéo để đổi thứ tự"))
                     .font(.caption)
                     .foregroundStyle(warning == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
                     .lineLimit(2)
@@ -143,7 +143,7 @@ struct InteractiveRebaseSheet: View {
             original = commits
             steps = commits.map { RebaseStep(commit: $0) }
             selection = commits.last?.id
-            if commits.isEmpty { errorMessage = "Không có commit nào sau \(baseLabel) trên nhánh hiện tại." }
+            if commits.isEmpty { errorMessage = String(localized: "Không có commit nào sau \(baseLabel) trên nhánh hiện tại.") }
             if let upstream = model.currentBranchRef?.upstream, let oldest = commits.first {
                 alreadyPushed = await model.repository.isAncestor(oldest.id, of: upstream)
             }

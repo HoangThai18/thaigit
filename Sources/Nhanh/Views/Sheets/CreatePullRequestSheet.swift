@@ -92,7 +92,7 @@ struct CreatePullRequestSheet: View {
                 Button("Huỷ") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 if model.canUseGitHubAccount {
-                    Button(push == nil ? "Tạo Pull Request" : "Push & tạo Pull Request") {
+                    Button(push == nil ? String(localized: "Tạo Pull Request") : String(localized: "Push & tạo Pull Request")) {
                         model.createPullRequest(NewPullRequest(title: trimmedTitle, body: bodyText, head: headBranch, base: base, draft: draft),
                                                 pushFirst: push)
                         dismiss()
@@ -151,7 +151,7 @@ struct CreatePullRequestSheet: View {
             }
             if !model.canUseGitHubAccount {
                 Label(GitHubAccountManager.shared.isConfigured
-                      ? "Cần đăng nhập tài khoản GitHub có quyền với \(repoName) để tạo Pull Request."
+                      ? String(localized: "Cần đăng nhập tài khoản GitHub có quyền với \(repoName) để tạo Pull Request.")
                       : GitHubAccountManager.notConfiguredMessage,
                       systemImage: "person.crop.circle.badge.exclamationmark")
                     .foregroundStyle(.secondary)

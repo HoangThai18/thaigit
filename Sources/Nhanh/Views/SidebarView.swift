@@ -153,9 +153,9 @@ struct SidebarView: View {
     private var localRows: some View {
         let locals = model.localBranches.filter { matches($0.name) }
         if locals.isEmpty {
-            PlaceholderRow(text: filtering ? "Không có nhánh khớp" : "Chưa có nhánh nào")
+            PlaceholderRow(text: filtering ? String(localized: "Không có nhánh khớp") : String(localized: "Chưa có nhánh nào"))
         } else if filtering {
-            LimitedRows(items: locals, noun: "nhánh") { ref in branchRow(ref, title: ref.name) }
+            LimitedRows(items: locals, noun: String(localized: "nhánh")) { ref in branchRow(ref, title: ref.name) }
         } else {
             BranchTree(nodes: BranchNode.build(locals, name: \.name)) { ref, title in branchRow(ref, title: title) }
         }
@@ -175,7 +175,7 @@ struct SidebarView: View {
             let branches = model.remoteBranches.filter { $0.remoteName == remote.name && matches($0.name) }
             RemoteGroup(remote: remote, model: model, icon: remoteIcon(remote), forceExpanded: filtering) {
                 if filtering {
-                    LimitedRows(items: branches, noun: "nhánh") { ref in branchRow(ref, title: ref.shortBranchName) }
+                    LimitedRows(items: branches, noun: String(localized: "nhánh")) { ref in branchRow(ref, title: ref.shortBranchName) }
                 } else {
                     BranchTree(nodes: BranchNode.build(branches, name: \.shortBranchName)) { ref, title in
                         branchRow(ref, title: title)
@@ -200,7 +200,7 @@ struct SidebarView: View {
                 .buttonStyle(.borderless)
                 .help("Repo riêng tư: cần tài khoản GitHub có quyền xem repo này")
             } else {
-                PlaceholderRow(text: "Repo riêng tư — cần đăng nhập GitHub")
+                PlaceholderRow(text: String(localized: "Repo riêng tư — cần đăng nhập GitHub"))
             }
         case .failed(let message) where pulls.isEmpty:
             Button {
@@ -211,10 +211,10 @@ struct SidebarView: View {
             .buttonStyle(.borderless)
             .help(message)
         case .loading where pulls.isEmpty, .idle:
-            PlaceholderRow(text: "Đang tải…")
+            PlaceholderRow(text: String(localized: "Đang tải…"))
         default:
             if pulls.isEmpty {
-                PlaceholderRow(text: filtering ? "Không có PR khớp" : "Không có PR nào đang mở")
+                PlaceholderRow(text: filtering ? String(localized: "Không có PR khớp") : String(localized: "Không có PR nào đang mở"))
             }
             LimitedRows(items: pulls, noun: "PR") { pull in
                 PullRequestRow(pull: pull, isCurrent: model.currentBranchRef.flatMap { model.pullRequest(for: $0) }?.number == pull.number)
@@ -271,9 +271,9 @@ struct SidebarView: View {
 
     private static func submoduleBadge(_ state: Submodule.State) -> (symbol: String, color: Color, hint: String)? {
         switch state {
-        case .uninitialized: return ("arrow.down.circle", .secondary, "Chưa tải về — chuột phải → Tải về")
-        case .modified: return ("exclamationmark.circle", .orange, "Đang ở commit khác commit repo này ghi nhận")
-        case .conflicted: return ("exclamationmark.triangle", .red, "Xung đột")
+        case .uninitialized: return ("arrow.down.circle", .secondary, String(localized: "Chưa tải về — chuột phải → Tải về"))
+        case .modified: return ("exclamationmark.circle", .orange, String(localized: "Đang ở commit khác commit repo này ghi nhận"))
+        case .conflicted: return ("exclamationmark.triangle", .red, String(localized: "Xung đột"))
         case .upToDate: return nil
         }
     }
@@ -285,7 +285,7 @@ struct SidebarView: View {
                 Image(systemName: worktree.isMain ? "folder.fill" : "folder")
                     .foregroundStyle(.secondary)
                     .frame(width: 16)
-                Text(worktree.branch ?? "HEAD tách rời")
+                Text(worktree.branch ?? String(localized: "HEAD tách rời"))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 4)
@@ -308,7 +308,7 @@ struct SidebarView: View {
     private var tagRows: some View {
         let tags = model.tags.filter { matches($0.name) }
         if tags.isEmpty {
-            PlaceholderRow(text: filtering ? "Không có tag khớp" : "Không có tag")
+            PlaceholderRow(text: filtering ? String(localized: "Không có tag khớp") : String(localized: "Không có tag"))
         }
         LimitedRows(items: tags, noun: "tag") { ref in
             Label(ref.name, systemImage: "tag")
@@ -321,7 +321,7 @@ struct SidebarView: View {
     @ViewBuilder
     private var stashRows: some View {
         if model.stashes.isEmpty {
-            PlaceholderRow(text: "Không có stash")
+            PlaceholderRow(text: String(localized: "Không có stash"))
         }
         LimitedRows(items: model.stashes, noun: "stash") { stash in
             StashRow(stash: stash)
@@ -461,7 +461,7 @@ private struct BranchRow: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.borderless)
-                .help(visibility == .hidden ? "Hiện lại nhánh trên graph" : "Ẩn nhánh khỏi graph")
+                .help(visibility == .hidden ? String(localized: "Hiện lại nhánh trên graph") : String(localized: "Ẩn nhánh khỏi graph"))
             }
             if ref.upstreamGone {
                 Image(systemName: "exclamationmark.icloud")
@@ -494,14 +494,14 @@ private struct PullRequestRow: View {
     /// Tách riêng khỏi `body`: viết gộp trong `.help(...)` làm trình biên dịch trên CI hết thời gian suy kiểu.
     private var tooltip: String {
         var title = "#\(pull.number) \(pull.title)"
-        if pull.isDraft { title += " (nháp)" }
+        if pull.isDraft { title += String(localized: " (nháp)") }
         var branches = ""
         if let repository = pull.headRepository, let owner = repository.split(separator: "/").first {
             branches = String(owner) + ":"
         }
         branches += pull.headBranch + " → " + pull.baseBranch
-        var author = "Tác giả: @" + pull.author
-        if let updated = pull.updatedAt { author += " · cập nhật " + VietnameseDate.relative(updated) }
+        var author = String(localized: "Tác giả: @") + pull.author
+        if let updated = pull.updatedAt { author += String(localized: " · cập nhật ") + VietnameseDate.relative(updated) }
         return title + "\n" + branches + "\n" + author
     }
 
@@ -536,7 +536,7 @@ private struct StashRow: View {
                 .truncationMode(.tail)
             Spacer(minLength: 0)
         }
-        .help([stash.message, stash.branchName.map { "Nhánh: \($0)" }, VietnameseDate.absolute(stash.date)]
+        .help([stash.message, stash.branchName.map { String(localized: "Nhánh: \($0)") }, VietnameseDate.absolute(stash.date)]
             .compactMap { $0 }.joined(separator: "\n"))
     }
 }
@@ -592,7 +592,7 @@ struct BranchTree<Row: View>: View {
     }
 
     var body: some View {
-        LimitedRows(items: nodes, noun: "nhánh") { node in
+        LimitedRows(items: nodes, noun: String(localized: "nhánh")) { node in
             if let ref = node.ref {
                 row(ref, node.name)
             } else {
@@ -698,7 +698,7 @@ private struct RemoteGroup<Content: View>: View {
                 Text(remote.name)
                     .lineLimit(1)
             }
-            .help(remote.fetchURL + "\nKéo một nhánh local thả vào đây để push lên \(remote.name)")
+            .help(remote.fetchURL + String(localized: "\nKéo một nhánh local thả vào đây để push lên \(remote.name)"))
             .dropDestination(for: String.self) { items, _ in
                 guard let name = items.first, let source = model.refs.first(where: { $0.fullName == name }) else { return false }
                 model.dragRequest = DragRequest(source: source, target: .remote(remote))

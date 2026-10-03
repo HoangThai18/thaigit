@@ -216,12 +216,12 @@ final class RefsCellView: NSTableCellView {
         didSet {
             needsDisplay = true
             toolTip = labels.isEmpty ? nil : labels.flatMap { label -> [String] in
-                if label.isDetachedHead { return ["HEAD (tách rời)"] }
+                if label.isDetachedHead { return [String(localized: "HEAD (tách rời)")] }
                 let pull = label.pullRequest.map { ["Pull Request #\($0.number): \($0.title)"] } ?? []
                 return pull + label.refs.map { ref in
                     switch ref.kind {
-                    case .localBranch: return "Nhánh local: \(ref.name)" + (ref.upstream.map { " → \($0)" } ?? "")
-                    case .remoteBranch: return "Nhánh remote: \(ref.name)"
+                    case .localBranch: return String(localized: "Nhánh local: \(ref.name)") + (ref.upstream.map { " → \($0)" } ?? "")
+                    case .remoteBranch: return String(localized: "Nhánh remote: \(ref.name)")
                     case .tag: return "Tag: \(ref.name)"
                     }
                 }

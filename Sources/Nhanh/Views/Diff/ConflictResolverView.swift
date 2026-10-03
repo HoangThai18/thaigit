@@ -114,9 +114,9 @@ private struct ConflictBlockView: View {
                         .foregroundStyle(.green)
                 }
                 Spacer()
-                ChoiceButton(title: "Giữ Current", isOn: choice == .ours, tint: .blue) { choice = .ours }
-                ChoiceButton(title: "Giữ Incoming", isOn: choice == .theirs, tint: .purple) { choice = .theirs }
-                ChoiceButton(title: "Giữ cả hai", isOn: choice == .oursThenTheirs, tint: .teal) { choice = .oursThenTheirs }
+                ChoiceButton(title: String(localized: "Giữ Current"), isOn: choice == .ours, tint: .blue) { choice = .ours }
+                ChoiceButton(title: String(localized: "Giữ Incoming"), isOn: choice == .theirs, tint: .purple) { choice = .theirs }
+                ChoiceButton(title: String(localized: "Giữ cả hai"), isOn: choice == .oursThenTheirs, tint: .teal) { choice = .oursThenTheirs }
                 Menu {
                     Button("Cả hai (Incoming trước)") { choice = .theirsThenOurs }
                     if block.base != nil {
@@ -146,7 +146,7 @@ private struct ConflictBlockView: View {
             if let choice {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Kết quả").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    CodeLines(lines: result(for: choice), emptyText: "(trống — đoạn này sẽ bị xoá)")
+                    CodeLines(lines: result(for: choice), emptyText: String(localized: "(trống — đoạn này sẽ bị xoá)"))
                         .padding(8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color.green.opacity(0.08)))
@@ -208,7 +208,7 @@ private struct SideColumn: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .background(tint.opacity(0.12))
-            CodeLines(lines: lines, emptyText: "(trống)")
+            CodeLines(lines: lines, emptyText: String(localized: "(trống)"))
                 .padding(8)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -308,12 +308,12 @@ struct ConflictWithoutMarkersView: View {
 
     private var explanation: String {
         switch entry.kind {
-        case .deletedByUs: return "Nhánh hiện tại đã xoá file này, còn bên kia thì sửa nó. Chọn “Current” để xoá file, “Incoming” để giữ bản đã sửa."
-        case .deletedByThem: return "Bên kia đã xoá file này, còn nhánh hiện tại thì sửa nó. Chọn “Current” để giữ file, “Incoming” để xoá."
-        case .addedByUs: return "Chỉ nhánh hiện tại có file này. “Current” giữ file, “Incoming” xoá nó."
-        case .addedByThem: return "Chỉ bên kia có file này. “Incoming” giữ file, “Current” xoá nó."
-        case .bothDeleted: return "Cả hai bên đều xoá file này. Chọn bất kỳ để xác nhận xoá."
-        default: return "Chọn bản muốn giữ."
+        case .deletedByUs: return String(localized: "Nhánh hiện tại đã xoá file này, còn bên kia thì sửa nó. Chọn “Current” để xoá file, “Incoming” để giữ bản đã sửa.")
+        case .deletedByThem: return String(localized: "Bên kia đã xoá file này, còn nhánh hiện tại thì sửa nó. Chọn “Current” để giữ file, “Incoming” để xoá.")
+        case .addedByUs: return String(localized: "Chỉ nhánh hiện tại có file này. “Current” giữ file, “Incoming” xoá nó.")
+        case .addedByThem: return String(localized: "Chỉ bên kia có file này. “Incoming” giữ file, “Current” xoá nó.")
+        case .bothDeleted: return String(localized: "Cả hai bên đều xoá file này. Chọn bất kỳ để xác nhận xoá.")
+        default: return String(localized: "Chọn bản muốn giữ.")
         }
     }
 }

@@ -5,7 +5,13 @@ import SwiftUI
 @main
 struct NhanhApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var appState = AppState.shared
+    @State private var appState: AppState
+
+    init() {
+        // Trước mọi thứ đọc chuỗi: chưa chọn ngôn ngữ thì giữ tiếng Việt.
+        AppLanguage.applyDefault()
+        _appState = State(initialValue: AppState.shared)
+    }
 
     var body: some Scene {
         // Một cửa sổ chứa nhiều tab do Thaigit tự vẽ (như GitKraken), nên ẩn thanh tiêu đề của macOS.

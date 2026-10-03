@@ -154,6 +154,6 @@ public struct ProcessLaunchError: LocalizedError, Sendable {
     public let underlying: String
 
     public var errorDescription: String? {
-        "Không chạy được \(executable): \(underlying)"
+        String(localized: "Không chạy được \(executable): \(underlying)")
     }
 }

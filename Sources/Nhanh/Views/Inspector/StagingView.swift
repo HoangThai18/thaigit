@@ -16,33 +16,33 @@ struct StagingView: View {
             VSplitView {
                 FileSection(
                     model: model,
-                    title: "Chưa stage",
+                    title: String(localized: "Chưa stage"),
                     files: model.status.unstaged,
                     source: .unstaged,
                     selection: $model.selectedUnstaged,
-                    bulkTitle: "Stage tất cả",
+                    bulkTitle: String(localized: "Stage tất cả"),
                     bulkSymbol: "plus.circle.fill",
                     bulkAction: { model.stageAll() },
                     rowSymbol: "plus.circle.fill",
                     rowTint: .green,
                     rowTitle: "Stage",
                     rowAction: { model.stage($0) },
-                    emptyText: "Không có thay đổi nào chưa stage"
+                    emptyText: String(localized: "Không có thay đổi nào chưa stage")
                 )
                 FileSection(
                     model: model,
-                    title: "Đã stage",
+                    title: String(localized: "Đã stage"),
                     files: model.status.staged,
                     source: .staged,
                     selection: $model.selectedStaged,
-                    bulkTitle: "Bỏ stage tất cả",
+                    bulkTitle: String(localized: "Bỏ stage tất cả"),
                     bulkSymbol: "minus.circle.fill",
                     bulkAction: { model.unstageAll() },
                     rowSymbol: "minus.circle.fill",
                     rowTint: .red,
-                    rowTitle: "Bỏ stage",
+                    rowTitle: String(localized: "Bỏ stage"),
                     rowAction: { model.unstage($0) },
-                    emptyText: "Chưa stage file nào — bấm “Stage” hoặc kéo chọn file ở trên"
+                    emptyText: String(localized: "Chưa stage file nào — bấm “Stage” hoặc kéo chọn file ở trên")
                 )
             }
             Divider()
@@ -196,7 +196,7 @@ private struct FileSection: View {
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(tint, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
                     .background(RoundedRectangle(cornerRadius: 8).fill(tint.opacity(0.08)))
-                    .overlay(Label(source == .staged ? "Thả để stage" : "Thả để bỏ stage",
+                    .overlay(Label(source == .staged ? String(localized: "Thả để stage") : String(localized: "Thả để bỏ stage"),
                                    systemImage: source == .staged ? "plus.circle.fill" : "minus.circle.fill")
                         .font(.headline)
                         .foregroundStyle(tint))
@@ -267,11 +267,11 @@ struct CommitComposer: View {
     private var remaining: Int { 72 - model.commitSummary.count }
 
     private var commitTitle: String {
-        if model.amendLastCommit, model.operation == nil { return "Sửa commit trước" }
-        if model.operation == .merging { return "Hoàn tất merge" }
-        if model.operation == .reverting { return "Hoàn tất revert" }
+        if model.amendLastCommit, model.operation == nil { return String(localized: "Sửa commit trước") }
+        if model.operation == .merging { return String(localized: "Hoàn tất merge") }
+        if model.operation == .reverting { return String(localized: "Hoàn tất revert") }
         let count = model.status.staged.count
-        return count > 0 ? "Commit \(count) file vào \(model.currentBranch ?? "HEAD")" : "Commit"
+        return count > 0 ? String(localized: "Commit \(count) file vào \(model.currentBranch ?? "HEAD")") : "Commit"
     }
 
     /// ✨ Viết commit message bằng AI chạy trên máy (Apple Intelligence) từ thay đổi đã stage.
@@ -293,8 +293,8 @@ struct CommitComposer: View {
             .buttonStyle(.borderless)
             .disabled(reason != nil || model.status.staged.isEmpty)
             .help(reason ?? (model.status.staged.isEmpty
-                ? "Stage thay đổi trước, rồi để AI viết commit message"
-                : "AI viết commit message từ thay đổi đã stage — chạy trên máy, không gửi code đi đâu"))
+                ? String(localized: "Stage thay đổi trước, rồi để AI viết commit message")
+                : String(localized: "AI viết commit message từ thay đổi đã stage — chạy trên máy, không gửi code đi đâu")))
         }
     }
 
@@ -393,7 +393,7 @@ struct CommitComposer: View {
                 .disabled(!model.canCommit)
                 .keyboardShortcut(.return, modifiers: .command)
             }
-            Text(model.hasCommitMessage ? "⌘↩ để commit" : "Nhập tóm tắt để commit")
+            Text(model.hasCommitMessage ? String(localized: "⌘↩ để commit") : String(localized: "Nhập tóm tắt để commit"))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .center)

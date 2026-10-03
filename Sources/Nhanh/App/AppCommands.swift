@@ -31,7 +31,7 @@ struct AppCommands: Commands {
 
         CommandGroup(after: .appSettings) {
             // Mở thẻ Tài khoản trong Cài đặt; chưa đăng nhập thì hiện luôn hộp đăng nhập ở đó.
-            Button(github.accounts.isEmpty ? "Đăng nhập GitHub…" : "Tài khoản GitHub…") {
+            Button(github.accounts.isEmpty ? String(localized: "Đăng nhập GitHub…") : String(localized: "Tài khoản GitHub…")) {
                 github.prepareSettings()
                 openSettings()
             }

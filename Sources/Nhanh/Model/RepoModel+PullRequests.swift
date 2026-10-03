@@ -131,8 +131,8 @@ extension RepoModel {
             reveal(commit: pull.headSHA)
             return
         }
-        toast(.info, "Commit mới nhất của PR #\(pull.number) chưa có trên graph",
-              message: "Fetch để lấy nhánh \(pull.headBranch) về, hoặc checkout PR.",
+        toast(.info, String(localized: "Commit mới nhất của PR #\(pull.number) chưa có trên graph"),
+              message: String(localized: "Fetch để lấy nhánh \(pull.headBranch) về, hoặc checkout PR."),
               actions: [
                   ToastAction(title: "Fetch") { [weak self] in self?.fetch() },
                   ToastAction(title: "Checkout PR") { [weak self] in self?.checkoutPullRequest(pull) },
@@ -159,7 +159,7 @@ extension RepoModel {
                         if let ref = self.remoteBranches.first(where: { $0.remoteName == remote && $0.shortBranchName == pull.headBranch }) {
                             self.checkout(ref)
                         } else {
-                            self.toast(.warning, "Không thấy nhánh \(remote)/\(pull.headBranch) sau khi fetch")
+                            self.toast(.warning, String(localized: "Không thấy nhánh \(remote)/\(pull.headBranch) sau khi fetch"))
                         }
                     }
                 } onError: { [weak self] error in
@@ -170,19 +170,19 @@ extension RepoModel {
         }
         let local = "pr/\(pull.number)"
         if local == currentBranch {
-            toast(.info, "Đang ở nhánh \(local)")
+            toast(.info, String(localized: "Đang ở nhánh \(local)"))
             return
         }
         let progress = progressReporter()
-        perform("Lấy PR #\(pull.number)", showsProgress: true, cancellable: true, refresh: [.refs, .status]) { repo in
+        perform(String(localized: "Lấy PR #\(pull.number)"), showsProgress: true, cancellable: true, refresh: [.refs, .status]) { repo in
             try await repo.fetchPullRequest(pull.number, remote: remote, into: local, onProgress: progress)
         } onSuccess: { [weak self] in
             self?.switchToBranch(local)
         } onError: { [weak self] error in
             guard let self else { return false }
-            if handleGitHubAuthError(error, operation: "Lấy PR #\(pull.number)") { return true }
+            if handleGitHubAuthError(error, operation: String(localized: "Lấy PR #\(pull.number)")) { return true }
             if let gitError = error as? GitError, gitError.contains("non-fast-forward") || gitError.contains("rejected") {
-                showError("Nhánh \(local) trên máy đã có commit riêng — không ghi đè", error)
+                showError(String(localized: "Nhánh \(local) trên máy đã có commit riêng — không ghi đè"), error)
                 return true
             }
             return false
@@ -199,7 +199,7 @@ extension RepoModel {
         }
         let base = remoteBranches.first { $0.remoteName == remote && $0.shortBranchName == pull.baseBranch }?.target
         guard let base else {
-            toast(.info, "Chưa có nhánh \(remote)/\(pull.baseBranch) trên máy — hãy fetch trước", actions: [
+            toast(.info, String(localized: "Chưa có nhánh \(remote)/\(pull.baseBranch) trên máy — hãy fetch trước"), actions: [
                 ToastAction(title: "Fetch") { [weak self] in self?.fetch() },
             ])
             return
@@ -218,22 +218,22 @@ extension RepoModel {
 
     func pullRequestMenu(_ pull: GitHubPullRequest) -> [MenuItemSpec] {
         var items: [MenuItemSpec] = [
-            .action("Mở PR #\(pull.number) trên GitHub", systemImage: "safari", enabled: pull.webURL != nil) { [weak self] in
+            .action(String(localized: "Mở PR #\(pull.number) trên GitHub"), systemImage: "safari", enabled: pull.webURL != nil) { [weak self] in
                 self?.openOnGitHub(pull)
             },
-            .action("Checkout nhánh của PR", systemImage: "arrow.uturn.right") { [weak self] in self?.checkoutPullRequest(pull) },
-            .action("Xem thay đổi so với \(pull.baseBranch)", systemImage: "arrow.left.arrow.right") { [weak self] in
+            .action(String(localized: "Checkout nhánh của PR"), systemImage: "arrow.uturn.right") { [weak self] in self?.checkoutPullRequest(pull) },
+            .action(String(localized: "Xem thay đổi so với \(pull.baseBranch)"), systemImage: "arrow.left.arrow.right") { [weak self] in
                 self?.compareWithBase(pull)
             },
-            .action("Tới commit mới nhất của PR", systemImage: "scope") { [weak self] in self?.revealPullRequest(pull) },
+            .action(String(localized: "Tới commit mới nhất của PR"), systemImage: "scope") { [weak self] in self?.revealPullRequest(pull) },
             .separator,
         ]
         if let url = pull.webURL {
-            items.append(.action("Sao chép đường dẫn PR", systemImage: "link") { [weak self] in
-                self?.copy(url.absoluteString, label: "đường dẫn PR")
+            items.append(.action(String(localized: "Sao chép đường dẫn PR"), systemImage: "link") { [weak self] in
+                self?.copy(url.absoluteString, label: String(localized: "đường dẫn PR"))
             })
         }
-        items.append(.action("Tải lại danh sách PR", systemImage: "arrow.clockwise") { [weak self] in
+        items.append(.action(String(localized: "Tải lại danh sách PR"), systemImage: "arrow.clockwise") { [weak self] in
             self?.loadPullRequests(force: true)
         })
         return items
@@ -243,12 +243,12 @@ extension RepoModel {
     func pullRequestMenuItems(for ref: GitRef) -> [MenuItemSpec] {
         guard let remote = githubRemote?.name, ref.kind != .tag else { return [] }
         if let pull = pullRequest(for: ref) {
-            return [.action("Mở Pull Request #\(pull.number) trên GitHub", systemImage: "arrow.triangle.pull", enabled: pull.webURL != nil) {
+            return [.action(String(localized: "Mở Pull Request #\(pull.number) trên GitHub"), systemImage: "arrow.triangle.pull", enabled: pull.webURL != nil) {
                 [weak self] in self?.openOnGitHub(pull)
             }]
         }
         if ref.kind == .remoteBranch, ref.remoteName != remote { return [] }
-        return [.action("Tạo Pull Request từ \(ref.kind == .remoteBranch ? ref.shortBranchName : ref.name)…",
+        return [.action(String(localized: "Tạo Pull Request từ \(ref.kind == .remoteBranch ? ref.shortBranchName : ref.name)…"),
                         systemImage: "arrow.triangle.pull") { [weak self] in
             self?.beginCreatePullRequest(from: ref)
         }]
@@ -259,11 +259,11 @@ extension RepoModel {
     /// Mở hộp tạo PR cho nhánh `ref` (mặc định: nhánh hiện tại).
     func beginCreatePullRequest(from ref: GitRef? = nil) {
         guard githubRemote != nil else {
-            toast(.info, "Repo này chưa có remote trên GitHub")
+            toast(.info, String(localized: "Repo này chưa có remote trên GitHub"))
             return
         }
         guard let ref = ref ?? currentBranchRef else {
-            toast(.warning, "Cần đứng trên một nhánh (hoặc chuột phải vào nhánh) để tạo Pull Request")
+            toast(.warning, String(localized: "Cần đứng trên một nhánh (hoặc chuột phải vào nhánh) để tạo Pull Request"))
             return
         }
         sheet = .createPullRequest(head: ref.kind == .remoteBranch ? ref.shortBranchName : ref.name)
@@ -295,7 +295,7 @@ extension RepoModel {
         guard let repo = githubRemote?.repo else { return }
         let progress = progressReporter()
         var created: GitHubPullRequest?
-        perform(push == nil ? "Tạo Pull Request" : "Push & tạo Pull Request", showsProgress: true, refresh: [.refs, .status]) { git in
+        perform(push == nil ? String(localized: "Tạo Pull Request") : String(localized: "Push & tạo Pull Request"), showsProgress: true, refresh: [.refs, .status]) { git in
             if let push {
                 try await git.push(remote: push.remote, localBranch: push.localBranch, remoteBranch: push.remoteBranch,
                                    setUpstream: push.setUpstream, force: false, onProgress: progress)
@@ -305,16 +305,16 @@ extension RepoModel {
             created = try await GitHubRepoAPI().createPullRequest(new, in: repo, token: token)
         } onSuccess: { [weak self] in
             guard let self, let created else { return }
-            toast(.success, "Đã tạo Pull Request #\(created.number)", message: created.title, actions: created.webURL.map { url in
-                [ToastAction(title: "Mở trên GitHub") { NSWorkspace.shared.open(url) }]
+            toast(.success, String(localized: "Đã tạo Pull Request #\(created.number)"), message: created.title, actions: created.webURL.map { url in
+                [ToastAction(title: String(localized: "Mở trên GitHub")) { NSWorkspace.shared.open(url) }]
             } ?? [])
             loadPullRequests(force: true)
         } onError: { [weak self] error in
             guard let self else { return false }
             if handleGitHubAuthError(error, operation: "Push") { return true }
             if case GitHubError.unauthorized = error {
-                showError("Cần đăng nhập GitHub (tài khoản có quyền với \(repo.owner)/\(repo.name)) để tạo Pull Request", error,
-                          actions: githubLoginActions("Đăng nhập GitHub"))
+                showError(String(localized: "Cần đăng nhập GitHub (tài khoản có quyền với \(repo.owner)/\(repo.name)) để tạo Pull Request"), error,
+                          actions: githubLoginActions(String(localized: "Đăng nhập GitHub")))
                 return true
             }
             return false

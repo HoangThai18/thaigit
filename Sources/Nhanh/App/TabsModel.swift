@@ -33,9 +33,9 @@ final class AppTab: Identifiable {
 
     var title: String {
         switch kind {
-        case .home: return "Trang chủ"
-        case .welcome: return "Tab mới"
-        case .releaseNotes: return "Có gì mới"
+        case .home: return String(localized: "Trang chủ")
+        case .welcome: return String(localized: "Tab mới")
+        case .releaseNotes: return String(localized: "Có gì mới")
         case .repository(let path): return model?.name ?? (path as NSString).lastPathComponent
         }
     }

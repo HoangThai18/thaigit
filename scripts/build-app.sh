@@ -48,6 +48,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Nhanh" "$APP/Contents/MacOS/Thaigit"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# Bản dịch giao diện (chuỗi gốc trong code là tiếng Việt; en.lproj là tiếng Anh). Cài đặt → Chung → Ngôn ngữ.
+for lproj in Resources/*.lproj; do
+  cp -R "$lproj" "$APP/Contents/Resources/"
+done
 # Tab "Có gì mới" trong app đọc nhật ký thay đổi này.
 cp CHANGELOG.md "$APP/Contents/Resources/CHANGELOG.md"
 codesign --force --sign - --timestamp=none "$APP" >/dev/null

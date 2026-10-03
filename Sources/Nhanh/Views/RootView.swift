@@ -89,8 +89,8 @@ struct RootView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.prompt = "Tạo repository"
-        panel.message = "Chọn hoặc tạo thư mục cho repository mới"
+        panel.prompt = String(localized: "Tạo repository")
+        panel.message = String(localized: "Chọn hoặc tạo thư mục cho repository mới")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let environment = appState.environment
         Task {

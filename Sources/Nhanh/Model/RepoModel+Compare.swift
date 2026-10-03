@@ -24,7 +24,7 @@ extension RepoModel {
     /// `git diff HEAD...ref`), nên chỉ thấy thay đổi của riêng `ref`.
     func compareWithCurrent(_ ref: GitRef) {
         guard let head = headOID else {
-            toast(.info, "Nhánh hiện tại chưa có commit nào để so sánh")
+            toast(.info, String(localized: "Nhánh hiện tại chưa có commit nào để so sánh"))
             return
         }
         let repo = repository

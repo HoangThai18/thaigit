@@ -22,7 +22,7 @@ struct BlameSheet: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer()
-                Text(rev.map { "tại commit \($0.prefix(7))" } ?? "bản đang sửa (gồm cả dòng chưa commit)")
+                Text(rev.map { String(localized: "tại commit \($0.prefix(7))") } ?? String(localized: "bản đang sửa (gồm cả dòng chưa commit)"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -122,7 +122,7 @@ private struct BlameLineRow: View {
                 HStack(spacing: 6) {
                     AvatarView(name: info.isUncommitted ? "?" : info.author, email: info.isUncommitted ? nil : info.email,
                                repo: repo, size: 15)
-                    Text(info.isUncommitted ? "Chưa commit" : info.author)
+                    Text(info.isUncommitted ? String(localized: "Chưa commit") : info.author)
                         .lineLimit(1)
                         .frame(width: 96, alignment: .leading)
                     Text(info.isUncommitted ? "" : VietnameseDate.relative(info.date))

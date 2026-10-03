@@ -18,17 +18,17 @@ enum CommitMessageAI {
             case .available:
                 return nil
             case .unavailable(.deviceNotEligible):
-                return "Máy này không hỗ trợ Apple Intelligence"
+                return String(localized: "Máy này không hỗ trợ Apple Intelligence")
             case .unavailable(.appleIntelligenceNotEnabled):
-                return "Bật Apple Intelligence trong Cài đặt hệ thống để dùng"
+                return String(localized: "Bật Apple Intelligence trong Cài đặt hệ thống để dùng")
             case .unavailable(.modelNotReady):
-                return "Mô hình Apple Intelligence đang tải về — thử lại sau"
+                return String(localized: "Mô hình Apple Intelligence đang tải về — thử lại sau")
             case .unavailable:
-                return "Apple Intelligence chưa sẵn sàng"
+                return String(localized: "Apple Intelligence chưa sẵn sàng")
             }
         }
         #endif
-        return "Cần macOS 26 trở lên (Apple Intelligence)"
+        return String(localized: "Cần macOS 26 trở lên (Apple Intelligence)")
     }
 
     /// Trả về (tóm tắt, phần thân) cho thay đổi đã stage.
@@ -67,14 +67,14 @@ enum CommitMessageAI {
 
         var userMessage: String {
             let text = errorDescription ?? ""
-            return text.isEmpty ? "Apple Intelligence chưa sẵn sàng trên máy này." : text
+            return text.isEmpty ? String(localized: "Apple Intelligence chưa sẵn sàng trên máy này.") : text
         }
 
         var errorDescription: String? {
             switch self {
-            case .nothingStaged: return "Chưa có thay đổi nào được stage."
-            case .emptyAnswer: return "AI không đưa ra được commit message — thử lại."
-            case .tooLarge: return "Thay đổi quá lớn để AI trên máy đọc hết — hãy commit thành nhiều phần nhỏ."
+            case .nothingStaged: return String(localized: "Chưa có thay đổi nào được stage.")
+            case .emptyAnswer: return String(localized: "AI không đưa ra được commit message — thử lại.")
+            case .tooLarge: return String(localized: "Thay đổi quá lớn để AI trên máy đọc hết — hãy commit thành nhiều phần nhỏ.")
             case .unavailable(let reason): return reason
             }
         }
@@ -89,14 +89,14 @@ extension RepoModel {
             let suggestion = try await CommitMessageAI.suggest(for: repository)
             commitSummary = suggestion.summary
             commitBody = suggestion.body
-            toast(.success, "AI đã viết commit message — xem lại trước khi commit", actions: previous.0.isEmpty && previous.1.isEmpty ? [] : [
-                ToastAction(title: "Hoàn tác") { [weak self] in
+            toast(.success, String(localized: "AI đã viết commit message — xem lại trước khi commit"), actions: previous.0.isEmpty && previous.1.isEmpty ? [] : [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
                     self?.commitSummary = previous.0
                     self?.commitBody = previous.1
                 },
             ], tag: "ai")
         } catch {
-            showError("AI chưa viết được commit message", error)
+            showError(String(localized: "AI chưa viết được commit message"), error)
         }
     }
 }

@@ -159,7 +159,7 @@ public struct Stash: Sendable, Hashable, Identifiable {
             let branch = parts[0].dropFirst("WIP on ".count)
             let words = rest.split(separator: " ", maxSplits: 1)
             let subject = words.count == 2 && words[0].count >= 7 && words[0].allSatisfy(\.isHexDigit) ? String(words[1]) : rest
-            return "WIP trên \(branch): \(subject)"
+            return String(localized: "WIP trên \(branch): \(subject)")
         }
         return rest
     }
@@ -240,14 +240,14 @@ public enum ConflictKind: String, Sendable, Hashable {
 
     public var description: String {
         switch self {
-        case .bothModified: return "Cả hai bên đều sửa"
-        case .bothAdded: return "Cả hai bên đều thêm"
-        case .deletedByUs: return "Bên hiện tại đã xoá"
-        case .deletedByThem: return "Bên kia đã xoá"
-        case .addedByUs: return "Bên hiện tại thêm"
-        case .addedByThem: return "Bên kia thêm"
-        case .bothDeleted: return "Cả hai bên đều xoá"
-        case .unknown: return "Xung đột"
+        case .bothModified: return String(localized: "Cả hai bên đều sửa")
+        case .bothAdded: return String(localized: "Cả hai bên đều thêm")
+        case .deletedByUs: return String(localized: "Bên hiện tại đã xoá")
+        case .deletedByThem: return String(localized: "Bên kia đã xoá")
+        case .addedByUs: return String(localized: "Bên hiện tại thêm")
+        case .addedByThem: return String(localized: "Bên kia thêm")
+        case .bothDeleted: return String(localized: "Cả hai bên đều xoá")
+        case .unknown: return String(localized: "Xung đột")
         }
     }
 
@@ -310,14 +310,14 @@ public enum RepoOperation: Sendable, Equatable {
 
     public var title: String {
         switch self {
-        case .merging: return "Đang merge"
+        case .merging: return String(localized: "Đang merge")
         case .rebasing(let step, let total, _):
-            if let step, let total { return "Đang rebase (\(step)/\(total))" }
-            return "Đang rebase"
-        case .cherryPicking: return "Đang cherry-pick"
-        case .reverting: return "Đang revert"
-        case .applyingPatches: return "Đang áp dụng patch (git am)"
-        case .bisecting: return "Đang bisect"
+            if let step, let total { return String(localized: "Đang rebase (\(step)/\(total))") }
+            return String(localized: "Đang rebase")
+        case .cherryPicking: return String(localized: "Đang cherry-pick")
+        case .reverting: return String(localized: "Đang revert")
+        case .applyingPatches: return String(localized: "Đang áp dụng patch (git am)")
+        case .bisecting: return String(localized: "Đang bisect")
         }
     }
 
@@ -328,7 +328,7 @@ public enum RepoOperation: Sendable, Equatable {
         case .rebasing: return "rebase"
         case .cherryPicking: return "cherry-pick"
         case .reverting: return "revert"
-        case .applyingPatches: return "áp dụng patch"
+        case .applyingPatches: return String(localized: "áp dụng patch")
         case .bisecting: return "bisect"
         }
     }

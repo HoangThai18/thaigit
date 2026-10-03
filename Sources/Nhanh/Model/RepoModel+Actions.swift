@@ -15,7 +15,7 @@ extension RepoModel {
 
     func stageAll() {
         guard !status.unstaged.isEmpty else { return }
-        perform("Stage tất cả", refresh: [.status]) { repo in
+        perform(String(localized: "Stage tất cả"), refresh: [.status]) { repo in
             try await repo.stageAll()
         }
     }
@@ -24,7 +24,7 @@ extension RepoModel {
         let paths = Array(Set(changes.flatMap(\.allPaths)))
         guard !paths.isEmpty else { return }
         let headExists = headOID != nil
-        perform("Bỏ stage", refresh: [.status]) { repo in
+        perform(String(localized: "Bỏ stage"), refresh: [.status]) { repo in
             try await repo.unstage(paths: paths, headExists: headExists)
         }
     }
@@ -32,7 +32,7 @@ extension RepoModel {
     func unstageAll() {
         guard !status.staged.isEmpty else { return }
         let headExists = headOID != nil
-        perform("Bỏ stage tất cả", refresh: [.status]) { repo in
+        perform(String(localized: "Bỏ stage tất cả"), refresh: [.status]) { repo in
             try await repo.unstageAll(headExists: headExists)
         }
     }
@@ -43,9 +43,9 @@ extension RepoModel {
         let untracked = changes.filter { $0.kind == .untracked }.map(\.path)
         let label = changes.count == 1 ? "“\(changes[0].fileName)”" : "\(changes.count) file"
         confirmation = Confirmation(
-            title: "Huỷ thay đổi trong \(label)?",
-            message: "Thay đổi chưa stage sẽ bị bỏ, file chưa track được chuyển vào Thùng rác. Bạn có thể bấm “Hoàn tác” ngay sau đó.",
-            confirmTitle: "Huỷ thay đổi",
+            title: String(localized: "Huỷ thay đổi trong \(label)?"),
+            message: String(localized: "Thay đổi chưa stage sẽ bị bỏ, file chưa track được chuyển vào Thùng rác. Bạn có thể bấm “Hoàn tác” ngay sau đó."),
+            confirmTitle: String(localized: "Huỷ thay đổi"),
             isDestructive: true
         ) { [weak self] in
             self?.performDiscard(tracked: tracked, untracked: untracked)
@@ -55,7 +55,7 @@ extension RepoModel {
     private func performDiscard(tracked: [String], untracked: [String]) {
         var snapshot: String?
         var trashed: [String: URL] = [:]
-        perform("Huỷ thay đổi", refresh: [.status]) { repo in
+        perform(String(localized: "Huỷ thay đổi"), refresh: [.status]) { repo in
             if !tracked.isEmpty {
                 snapshot = try await repo.snapshotChanges()
                 try await repo.discard(paths: tracked)
@@ -64,8 +64,8 @@ extension RepoModel {
                 trashed = try repo.trashUntracked(paths: untracked)
             }
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã huỷ thay đổi", actions: [
-                ToastAction(title: "Hoàn tác") { [weak self] in
+            self?.toast(.success, String(localized: "Đã huỷ thay đổi"), actions: [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
                     self?.undoDiscard(snapshot: snapshot, tracked: tracked, trashed: trashed)
                 },
             ])
@@ -73,7 +73,7 @@ extension RepoModel {
     }
 
     private func undoDiscard(snapshot: String?, tracked: [String], trashed: [String: URL]) {
-        perform("Hoàn tác huỷ thay đổi", refresh: [.status]) { repo in
+        perform(String(localized: "Hoàn tác huỷ thay đổi"), refresh: [.status]) { repo in
             if let snapshot, !tracked.isEmpty {
                 try await repo.restoreWorkingFiles(from: snapshot, paths: tracked)
             }
@@ -88,27 +88,27 @@ extension RepoModel {
     func discardAllChanges() {
         guard !status.isClean else { return }
         if let operation {
-            toast(.warning, "\(operation.title) — hãy dùng nút “Huỷ” trên thanh trạng thái thao tác")
+            toast(.warning, String(localized: "\(operation.title) — hãy dùng nút “Huỷ” trên thanh trạng thái thao tác"))
             return
         }
         let untracked = status.unstaged.filter { $0.kind == .untracked }.map(\.path)
         confirmation = Confirmation(
-            title: "Huỷ TẤT CẢ thay đổi chưa commit?",
-            message: "Mọi thay đổi (kể cả đã stage) sẽ bị bỏ, file chưa track được chuyển vào Thùng rác. Có thể bấm “Hoàn tác” ngay sau đó.",
-            confirmTitle: "Huỷ tất cả",
+            title: String(localized: "Huỷ TẤT CẢ thay đổi chưa commit?"),
+            message: String(localized: "Mọi thay đổi (kể cả đã stage) sẽ bị bỏ, file chưa track được chuyển vào Thùng rác. Có thể bấm “Hoàn tác” ngay sau đó."),
+            confirmTitle: String(localized: "Huỷ tất cả"),
             isDestructive: true
         ) { [weak self] in
             guard let self else { return }
             var snapshot: String?
             var trashed: [String: URL] = [:]
-            perform("Huỷ tất cả thay đổi") { repo in
+            perform(String(localized: "Huỷ tất cả thay đổi")) { repo in
                 snapshot = try await repo.snapshotChanges()
                 try await repo.hardReset()
                 if !untracked.isEmpty { trashed = try repo.trashUntracked(paths: untracked) }
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đã huỷ tất cả thay đổi", actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in
-                        self?.perform("Hoàn tác huỷ tất cả") { repo in
+                self?.toast(.success, String(localized: "Đã huỷ tất cả thay đổi"), actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                        self?.perform(String(localized: "Hoàn tác huỷ tất cả")) { repo in
                             if let snapshot { try await repo.stashApply(snapshot, restoreIndex: true) }
                             for (path, url) in trashed {
                                 let destination = repo.root.appendingPathComponent(path)
@@ -123,10 +123,10 @@ extension RepoModel {
     }
 
     func ignore(pattern: String) {
-        perform("Thêm vào .gitignore", refresh: [.status]) { repo in
+        perform(String(localized: "Thêm vào .gitignore"), refresh: [.status]) { repo in
             try repo.addToGitignore(pattern)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã thêm “\(pattern)” vào .gitignore")
+            self?.toast(.success, String(localized: "Đã thêm “\(pattern)” vào .gitignore"))
         }
     }
 
@@ -149,11 +149,11 @@ extension RepoModel {
 
     func commit(stageAllFirst: Bool = false) {
         guard hasCommitMessage else {
-            toast(.warning, "Hãy nhập tóm tắt cho commit")
+            toast(.warning, String(localized: "Hãy nhập tóm tắt cho commit"))
             return
         }
         guard status.conflicts.isEmpty else {
-            toast(.warning, "Còn \(status.conflicts.count) file xung đột chưa giải quyết")
+            toast(.warning, String(localized: "Còn \(status.conflicts.count) file xung đột chưa giải quyết"))
             return
         }
         let message = composedCommitMessage
@@ -161,7 +161,7 @@ extension RepoModel {
         let amend = amendLastCommit && operation == nil
         let previousHead = headOID
         let branch = currentBranch ?? "HEAD"
-        perform(amend ? "Sửa commit trước" : "Commit") { repo in
+        perform(amend ? String(localized: "Sửa commit trước") : "Commit") { repo in
             if stageAllFirst { try await repo.stageAll() }
             try await repo.commit(message: message, amend: amend)
         } onSuccess: { [weak self] in
@@ -170,14 +170,14 @@ extension RepoModel {
             commitSummary = ""
             commitBody = ""
             amendLastCommit = false
-            toast(.success, amend ? "Đã sửa commit trước" : "Đã commit vào \(branch)", actions: [
-                ToastAction(title: "Hoàn tác") { [weak self] in self?.undoCommit(previousHead: previousHead, message: message) },
+            toast(.success, amend ? String(localized: "Đã sửa commit trước") : String(localized: "Đã commit vào \(branch)"), actions: [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.undoCommit(previousHead: previousHead, message: message) },
             ])
         } onError: { [weak self] error in
             guard let self, let gitError = error as? GitError else { return false }
             if gitError.contains("Please tell me who you are") || gitError.contains("empty ident") {
                 sheet = .identity
-                toast(.warning, "Cần đặt tên và email cho Git trước khi commit")
+                toast(.warning, String(localized: "Cần đặt tên và email cho Git trước khi commit"))
                 return true
             }
             return false
@@ -185,7 +185,7 @@ extension RepoModel {
     }
 
     func undoCommit(previousHead: String?, message: String) {
-        perform("Hoàn tác commit") { repo in
+        perform(String(localized: "Hoàn tác commit")) { repo in
             if let previousHead {
                 try await repo.softReset(to: previousHead)
             } else {
@@ -197,7 +197,7 @@ extension RepoModel {
             commitSummary = parts.first.map(String.init) ?? ""
             commitBody = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespacesAndNewlines) : ""
             select(.workingTree)
-            toast(.info, "Đã hoàn tác commit — thay đổi vẫn còn ở trạng thái đã stage")
+            toast(.info, String(localized: "Đã hoàn tác commit — thay đổi vẫn còn ở trạng thái đã stage"))
         }
     }
 
@@ -222,12 +222,12 @@ extension RepoModel {
     }
 
     func saveIdentity(name: String, email: String) {
-        perform("Lưu tên & email Git", refresh: []) { repo in
+        perform(String(localized: "Lưu tên & email Git"), refresh: []) { repo in
             try await repo.setConfig("user.name", name, global: true)
             try await repo.setConfig("user.email", email, global: true)
         } onSuccess: { [weak self] in
             self?.loadCommitterIdentity()
-            self?.toast(.success, "Đã lưu tên & email cho Git")
+            self?.toast(.success, String(localized: "Đã lưu tên & email cho Git"))
         }
     }
 
@@ -237,7 +237,7 @@ extension RepoModel {
         switch ref.kind {
         case .localBranch:
             guard ref.name != currentBranch else {
-                toast(.info, "Đang ở nhánh \(ref.name)")
+                toast(.info, String(localized: "Đang ở nhánh \(ref.name)"))
                 return
             }
             switchToBranch(ref.name)
@@ -245,7 +245,7 @@ extension RepoModel {
             let localName = ref.shortBranchName
             if let local = refs.first(where: { $0.kind == .localBranch && $0.name == localName }) {
                 if local.name == currentBranch {
-                    toast(.info, "Đang ở nhánh \(local.name)")
+                    toast(.info, String(localized: "Đang ở nhánh \(local.name)"))
                 } else {
                     switchToBranch(local.name)
                 }
@@ -255,8 +255,8 @@ extension RepoModel {
             perform("Checkout \(ref.name)") { repo in
                 try await repo.checkoutTracking(remoteBranch: ref.name, localName: localName)
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đã tạo nhánh \(localName) theo dõi \(ref.name)", actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in
+                self?.toast(.success, String(localized: "Đã tạo nhánh \(localName) theo dõi \(ref.name)"), actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
                         self?.restoreHead(previous) { repo in try await repo.deleteBranch(localName, force: true) }
                     },
                 ])
@@ -277,8 +277,8 @@ extension RepoModel {
         perform("Checkout \(name)") { repo in
             try await repo.switchTo(branch: name)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã chuyển sang nhánh \(name)", actions: [
-                ToastAction(title: "Hoàn tác") { [weak self] in self?.restoreHead(previous) },
+            self?.toast(.success, String(localized: "Đã chuyển sang nhánh \(name)"), actions: [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.restoreHead(previous) },
             ])
         } onError: { [weak self] error in
             self?.handleCheckoutError(error) { [weak self] in
@@ -290,7 +290,7 @@ extension RepoModel {
     func checkoutDetached(_ sha: String, label: String) {
         confirmation = Confirmation(
             title: "Checkout \(label)?",
-            message: "Bạn sẽ ở chế độ “HEAD tách rời” (không thuộc nhánh nào). Muốn commit tiếp, hãy tạo nhánh mới tại đó.",
+            message: String(localized: "Bạn sẽ ở chế độ “HEAD tách rời” (không thuộc nhánh nào). Muốn commit tiếp, hãy tạo nhánh mới tại đó."),
             confirmTitle: "Checkout"
         ) { [weak self] in
             guard let self else { return }
@@ -298,8 +298,8 @@ extension RepoModel {
             perform("Checkout \(label)") { repo in
                 try await repo.switchDetached(sha)
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đang ở \(label) (HEAD tách rời)", actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in self?.restoreHead(previous) },
+                self?.toast(.success, String(localized: "Đang ở \(label) (HEAD tách rời)"), actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.restoreHead(previous) },
                 ])
             } onError: { [weak self] error in
                 self?.handleCheckoutError(error) { [weak self] in
@@ -311,7 +311,7 @@ extension RepoModel {
 
     /// Quay lại HEAD trước đó (nhánh hoặc commit), rồi chạy thêm `then` nếu có.
     func restoreHead(_ head: HeadState, then: ((GitRepository) async throws -> Void)? = nil) {
-        perform("Hoàn tác checkout") { repo in
+        perform(String(localized: "Hoàn tác checkout")) { repo in
             switch head {
             case .branch(let name, _): try await repo.switchTo(branch: name)
             case .detached(let oid): try await repo.switchDetached(oid)
@@ -326,8 +326,8 @@ extension RepoModel {
               gitError.contains("would be overwritten") || gitError.contains("Please commit your changes or stash them") else {
             return false
         }
-        showError("Không checkout được vì có thay đổi chưa commit", error, actions: [
-            ToastAction(title: "Stash rồi checkout", handler: stashAndRetry),
+        showError(String(localized: "Không checkout được vì có thay đổi chưa commit"), error, actions: [
+            ToastAction(title: String(localized: "Stash rồi checkout"), handler: stashAndRetry),
         ])
         return true
     }
@@ -335,10 +335,10 @@ extension RepoModel {
     /// Cất thay đổi vào stash rồi chạy thao tác (GitKraken gọi là auto-stash).
     func stashThen(_ title: String, _ work: @escaping (GitRepository) async throws -> Void) {
         perform(title) { repo in
-            try await repo.stashPush(message: "Thaigit: tự cất trước khi \(title.lowercased())", includeUntracked: true)
+            try await repo.stashPush(message: String(localized: "Thaigit: tự cất trước khi \(title.lowercased())"), includeUntracked: true)
             try await work(repo)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "\(title) xong — thay đổi đã được cất vào stash", actions: [
+            self?.toast(.success, String(localized: "\(title) xong — thay đổi đã được cất vào stash"), actions: [
                 ToastAction(title: "Pop stash") { [weak self] in self?.popLatestStash() },
             ])
         }
@@ -348,7 +348,7 @@ extension RepoModel {
 
     func beginCreateBranchAtHead() {
         guard let head = headOID else {
-            toast(.info, "Cần có ít nhất một commit trước khi tạo nhánh")
+            toast(.info, String(localized: "Cần có ít nhất một commit trước khi tạo nhánh"))
             return
         }
         sheet = .createBranch(startPoint: head, label: currentBranch ?? String(head.prefix(7)))
@@ -360,34 +360,34 @@ extension RepoModel {
 
     func createBranch(name: String, startPoint: String, checkout: Bool) {
         let previous = status.head
-        perform("Tạo nhánh \(name)") { repo in
+        perform(String(localized: "Tạo nhánh \(name)")) { repo in
             try await repo.createBranch(name, at: startPoint, checkout: checkout)
         } onSuccess: { [weak self] in
-            self?.toast(.success, checkout ? "Đã tạo và chuyển sang nhánh \(name)" : "Đã tạo nhánh \(name)", actions: [
-                ToastAction(title: "Hoàn tác") { [weak self] in
+            self?.toast(.success, checkout ? String(localized: "Đã tạo và chuyển sang nhánh \(name)") : String(localized: "Đã tạo nhánh \(name)"), actions: [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
                     if checkout {
                         self?.restoreHead(previous) { repo in try await repo.deleteBranch(name, force: true) }
                     } else {
-                        self?.perform("Xoá nhánh \(name)") { repo in try await repo.deleteBranch(name, force: true) }
+                        self?.perform(String(localized: "Xoá nhánh \(name)")) { repo in try await repo.deleteBranch(name, force: true) }
                     }
                 },
             ])
         } onError: { [weak self] error in
             self?.handleCheckoutError(error) { [weak self] in
-                self?.stashThen("Tạo nhánh \(name)") { repo in try await repo.createBranch(name, at: startPoint, checkout: checkout) }
+                self?.stashThen(String(localized: "Tạo nhánh \(name)")) { repo in try await repo.createBranch(name, at: startPoint, checkout: checkout) }
             } ?? false
         }
     }
 
     func deleteBranch(_ ref: GitRef) {
         guard ref.name != currentBranch else {
-            toast(.warning, "Không thể xoá nhánh đang checkout — hãy chuyển sang nhánh khác trước")
+            toast(.warning, String(localized: "Không thể xoá nhánh đang checkout — hãy chuyển sang nhánh khác trước"))
             return
         }
         confirmation = Confirmation(
-            title: "Xoá nhánh “\(ref.name)”?",
-            message: "Chỉ xoá nhánh trên máy bạn. Có thể bấm “Hoàn tác” ngay sau đó.",
-            confirmTitle: "Xoá nhánh",
+            title: String(localized: "Xoá nhánh “\(ref.name)”?"),
+            message: String(localized: "Chỉ xoá nhánh trên máy bạn. Có thể bấm “Hoàn tác” ngay sau đó."),
+            confirmTitle: String(localized: "Xoá nhánh"),
             isDestructive: true
         ) { [weak self] in
             self?.performDeleteBranch(ref, force: false)
@@ -395,18 +395,18 @@ extension RepoModel {
     }
 
     private func performDeleteBranch(_ ref: GitRef, force: Bool) {
-        perform("Xoá nhánh \(ref.name)") { repo in
+        perform(String(localized: "Xoá nhánh \(ref.name)")) { repo in
             try await repo.deleteBranch(ref.name, force: force)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã xoá nhánh \(ref.name)", actions: [
-                ToastAction(title: "Hoàn tác") { [weak self] in
-                    self?.perform("Khôi phục nhánh \(ref.name)") { repo in try await repo.updateRef(ref.fullName, to: ref.target) }
+            self?.toast(.success, String(localized: "Đã xoá nhánh \(ref.name)"), actions: [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                    self?.perform(String(localized: "Khôi phục nhánh \(ref.name)")) { repo in try await repo.updateRef(ref.fullName, to: ref.target) }
                 },
             ])
         } onError: { [weak self] error in
             guard let self, let gitError = error as? GitError, gitError.contains("not fully merged") else { return false }
-            showError("Nhánh \(ref.name) có commit chưa được merge", error, actions: [
-                ToastAction(title: "Vẫn xoá") { [weak self] in self?.performDeleteBranch(ref, force: true) },
+            showError(String(localized: "Nhánh \(ref.name) có commit chưa được merge"), error, actions: [
+                ToastAction(title: String(localized: "Vẫn xoá")) { [weak self] in self?.performDeleteBranch(ref, force: true) },
             ])
             return true
         }
@@ -416,38 +416,38 @@ extension RepoModel {
         guard let remote = ref.remoteName else { return }
         let branch = ref.shortBranchName
         confirmation = Confirmation(
-            title: "Xoá nhánh “\(ref.name)” trên remote?",
-            message: "Nhánh \(branch) sẽ bị xoá khỏi \(remote) cho mọi người.",
-            confirmTitle: "Xoá trên remote",
+            title: String(localized: "Xoá nhánh “\(ref.name)” trên remote?"),
+            message: String(localized: "Nhánh \(branch) sẽ bị xoá khỏi \(remote) cho mọi người."),
+            confirmTitle: String(localized: "Xoá trên remote"),
             isDestructive: true
         ) { [weak self] in
             guard let self else { return }
             let progress = progressReporter()
-            perform("Xoá \(ref.name)", showsProgress: true, cancellable: true, refresh: [.refs, .status]) { repo in
+            perform(String(localized: "Xoá \(ref.name)"), showsProgress: true, cancellable: true, refresh: [.refs, .status]) { repo in
                 try await repo.deleteRemoteBranch(remote: remote, branch: branch, onProgress: progress)
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đã xoá \(ref.name)", actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in
+                self?.toast(.success, String(localized: "Đã xoá \(ref.name)"), actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
                         guard let self else { return }
                         let progress = progressReporter()
-                        perform("Khôi phục \(ref.name)", showsProgress: true, refresh: [.refs]) { repo in
+                        perform(String(localized: "Khôi phục \(ref.name)"), showsProgress: true, refresh: [.refs]) { repo in
                             try await repo.pushCommit(ref.target, remote: remote, branch: branch, onProgress: progress)
                         }
                     },
                 ])
             } onError: { [weak self] error in
-                self?.handleGitHubAuthError(error, operation: "Xoá \(ref.name)") ?? false
+                self?.handleGitHubAuthError(error, operation: String(localized: "Xoá \(ref.name)")) ?? false
             }
         }
     }
 
     func renameBranch(_ old: String, to new: String) {
-        perform("Đổi tên nhánh") { repo in
+        perform(String(localized: "Đổi tên nhánh")) { repo in
             try await repo.renameBranch(old, to: new)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã đổi tên \(old) → \(new)", actions: [
-                ToastAction(title: "Hoàn tác") { [weak self] in
-                    self?.perform("Đổi tên nhánh") { repo in try await repo.renameBranch(new, to: old) }
+            self?.toast(.success, String(localized: "Đã đổi tên \(old) → \(new)"), actions: [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                    self?.perform(String(localized: "Đổi tên nhánh")) { repo in try await repo.renameBranch(new, to: old) }
                 },
             ])
         }
@@ -466,16 +466,16 @@ extension RepoModel {
 
     func merge(_ refName: String, label: String) {
         guard let current = currentBranch else {
-            toast(.warning, "Cần đứng trên một nhánh để merge")
+            toast(.warning, String(localized: "Cần đứng trên một nhánh để merge"))
             return
         }
         let previousHead = headOID
-        perform("Merge \(label) vào \(current)") { repo in
+        perform(String(localized: "Merge \(label) vào \(current)")) { repo in
             try await repo.merge(refName)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã merge \(label) vào \(current)", actions: previousHead.map { head in
-                [ToastAction(title: "Hoàn tác") { [weak self] in
-                    self?.perform("Hoàn tác merge") { repo in try await repo.resetKeepingLocalChanges(to: head) }
+            self?.toast(.success, String(localized: "Đã merge \(label) vào \(current)"), actions: previousHead.map { head in
+                [ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                    self?.perform(String(localized: "Hoàn tác merge")) { repo in try await repo.resetKeepingLocalChanges(to: head) }
                 }]
             } ?? [])
         } onError: { [weak self] error in
@@ -490,12 +490,12 @@ extension RepoModel {
             return
         }
         let previousHead = status.head
-        perform("Merge \(source.name) vào \(target.name)") { repo in
+        perform(String(localized: "Merge \(source.name) vào \(target.name)")) { repo in
             try await repo.switchTo(branch: target.name)
             try await repo.merge(source.name)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã merge \(source.name) vào \(target.name)", actions: [
-                ToastAction(title: "Quay lại \(previousHead.branchName ?? "HEAD cũ")") { [weak self] in self?.restoreHead(previousHead) },
+            self?.toast(.success, String(localized: "Đã merge \(source.name) vào \(target.name)"), actions: [
+                ToastAction(title: String(localized: "Quay lại \(previousHead.branchName ?? "HEAD cũ")")) { [weak self] in self?.restoreHead(previousHead) },
             ])
         } onError: { [weak self] error in
             self?.handleConflictError(error, operation: "Merge") ?? false
@@ -504,7 +504,7 @@ extension RepoModel {
 
     func rebaseCurrent(onto refName: String, label: String) {
         guard let current = currentBranch else {
-            toast(.warning, "Cần đứng trên một nhánh để rebase")
+            toast(.warning, String(localized: "Cần đứng trên một nhánh để rebase"))
             return
         }
         rebase(branch: current, onto: refName, label: label, switches: false)
@@ -512,18 +512,18 @@ extension RepoModel {
 
     func rebase(branch: String, onto refName: String, label: String, switches: Bool = true) {
         confirmation = Confirmation(
-            title: "Rebase \(branch) lên \(label)?",
-            message: "Các commit riêng của \(branch) sẽ được viết lại lên trên \(label). Tránh rebase nhánh đã push mà người khác đang dùng.",
+            title: String(localized: "Rebase \(branch) lên \(label)?"),
+            message: String(localized: "Các commit riêng của \(branch) sẽ được viết lại lên trên \(label). Tránh rebase nhánh đã push mà người khác đang dùng."),
             confirmTitle: "Rebase"
         ) { [weak self] in
             guard let self else { return }
             let previousHead = refs.first { $0.kind == .localBranch && $0.name == branch }?.target
-            perform("Rebase \(branch) lên \(label)") { repo in
+            perform(String(localized: "Rebase \(branch) lên \(label)")) { repo in
                 try await repo.rebase(onto: refName, branch: switches ? branch : nil)
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đã rebase \(branch) lên \(label)", actions: previousHead.map { head in
-                    [ToastAction(title: "Hoàn tác") { [weak self] in
-                        self?.perform("Hoàn tác rebase") { repo in
+                self?.toast(.success, String(localized: "Đã rebase \(branch) lên \(label)"), actions: previousHead.map { head in
+                    [ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                        self?.perform(String(localized: "Hoàn tác rebase")) { repo in
                             try await repo.switchTo(branch: branch)
                             try await repo.resetKeepingLocalChanges(to: head)
                         }
@@ -540,9 +540,9 @@ extension RepoModel {
         perform("Cherry-pick \(commit.shortSHA)") { repo in
             try await repo.cherryPick(commit.id, mainline: commit.isMerge ? 1 : nil)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã cherry-pick “\(commit.subject)”", actions: previousHead.map { head in
-                [ToastAction(title: "Hoàn tác") { [weak self] in
-                    self?.perform("Hoàn tác cherry-pick") { repo in try await repo.resetKeepingLocalChanges(to: head) }
+            self?.toast(.success, String(localized: "Đã cherry-pick “\(commit.subject)”"), actions: previousHead.map { head in
+                [ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                    self?.perform(String(localized: "Hoàn tác cherry-pick")) { repo in try await repo.resetKeepingLocalChanges(to: head) }
                 }]
             } ?? [])
         } onError: { [weak self] error in
@@ -553,17 +553,17 @@ extension RepoModel {
     /// Hỏi trước như GitKraken ("Do you want to immediately commit the revert?"): revert & commit ngay, hoặc chỉ stage
     /// thay đổi đảo ngược để xem lại / sửa rồi tự commit.
     func revert(_ commit: Commit) {
-        var message = "Tạo một commit mới trên \(currentBranch ?? "HEAD") đảo ngược thay đổi của \(commit.shortSHA). Lịch sử cũ giữ nguyên."
+        var message = String(localized: "Tạo một commit mới trên \(currentBranch ?? "HEAD") đảo ngược thay đổi của \(commit.shortSHA). Lịch sử cũ giữ nguyên.")
         if commit.isMerge, let firstParent = commit.parents.first {
-            message += "\n\nĐây là commit merge: thay đổi được đảo ngược so với cha thứ nhất (\(firstParent.prefix(7)))."
+            message += String(localized: "\n\nĐây là commit merge: thay đổi được đảo ngược so với cha thứ nhất (\(firstParent.prefix(7))).")
         }
-        message += "\n\n“Revert, chưa commit” chỉ stage thay đổi đảo ngược để bạn xem lại hoặc sửa trước khi tự commit."
+        message += String(localized: "\n\n“Revert, chưa commit” chỉ stage thay đổi đảo ngược để bạn xem lại hoặc sửa trước khi tự commit.")
         confirmation = Confirmation(
             title: "Revert commit “\(commit.subject)”?",
             message: message,
             confirmTitle: "Revert & commit",
             action: { [weak self] in self?.performRevert(commit, commitImmediately: true) },
-            secondaryTitle: "Revert, chưa commit",
+            secondaryTitle: String(localized: "Revert, chưa commit"),
             secondaryAction: { [weak self] in self?.performRevert(commit, commitImmediately: false) }
         )
     }
@@ -574,26 +574,26 @@ extension RepoModel {
             // `revert --no-commit` gộp thay đổi đã stage sẵn vào revert, và "Hoàn tác" (revert --abort) sẽ xoá luôn
             // chúng — chặn như git chặn "Revert & commit" khi index bẩn.
             guard status.staged.isEmpty else {
-                toast(.warning, "Revert bị chặn vì có thay đổi đã stage",
-                      message: "Commit hoặc stash chúng trước, nếu không chúng sẽ lẫn vào commit revert.",
-                      actions: [ToastAction(title: "Stash thay đổi") { [weak self] in self?.quickStash() }])
+                toast(.warning, String(localized: "Revert bị chặn vì có thay đổi đã stage"),
+                      message: String(localized: "Commit hoặc stash chúng trước, nếu không chúng sẽ lẫn vào commit revert."),
+                      actions: [ToastAction(title: String(localized: "Stash thay đổi")) { [weak self] in self?.quickStash() }])
                 return
             }
-            perform("Revert \(commit.shortSHA) (chưa commit)") { repo in
+            perform(String(localized: "Revert \(commit.shortSHA) (chưa commit)")) { repo in
                 try await repo.revert(commit.id, mainline: mainline, commit: false)
             } onSuccess: { [weak self] in
                 guard let self else { return }
                 // Banner "Đang revert" + ô commit điền sẵn message từ MERGE_MSG (sau khi làm mới).
                 select(.workingTree, reveal: true)
-                toast(.success, "Đã revert “\(commit.subject)” — chưa commit", message: nil, actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in
-                        self?.perform("Hoàn tác revert") { repo in try await repo.abort(.reverting) }
+                toast(.success, String(localized: "Đã revert “\(commit.subject)” — chưa commit"), message: nil, actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                        self?.perform(String(localized: "Hoàn tác revert")) { repo in try await repo.abort(.reverting) }
                     },
                 ])
             } onError: { [weak self] error in
                 // Commit đã được đảo ngược từ trước: lõi đã huỷ trạng thái "Đang revert", chỉ cần báo.
                 if case RepositoryError.nothingToRevert = error {
-                    self?.toast(.info, "Commit này đã được đảo ngược, không có gì để revert")
+                    self?.toast(.info, String(localized: "Commit này đã được đảo ngược, không có gì để revert"))
                     return true
                 }
                 return self?.handleConflictError(error, operation: "Revert") ?? false
@@ -604,9 +604,9 @@ extension RepoModel {
         perform("Revert \(commit.shortSHA)") { repo in
             try await repo.revert(commit.id, mainline: mainline)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã tạo commit revert “\(commit.subject)”", actions: previousHead.map { head in
-                [ToastAction(title: "Hoàn tác") { [weak self] in
-                    self?.perform("Hoàn tác revert") { repo in try await repo.resetKeepingLocalChanges(to: head) }
+            self?.toast(.success, String(localized: "Đã tạo commit revert “\(commit.subject)”"), actions: previousHead.map { head in
+                [ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                    self?.perform(String(localized: "Hoàn tác revert")) { repo in try await repo.resetKeepingLocalChanges(to: head) }
                 }]
             } ?? [])
         } onError: { [weak self] error in
@@ -622,9 +622,9 @@ extension RepoModel {
             perform("Reset \(target) (\(mode.rawValue))") { repo in
                 try await repo.reset(to: commit.id, mode: mode)
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đã reset \(target) về \(commit.shortSHA)", actions: previousHead.map { head in
-                    [ToastAction(title: "Hoàn tác") { [weak self] in
-                        self?.perform("Hoàn tác reset") { repo in try await repo.reset(to: head, mode: mode == .hard ? .hard : .soft) }
+                self?.toast(.success, String(localized: "Đã reset \(target) về \(commit.shortSHA)"), actions: previousHead.map { head in
+                    [ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                        self?.perform(String(localized: "Hoàn tác reset")) { repo in try await repo.reset(to: head, mode: mode == .hard ? .hard : .soft) }
                     }]
                 } ?? [])
             }
@@ -632,9 +632,9 @@ extension RepoModel {
         switch mode {
         case .hard:
             confirmation = Confirmation(
-                title: "Reset cứng \(target) về \(commit.shortSHA)?",
-                message: "Mọi thay đổi chưa commit sẽ MẤT VĨNH VIỄN. Các commit sau \(commit.shortSHA) sẽ không còn trên nhánh (vẫn hoàn tác được ngay sau đó).",
-                confirmTitle: "Reset cứng",
+                title: String(localized: "Reset cứng \(target) về \(commit.shortSHA)?"),
+                message: String(localized: "Mọi thay đổi chưa commit sẽ MẤT VĨNH VIỄN. Các commit sau \(commit.shortSHA) sẽ không còn trên nhánh (vẫn hoàn tác được ngay sau đó)."),
+                confirmTitle: String(localized: "Reset cứng"),
                 isDestructive: true,
                 action: run
             )
@@ -646,14 +646,14 @@ extension RepoModel {
     func handleConflictError(_ error: any Error, operation name: String) -> Bool {
         guard let gitError = error as? GitError else { return false }
         if gitError.contains("CONFLICT") || gitError.contains("conflict") || gitError.contains("Resolve all conflicts") {
-            toast(.warning, "\(name) gặp xung đột", message: "Mở các file xung đột ở panel bên phải để chọn bản giữ lại, rồi bấm “Tiếp tục”.",
+            toast(.warning, String(localized: "\(name) gặp xung đột"), message: String(localized: "Mở các file xung đột ở panel bên phải để chọn bản giữ lại, rồi bấm “Tiếp tục”."),
                   tag: "conflict")
             select(.workingTree, reveal: true)
             return true
         }
         if gitError.contains("would be overwritten") || gitError.contains("Please commit your changes or stash them") {
-            showError("\(name) bị chặn vì có thay đổi chưa commit", error, actions: [
-                ToastAction(title: "Stash thay đổi") { [weak self] in self?.quickStash() },
+            showError(String(localized: "\(name) bị chặn vì có thay đổi chưa commit"), error, actions: [
+                ToastAction(title: String(localized: "Stash thay đổi")) { [weak self] in self?.quickStash() },
             ])
             return true
         }
@@ -665,7 +665,7 @@ extension RepoModel {
     func continueOperation() {
         guard let operation else { return }
         guard status.conflicts.isEmpty else {
-            toast(.warning, "Còn \(status.conflicts.count) file xung đột chưa giải quyết")
+            toast(.warning, String(localized: "Còn \(status.conflicts.count) file xung đột chưa giải quyết"))
             return
         }
         if operation == .merging {
@@ -691,7 +691,7 @@ extension RepoModel {
         } else {
             editedMessage = nil
         }
-        perform("Tiếp tục \(operation.shortName)") { repo in
+        perform(String(localized: "Tiếp tục \(operation.shortName)")) { repo in
             if let editedMessage { try repo.setPendingCommitMessage(editedMessage) }
             try await repo.continueOperation(operation)
         } onSuccess: { [weak self] in
@@ -700,7 +700,7 @@ extension RepoModel {
                 commitSummary = ""
                 commitBody = ""
             }
-            toast(.success, "Đã tiếp tục")
+            toast(.success, String(localized: "Đã tiếp tục"))
         } onError: { [weak self] error in
             self?.handleConflictError(error, operation: operation.title) ?? false
         }
@@ -709,24 +709,24 @@ extension RepoModel {
     func abortOperation() {
         guard let operation else { return }
         confirmation = Confirmation(
-            title: "Huỷ \(operation.shortName)?",
-            message: "Repository sẽ quay về trạng thái trước khi bắt đầu \(operation.shortName).",
-            confirmTitle: "Huỷ \(operation.shortName)",
+            title: String(localized: "Huỷ \(operation.shortName)?"),
+            message: String(localized: "Repository sẽ quay về trạng thái trước khi bắt đầu \(operation.shortName)."),
+            confirmTitle: String(localized: "Huỷ \(operation.shortName)"),
             isDestructive: true
         ) { [weak self] in
-            self?.perform("Huỷ \(operation.shortName)") { repo in
+            self?.perform(String(localized: "Huỷ \(operation.shortName)")) { repo in
                 try await repo.abort(operation)
             } onSuccess: { [weak self] in
                 self?.commitSummary = ""
                 self?.commitBody = ""
-                self?.toast(.success, "Đã huỷ \(operation.shortName)")
+                self?.toast(.success, String(localized: "Đã huỷ \(operation.shortName)"))
             }
         }
     }
 
     func skipOperation() {
         guard let operation, operation.canSkip else { return }
-        perform("Bỏ qua commit hiện tại") { repo in
+        perform(String(localized: "Bỏ qua commit hiện tại")) { repo in
             try await repo.skip(operation)
         } onError: { [weak self] error in
             self?.handleConflictError(error, operation: operation.title) ?? false
@@ -737,8 +737,8 @@ extension RepoModel {
 
     func fetch() {
         guard !remotes.isEmpty else {
-            toast(.info, "Repository chưa có remote nào", actions: [
-                ToastAction(title: "Thêm remote") { [weak self] in self?.sheet = .addRemote },
+            toast(.info, String(localized: "Repository chưa có remote nào"), actions: [
+                ToastAction(title: String(localized: "Thêm remote")) { [weak self] in self?.sheet = .addRemote },
             ])
             return
         }
@@ -747,7 +747,7 @@ extension RepoModel {
             try await repo.fetch(remote: nil, prune: Prefs.fetchPruneValue, onProgress: progress)
         } onSuccess: { [weak self] in
             self?.lastFetch = Date()
-            self?.toast(.success, "Đã fetch xong")
+            self?.toast(.success, String(localized: "Đã fetch xong"))
         } onError: { [weak self] error in
             self?.handleGitHubAuthError(error, operation: "Fetch") ?? false
         }
@@ -760,26 +760,26 @@ extension RepoModel {
         let gaps = extras.historyGaps
         let source = defaultRemote
         let progress = progressReporter()
-        perform("Lấy đầy đủ từ remote", showsProgress: true, cancellable: true, refresh: .all) { repo in
+        perform(String(localized: "Lấy đầy đủ từ remote"), showsProgress: true, cancellable: true, refresh: .all) { repo in
             for remote in gaps.narrowRemotes { try await repo.trackAllBranches(remote: remote) }
             if gaps.shallow, let source { try await repo.unshallow(remote: source, onProgress: progress) }
             try await repo.fetch(remote: nil, prune: Prefs.fetchPruneValue, onProgress: progress)
         } onSuccess: { [weak self] in
             self?.lastFetch = Date()
-            self?.toast(.success, "Đã lấy đủ nhánh và lịch sử từ remote")
+            self?.toast(.success, String(localized: "Đã lấy đủ nhánh và lịch sử từ remote"))
         } onError: { [weak self] error in
-            self?.handleGitHubAuthError(error, operation: "Lấy đầy đủ từ remote") ?? false
+            self?.handleGitHubAuthError(error, operation: String(localized: "Lấy đầy đủ từ remote")) ?? false
         }
     }
 
     func pull(mode: PullMode? = nil) {
         guard let branch = currentBranchRef else {
-            toast(.warning, "Cần đứng trên một nhánh để pull")
+            toast(.warning, String(localized: "Cần đứng trên một nhánh để pull"))
             return
         }
         guard branch.upstream != nil, !branch.upstreamGone else {
-            toast(.warning, "Nhánh \(branch.name) chưa có nhánh tương ứng trên remote", actions: [
-                ToastAction(title: "Push lên remote") { [weak self] in self?.push() },
+            toast(.warning, String(localized: "Nhánh \(branch.name) chưa có nhánh tương ứng trên remote"), actions: [
+                ToastAction(title: String(localized: "Push lên remote")) { [weak self] in self?.push() },
             ])
             return
         }
@@ -794,19 +794,19 @@ extension RepoModel {
             guard let self else { return }
             lastFetch = Date()
             if let previousHead, let newHead, newHead != previousHead {
-                toast(.success, "Đã pull về \(branch.name)", actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in
-                        self?.perform("Hoàn tác pull") { repo in try await repo.resetKeepingLocalChanges(to: previousHead) }
+                toast(.success, String(localized: "Đã pull về \(branch.name)"), actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                        self?.perform(String(localized: "Hoàn tác pull")) { repo in try await repo.resetKeepingLocalChanges(to: previousHead) }
                     },
                 ])
             } else {
-                toast(.success, "\(branch.name) đã mới nhất")
+                toast(.success, String(localized: "\(branch.name) đã mới nhất"))
             }
         } onError: { [weak self] error in
             guard let self, let gitError = error as? GitError else { return false }
             if handleGitHubAuthError(error, operation: "Pull") { return true }
             if gitError.contains("Not possible to fast-forward") || gitError.contains("divergent") {
-                showError("Nhánh local và remote đã tách nhau", error, actions: [
+                showError(String(localized: "Nhánh local và remote đã tách nhau"), error, actions: [
                     ToastAction(title: "Pull (merge)") { [weak self] in self?.pull(mode: .merge) },
                     ToastAction(title: "Pull (rebase)") { [weak self] in self?.pull(mode: .rebase) },
                 ])
@@ -826,7 +826,7 @@ extension RepoModel {
 
     func push(force: Bool = false) {
         guard let branch = currentBranchRef else {
-            toast(.warning, "Cần đứng trên một nhánh để push")
+            toast(.warning, String(localized: "Cần đứng trên một nhánh để push"))
             return
         }
         pushBranch(branch, force: force)
@@ -834,8 +834,8 @@ extension RepoModel {
 
     func pushBranch(_ branch: GitRef, force: Bool = false) {
         guard !remotes.isEmpty else {
-            toast(.info, "Repository chưa có remote nào", actions: [
-                ToastAction(title: "Thêm remote") { [weak self] in self?.sheet = .addRemote },
+            toast(.info, String(localized: "Repository chưa có remote nào"), actions: [
+                ToastAction(title: String(localized: "Thêm remote")) { [weak self] in self?.sheet = .addRemote },
             ])
             return
         }
@@ -855,15 +855,15 @@ extension RepoModel {
             try await repo.push(remote: request.remote, localBranch: request.localBranch, remoteBranch: request.remoteBranch,
                                 setUpstream: request.setUpstream, force: request.force, onProgress: progress)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã push \(request.localBranch) → \(request.remote)/\(request.remoteBranch)")
+            self?.toast(.success, String(localized: "Đã push \(request.localBranch) → \(request.remote)/\(request.remoteBranch)"))
         } onError: { [weak self] error in
             guard let self, let gitError = error as? GitError else { return false }
             if handleGitHubAuthError(error, operation: "Push") { return true }
             if gitError.contains("[rejected]") || gitError.contains("non-fast-forward") || gitError.contains("fetch first") {
                 var forced = request
                 forced.force = true
-                showError("Push bị từ chối — remote có commit mà máy bạn chưa có", error, actions: [
-                    ToastAction(title: "Pull trước") { [weak self] in self?.pull() },
+                showError(String(localized: "Push bị từ chối — remote có commit mà máy bạn chưa có"), error, actions: [
+                    ToastAction(title: String(localized: "Pull trước")) { [weak self] in self?.pull() },
                     ToastAction(title: "Force push…") { [weak self] in self?.confirmForcePush(forced) },
                 ])
                 return true
@@ -875,7 +875,7 @@ extension RepoModel {
     func confirmForcePush(_ request: PushRequest) {
         confirmation = Confirmation(
             title: "Force push \(request.localBranch)?",
-            message: "Ghi đè \(request.remote)/\(request.remoteBranch) bằng bản trên máy bạn (--force-with-lease: sẽ dừng nếu remote có commit mới mà bạn chưa fetch).",
+            message: String(localized: "Ghi đè \(request.remote)/\(request.remoteBranch) bằng bản trên máy bạn (--force-with-lease: sẽ dừng nếu remote có commit mới mà bạn chưa fetch)."),
             confirmTitle: "Force push",
             isDestructive: true
         ) { [weak self] in
@@ -891,10 +891,10 @@ extension RepoModel {
     }
 
     func addRemote(name: String, url: String) {
-        perform("Thêm remote \(name)", refresh: [.refs]) { repo in
+        perform(String(localized: "Thêm remote \(name)"), refresh: [.refs]) { repo in
             try await repo.addRemote(name: name, url: url)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã thêm remote \(name)", actions: [
+            self?.toast(.success, String(localized: "Đã thêm remote \(name)"), actions: [
                 ToastAction(title: "Fetch ngay") { [weak self] in self?.fetch() },
             ])
         }
@@ -902,16 +902,16 @@ extension RepoModel {
 
     func removeRemote(_ remote: Remote) {
         confirmation = Confirmation(
-            title: "Xoá remote “\(remote.name)”?",
-            message: "Chỉ xoá cấu hình remote trên máy bạn (\(remote.fetchURL)).",
-            confirmTitle: "Xoá remote",
+            title: String(localized: "Xoá remote “\(remote.name)”?"),
+            message: String(localized: "Chỉ xoá cấu hình remote trên máy bạn (\(remote.fetchURL))."),
+            confirmTitle: String(localized: "Xoá remote"),
             isDestructive: true
         ) { [weak self] in
-            self?.perform("Xoá remote \(remote.name)", refresh: [.refs]) { repo in
+            self?.perform(String(localized: "Xoá remote \(remote.name)"), refresh: [.refs]) { repo in
                 try await repo.removeRemote(name: remote.name)
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đã xoá remote \(remote.name)", actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in self?.addRemote(name: remote.name, url: remote.fetchURL) },
+                self?.toast(.success, String(localized: "Đã xoá remote \(remote.name)"), actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.addRemote(name: remote.name, url: remote.fetchURL) },
                 ])
             }
         }
@@ -921,7 +921,7 @@ extension RepoModel {
 
     func beginStash() {
         guard !status.isClean else {
-            toast(.info, "Không có thay đổi nào để stash")
+            toast(.info, String(localized: "Không có thay đổi nào để stash"))
             return
         }
         sheet = .stash
@@ -930,7 +930,7 @@ extension RepoModel {
     /// Nút Stash trên toolbar: cất ngay mọi thay đổi (kể cả file mới).
     func quickStash() {
         guard !status.isClean else {
-            toast(.info, "Không có thay đổi nào để stash")
+            toast(.info, String(localized: "Không có thay đổi nào để stash"))
             return
         }
         stash(message: "", includeUntracked: true)
@@ -940,8 +940,8 @@ extension RepoModel {
         perform("Stash") { repo in
             try await repo.stashPush(message: message.isEmpty ? nil : message, includeUntracked: includeUntracked)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã cất thay đổi vào stash", actions: [
-                ToastAction(title: "Hoàn tác") { [weak self] in self?.popLatestStash() },
+            self?.toast(.success, String(localized: "Đã cất thay đổi vào stash"), actions: [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.popLatestStash() },
             ])
         }
     }
@@ -950,7 +950,7 @@ extension RepoModel {
         perform("Apply stash") { repo in
             try await repo.stashApply(stash.selector)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã áp dụng stash “\(stash.displayMessage)”")
+            self?.toast(.success, String(localized: "Đã áp dụng stash “\(stash.displayMessage)”"))
         } onError: { [weak self] error in
             self?.handleConflictError(error, operation: "Apply stash") ?? false
         }
@@ -960,11 +960,11 @@ extension RepoModel {
         perform("Pop stash") { repo in
             try await repo.stashPop(stash.selector)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã lấy lại thay đổi từ stash")
+            self?.toast(.success, String(localized: "Đã lấy lại thay đổi từ stash"))
         } onError: { [weak self] error in
             guard let self else { return false }
             if handleConflictError(error, operation: "Pop stash") {
-                toast(.info, "Stash vẫn được giữ lại vì có xung đột")
+                toast(.info, String(localized: "Stash vẫn được giữ lại vì có xung đột"))
                 return true
             }
             return false
@@ -973,7 +973,7 @@ extension RepoModel {
 
     func popLatestStash() {
         guard let latest = stashes.first else {
-            toast(.info, "Không có stash nào")
+            toast(.info, String(localized: "Không có stash nào"))
             return
         }
         popStash(latest)
@@ -981,17 +981,17 @@ extension RepoModel {
 
     func dropStash(_ stash: Stash) {
         confirmation = Confirmation(
-            title: "Xoá stash “\(stash.displayMessage)”?",
-            message: "Có thể bấm “Hoàn tác” ngay sau đó.",
-            confirmTitle: "Xoá stash",
+            title: String(localized: "Xoá stash “\(stash.displayMessage)”?"),
+            message: String(localized: "Có thể bấm “Hoàn tác” ngay sau đó."),
+            confirmTitle: String(localized: "Xoá stash"),
             isDestructive: true
         ) { [weak self] in
-            self?.perform("Xoá stash") { repo in
+            self?.perform(String(localized: "Xoá stash")) { repo in
                 try await repo.stashDrop(stash.selector)
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đã xoá stash", actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in
-                        self?.perform("Khôi phục stash") { repo in try await repo.stashStore(sha: stash.sha, message: stash.message) }
+                self?.toast(.success, String(localized: "Đã xoá stash"), actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                        self?.perform(String(localized: "Khôi phục stash")) { repo in try await repo.stashStore(sha: stash.sha, message: stash.message) }
                     },
                 ])
             }
@@ -1007,13 +1007,13 @@ extension RepoModel {
     func createTag(name: String, sha: String, message: String, pushToRemote: Bool) {
         let remote = defaultRemote
         let progress = progressReporter()
-        perform("Tạo tag \(name)", showsProgress: pushToRemote, refresh: [.refs]) { repo in
+        perform(String(localized: "Tạo tag \(name)"), showsProgress: pushToRemote, refresh: [.refs]) { repo in
             try await repo.createTag(name, at: sha, message: message)
             if pushToRemote, let remote { try await repo.pushTag(remote: remote, tag: name, onProgress: progress) }
         } onSuccess: { [weak self] in
-            self?.toast(.success, pushToRemote ? "Đã tạo và push tag \(name)" : "Đã tạo tag \(name)", actions: pushToRemote ? [] : [
-                ToastAction(title: "Hoàn tác") { [weak self] in
-                    self?.perform("Xoá tag \(name)", refresh: [.refs]) { repo in try await repo.deleteTag(name) }
+            self?.toast(.success, pushToRemote ? String(localized: "Đã tạo và push tag \(name)") : String(localized: "Đã tạo tag \(name)"), actions: pushToRemote ? [] : [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                    self?.perform(String(localized: "Xoá tag \(name)"), refresh: [.refs]) { repo in try await repo.deleteTag(name) }
                 },
             ])
         } onError: { [weak self] error in
@@ -1023,17 +1023,17 @@ extension RepoModel {
 
     func deleteTag(_ ref: GitRef) {
         confirmation = Confirmation(
-            title: "Xoá tag “\(ref.name)”?",
-            message: "Chỉ xoá tag trên máy bạn. Có thể bấm “Hoàn tác” ngay sau đó.",
-            confirmTitle: "Xoá tag",
+            title: String(localized: "Xoá tag “\(ref.name)”?"),
+            message: String(localized: "Chỉ xoá tag trên máy bạn. Có thể bấm “Hoàn tác” ngay sau đó."),
+            confirmTitle: String(localized: "Xoá tag"),
             isDestructive: true
         ) { [weak self] in
-            self?.perform("Xoá tag \(ref.name)", refresh: [.refs]) { repo in
+            self?.perform(String(localized: "Xoá tag \(ref.name)"), refresh: [.refs]) { repo in
                 try await repo.deleteTag(ref.name)
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đã xoá tag \(ref.name)", actions: [
-                    ToastAction(title: "Hoàn tác") { [weak self] in
-                        self?.perform("Khôi phục tag", refresh: [.refs]) { repo in try await repo.updateRef(ref.fullName, to: ref.objectName) }
+                self?.toast(.success, String(localized: "Đã xoá tag \(ref.name)"), actions: [
+                    ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                        self?.perform(String(localized: "Khôi phục tag"), refresh: [.refs]) { repo in try await repo.updateRef(ref.fullName, to: ref.objectName) }
                     },
                 ])
             }
@@ -1042,14 +1042,14 @@ extension RepoModel {
 
     func pushTag(_ ref: GitRef) {
         guard let remote = defaultRemote else {
-            toast(.info, "Repository chưa có remote nào")
+            toast(.info, String(localized: "Repository chưa có remote nào"))
             return
         }
         let progress = progressReporter()
         perform("Push tag \(ref.name)", showsProgress: true, cancellable: true, refresh: [.refs]) { repo in
             try await repo.pushTag(remote: remote, tag: ref.name, onProgress: progress)
         } onSuccess: { [weak self] in
-            self?.toast(.success, "Đã push tag \(ref.name) lên \(remote)")
+            self?.toast(.success, String(localized: "Đã push tag \(ref.name) lên \(remote)"))
         } onError: { [weak self] error in
             self?.handleGitHubAuthError(error, operation: "Push tag \(ref.name)") ?? false
         }
@@ -1058,15 +1058,15 @@ extension RepoModel {
     func deleteRemoteTag(_ ref: GitRef) {
         guard let remote = defaultRemote else { return }
         confirmation = Confirmation(
-            title: "Xoá tag “\(ref.name)” trên \(remote)?",
-            message: "Tag sẽ bị xoá khỏi remote cho mọi người; tag trên máy bạn vẫn giữ nguyên.",
-            confirmTitle: "Xoá trên remote",
+            title: String(localized: "Xoá tag “\(ref.name)” trên \(remote)?"),
+            message: String(localized: "Tag sẽ bị xoá khỏi remote cho mọi người; tag trên máy bạn vẫn giữ nguyên."),
+            confirmTitle: String(localized: "Xoá trên remote"),
             isDestructive: true
         ) { [weak self] in
-            self?.perform("Xoá tag trên remote", showsProgress: true, refresh: [.refs]) { repo in
+            self?.perform(String(localized: "Xoá tag trên remote"), showsProgress: true, refresh: [.refs]) { repo in
                 try await repo.deleteRemoteTag(remote: remote, tag: ref.name)
             } onSuccess: { [weak self] in
-                self?.toast(.success, "Đã xoá tag \(ref.name) trên \(remote)")
+                self?.toast(.success, String(localized: "Đã xoá tag \(ref.name) trên \(remote)"))
             }
         }
     }
@@ -1109,7 +1109,7 @@ extension RepoModel {
     func copy(_ text: String, label: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-        toast(.info, "Đã sao chép \(label)")
+        toast(.info, String(localized: "Đã sao chép \(label)"))
     }
 
     /// Đường dẫn web của commit trên GitHub/GitLab/Bitbucket (nếu remote là một trong số đó).
@@ -1144,40 +1144,40 @@ extension RepoModel {
         let isHead = commit.id == headOID
         let branchLabel = currentBranch ?? "HEAD"
         items += [
-            .action("Tạo nhánh tại đây…", systemImage: "arrow.triangle.branch") { [weak self] in self?.beginCreateBranch(at: commit) },
-            .action("Tạo tag tại đây…", systemImage: "tag") { [weak self] in self?.beginCreateTag(at: commit) },
-            .action("Checkout commit này", systemImage: "arrow.uturn.right", enabled: !isHead) { [weak self] in
+            .action(String(localized: "Tạo nhánh tại đây…"), systemImage: "arrow.triangle.branch") { [weak self] in self?.beginCreateBranch(at: commit) },
+            .action(String(localized: "Tạo tag tại đây…"), systemImage: "tag") { [weak self] in self?.beginCreateTag(at: commit) },
+            .action(String(localized: "Checkout commit này"), systemImage: "arrow.uturn.right", enabled: !isHead) { [weak self] in
                 self?.checkoutDetached(commit.id, label: "commit \(commit.shortSHA)")
             },
             .separator,
-            .action("Cherry-pick vào \(branchLabel)", systemImage: "leaf", enabled: !isHead) { [weak self] in self?.cherryPick(commit) },
-            .action("Revert commit này…", systemImage: "arrow.uturn.backward", enabled: headOID != nil) { [weak self] in self?.revert(commit) },
-            .submenu("Reset \(branchLabel) về đây", systemImage: "clock.arrow.circlepath", items: [
-                .action("Soft — giữ mọi thay đổi ở trạng thái đã stage") { [weak self] in self?.reset(to: commit, mode: .soft) },
-                .action("Mixed — giữ thay đổi, bỏ stage") { [weak self] in self?.reset(to: commit, mode: .mixed) },
-                .action("Hard — bỏ mọi thay đổi", destructive: true) { [weak self] in self?.reset(to: commit, mode: .hard) },
+            .action(String(localized: "Cherry-pick vào \(branchLabel)"), systemImage: "leaf", enabled: !isHead) { [weak self] in self?.cherryPick(commit) },
+            .action(String(localized: "Revert commit này…"), systemImage: "arrow.uturn.backward", enabled: headOID != nil) { [weak self] in self?.revert(commit) },
+            .submenu(String(localized: "Reset \(branchLabel) về đây"), systemImage: "clock.arrow.circlepath", items: [
+                .action(String(localized: "Soft — giữ mọi thay đổi ở trạng thái đã stage")) { [weak self] in self?.reset(to: commit, mode: .soft) },
+                .action(String(localized: "Mixed — giữ thay đổi, bỏ stage")) { [weak self] in self?.reset(to: commit, mode: .mixed) },
+                .action(String(localized: "Hard — bỏ mọi thay đổi"), destructive: true) { [weak self] in self?.reset(to: commit, mode: .hard) },
             ]),
-            .action("Interactive rebase \(branchLabel) từ đây…", systemImage: "list.bullet.indent",
+            .action(String(localized: "Interactive rebase \(branchLabel) từ đây…"), systemImage: "list.bullet.indent",
                     enabled: canInteractiveRebase(from: commit)) { [weak self] in self?.beginInteractiveRebase(from: commit) },
             .separator,
-            .action("Sao chép SHA", systemImage: "number") { [weak self] in self?.copy(commit.id, label: "SHA") },
-            .action("Sao chép message", systemImage: "doc.on.doc") { [weak self] in self?.copy(commit.subject, label: "message") },
+            .action(String(localized: "Sao chép SHA"), systemImage: "number") { [weak self] in self?.copy(commit.id, label: "SHA") },
+            .action(String(localized: "Sao chép message"), systemImage: "doc.on.doc") { [weak self] in self?.copy(commit.subject, label: "message") },
         ]
         if let url = webURL(forCommit: commit.id) {
-            items.append(.action("Mở trên web", systemImage: "safari") { NSWorkspace.shared.open(url) })
+            items.append(.action(String(localized: "Mở trên web"), systemImage: "safari") { NSWorkspace.shared.open(url) })
         }
         return items
     }
 
     func workingTreeMenu() -> [MenuItemSpec] {
         [
-            .action("Stage tất cả", systemImage: "plus.circle", enabled: !status.unstaged.isEmpty) { [weak self] in self?.stageAll() },
-            .action("Bỏ stage tất cả", systemImage: "minus.circle", enabled: !status.staged.isEmpty) { [weak self] in self?.unstageAll() },
+            .action(String(localized: "Stage tất cả"), systemImage: "plus.circle", enabled: !status.unstaged.isEmpty) { [weak self] in self?.stageAll() },
+            .action(String(localized: "Bỏ stage tất cả"), systemImage: "minus.circle", enabled: !status.staged.isEmpty) { [weak self] in self?.unstageAll() },
             .separator,
-            .action("Stash tất cả thay đổi", systemImage: "archivebox") { [weak self] in self?.quickStash() },
-            .action("Stash kèm lời nhắn…", systemImage: "square.and.pencil") { [weak self] in self?.beginStash() },
+            .action(String(localized: "Stash tất cả thay đổi"), systemImage: "archivebox") { [weak self] in self?.quickStash() },
+            .action(String(localized: "Stash kèm lời nhắn…"), systemImage: "square.and.pencil") { [weak self] in self?.beginStash() },
             .separator,
-            .action("Huỷ tất cả thay đổi…", systemImage: "trash", destructive: true, enabled: operation == nil) { [weak self] in
+            .action(String(localized: "Huỷ tất cả thay đổi…"), systemImage: "trash", destructive: true, enabled: operation == nil) { [weak self] in
                 self?.discardAllChanges()
             },
         ]
@@ -1195,13 +1195,13 @@ extension RepoModel {
             } else {
                 items.append(.action("Checkout \(ref.name)", systemImage: "arrow.uturn.right") { [weak self] in self?.checkout(ref) })
                 if let current {
-                    items.append(.action("Merge \(ref.name) vào \(current)", systemImage: "arrow.triangle.merge") { [weak self] in
+                    items.append(.action(String(localized: "Merge \(ref.name) vào \(current)"), systemImage: "arrow.triangle.merge") { [weak self] in
                         self?.merge(ref.name, label: ref.name)
                     })
-                    items.append(.action("Rebase \(current) lên \(ref.name)", systemImage: "arrow.triangle.swap") { [weak self] in
+                    items.append(.action(String(localized: "Rebase \(current) lên \(ref.name)"), systemImage: "arrow.triangle.swap") { [weak self] in
                         self?.rebaseCurrent(onto: ref.name, label: ref.name)
                     })
-                    items.append(.action("So sánh với \(current) — \(ref.name) có gì mới", systemImage: "arrow.left.arrow.right") { [weak self] in
+                    items.append(.action(String(localized: "So sánh với \(current) — \(ref.name) có gì mới"), systemImage: "arrow.left.arrow.right") { [weak self] in
                         self?.compareWithCurrent(ref)
                     })
                 }
@@ -1210,44 +1210,44 @@ extension RepoModel {
             if ref.upstream != nil, ref.behind > 0, ref.ahead == 0 {
                 items.append(.action("Fast-forward theo \(ref.upstream ?? "")", systemImage: "forward") { [weak self] in self?.fastForward(ref) })
             }
-            items.append(.action("Merge từ repository khác vào \(ref.name)…", systemImage: "arrow.triangle.merge") { [weak self] in
+            items.append(.action(String(localized: "Merge từ repository khác vào \(ref.name)…"), systemImage: "arrow.triangle.merge") { [weak self] in
                 self?.beginMergeFromRepository(into: ref.name)
             })
             items.append(.separator)
-            items.append(.action("Tạo nhánh từ \(ref.name)…", systemImage: "arrow.triangle.branch") { [weak self] in
+            items.append(.action(String(localized: "Tạo nhánh từ \(ref.name)…"), systemImage: "arrow.triangle.branch") { [weak self] in
                 self?.sheet = .createBranch(startPoint: ref.target, label: ref.name)
             })
-            items.append(.action("Đổi tên…", systemImage: "pencil") { [weak self] in self?.sheet = .renameBranch(ref.name) })
-            items.append(.action("Xoá nhánh…", systemImage: "trash", destructive: true, enabled: !isCurrent) { [weak self] in
+            items.append(.action(String(localized: "Đổi tên…"), systemImage: "pencil") { [weak self] in self?.sheet = .renameBranch(ref.name) })
+            items.append(.action(String(localized: "Xoá nhánh…"), systemImage: "trash", destructive: true, enabled: !isCurrent) { [weak self] in
                 self?.deleteBranch(ref)
             })
         case .remoteBranch:
             items.append(.action("Checkout \(ref.shortBranchName)", systemImage: "arrow.uturn.right") { [weak self] in self?.checkout(ref) })
             if let current {
-                items.append(.action("Merge \(ref.name) vào \(current)", systemImage: "arrow.triangle.merge") { [weak self] in
+                items.append(.action(String(localized: "Merge \(ref.name) vào \(current)"), systemImage: "arrow.triangle.merge") { [weak self] in
                     self?.merge(ref.name, label: ref.name)
                 })
-                items.append(.action("Rebase \(current) lên \(ref.name)", systemImage: "arrow.triangle.swap") { [weak self] in
+                items.append(.action(String(localized: "Rebase \(current) lên \(ref.name)"), systemImage: "arrow.triangle.swap") { [weak self] in
                     self?.rebaseCurrent(onto: ref.name, label: ref.name)
                 })
-                items.append(.action("So sánh với \(current) — \(ref.name) có gì mới", systemImage: "arrow.left.arrow.right") { [weak self] in
+                items.append(.action(String(localized: "So sánh với \(current) — \(ref.name) có gì mới"), systemImage: "arrow.left.arrow.right") { [weak self] in
                     self?.compareWithCurrent(ref)
                 })
             }
             items.append(.separator)
-            items.append(.action("Tạo nhánh từ \(ref.name)…", systemImage: "arrow.triangle.branch") { [weak self] in
+            items.append(.action(String(localized: "Tạo nhánh từ \(ref.name)…"), systemImage: "arrow.triangle.branch") { [weak self] in
                 self?.sheet = .createBranch(startPoint: ref.target, label: ref.name)
             })
-            items.append(.action("Xoá trên remote…", systemImage: "trash", destructive: true) { [weak self] in self?.deleteRemoteBranch(ref) })
+            items.append(.action(String(localized: "Xoá trên remote…"), systemImage: "trash", destructive: true) { [weak self] in self?.deleteRemoteBranch(ref) })
         case .tag:
             items.append(.action("Checkout tag \(ref.name)", systemImage: "arrow.uturn.right") { [weak self] in self?.checkout(ref) })
-            items.append(.action("Push tag lên remote", systemImage: "arrow.up", enabled: !remotes.isEmpty) { [weak self] in self?.pushTag(ref) })
-            items.append(.action("Tạo nhánh từ tag…", systemImage: "arrow.triangle.branch") { [weak self] in
+            items.append(.action(String(localized: "Push tag lên remote"), systemImage: "arrow.up", enabled: !remotes.isEmpty) { [weak self] in self?.pushTag(ref) })
+            items.append(.action(String(localized: "Tạo nhánh từ tag…"), systemImage: "arrow.triangle.branch") { [weak self] in
                 self?.sheet = .createBranch(startPoint: ref.target, label: ref.name)
             })
             items.append(.separator)
-            items.append(.action("Xoá tag…", systemImage: "trash", destructive: true) { [weak self] in self?.deleteTag(ref) })
-            items.append(.action("Xoá tag trên remote…", systemImage: "icloud.slash", destructive: true, enabled: !remotes.isEmpty) { [weak self] in
+            items.append(.action(String(localized: "Xoá tag…"), systemImage: "trash", destructive: true) { [weak self] in self?.deleteTag(ref) })
+            items.append(.action(String(localized: "Xoá tag trên remote…"), systemImage: "icloud.slash", destructive: true, enabled: !remotes.isEmpty) { [weak self] in
                 self?.deleteRemoteTag(ref)
             })
         }
@@ -1267,7 +1267,7 @@ extension RepoModel {
             items += filterItems
         }
         items.append(.separator)
-        items.append(.action("Sao chép tên", systemImage: "doc.on.doc") { [weak self] in self?.copy(ref.name, label: "tên") })
+        items.append(.action(String(localized: "Sao chép tên"), systemImage: "doc.on.doc") { [weak self] in self?.copy(ref.name, label: String(localized: "tên")) })
         return items
     }
 
@@ -1281,10 +1281,10 @@ extension RepoModel {
 
     func stashMenu(_ stash: Stash) -> [MenuItemSpec] {
         [
-            .action("Apply (giữ stash)", systemImage: "tray.and.arrow.down") { [weak self] in self?.applyStash(stash) },
-            .action("Pop (áp dụng rồi xoá)", systemImage: "tray.and.arrow.up") { [weak self] in self?.popStash(stash) },
+            .action(String(localized: "Apply (giữ stash)"), systemImage: "tray.and.arrow.down") { [weak self] in self?.applyStash(stash) },
+            .action(String(localized: "Pop (áp dụng rồi xoá)"), systemImage: "tray.and.arrow.up") { [weak self] in self?.popStash(stash) },
             .separator,
-            .action("Xoá stash…", systemImage: "trash", destructive: true) { [weak self] in self?.dropStash(stash) },
+            .action(String(localized: "Xoá stash…"), systemImage: "trash", destructive: true) { [weak self] in self?.dropStash(stash) },
         ]
     }
 
@@ -1293,38 +1293,38 @@ extension RepoModel {
         switch source {
         case .unstaged:
             items.append(.action("Stage file", systemImage: "plus.circle") { [weak self] in self?.stage([change]) })
-            items.append(.action("Huỷ thay đổi…", systemImage: "arrow.uturn.backward", destructive: true) { [weak self] in self?.discard([change]) })
+            items.append(.action(String(localized: "Huỷ thay đổi…"), systemImage: "arrow.uturn.backward", destructive: true) { [weak self] in self?.discard([change]) })
             if change.kind == .untracked {
                 let ext = (change.path as NSString).pathExtension
                 var ignoreItems: [MenuItemSpec] = [
-                    .action("Bỏ qua file này") { [weak self] in self?.ignore(pattern: "/" + change.path) },
+                    .action(String(localized: "Bỏ qua file này")) { [weak self] in self?.ignore(pattern: "/" + change.path) },
                 ]
                 if !ext.isEmpty {
-                    ignoreItems.append(.action("Bỏ qua mọi file *.\(ext)") { [weak self] in self?.ignore(pattern: "*." + ext) })
+                    ignoreItems.append(.action(String(localized: "Bỏ qua mọi file *.\(ext)")) { [weak self] in self?.ignore(pattern: "*." + ext) })
                 }
                 if !change.directory.isEmpty {
-                    ignoreItems.append(.action("Bỏ qua thư mục \(change.directory)/") { [weak self] in self?.ignore(pattern: "/" + change.directory + "/") })
+                    ignoreItems.append(.action(String(localized: "Bỏ qua thư mục \(change.directory)/")) { [weak self] in self?.ignore(pattern: "/" + change.directory + "/") })
                 }
-                items.append(.submenu("Thêm vào .gitignore", systemImage: "eye.slash", items: ignoreItems))
+                items.append(.submenu(String(localized: "Thêm vào .gitignore"), systemImage: "eye.slash", items: ignoreItems))
             }
         case .staged:
-            items.append(.action("Bỏ stage file", systemImage: "minus.circle") { [weak self] in self?.unstage([change]) })
+            items.append(.action(String(localized: "Bỏ stage file"), systemImage: "minus.circle") { [weak self] in self?.unstage([change]) })
         default:
             break
         }
         if !items.isEmpty { items.append(.separator) }
         let fileExists = FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(change.path).path)
-        items.append(.action("Mở file", systemImage: "doc", enabled: fileExists) { [weak self] in self?.openFileInDefaultApp(change.path) })
-        items.append(.action("Mở bằng trình soạn thảo", systemImage: "chevron.left.forwardslash.chevron.right", enabled: fileExists) { [weak self] in
+        items.append(.action(String(localized: "Mở file"), systemImage: "doc", enabled: fileExists) { [weak self] in self?.openFileInDefaultApp(change.path) })
+        items.append(.action(String(localized: "Mở bằng trình soạn thảo"), systemImage: "chevron.left.forwardslash.chevron.right", enabled: fileExists) { [weak self] in
             self?.openInEditor(path: change.path)
         })
-        items.append(.action("Hiện trong Finder", systemImage: "folder", enabled: fileExists) { [weak self] in self?.revealFile(change.path) })
-        items.append(.action("Lịch sử file", systemImage: "clock") { [weak self] in self?.sheet = .fileHistory(change.path) })
+        items.append(.action(String(localized: "Hiện trong Finder"), systemImage: "folder", enabled: fileExists) { [weak self] in self?.revealFile(change.path) })
+        items.append(.action(String(localized: "Lịch sử file"), systemImage: "clock") { [weak self] in self?.sheet = .fileHistory(change.path) })
         if let blame = blameSheet(for: OpenFile(source: source, change: change)) {
-            items.append(.action("Blame — ai sửa từng dòng", systemImage: "person.text.rectangle") { [weak self] in self?.sheet = blame })
+            items.append(.action(String(localized: "Blame — ai sửa từng dòng"), systemImage: "person.text.rectangle") { [weak self] in self?.sheet = blame })
         }
         items.append(.separator)
-        items.append(.action("Sao chép đường dẫn", systemImage: "doc.on.doc") { [weak self] in self?.copy(change.path, label: "đường dẫn") })
+        items.append(.action(String(localized: "Sao chép đường dẫn"), systemImage: "doc.on.doc") { [weak self] in self?.copy(change.path, label: String(localized: "đường dẫn")) })
         return items
     }
 
@@ -1336,11 +1336,11 @@ extension RepoModel {
         case .ref(let target):
             guard source.fullName != target.fullName else { return [] }
             if target.kind == .localBranch {
-                items.append(.action("Merge \(source.name) vào \(target.name)", systemImage: "arrow.triangle.merge") { [weak self] in
+                items.append(.action(String(localized: "Merge \(source.name) vào \(target.name)"), systemImage: "arrow.triangle.merge") { [weak self] in
                     self?.merge(source, into: target)
                 })
                 if source.kind == .localBranch {
-                    items.append(.action("Rebase \(source.name) lên \(target.name)", systemImage: "arrow.triangle.swap") { [weak self] in
+                    items.append(.action(String(localized: "Rebase \(source.name) lên \(target.name)"), systemImage: "arrow.triangle.swap") { [weak self] in
                         self?.rebase(branch: source.name, onto: target.name, label: target.name, switches: source.name != self?.currentBranch)
                     })
                 }
@@ -1352,27 +1352,27 @@ extension RepoModel {
             }
             if target.kind == .remoteBranch {
                 if source.kind == .localBranch {
-                    items.append(.action("Push \(source.name) lên \(target.name)", systemImage: "arrow.up") { [weak self] in
+                    items.append(.action(String(localized: "Push \(source.name) lên \(target.name)"), systemImage: "arrow.up") { [weak self] in
                         self?.push(source, to: target)
                     })
                 }
                 if let current = currentBranch, source.kind == .localBranch, source.name == current {
-                    items.append(.action("Rebase \(current) lên \(target.name)", systemImage: "arrow.triangle.swap") { [weak self] in
+                    items.append(.action(String(localized: "Rebase \(current) lên \(target.name)"), systemImage: "arrow.triangle.swap") { [weak self] in
                         self?.rebaseCurrent(onto: target.name, label: target.name)
                     })
                 }
             }
             if target.kind == .tag {
-                items.append(.action("Không có thao tác khi thả lên tag", enabled: false) {})
+                items.append(.action(String(localized: "Không có thao tác khi thả lên tag"), enabled: false) {})
             }
         case .remote(let remote):
             if source.kind == .localBranch {
-                items.append(.action("Push \(source.name) lên \(remote.name)", systemImage: "arrow.up") { [weak self] in
+                items.append(.action(String(localized: "Push \(source.name) lên \(remote.name)"), systemImage: "arrow.up") { [weak self] in
                     self?.performPush(PushRequest(localBranch: source.name, remote: remote.name, remoteBranch: source.name,
                                                   setUpstream: source.upstream == nil, force: false))
                 })
             } else if source.kind == .tag {
-                items.append(.action("Push tag \(source.name) lên \(remote.name)", systemImage: "arrow.up") { [weak self] in
+                items.append(.action(String(localized: "Push tag \(source.name) lên \(remote.name)"), systemImage: "arrow.up") { [weak self] in
                     self?.pushTag(source)
                 })
             }

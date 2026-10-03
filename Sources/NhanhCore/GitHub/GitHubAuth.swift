@@ -68,7 +68,7 @@ public struct GitHubAuth: Sendable {
         let error = body?.error.map { Self.oauthError($0, description: body?.errorDescription) }
         if let error, case .notConfigured = error { throw error }
         // Client ID không tồn tại: GitHub trả 404 (kèm `{"error":"Not Found"}`).
-        if response.statusCode == 404 { throw GitHubError.notConfigured("GitHub không nhận ra Client ID") }
+        if response.statusCode == 404 { throw GitHubError.notConfigured(String(localized: "GitHub không nhận ra Client ID")) }
         if let error { throw error }
         guard response.statusCode == 200 else { throw GitHubError.badResponse(response.statusCode) }
         guard let body, let deviceCode = body.deviceCode, !deviceCode.isEmpty,
@@ -255,9 +255,9 @@ public struct GitHubAuth: Sendable {
     static func oauthError(_ code: String, description: String?) -> GitHubError {
         switch code {
         case "device_flow_disabled":
-            return .notConfigured("OAuth App chưa bật Device Flow")
+            return .notConfigured(String(localized: "OAuth App chưa bật Device Flow"))
         case "incorrect_client_credentials", "invalid_client", "unauthorized_client":
-            return .notConfigured("Client ID không đúng")
+            return .notConfigured(String(localized: "Client ID không đúng"))
         case "expired_token":
             return .expired
         case "access_denied":

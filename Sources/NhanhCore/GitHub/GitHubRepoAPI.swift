@@ -89,9 +89,9 @@ public enum GitHubRepoAPIError: LocalizedError, Equatable, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidRepository: return "Tên repo trên GitHub không hợp lệ."
-        case .notFound: return "Không thấy repo trên GitHub — repo riêng tư cần đăng nhập tài khoản có quyền."
-        case .rateLimited: return "GitHub tạm chặn vì gọi quá nhiều lần — đăng nhập GitHub hoặc thử lại sau ít phút."
+        case .invalidRepository: return String(localized: "Tên repo trên GitHub không hợp lệ.")
+        case .notFound: return String(localized: "Không thấy repo trên GitHub — repo riêng tư cần đăng nhập tài khoản có quyền.")
+        case .rateLimited: return String(localized: "GitHub tạm chặn vì gọi quá nhiều lần — đăng nhập GitHub hoặc thử lại sau ít phút.")
         case .rejected(let message): return message
         }
     }
@@ -241,16 +241,16 @@ public struct GitHubRepoAPI: Sendable {
         let text = (details.isEmpty ? [payload?.message ?? ""] : details).joined(separator: " ")
         let lower = text.lowercased()
         if lower.contains("a pull request already exists") {
-            return "Nhánh này đã có một Pull Request đang mở."
+            return String(localized: "Nhánh này đã có một Pull Request đang mở.")
         }
         if lower.contains("no commits between") {
-            return "Không có commit nào khác giữa hai nhánh — chưa có gì để tạo Pull Request."
+            return String(localized: "Không có commit nào khác giữa hai nhánh — chưa có gì để tạo Pull Request.")
         }
         if lower.contains("head") && lower.contains("invalid") {
-            return "GitHub chưa thấy nhánh này — hãy push nhánh lên trước."
+            return String(localized: "GitHub chưa thấy nhánh này — hãy push nhánh lên trước.")
         }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "GitHub từ chối yêu cầu." : "GitHub từ chối: \(trimmed)"
+        return trimmed.isEmpty ? String(localized: "GitHub từ chối yêu cầu.") : String(localized: "GitHub từ chối: \(trimmed)")
     }
 
     private func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {

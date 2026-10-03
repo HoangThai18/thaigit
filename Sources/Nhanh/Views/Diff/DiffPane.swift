@@ -49,7 +49,7 @@ struct DiffPane: View {
                 ImageDiffView(images: images)
             } else {
                 ContentUnavailableView("File nhị phân", systemImage: "doc.zipper",
-                                       description: Text(diff?.isNewFile == true ? "File mới (nhị phân)" : "Không hiển thị được nội dung file nhị phân."))
+                                       description: Text(diff?.isNewFile == true ? String(localized: "File mới (nhị phân)") : String(localized: "Không hiển thị được nội dung file nhị phân.")))
             }
         case .tooLarge(let diff):
             ContentUnavailableView {
@@ -88,12 +88,12 @@ private struct DiffHeader: View {
 
     private var sourceLabel: (String, Color) {
         switch file.source {
-        case .unstaged: return ("Chưa stage", .orange)
-        case .staged: return ("Đã stage", .green)
+        case .unstaged: return (String(localized: "Chưa stage"), .orange)
+        case .staged: return (String(localized: "Đã stage"), .green)
         case .commit(let sha): return ("Commit \(sha.prefix(7))", .blue)
-        case .compare: return ("So sánh", .teal)
+        case .compare: return (String(localized: "So sánh"), .teal)
         case .stash: return ("Stash", .purple)
-        case .conflict: return ("Xung đột", .red)
+        case .conflict: return (String(localized: "Xung đột"), .red)
         }
     }
 
@@ -110,7 +110,7 @@ private struct DiffHeader: View {
             .glassButtonStyle()
             // Đang sửa file thì Esc không đóng (tránh mất chữ đang gõ).
             .keyboardShortcut(editing ? nil : .cancelAction)
-            .help(editing ? "Quay lại graph" : "Quay lại graph (Esc)")
+            .help(editing ? String(localized: "Quay lại graph") : String(localized: "Quay lại graph (Esc)"))
 
             ChangeIcon(kind: file.change.kind)
             // Nhãn nguồn nằm ở dòng dưới cùng đường dẫn: khi pane hẹp, tên file vẫn còn chỗ thay vì bị nhãn chiếm hết.
@@ -176,7 +176,7 @@ private struct DiffHeader: View {
                         Image(systemName: "text.word.spacing")
                     }
                     .toggleStyle(.button)
-                    .help(wrap ? "Đang tự xuống dòng — bấm để giữ dòng dài trên một hàng (cuộn ngang)" : "Tự xuống dòng khi dòng dài")
+                    .help(wrap ? String(localized: "Đang tự xuống dòng — bấm để giữ dòng dài trên một hàng (cuộn ngang)") : String(localized: "Tự xuống dòng khi dòng dài"))
                 }
             }
 
@@ -396,7 +396,7 @@ private struct HunkHeader: View {
                     .controlSize(.small)
                     .glassButtonStyle()
             } else if model.openDiffIsNotUTF8 {
-                NotUTF8Hint(text: "File không phải UTF-8 — chỉ stage được cả file", wholeFileAction: "“Stage file” / “Huỷ”")
+                NotUTF8Hint(text: String(localized: "File không phải UTF-8 — chỉ stage được cả file"), wholeFileAction: String(localized: "“Stage file” / “Huỷ”"))
             }
         case .staged?:
             if partial {
@@ -405,7 +405,7 @@ private struct HunkHeader: View {
                     .tint(.red)
                     .glassButtonStyle(prominent: true)
             } else if model.openDiffIsNotUTF8 {
-                NotUTF8Hint(text: "File không phải UTF-8 — chỉ bỏ stage được cả file", wholeFileAction: "“Bỏ stage file”")
+                NotUTF8Hint(text: String(localized: "File không phải UTF-8 — chỉ bỏ stage được cả file"), wholeFileAction: String(localized: "“Bỏ stage file”"))
             }
         default:
             EmptyView()
@@ -593,7 +593,7 @@ private struct ImageDiffView: View {
 
     var body: some View {
         HStack(spacing: 24) {
-            ImageBox(title: "Trước", image: images.before, tint: .red)
+            ImageBox(title: String(localized: "Trước"), image: images.before, tint: .red)
             Image(systemName: "arrow.right").font(.title).foregroundStyle(.tertiary)
             ImageBox(title: "Sau", image: images.after, tint: .green)
         }

@@ -75,9 +75,9 @@ struct ComparisonView: View {
                 .help("Thôi so sánh")
             }
             .glassButtonStyle()
-            endpoint(comparison.fromLabel, sha: from, caption: "Từ")
+            endpoint(comparison.fromLabel, sha: from, caption: String(localized: "Từ"))
             Image(systemName: "arrow.down").foregroundStyle(.secondary).padding(.leading, 18)
-            endpoint(comparison.toLabel, sha: to, caption: "Tới")
+            endpoint(comparison.toLabel, sha: to, caption: String(localized: "Tới"))
             Text("Trong diff: đỏ là chỉ có ở “Từ”, xanh là chỉ có ở “Tới”. Giữ ⌘ và bấm 2 commit trên graph để so sánh hai commit bất kỳ.")
                 .font(.caption)
                 .foregroundStyle(.secondary)

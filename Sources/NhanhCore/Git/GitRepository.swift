@@ -11,12 +11,12 @@ public enum RepositoryError: LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .notARepository(let path): return "“\(path)” không phải là một Git repository."
-        case .bareRepository(let path): return "“\(path)” là bare repository (không có working tree) — Thaigit chưa hỗ trợ loại này."
-        case .invalidName(let name): return "Tên “\(name)” không hợp lệ."
-        case .notUTF8(let path): return "“\(path)” không phải văn bản UTF-8 — Thaigit không sửa nội dung file này trong app để tránh làm hỏng ký tự."
-        case .changedOnDisk(let path): return "“\(path)” vừa được sửa bên ngoài Thaigit nên chưa ghi đè. Hãy xem lại nội dung mới rồi giải tiếp."
-        case .nothingToRevert(let sha): return "Commit \(sha) đã được đảo ngược, không có gì để revert."
+        case .notARepository(let path): return String(localized: "“\(path)” không phải là một Git repository.")
+        case .bareRepository(let path): return String(localized: "“\(path)” là bare repository (không có working tree) — Thaigit chưa hỗ trợ loại này.")
+        case .invalidName(let name): return String(localized: "Tên “\(name)” không hợp lệ.")
+        case .notUTF8(let path): return String(localized: "“\(path)” không phải văn bản UTF-8 — Thaigit không sửa nội dung file này trong app để tránh làm hỏng ký tự.")
+        case .changedOnDisk(let path): return String(localized: "“\(path)” vừa được sửa bên ngoài Thaigit nên chưa ghi đè. Hãy xem lại nội dung mới rồi giải tiếp.")
+        case .nothingToRevert(let sha): return String(localized: "Commit \(sha) đã được đảo ngược, không có gì để revert.")
         }
     }
 }

@@ -2,6 +2,10 @@
 
 Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
+## Chưa phát hành
+
+- Giao diện tiếng Anh: chọn ở Cài đặt → Chung → Ngôn ngữ / Language, Thaigit khởi động lại và mở lại các tab đang mở
+
 ## 1.1.1 — 2026-10-03
 
 - Thông báo lỗi dễ hiểu hơn: khi một thao tác không thành công, Thaigit chỉ hiện một câu tiếng Việt nói rõ chuyện gì xảy ra và nên làm gì (đăng nhập lại, kiểm tra mạng, commit hoặc stash trước…) thay vì nguyên văn lỗi của git hay của hệ thống; chi tiết kỹ thuật vẫn xem được trong Nhật ký lệnh git

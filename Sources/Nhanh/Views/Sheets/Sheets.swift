@@ -97,11 +97,11 @@ enum RefNameRules {
     static func problem(_ name: String) -> String? {
         if name.isEmpty { return nil }
         let forbidden = CharacterSet(charactersIn: "~^:?*[\\\u{7f}").union(.controlCharacters).union(.whitespaces)
-        if name.unicodeScalars.contains(where: forbidden.contains) { return "Không được chứa khoảng trắng hoặc ký tự ~ ^ : ? * [ \\" }
-        if name.hasPrefix("-") || name.hasPrefix("/") || name.hasPrefix(".") { return "Không được bắt đầu bằng - / ." }
-        if name.hasSuffix("/") || name.hasSuffix(".") || name.hasSuffix(".lock") { return "Không được kết thúc bằng / . hoặc .lock" }
-        if name.contains("..") || name.contains("//") || name.contains("@{") || name.contains("/.") { return "Không được chứa .. // @{ hoặc /." }
-        if name == "@" || name == "HEAD" { return "Tên này được git dành riêng" }
+        if name.unicodeScalars.contains(where: forbidden.contains) { return String(localized: "Không được chứa khoảng trắng hoặc ký tự ~ ^ : ? * [ \\") }
+        if name.hasPrefix("-") || name.hasPrefix("/") || name.hasPrefix(".") { return String(localized: "Không được bắt đầu bằng - / .") }
+        if name.hasSuffix("/") || name.hasSuffix(".") || name.hasSuffix(".lock") { return String(localized: "Không được kết thúc bằng / . hoặc .lock") }
+        if name.contains("..") || name.contains("//") || name.contains("@{") || name.contains("/.") { return String(localized: "Không được chứa .. // @{ hoặc /.") }
+        if name == "@" || name == "HEAD" { return String(localized: "Tên này được git dành riêng") }
         return nil
     }
 }
@@ -116,10 +116,10 @@ private struct CreateBranchSheet: View {
 
     private var cleaned: String { RefNameRules.sanitize(name) }
     private var exists: Bool { model.refs.contains { $0.kind == .localBranch && $0.name == cleaned } }
-    private var problem: String? { exists ? "Đã có nhánh tên này" : RefNameRules.problem(cleaned) }
+    private var problem: String? { exists ? String(localized: "Đã có nhánh tên này") : RefNameRules.problem(cleaned) }
 
     var body: some View {
-        SheetFrame(title: "Tạo nhánh mới", systemImage: "arrow.triangle.branch", confirmTitle: checkout ? "Tạo & checkout" : "Tạo nhánh",
+        SheetFrame(title: String(localized: "Tạo nhánh mới"), systemImage: "arrow.triangle.branch", confirmTitle: checkout ? String(localized: "Tạo & checkout") : String(localized: "Tạo nhánh"),
                    canConfirm: !cleaned.isEmpty && problem == nil) {
             model.createBranch(name: cleaned, startPoint: startPoint, checkout: checkout)
         } content: {
@@ -147,12 +147,12 @@ private struct RenameBranchSheet: View {
 
     private var cleaned: String { RefNameRules.sanitize(name) }
     private var problem: String? {
-        if model.refs.contains(where: { $0.kind == .localBranch && $0.name == cleaned }) && cleaned != oldName { return "Đã có nhánh tên này" }
+        if model.refs.contains(where: { $0.kind == .localBranch && $0.name == cleaned }) && cleaned != oldName { return String(localized: "Đã có nhánh tên này") }
         return RefNameRules.problem(cleaned)
     }
 
     var body: some View {
-        SheetFrame(title: "Đổi tên nhánh", systemImage: "pencil", confirmTitle: "Đổi tên",
+        SheetFrame(title: String(localized: "Đổi tên nhánh"), systemImage: "pencil", confirmTitle: String(localized: "Đổi tên"),
                    canConfirm: !cleaned.isEmpty && cleaned != oldName && problem == nil) {
             model.renameBranch(oldName, to: cleaned)
         } content: {
@@ -177,12 +177,12 @@ private struct CreateTagSheet: View {
 
     private var cleaned: String { RefNameRules.sanitize(name) }
     private var problem: String? {
-        if model.refs.contains(where: { $0.kind == .tag && $0.name == cleaned }) { return "Đã có tag tên này" }
+        if model.refs.contains(where: { $0.kind == .tag && $0.name == cleaned }) { return String(localized: "Đã có tag tên này") }
         return RefNameRules.problem(cleaned)
     }
 
     var body: some View {
-        SheetFrame(title: "Tạo tag", systemImage: "tag", confirmTitle: "Tạo tag", canConfirm: !cleaned.isEmpty && problem == nil) {
+        SheetFrame(title: String(localized: "Tạo tag"), systemImage: "tag", confirmTitle: String(localized: "Tạo tag"), canConfirm: !cleaned.isEmpty && problem == nil) {
             model.createTag(name: cleaned, sha: sha, message: message, pushToRemote: push)
         } content: {
             VStack(alignment: .leading, spacing: 8) {
@@ -233,7 +233,7 @@ private struct StashSheet: View {
     @State private var includeUntracked = true
 
     var body: some View {
-        SheetFrame(title: "Stash thay đổi", systemImage: "archivebox", confirmTitle: "Stash", canConfirm: true) {
+        SheetFrame(title: String(localized: "Stash thay đổi"), systemImage: "archivebox", confirmTitle: "Stash", canConfirm: true) {
             model.stash(message: message, includeUntracked: includeUntracked)
         } content: {
             VStack(alignment: .leading, spacing: 8) {
@@ -251,7 +251,7 @@ private struct IdentitySheet: View {
     @State private var email = ""
 
     var body: some View {
-        SheetFrame(title: "Tên & email cho Git", systemImage: "person.crop.circle", confirmTitle: "Lưu",
+        SheetFrame(title: String(localized: "Tên & email cho Git"), systemImage: "person.crop.circle", confirmTitle: String(localized: "Lưu"),
                    canConfirm: !name.trimmingCharacters(in: .whitespaces).isEmpty && email.contains("@")) {
             model.saveIdentity(name: name.trimmingCharacters(in: .whitespaces), email: email.trimmingCharacters(in: .whitespaces))
         } content: {
@@ -279,7 +279,7 @@ private struct AddRemoteSheet: View {
     @State private var url = ""
 
     var body: some View {
-        SheetFrame(title: "Thêm remote", systemImage: "cloud", confirmTitle: "Thêm",
+        SheetFrame(title: String(localized: "Thêm remote"), systemImage: "cloud", confirmTitle: String(localized: "Thêm"),
                    canConfirm: !name.isEmpty && !url.trimmingCharacters(in: .whitespaces).isEmpty
                        && !model.remotes.contains { $0.name == name }) {
             model.addRemote(name: name, url: url.trimmingCharacters(in: .whitespaces))
@@ -462,7 +462,7 @@ private struct SwitchBranchSheet: View {
             }
             .frame(height: 320)
             HStack {
-                Text(items.isEmpty ? "Không có nhánh khớp" : (query.isEmpty ? "Nhánh gần đây · " : "") + "↑↓ chọn · ↩ checkout")
+                Text(items.isEmpty ? String(localized: "Không có nhánh khớp") : (query.isEmpty ? String(localized: "Nhánh gần đây · ") : "") + String(localized: "↑↓ chọn · ↩ checkout"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()

@@ -12,7 +12,7 @@ struct ForeignMergeSource: Codable, Hashable, Identifiable {
     var isLocal: Bool { source.hasPrefix("/") }
     /// Tên ngắn của repo nguồn: "/Users/a/du-an-a" → "du-an-a", "git@github.com:cty/b.git" → "b".
     var repositoryName: String { GitRepository.defaultDirectoryName(forCloneURL: source) }
-    var label: String { "\(branch) của \(repositoryName)" }
+    var label: String { String(localized: "\(branch) của \(repositoryName)") }
 }
 
 extension RepoModel {
@@ -64,10 +64,10 @@ extension RepoModel {
         let switches = target != currentBranch
         let previousTarget = switches ? localBranches.first { $0.name == target }?.target : headOID
         let leftPrevious = previousHead.branchName != target
-        let previousName = previousHead.branchName ?? previousHead.oid.map { String($0.prefix(7)) } ?? "HEAD cũ"
+        let previousName = previousHead.branchName ?? previousHead.oid.map { String($0.prefix(7)) } ?? String(localized: "HEAD cũ")
         var newTarget: String?
         let progress = progressReporter()
-        perform("Merge \(label) vào \(target)", showsProgress: true, cancellable: true) { [weak self] repo in
+        perform(String(localized: "Merge \(label) vào \(target)"), showsProgress: true, cancellable: true) { [weak self] repo in
             try await repo.fetchForeignBranch(request.branch, fromRepository: request.source, onProgress: progress)
             // Từ đây checkout + merge chạy tới cùng: dừng `git merge` giữa chừng để lại index nửa vời.
             self?.busy?.canCancel = false
@@ -76,16 +76,16 @@ extension RepoModel {
             newTarget = try? await repo.resolveCommit("HEAD")
         } onSuccess: { [weak self] in
             guard let self else { return }
-            let goBack = leftPrevious ? [ToastAction(title: "Quay lại \(previousName)") { [weak self] in
+            let goBack = leftPrevious ? [ToastAction(title: String(localized: "Quay lại \(previousName)")) { [weak self] in
                 self?.restoreHead(previousHead)
             }] : []
             if let previousTarget, newTarget == previousTarget {
-                toast(.success, "\(target) đã có mọi commit của \(label)", actions: goBack)
+                toast(.success, String(localized: "\(target) đã có mọi commit của \(label)"), actions: goBack)
                 return
             }
-            toast(.success, "Đã merge \(label) vào \(target)", actions: previousTarget.map { head in
-                [ToastAction(title: "Hoàn tác") { [weak self] in
-                    self?.perform("Hoàn tác merge") { repo in try await repo.resetKeepingLocalChanges(to: head) }
+            toast(.success, String(localized: "Đã merge \(label) vào \(target)"), actions: previousTarget.map { head in
+                [ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                    self?.perform(String(localized: "Hoàn tác merge")) { repo in try await repo.resetKeepingLocalChanges(to: head) }
                     if leftPrevious { self?.restoreHead(previousHead) }
                 }]
             } ?? goBack)
@@ -95,19 +95,19 @@ extension RepoModel {
             let failure = error as? ForeignMergeFailure
             let mergeError = failure?.underlying ?? error
             let whereNow = failure.map { failure in
-                failure.restoredHead.map { "Đã quay lại \($0)." } ?? "Chưa quay lại được \(previousName) — vẫn đang ở \(target)."
+                failure.restoredHead.map { String(localized: "Đã quay lại \($0).") } ?? String(localized: "Chưa quay lại được \(previousName) — vẫn đang ở \(target).")
             }
             if let gitError = mergeError as? GitError, gitError.contains("refusing to merge unrelated histories") {
-                toast(.warning, "\(request.repositoryName) và \(name) không có commit chung",
-                      message: "Thường gặp khi một bên là bản copy code (không clone từ bên kia). Lần đầu vẫn merge được: file có ở cả hai bên mà khác nội dung sẽ thành xung đột để bạn chọn bản giữ lại. Từ lần sau hai bên đã có commit chung nên merge bình thường."
+                toast(.warning, String(localized: "\(request.repositoryName) và \(name) không có commit chung"),
+                      message: String(localized: "Thường gặp khi một bên là bản copy code (không clone từ bên kia). Lần đầu vẫn merge được: file có ở cả hai bên mà khác nội dung sẽ thành xung đột để bạn chọn bản giữ lại. Từ lần sau hai bên đã có commit chung nên merge bình thường.")
                           + (whereNow.map { " " + $0 } ?? ""),
-                      actions: [ToastAction(title: "Vẫn merge") { [weak self] in
+                      actions: [ToastAction(title: String(localized: "Vẫn merge")) { [weak self] in
                           self?.mergeFromRepository(request, allowUnrelatedHistories: true, previousHead: previousHead)
                       }])
                 return true
             }
             if let whereNow {
-                showError("Không merge được \(label) vào \(target). \(whereNow)", mergeError)
+                showError(String(localized: "Không merge được \(label) vào \(target). \(whereNow)"), mergeError)
                 return true
             }
             return handleConflictError(error, operation: "Merge")

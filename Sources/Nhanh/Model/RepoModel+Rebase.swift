@@ -26,7 +26,7 @@ extension RepoModel {
 
     func beginInteractiveRebase(from commit: Commit) {
         guard operation == nil else {
-            toast(.warning, "Đang \(operation?.shortName ?? "dở thao tác") — hãy hoàn tất hoặc huỷ trước")
+            toast(.warning, String(localized: "Đang \(operation?.shortName ?? "dở thao tác") — hãy hoàn tất hoặc huỷ trước"))
             return
         }
         sheet = .interactiveRebase(base: commit.id, label: commit.shortSHA)
@@ -42,15 +42,15 @@ extension RepoModel {
         } onSuccess: { [weak self] in
             guard let self else { return }
             let undo = previousHead.map { head in
-                [ToastAction(title: "Hoàn tác") { [weak self] in
-                    self?.perform("Hoàn tác rebase") { repo in try await repo.resetKeepingLocalChanges(to: head) }
+                [ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
+                    self?.perform(String(localized: "Hoàn tác rebase")) { repo in try await repo.resetKeepingLocalChanges(to: head) }
                 }]
             } ?? []
             if result == .autostashConflict {
-                toast(.warning, "Đã rebase \(branch), nhưng trả lại thay đổi chưa commit bị xung đột",
-                      message: "Thay đổi của bạn vẫn còn trong stash. Giải xung đột ở panel bên phải, hoặc Hoàn tác.", actions: undo)
+                toast(.warning, String(localized: "Đã rebase \(branch), nhưng trả lại thay đổi chưa commit bị xung đột"),
+                      message: String(localized: "Thay đổi của bạn vẫn còn trong stash. Giải xung đột ở panel bên phải, hoặc Hoàn tác."), actions: undo)
             } else {
-                toast(.success, "Đã viết lại \(steps.count) commit trên \(branch)", actions: undo)
+                toast(.success, String(localized: "Đã viết lại \(steps.count) commit trên \(branch)"), actions: undo)
             }
         } onError: { [weak self] error in
             self?.handleConflictError(error, operation: "Rebase") ?? false

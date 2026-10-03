@@ -113,7 +113,7 @@ struct IssuesSheet: View {
             .listStyle(.inset)
             .overlay {
                 if (source == .github ? filteredGitHub.isEmpty : filteredJira.isEmpty) {
-                    Text(query.isEmpty ? "Không có issue nào đang mở" : "Không có issue khớp").foregroundStyle(.secondary)
+                    Text(query.isEmpty ? String(localized: "Không có issue nào đang mở") : String(localized: "Không có issue khớp")).foregroundStyle(.secondary)
                 }
             }
         }
@@ -139,7 +139,7 @@ struct IssuesSheet: View {
             switch source {
             case .github:
                 guard model.githubRemote != nil else {
-                    message = "Repo này không có remote trên GitHub"
+                    message = String(localized: "Repo này không có remote trên GitHub")
                     return
                 }
                 githubIssues = try await model.loadGitHubIssues()

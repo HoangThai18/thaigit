@@ -49,13 +49,13 @@ extension RepoModel {
             graphFilter.hidden.subtract(names)
         } else {
             guard canHideOnGraph(ref) else {
-                toast(.info, "Không ẩn được nhánh đang checkout")
+                toast(.info, String(localized: "Không ẩn được nhánh đang checkout"))
                 return
             }
             graphFilter.solo.subtract(names)
             graphFilter.hidden.formUnion(names)
-            toast(.info, "Đã ẩn \(ref.name) khỏi graph", actions: [
-                ToastAction(title: "Hoàn tác") { [weak self] in self?.graphFilter.hidden.subtract(names) },
+            toast(.info, String(localized: "Đã ẩn \(ref.name) khỏi graph"), actions: [
+                ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.graphFilter.hidden.subtract(names) },
             ], tag: "graph-filter")
         }
     }
@@ -87,8 +87,8 @@ extension RepoModel {
             let paired = Set(locals.compactMap(\.upstream))
             return names.count - refs.filter { $0.kind == .remoteBranch && names.contains($0.fullName) && paired.contains($0.name) }.count
         }
-        if !filter.solo.isEmpty { return "Chỉ hiện \(count(filter.solo)) nhánh (và nhánh đang checkout)" }
-        return "Đang ẩn \(count(filter.hidden)) nhánh"
+        if !filter.solo.isEmpty { return String(localized: "Chỉ hiện \(count(filter.solo)) nhánh (và nhánh đang checkout)") }
+        return String(localized: "Đang ẩn \(count(filter.hidden)) nhánh")
     }
 
     func graphFilterMenuItems(for ref: GitRef) -> [MenuItemSpec] {
@@ -96,14 +96,14 @@ extension RepoModel {
         let hidden = graphFilter.hidden.contains(ref.fullName)
         let solo = graphFilter.solo.contains(ref.fullName)
         var items: [MenuItemSpec] = [
-            .action(hidden ? "Hiện lại trên graph" : "Ẩn khỏi graph", systemImage: hidden ? "eye" : "eye.slash",
+            .action(hidden ? String(localized: "Hiện lại trên graph") : String(localized: "Ẩn khỏi graph"), systemImage: hidden ? "eye" : "eye.slash",
                     enabled: hidden || canHideOnGraph(ref)) { [weak self] in self?.toggleHidden(ref) },
-            .action(solo ? "Bỏ khỏi nhóm chỉ hiện (solo)" : "Chỉ hiện nhánh này (solo)", systemImage: "scope") { [weak self] in
+            .action(solo ? String(localized: "Bỏ khỏi nhóm chỉ hiện (solo)") : String(localized: "Chỉ hiện nhánh này (solo)"), systemImage: "scope") { [weak self] in
                 self?.toggleSolo(ref)
             },
         ]
         if graphFilter.isActive {
-            items.append(.action("Hiện tất cả nhánh", systemImage: "eye") { [weak self] in self?.showAllBranchesOnGraph() })
+            items.append(.action(String(localized: "Hiện tất cả nhánh"), systemImage: "eye") { [weak self] in self?.showAllBranchesOnGraph() })
         }
         return items
     }

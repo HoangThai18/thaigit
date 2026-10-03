@@ -104,7 +104,7 @@ struct TerminalPanel: View {
         HStack(spacing: 6) {
             Text("❯")
                 .foregroundStyle(Color.accentColor)
-            TextField(session.isRunning ? "Đang chạy…" : "Lệnh, ví dụ git status", text: $session.input)
+            TextField(session.isRunning ? String(localized: "Đang chạy…") : String(localized: "Lệnh, ví dụ git status"), text: $session.input)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12.5, design: .monospaced))
                 .focused($inputFocused)

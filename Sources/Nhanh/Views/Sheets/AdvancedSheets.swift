@@ -50,7 +50,7 @@ struct CommitSigningSheet: View {
     }
 
     var body: some View {
-        AdvancedSheetFrame(title: "Ký commit", systemImage: "signature", confirmTitle: "Lưu", canConfirm: loaded && !keyMissing,
+        AdvancedSheetFrame(title: String(localized: "Ký commit"), systemImage: "signature", confirmTitle: String(localized: "Lưu"), canConfirm: loaded && !keyMissing,
                            width: 520) {
             model.saveSigning(config, global: global)
         } content: {
@@ -136,7 +136,7 @@ struct AddWorktreeSheet: View {
     private var branch: String { createBranch ? RefNameRules.sanitize(newName) : existing }
     private var problem: String? {
         guard createBranch else { return nil }
-        if model.localBranches.contains(where: { $0.name == branch }) { return "Đã có nhánh tên này" }
+        if model.localBranches.contains(where: { $0.name == branch }) { return String(localized: "Đã có nhánh tên này") }
         return RefNameRules.problem(branch)
     }
     private var folder: URL {
@@ -147,7 +147,7 @@ struct AddWorktreeSheet: View {
     private var folderExists: Bool { FileManager.default.fileExists(atPath: folder.path) }
 
     var body: some View {
-        AdvancedSheetFrame(title: "Thêm worktree", systemImage: "square.on.square", confirmTitle: "Tạo worktree",
+        AdvancedSheetFrame(title: String(localized: "Thêm worktree"), systemImage: "square.on.square", confirmTitle: String(localized: "Tạo worktree"),
                            canConfirm: !branch.isEmpty && problem == nil && !folderExists) {
             model.addWorktree(path: folder.path, branch: branch, createBranch: createBranch,
                               startPoint: createBranch ? model.currentBranch : nil)
@@ -194,8 +194,8 @@ struct AddWorktreeSheet: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.prompt = "Chọn"
-        panel.message = "Chọn thư mục sẽ chứa worktree"
+        panel.prompt = String(localized: "Chọn")
+        panel.message = String(localized: "Chọn thư mục sẽ chứa worktree")
         if panel.runModal() == .OK { parentFolder = panel.url }
     }
 }
@@ -207,7 +207,7 @@ struct GitFlowInitSheet: View {
     @State private var config = GitFlowConfig()
 
     var body: some View {
-        AdvancedSheetFrame(title: "Khởi tạo Git Flow", systemImage: "flag", confirmTitle: "Khởi tạo",
+        AdvancedSheetFrame(title: String(localized: "Khởi tạo Git Flow"), systemImage: "flag", confirmTitle: String(localized: "Khởi tạo"),
                            canConfirm: !config.main.isEmpty && !config.develop.isEmpty && config.main != config.develop) {
             model.initGitFlow(config)
         } content: {
@@ -217,7 +217,7 @@ struct GitFlowInitSheet: View {
                 TextField("Tiền tố feature", text: $config.featurePrefix)
                 TextField("Tiền tố release", text: $config.releasePrefix)
                 TextField("Tiền tố hotfix", text: $config.hotfixPrefix)
-                TextField("Tiền tố tag phiên bản", text: $config.versionTagPrefix, prompt: Text("ví dụ v"))
+                TextField("Tiền tố tag phiên bản", text: $config.versionTagPrefix, prompt: Text(String(localized: "ví dụ v")))
             }
             .formStyle(.grouped)
             .scrollDisabled(true)
@@ -243,16 +243,16 @@ struct GitFlowStartSheet: View {
     private var config: GitFlowConfig { model.extras.gitFlow ?? GitFlowConfig() }
     private var cleaned: String { RefNameRules.sanitize(name) }
     private var problem: String? {
-        if model.localBranches.contains(where: { $0.name == config.prefix(kind) + cleaned }) { return "Đã có nhánh này" }
+        if model.localBranches.contains(where: { $0.name == config.prefix(kind) + cleaned }) { return String(localized: "Đã có nhánh này") }
         return RefNameRules.problem(config.prefix(kind) + cleaned)
     }
 
     var body: some View {
-        AdvancedSheetFrame(title: "Bắt đầu \(kind.title.lowercased())", systemImage: "flag", confirmTitle: "Bắt đầu",
+        AdvancedSheetFrame(title: String(localized: "Bắt đầu \(kind.title.lowercased())"), systemImage: "flag", confirmTitle: String(localized: "Bắt đầu"),
                            canConfirm: !cleaned.isEmpty && problem == nil) {
             model.startFlow(kind, name: cleaned)
         } content: {
-            TextField(kind == .feature ? "Tên, ví dụ dang-nhap" : "Phiên bản, ví dụ 1.2.0", text: $name)
+            TextField(kind == .feature ? String(localized: "Tên, ví dụ dang-nhap") : String(localized: "Phiên bản, ví dụ 1.2.0"), text: $name)
                 .textFieldStyle(.roundedBorder)
             if let problem, !name.isEmpty {
                 Text(problem).font(.caption).foregroundStyle(.red)
@@ -275,8 +275,8 @@ struct LFSTrackSheet: View {
     private static let suggestions = ["*.psd", "*.ai", "*.sketch", "*.zip", "*.mp4", "*.mov", "*.wav", "*.pdf"]
 
     var body: some View {
-        AdvancedSheetFrame(title: "Git LFS — theo dõi kiểu file", systemImage: "externaldrive",
-                           confirmTitle: "Theo dõi", canConfirm: !pattern.trimmingCharacters(in: .whitespaces).isEmpty) {
+        AdvancedSheetFrame(title: String(localized: "Git LFS — theo dõi kiểu file"), systemImage: "externaldrive",
+                           confirmTitle: String(localized: "Theo dõi"), canConfirm: !pattern.trimmingCharacters(in: .whitespaces).isEmpty) {
             model.lfsTrack(pattern.trimmingCharacters(in: .whitespaces), track: true)
         } content: {
             Text("File khớp mẫu sẽ được lưu bằng Git LFS (file lớn nằm trên máy chủ LFS, repo chỉ giữ con trỏ nhỏ). Ghi vào .gitattributes.")

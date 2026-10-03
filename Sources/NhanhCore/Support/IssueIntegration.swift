@@ -58,11 +58,11 @@ public enum JiraError: LocalizedError, Equatable, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidSite: return "Địa chỉ Jira phải là https://…, ví dụ https://cong-ty.atlassian.net"
-        case .unauthorized: return "Jira từ chối email / API token — kiểm tra lại hoặc tạo token mới."
-        case .badResponse(let status): return "Jira trả về lỗi \(status)."
-        case .invalidResponse: return "Phản hồi của Jira không đúng định dạng."
-        case .network(let detail): return "Không kết nối được tới Jira: \(detail)"
+        case .invalidSite: return String(localized: "Địa chỉ Jira phải là https://…, ví dụ https://cong-ty.atlassian.net")
+        case .unauthorized: return String(localized: "Jira từ chối email / API token — kiểm tra lại hoặc tạo token mới.")
+        case .badResponse(let status): return String(localized: "Jira trả về lỗi \(status).")
+        case .invalidResponse: return String(localized: "Phản hồi của Jira không đúng định dạng.")
+        case .network(let detail): return String(localized: "Không kết nối được tới Jira: \(detail)")
         }
     }
 }

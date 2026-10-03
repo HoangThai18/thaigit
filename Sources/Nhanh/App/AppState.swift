@@ -129,13 +129,13 @@ final class AppState {
     }
 
     /// Hộp thoại chọn thư mục repository.
-    func chooseRepositoryFolder(prompt: String = "Mở") -> String? {
+    func chooseRepositoryFolder(prompt: String = String(localized: "Mở")) -> String? {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
         panel.prompt = prompt
-        panel.message = "Chọn thư mục chứa Git repository"
+        panel.message = String(localized: "Chọn thư mục chứa Git repository")
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
         return url.path
     }

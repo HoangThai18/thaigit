@@ -28,13 +28,13 @@ struct WelcomeView: View {
                 }
 
                 VStack(spacing: 10) {
-                    WelcomeActionButton(title: "Mở repository", subtitle: "Chọn một thư mục có sẵn trên máy",
+                    WelcomeActionButton(title: String(localized: "Mở repository"), subtitle: String(localized: "Chọn một thư mục có sẵn trên máy"),
                                         systemImage: "folder.fill", tint: Brand.blue, shortcut: "⌘O") {
                         if let path = appState.chooseRepositoryFolder() { onOpen(path) }
                     }
-                    WelcomeActionButton(title: "Clone repository", subtitle: "Tải về từ GitHub, GitLab, Bitbucket…",
+                    WelcomeActionButton(title: "Clone repository", subtitle: String(localized: "Tải về từ GitHub, GitLab, Bitbucket…"),
                                         systemImage: "arrow.down.circle.fill", tint: .green, shortcut: "⇧⌘O", action: onClone)
-                    WelcomeActionButton(title: "Tạo repository mới", subtitle: "Khởi tạo Git cho một thư mục",
+                    WelcomeActionButton(title: String(localized: "Tạo repository mới"), subtitle: String(localized: "Khởi tạo Git cho một thư mục"),
                                         systemImage: "plus.square.fill", tint: Brand.orange, shortcut: "⌥⌘N", action: onInit)
                 }
 

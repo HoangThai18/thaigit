@@ -31,20 +31,20 @@ public struct RebaseStep: Sendable, Equatable, Identifiable {
 }
 
 public enum RebasePlan {
-    public static let unchanged = "Chưa có thay đổi nào."
+    public static let unchanged = String(localized: "Chưa có thay đổi nào.")
 
     /// Lý do kế hoạch không chạy được (nil là hợp lệ).
     public static func problem(_ steps: [RebaseStep], original: [Commit]) -> String? {
-        if steps.isEmpty { return "Không có commit nào để rebase." }
+        if steps.isEmpty { return String(localized: "Không có commit nào để rebase.") }
         if steps.contains(where: { $0.commit.isMerge }) {
-            return "Đoạn này có commit merge — Thaigit chưa hỗ trợ interactive rebase qua commit merge."
+            return String(localized: "Đoạn này có commit merge — Thaigit chưa hỗ trợ interactive rebase qua commit merge.")
         }
         let kept = steps.filter { $0.action != .drop }
         if let first = kept.first, first.action == .squash || first.action == .fixup {
-            return "Commit cũ nhất còn lại không gộp được (không có commit nào phía trước để gộp vào)."
+            return String(localized: "Commit cũ nhất còn lại không gộp được (không có commit nào phía trước để gộp vào).")
         }
         if steps.contains(where: { $0.action == .reword && ($0.message ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
-            return "Lời commit mới không được để trống."
+            return String(localized: "Lời commit mới không được để trống.")
         }
         if steps.map(\.commit.id) == original.map(\.id), steps.allSatisfy({ $0.action == .pick }) {
             return unchanged
@@ -81,7 +81,7 @@ public enum RebaseError: LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .notOnCurrentBranch(let sha): return "Commit \(sha.prefix(7)) không nằm trên nhánh hiện tại nên không rebase từ đó được."
+        case .notOnCurrentBranch(let sha): return String(localized: "Commit \(sha.prefix(7)) không nằm trên nhánh hiện tại nên không rebase từ đó được.")
         }
     }
 }

@@ -39,15 +39,15 @@ struct ChangeIcon: View {
 
     private var description: String {
         switch kind {
-        case .added: return "Thêm mới"
-        case .untracked: return "File mới (chưa track)"
-        case .modified: return "Đã sửa"
-        case .deleted: return "Đã xoá"
-        case .renamed: return "Đổi tên"
-        case .copied: return "Sao chép"
-        case .typeChanged: return "Đổi loại file"
-        case .conflicted: return "Xung đột"
-        case .unknown: return "Khác"
+        case .added: return String(localized: "Thêm mới")
+        case .untracked: return String(localized: "File mới (chưa track)")
+        case .modified: return String(localized: "Đã sửa")
+        case .deleted: return String(localized: "Đã xoá")
+        case .renamed: return String(localized: "Đổi tên")
+        case .copied: return String(localized: "Sao chép")
+        case .typeChanged: return String(localized: "Đổi loại file")
+        case .conflicted: return String(localized: "Xung đột")
+        case .unknown: return String(localized: "Khác")
         }
     }
 }

@@ -43,12 +43,12 @@ struct CommitGraphView: View {
     private var workingTreeSummary: String {
         let status = model.status
         var parts: [String] = []
-        if !status.conflicts.isEmpty { parts.append("⚠︎ \(status.conflicts.count) xung đột") }
+        if !status.conflicts.isEmpty { parts.append(String(localized: "⚠︎ \(status.conflicts.count) xung đột")) }
         let modified = Set(status.unstaged.filter { $0.kind != .untracked }.map(\.path) + status.staged.map(\.path)).count
         let untracked = status.unstaged.filter { $0.kind == .untracked }.count
-        if modified > 0 { parts.append("✎ \(modified) file sửa") }
-        if untracked > 0 { parts.append("＋ \(untracked) file mới") }
-        if !status.staged.isEmpty { parts.append("● \(status.staged.count) đã stage") }
+        if modified > 0 { parts.append(String(localized: "✎ \(modified) file sửa")) }
+        if untracked > 0 { parts.append(String(localized: "＋ \(untracked) file mới")) }
+        if !status.staged.isEmpty { parts.append(String(localized: "● \(status.staged.count) đã stage")) }
         return parts.joined(separator: "   ")
     }
 }
@@ -59,7 +59,7 @@ private struct SearchBar: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-            Text(model.searchMatches.isEmpty ? "Không tìm thấy commit nào" : "\(model.searchMatches.count) commit khớp")
+            Text(model.searchMatches.isEmpty ? String(localized: "Không tìm thấy commit nào") : String(localized: "\(model.searchMatches.count) commit khớp"))
                 .font(.callout)
             Button { model.selectNextSearchMatch(backward: true) } label: { Image(systemName: "chevron.up") }
                 .disabled(model.searchMatches.isEmpty)
@@ -87,7 +87,7 @@ private enum Column {
 
     /// Cột phụ bật/tắt bằng chuột phải lên tiêu đề cột. Mặc định tắt cả, như GitKraken: tác giả là ảnh đại diện
     /// trên graph, tên và thời gian xem ở panel bên phải.
-    static let optional: [(id: NSUserInterfaceItemIdentifier, title: String)] = [(author, "Tác giả"), (date, "Thời gian"), (sha, "SHA")]
+    static let optional: [(id: NSUserInterfaceItemIdentifier, title: String)] = [(author, String(localized: "Tác giả")), (date, String(localized: "Thời gian")), (sha, "SHA")]
     static let enabledOptionalKey = "graphOptionalColumns"
 }
 
@@ -135,11 +135,11 @@ private struct CommitTable: NSViewRepresentable {
             column.resizingMask = flexible ? [.autoresizingMask, .userResizingMask] : [.userResizingMask]
             table.addTableColumn(column)
         }
-        addColumn(Column.refs, "Nhánh / Tag", width: 190, min: 60, max: 600)
+        addColumn(Column.refs, String(localized: "Nhánh / Tag"), width: 190, min: 60, max: 600)
         addColumn(Column.graph, "Graph", width: 120, min: 40, max: 900)
         addColumn(Column.message, "Commit", width: 320, min: 160, max: 10_000, flexible: true)
-        addColumn(Column.author, "Tác giả", width: 130, min: 60, max: 400)
-        addColumn(Column.date, "Thời gian", width: 122, min: 60, max: 300)
+        addColumn(Column.author, String(localized: "Tác giả"), width: 130, min: 60, max: 400)
+        addColumn(Column.date, String(localized: "Thời gian"), width: 122, min: 60, max: 300)
         addColumn(Column.sha, "SHA", width: 74, min: 50, max: 160)
         table.autosaveName = "NhanhCommitTable"
         table.autosaveTableColumns = true
@@ -317,16 +317,16 @@ private struct CommitTable: NSViewRepresentable {
         }
 
         private func buildHeaderMenu(_ menu: NSMenu) {
-            menu.addItem(.sectionHeader(title: "Hiện cột"))
+            menu.addItem(.sectionHeader(title: String(localized: "Hiện cột")))
             for column in Column.optional {
                 let item = MenuActionTarget.item(title: column.title) { [weak self] in self?.toggleColumn(column.id) }
                 item.state = enabledOptional.contains(column.id) ? .on : .off
                 menu.addItem(item)
             }
             menu.addItem(.separator())
-            let avatars = MenuActionTarget.item(title: "Ảnh đại diện thật (GitHub / Gravatar)") { AvatarStore.shared.isEnabled.toggle() }
+            let avatars = MenuActionTarget.item(title: String(localized: "Ảnh đại diện thật (GitHub / Gravatar)")) { AvatarStore.shared.isEnabled.toggle() }
             avatars.state = AvatarStore.shared.isEnabled ? .on : .off
-            avatars.toolTip = "Tắt thì graph chỉ hiện chữ viết tắt và app không gửi gì ra mạng để tìm ảnh."
+            avatars.toolTip = String(localized: "Tắt thì graph chỉ hiện chữ viết tắt và app không gửi gì ra mạng để tìm ảnh.")
             menu.addItem(avatars)
         }
 
@@ -476,7 +476,7 @@ private struct CommitTable: NSViewRepresentable {
                     cell.label.font = entry.commit.isMerge ? NSFont.systemFont(ofSize: 13, weight: .regular) : Self.messageFont
                     if entry.commit.isMerge { cell.label.textColor = dimmed ? .tertiaryLabelColor : .secondaryLabelColor }
                 }
-                cell.toolTip = entry.commit.isWorkingTree ? "Thay đổi chưa commit — bấm để stage & commit" : entry.commit.subject
+                cell.toolTip = entry.commit.isWorkingTree ? String(localized: "Thay đổi chưa commit — bấm để stage & commit") : entry.commit.subject
                 return cell
             case Column.author:
                 let cell = textCell(tableView, Column.author, font: Self.secondaryFont)
@@ -572,7 +572,7 @@ private struct CommitTable: NSViewRepresentable {
             if let local = entry.labels.compactMap(\.localRef).first(where: { $0.name != current }) {
                 model.checkout(local)
             } else if entry.labels.contains(where: { $0.localRef?.name == current && current != nil }) {
-                model.toast(.info, "Đang ở nhánh \(current ?? "")")
+                model.toast(.info, String(localized: "Đang ở nhánh \(current ?? "")"))
             } else if let remote = entry.labels.flatMap(\.remoteRefs).first {
                 model.checkout(remote)
             }

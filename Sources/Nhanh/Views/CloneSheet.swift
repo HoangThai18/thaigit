@@ -96,7 +96,7 @@ struct CloneSheet: View {
                     } else {
                         ProgressView().progressViewStyle(.linear)
                     }
-                    Text(progress.line.isEmpty ? "Đang kết nối…" : progress.line)
+                    Text(progress.line.isEmpty ? String(localized: "Đang kết nối…") : progress.line)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -113,7 +113,7 @@ struct CloneSheet: View {
                 }
                 .frame(maxHeight: 90)
                 if suggestGitHubLogin {
-                    Button(github.accounts.isEmpty ? "Đăng nhập GitHub…" : "Đăng nhập / thêm tài khoản GitHub…") {
+                    Button(github.accounts.isEmpty ? String(localized: "Đăng nhập GitHub…") : String(localized: "Đăng nhập / thêm tài khoản GitHub…")) {
                         showGitHubLogin = true
                     }
                 }
@@ -150,21 +150,21 @@ struct CloneSheet: View {
         if let assignmentNote, picked?.cloneURL == remote { return assignmentNote }
         if GitHubRemoteURL.isHTTPS(remote), let owner = GitHubRemoteURL.owner(of: remote) {
             if let user = GitHubRemoteURL.username(of: remote), let profile = github.state.profile(login: user) {
-                return "Clone bằng tài khoản @\(profile.login) (username trong địa chỉ)."
+                return String(localized: "Clone bằng tài khoản @\(profile.login) (username trong địa chỉ).")
             }
             let resolved = github.resolution(forOwner: owner)?.profile.login
             if let picked, picked.cloneURL == remote, picked.owner.caseInsensitiveCompare(owner) == .orderedSame,
                let resolved, picked.login != resolved {
                 // Repo chọn trong danh sách của tài khoản khác tài khoản owner đang dùng: khi clone sẽ gán owner cho nó.
-                return "Clone bằng tài khoản @\(picked.login): owner \(owner) sẽ được gán cho @\(picked.login) (hiện dùng @\(resolved))."
+                return String(localized: "Clone bằng tài khoản @\(picked.login): owner \(owner) sẽ được gán cho @\(picked.login) (hiện dùng @\(resolved)).")
             }
             if let resolved {
-                return "Clone bằng tài khoản @\(resolved) (owner \(owner))."
+                return String(localized: "Clone bằng tài khoản @\(resolved) (owner \(owner)).")
             }
         }
         return github.accounts.isEmpty
-            ? "Repo riêng tư: Thaigit dùng SSH key / Keychain của máy, sẽ hỏi mật khẩu/token nếu cần."
-            : "Repo HTTPS trên github.com dùng tài khoản GitHub theo owner; repo khác dùng SSH key / Keychain của máy."
+            ? String(localized: "Repo riêng tư: Thaigit dùng SSH key / Keychain của máy, sẽ hỏi mật khẩu/token nếu cần.")
+            : String(localized: "Repo HTTPS trên github.com dùng tài khoản GitHub theo owner; repo khác dùng SSH key / Keychain của máy.")
     }
 
     private func prefillFromClipboard() {
@@ -179,7 +179,7 @@ struct CloneSheet: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.prompt = "Chọn"
+        panel.prompt = String(localized: "Chọn")
         if panel.runModal() == .OK, let chosen = panel.url {
             parentDirectory = chosen.path
         }
@@ -189,7 +189,7 @@ struct CloneSheet: View {
         let target = destination
         if FileManager.default.fileExists(atPath: target.path),
            let contents = try? FileManager.default.contentsOfDirectory(atPath: target.path), !contents.isEmpty {
-            errorMessage = "Thư mục “\(target.lastPathComponent)” đã tồn tại và không trống. Hãy đổi tên thư mục."
+            errorMessage = String(localized: "Thư mục “\(target.lastPathComponent)” đã tồn tại và không trống. Hãy đổi tên thư mục.")
             return
         }
         errorMessage = nil
@@ -200,7 +200,7 @@ struct CloneSheet: View {
         // Repo chọn từ danh sách của một tài khoản: owner đang dùng tài khoản khác thì gán cho tài khoản đó, để clone
         // (và fetch / push sau này) dùng đúng token.
         if let picked, picked.cloneURL == remoteURL, github.noteCloneSelection(owner: picked.owner, login: picked.login) {
-            assignmentNote = "Đã gán owner \(picked.owner) cho @\(picked.login) — đổi lại trong Cài đặt → Tài khoản."
+            assignmentNote = String(localized: "Đã gán owner \(picked.owner) cho @\(picked.login) — đổi lại trong Cài đặt → Tài khoản.")
         }
         let environment = appState.environment
         let progress = progress
@@ -322,7 +322,7 @@ private struct GitHubRepositoryPicker: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if filtered.isEmpty {
-            Text(repositories.isEmpty ? "Tài khoản này chưa có repo nào." : "Không có repo nào khớp “\(query)”.")
+            Text(repositories.isEmpty ? String(localized: "Tài khoản này chưa có repo nào.") : String(localized: "Không có repo nào khớp “\(query)”."))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -369,8 +369,8 @@ private struct GitHubRepositoryPicker: View {
             guard !(error is CancellationError) else { return }
             tokenRejected = error as? GitHubError == .unauthorized
             errorMessage = tokenRejected
-                ? "Token GitHub của @\(account) không còn hợp lệ — đăng nhập lại."
-                : "Không tải được danh sách repo: " + GitHubAccountManager.describe(error)
+                ? String(localized: "Token GitHub của @\(account) không còn hợp lệ — đăng nhập lại.")
+                : String(localized: "Không tải được danh sách repo: ") + GitHubAccountManager.describe(error)
         }
     }
 }
@@ -383,7 +383,7 @@ private struct GitHubRepositoryRow: View {
             Image(systemName: repository.isPrivate ? "lock.fill" : "book.closed")
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
-                .help(repository.isPrivate ? "Repo riêng tư" : "Repo công khai")
+                .help(repository.isPrivate ? String(localized: "Repo riêng tư") : String(localized: "Repo công khai"))
             VStack(alignment: .leading, spacing: 1) {
                 Text(repository.fullName)
                     .lineLimit(1)

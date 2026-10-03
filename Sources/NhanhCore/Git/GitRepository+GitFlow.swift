@@ -78,8 +78,8 @@ public struct GitFlowStepError: LocalizedError, Sendable {
     public let underlying: String
 
     public var errorDescription: String? {
-        var text = "Dừng ở bước: \(step)."
-        if !remaining.isEmpty { text += " Còn lại: " + remaining.joined(separator: "; ") + "." }
+        var text = String(localized: "Dừng ở bước: \(step).")
+        if !remaining.isEmpty { text += String(localized: " Còn lại: ") + remaining.joined(separator: "; ") + "." }
         return text + "\n" + underlying
     }
 }
@@ -104,8 +104,8 @@ extension GitRepository {
     /// Khởi tạo Git Flow: ghi cấu hình vào repo, tạo nhánh develop từ main nếu chưa có.
     public func initGitFlow(_ config: GitFlowConfig) async throws {
         guard (try? await resolveCommit(config.main)) != nil else {
-            throw GitFlowStepError(step: "Kiểm tra nhánh \(config.main)", remaining: [],
-                                   underlying: "Chưa có nhánh \(config.main) (cần ít nhất một commit).")
+            throw GitFlowStepError(step: String(localized: "Kiểm tra nhánh \(config.main)"), remaining: [],
+                                   underlying: String(localized: "Chưa có nhánh \(config.main) (cần ít nhất một commit)."))
         }
         for (key, path) in GitFlowConfig.keys {
             try await setConfig(key, config[keyPath: path], global: false)
@@ -127,17 +127,17 @@ extension GitRepository {
         let branch = config.prefix(kind) + name
         var steps: [(String, () async throws -> Void)] = []
         if kind == .feature {
-            steps.append(("Chuyển sang \(config.develop)", { try await self.switchTo(branch: config.develop) }))
-            steps.append(("Merge \(branch) vào \(config.develop)", { try await self.merge(branch, style: .noFastForward) }))
+            steps.append((String(localized: "Chuyển sang \(config.develop)"), { try await self.switchTo(branch: config.develop) }))
+            steps.append((String(localized: "Merge \(branch) vào \(config.develop)"), { try await self.merge(branch, style: .noFastForward) }))
         } else {
             let tag = config.versionTagPrefix + name
-            steps.append(("Chuyển sang \(config.main)", { try await self.switchTo(branch: config.main) }))
-            steps.append(("Merge \(branch) vào \(config.main)", { try await self.merge(branch, style: .noFastForward) }))
-            steps.append(("Gắn tag \(tag)", { try await self.createTag(tag, at: "HEAD", message: tagMessage ?? "\(kind.title) \(name)") }))
-            steps.append(("Chuyển sang \(config.develop)", { try await self.switchTo(branch: config.develop) }))
-            steps.append(("Merge \(branch) vào \(config.develop)", { try await self.merge(branch, style: .noFastForward) }))
+            steps.append((String(localized: "Chuyển sang \(config.main)"), { try await self.switchTo(branch: config.main) }))
+            steps.append((String(localized: "Merge \(branch) vào \(config.main)"), { try await self.merge(branch, style: .noFastForward) }))
+            steps.append((String(localized: "Gắn tag \(tag)"), { try await self.createTag(tag, at: "HEAD", message: tagMessage ?? "\(kind.title) \(name)") }))
+            steps.append((String(localized: "Chuyển sang \(config.develop)"), { try await self.switchTo(branch: config.develop) }))
+            steps.append((String(localized: "Merge \(branch) vào \(config.develop)"), { try await self.merge(branch, style: .noFastForward) }))
         }
-        steps.append(("Xoá nhánh \(branch)", { try await self.deleteBranch(branch, force: false) }))
+        steps.append((String(localized: "Xoá nhánh \(branch)"), { try await self.deleteBranch(branch, force: false) }))
         for (index, step) in steps.enumerated() {
             do {
                 try await step.1()

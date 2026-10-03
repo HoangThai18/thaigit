@@ -72,12 +72,12 @@ public struct UpdateManifest: Codable, Sendable, Equatable {
         do {
             manifest = try decoder.decode(UpdateManifest.self, from: data)
         } catch {
-            throw UpdateError.invalidManifest("không đọc được update.json")
+            throw UpdateError.invalidManifest(String(localized: "không đọc được update.json"))
         }
-        guard AppVersion(manifest.version) != nil else { throw UpdateError.invalidManifest("số phiên bản \"\(manifest.version)\" sai") }
+        guard AppVersion(manifest.version) != nil else { throw UpdateError.invalidManifest(String(localized: "số phiên bản \"\(manifest.version)\" sai")) }
         guard manifest.size > 0, manifest.size <= UpdateClient.maxArchiveSize else { throw UpdateError.archiveTooLarge }
-        guard manifest.sha256.count == 64, manifest.sha256.allSatisfy(\.isHexDigit) else { throw UpdateError.invalidManifest("sha256 sai định dạng") }
-        guard Data(base64Encoded: manifest.signature)?.count == 64 else { throw UpdateError.invalidManifest("chữ ký sai định dạng") }
+        guard manifest.sha256.count == 64, manifest.sha256.allSatisfy(\.isHexDigit) else { throw UpdateError.invalidManifest(String(localized: "sha256 sai định dạng")) }
+        guard Data(base64Encoded: manifest.signature)?.count == 64 else { throw UpdateError.invalidManifest(String(localized: "chữ ký sai định dạng")) }
         return manifest
     }
 
@@ -101,14 +101,14 @@ public enum UpdateError: LocalizedError, Equatable, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .badResponse(let status): return "Máy chủ cập nhật trả về lỗi \(status)."
-        case .invalidManifest(let reason): return "Thông tin bản cập nhật không hợp lệ: \(reason)."
-        case .untrustedURL(let url): return "Bỏ qua bản cập nhật tải từ địa chỉ lạ: \(url)"
-        case .archiveTooLarge: return "File cập nhật có kích thước bất thường nên đã bỏ qua."
-        case .checksumMismatch: return "File cập nhật tải về bị hỏng (không khớp checksum)."
-        case .badSignature: return "Chữ ký của bản cập nhật không hợp lệ — file có thể đã bị sửa nên không cài."
-        case .invalidBundle(let reason): return "Gói cập nhật không đúng: \(reason)."
-        case .cannotInstall(let reason): return "Không cài được bản cập nhật: \(reason)."
+        case .badResponse(let status): return String(localized: "Máy chủ cập nhật trả về lỗi \(status).")
+        case .invalidManifest(let reason): return String(localized: "Thông tin bản cập nhật không hợp lệ: \(reason).")
+        case .untrustedURL(let url): return String(localized: "Bỏ qua bản cập nhật tải từ địa chỉ lạ: \(url)")
+        case .archiveTooLarge: return String(localized: "File cập nhật có kích thước bất thường nên đã bỏ qua.")
+        case .checksumMismatch: return String(localized: "File cập nhật tải về bị hỏng (không khớp checksum).")
+        case .badSignature: return String(localized: "Chữ ký của bản cập nhật không hợp lệ — file có thể đã bị sửa nên không cài.")
+        case .invalidBundle(let reason): return String(localized: "Gói cập nhật không đúng: \(reason).")
+        case .cannotInstall(let reason): return String(localized: "Không cài được bản cập nhật: \(reason).")
         }
     }
 }
@@ -257,28 +257,28 @@ public struct UpdateInstaller: Sendable {
             arguments: ["-x", "-k", archive.path, destination.path]
         )
         guard unzip.exitCode == 0 else {
-            throw UpdateError.invalidBundle("không giải nén được (\(unzip.stderrString.trimmingCharacters(in: .whitespacesAndNewlines)))")
+            throw UpdateError.invalidBundle(String(localized: "không giải nén được (\(unzip.stderrString.trimmingCharacters(in: .whitespacesAndNewlines)))"))
         }
 
         let apps = try fileManager.contentsOfDirectory(at: destination, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "app" }
         guard apps.count == 1, let app = apps.first else {
-            throw UpdateError.invalidBundle("file zip phải chứa đúng một ứng dụng .app")
+            throw UpdateError.invalidBundle(String(localized: "file zip phải chứa đúng một ứng dụng .app"))
         }
         let info = try Self.infoDictionary(of: app)
         guard info["CFBundleIdentifier"] as? String == bundleIdentifier else {
-            throw UpdateError.invalidBundle("mã ứng dụng không khớp")
+            throw UpdateError.invalidBundle(String(localized: "mã ứng dụng không khớp"))
         }
         guard let bundleVersion = (info["CFBundleShortVersionString"] as? String).flatMap(AppVersion.init),
               bundleVersion == AppVersion(manifest.version) else {
-            throw UpdateError.invalidBundle("phiên bản trong gói khác thông tin phát hành")
+            throw UpdateError.invalidBundle(String(localized: "phiên bản trong gói khác thông tin phát hành"))
         }
         if verifyCodeSignature {
             let check = try await ProcessRunner.run(
                 executable: URL(fileURLWithPath: "/usr/bin/codesign"),
                 arguments: ["--verify", "--deep", "--strict", app.path]
             )
-            guard check.exitCode == 0 else { throw UpdateError.invalidBundle("chữ ký mã của ứng dụng không hợp lệ") }
+            guard check.exitCode == 0 else { throw UpdateError.invalidBundle(String(localized: "chữ ký mã của ứng dụng không hợp lệ")) }
         }
         return StagedUpdate(version: manifest.version, notes: manifest.notes, appURL: app)
     }
@@ -288,7 +288,7 @@ public struct UpdateInstaller: Sendable {
     public static func install(_ update: StagedUpdate, replacing installed: URL) throws {
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: update.appURL.path) else {
-            throw UpdateError.cannotInstall("không tìm thấy bản đã tải")
+            throw UpdateError.cannotInstall(String(localized: "không tìm thấy bản đã tải"))
         }
         let folder = installed.deletingLastPathComponent()
         let incoming = folder.appendingPathComponent(".\(installed.lastPathComponent)-\(update.version).incoming")
@@ -296,7 +296,7 @@ public struct UpdateInstaller: Sendable {
         do {
             try fileManager.moveItem(at: update.appURL, to: incoming)
         } catch {
-            throw UpdateError.cannotInstall("không ghi được vào \(folder.path)")
+            throw UpdateError.cannotInstall(String(localized: "không ghi được vào \(folder.path)"))
         }
 
         if renamex_np(incoming.path, installed.path, UInt32(RENAME_SWAP)) == 0 {
@@ -310,14 +310,14 @@ public struct UpdateInstaller: Sendable {
                 try fileManager.moveItem(at: installed, to: backup)
             } catch {
                 try? fileManager.removeItem(at: incoming)
-                throw UpdateError.cannotInstall("không thay được \(installed.path)")
+                throw UpdateError.cannotInstall(String(localized: "không thay được \(installed.path)"))
             }
             do {
                 try fileManager.moveItem(at: incoming, to: installed)
             } catch {
                 try? fileManager.moveItem(at: backup, to: installed)
                 try? fileManager.removeItem(at: incoming)
-                throw UpdateError.cannotInstall("không đặt được bản mới vào \(installed.path)")
+                throw UpdateError.cannotInstall(String(localized: "không đặt được bản mới vào \(installed.path)"))
             }
             try? fileManager.removeItem(at: backup)
         }
@@ -332,7 +332,7 @@ public struct UpdateInstaller: Sendable {
         let plist = app.appendingPathComponent("Contents/Info.plist")
         guard let data = try? Data(contentsOf: plist),
               let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
-        else { throw UpdateError.invalidBundle("thiếu Info.plist") }
+        else { throw UpdateError.invalidBundle(String(localized: "thiếu Info.plist")) }
         return info
     }
 }

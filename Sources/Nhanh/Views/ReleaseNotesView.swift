@@ -60,8 +60,8 @@ private struct ReleaseSectionCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(section.isUnreleased ? section.title : "Thaigit \(section.title)")
                     .font(.title2.bold())
-                if isCurrent { badge("Bản bạn đang dùng", tint: Brand.blue) }
-                if section.isUnreleased { badge("Đang phát triển", tint: Brand.orange) }
+                if isCurrent { badge(String(localized: "Bản bạn đang dùng"), tint: Brand.blue) }
+                if section.isUnreleased { badge(String(localized: "Đang phát triển"), tint: Brand.orange) }
                 Spacer()
                 if let date = section.date {
                     Text(date).foregroundStyle(.secondary)

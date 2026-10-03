@@ -18,7 +18,7 @@ struct GitHubLoginSheet: View {
                 content
             } else {
                 notice(icon: "exclamationmark.triangle.fill", tint: .orange, title: GitHubAccountManager.notConfiguredMessage,
-                       detail: "Người duy trì cần tạo GitHub OAuth App (bật Device Flow) rồi điền Client ID vào ThaigitGitHubClientID trong Info.plist.")
+                       detail: String(localized: "Người duy trì cần tạo GitHub OAuth App (bật Device Flow) rồi điền Client ID vào ThaigitGitHubClientID trong Info.plist."))
             }
 
             HStack {
@@ -37,11 +37,11 @@ struct GitHubLoginSheet: View {
     private var content: some View {
         switch github.loginState {
         case .idle, .requestingCode:
-            progress("Đang lấy mã xác nhận từ GitHub…")
+            progress(String(localized: "Đang lấy mã xác nhận từ GitHub…"))
         case .waitingForUser(let code):
             waiting(code)
         case .finishing:
-            progress("Đã xác nhận — đang lấy thông tin tài khoản…")
+            progress(String(localized: "Đã xác nhận — đang lấy thông tin tài khoản…"))
         case .succeeded(let account):
             HStack(spacing: 12) {
                 GitHubAvatar(account: account, size: 44)
@@ -57,17 +57,17 @@ struct GitHubLoginSheet: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         case .failed(let message):
-            notice(icon: "xmark.octagon.fill", tint: .red, title: "Chưa đăng nhập được", detail: message)
+            notice(icon: "xmark.octagon.fill", tint: .red, title: String(localized: "Chưa đăng nhập được"), detail: message)
         }
     }
 
     private func successDetail(_ account: GitHubAccount) -> String {
         let organizations = github.state.profile(login: account.login)?.organizations ?? []
-        var text = "Fetch / pull / push / clone tới github.com/\(account.login)/…"
-        if !organizations.isEmpty { text += " và repo của " + organizations.joined(separator: ", ") }
-        text += " dùng tài khoản này."
+        var text = String(localized: "Fetch / pull / push / clone tới github.com/\(account.login)/…")
+        if !organizations.isEmpty { text += String(localized: " và repo của ") + organizations.joined(separator: ", ") }
+        text += String(localized: " dùng tài khoản này.")
         if github.accounts.count > 1 {
-            text += " Owner khác dùng tài khoản mặc định (@\(github.defaultAccount?.login ?? account.login)) — đổi trong Cài đặt → Tài khoản."
+            text += String(localized: " Owner khác dùng tài khoản mặc định (@\(github.defaultAccount?.login ?? account.login)) — đổi trong Cài đặt → Tài khoản.")
         }
         return text
     }
@@ -80,8 +80,8 @@ struct GitHubLoginSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
             if !github.accounts.isEmpty {
                 // Device Flow xác nhận bằng tài khoản đang đăng nhập trên trình duyệt.
-                Label("Đã có " + github.accounts.map { "@\($0.login)" }.joined(separator: ", ")
-                      + ". Muốn thêm tài khoản khác, hãy chuyển sang tài khoản đó trên github.com (trình duyệt) trước khi nhập mã.",
+                Label(String(localized: "Đã có ") + github.accounts.map { "@\($0.login)" }.joined(separator: ", ")
+                      + String(localized: ". Muốn thêm tài khoản khác, hãy chuyển sang tài khoản đó trên github.com (trình duyệt) trước khi nhập mã."),
                       systemImage: "person.2")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -97,7 +97,7 @@ struct GitHubLoginSheet: View {
                 Button {
                     copy(code.userCode)
                 } label: {
-                    Label(copied ? "Đã sao chép" : "Sao chép", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    Label(copied ? String(localized: "Đã sao chép") : String(localized: "Sao chép"), systemImage: copied ? "checkmark" : "doc.on.doc")
                 }
                 .glassButtonStyle()
                 .help("Sao chép mã")

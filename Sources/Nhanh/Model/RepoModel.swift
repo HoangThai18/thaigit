@@ -178,7 +178,7 @@ final class RepoModel {
     var headDescription: String {
         switch status.head {
         case .branch(let name, _): return name
-        case .detached(let oid): return "HEAD tách rời @ \(oid.prefix(7))"
+        case .detached(let oid): return String(localized: "HEAD tách rời @ \(oid.prefix(7))")
         case .unknown: return ""
         }
     }
@@ -270,10 +270,10 @@ final class RepoModel {
             }
         case .failure(let error)?:
             if !FileManager.default.fileExists(atPath: repository.root.path) {
-                toast(.error, "Không tìm thấy thư mục repository", message: repository.root.path)
+                toast(.error, String(localized: "Không tìm thấy thư mục repository"), message: repository.root.path)
                 return
             }
-            showError("Không đọc được trạng thái repository", error)
+            showError(String(localized: "Không đọc được trạng thái repository"), error)
         case nil:
             break
         }
@@ -345,7 +345,7 @@ final class RepoModel {
             mayHaveMoreCommits = history.mayHaveMore
             applyGraph(commits: history.commits, rows: history.rows)
         } catch {
-            showError("Không tải được lịch sử commit", error)
+            showError(String(localized: "Không tải được lịch sử commit"), error)
         }
     }
 
@@ -537,7 +537,7 @@ final class RepoModel {
         if hasWorkingTreeRow {
             select(.workingTree, reveal: true)
         } else {
-            toast(.info, "Không có thay đổi nào chưa commit")
+            toast(.info, String(localized: "Không có thay đổi nào chưa commit"))
         }
     }
 
@@ -550,8 +550,8 @@ final class RepoModel {
         if rowIndex[sha] != nil {
             select(.commit(sha), reveal: true)
         } else {
-            toast(.info, "Commit \(sha.prefix(7)) nằm ngoài \(commitLimit) commit đã tải",
-                  actions: mayHaveMoreCommits ? [ToastAction(title: "Tải thêm") { [weak self] in self?.loadMoreHistory() }] : [])
+            toast(.info, String(localized: "Commit \(sha.prefix(7)) nằm ngoài \(commitLimit) commit đã tải"),
+                  actions: mayHaveMoreCommits ? [ToastAction(title: String(localized: "Tải thêm")) { [weak self] in self?.loadMoreHistory() }] : [])
         }
     }
 
@@ -583,7 +583,7 @@ final class RepoModel {
                 } catch {
                     guard !Task.isCancelled else { return }
                     commitDetails = nil
-                    showError("Không tải được chi tiết commit", error)
+                    showError(String(localized: "Không tải được chi tiết commit"), error)
                 }
                 isLoadingDetails = false
             }
@@ -604,7 +604,7 @@ final class RepoModel {
                     commitDetails = CommitDetails(commit: commit, message: stash.message, files: files)
                 } catch {
                     guard !Task.isCancelled else { return }
-                    showError("Không tải được nội dung stash", error)
+                    showError(String(localized: "Không tải được nội dung stash"), error)
                 }
                 isLoadingDetails = false
             }
@@ -626,7 +626,7 @@ final class RepoModel {
                     comparison = result
                 } catch {
                     guard !Task.isCancelled else { return }
-                    showError("Không so sánh được", error)
+                    showError(String(localized: "Không so sánh được"), error)
                 }
                 isLoadingDetails = false
             }
@@ -731,10 +731,10 @@ final class RepoModel {
                 try await work(repository)
                 onSuccess?()
             } catch is CancellationError {
-                toast(.info, "Đã huỷ: \(title)")
+                toast(.info, String(localized: "Đã huỷ: \(title)"))
             } catch {
                 if Task.isCancelled {
-                    toast(.info, "Đã huỷ: \(title)")
+                    toast(.info, String(localized: "Đã huỷ: \(title)"))
                 } else if !(onError?(error) ?? false) {
                     showError(title, error)
                 }
