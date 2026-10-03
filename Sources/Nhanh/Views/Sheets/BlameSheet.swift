@@ -79,7 +79,7 @@ struct BlameSheet: View {
             groupIndex = index
             blame = result
         } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            errorMessage = FriendlyError.message(for: error)
         }
     }
 }

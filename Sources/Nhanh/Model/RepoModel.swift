@@ -694,9 +694,10 @@ final class RepoModel {
         withAnimation(.snappy) { toasts.removeAll { $0.id == id } }
     }
 
+    /// Toast lỗi: chỉ câu thân thiện (FriendlyError) — không bao giờ hiện stderr / mô tả lỗi hệ thống.
     func showError(_ title: String, _ error: any Error, actions: [ToastAction] = []) {
-        let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        toast(.error, title, message: message.trimmingCharacters(in: .whitespacesAndNewlines), actions: actions)
+        let message = FriendlyError.message(for: error)
+        toast(.error, title, message: message == title ? nil : message, actions: actions)
     }
 
     func toggleInspector() {

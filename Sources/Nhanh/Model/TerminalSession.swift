@@ -86,7 +86,7 @@ final class TerminalSession {
             } catch {
                 flusher.cancel()
                 self?.appendOutput(buffer.take())
-                self?.append(.error, (error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+                self?.append(.error, FriendlyError.message(for: error))
             }
             guard let self else { return }
             if FileManager.default.fileExists(atPath: finalDirectory.path) { self.directory = finalDirectory }

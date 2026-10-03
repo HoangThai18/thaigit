@@ -97,8 +97,10 @@ extension RepoModel {
     }
 }
 
-enum IssueLoadError: LocalizedError {
+enum IssueLoadError: LocalizedError, UserFacingError {
     case needsGitHubLogin
+
+    var userMessage: String { errorDescription ?? FriendlyError.unexpected }
 
     var errorDescription: String? {
         switch self {

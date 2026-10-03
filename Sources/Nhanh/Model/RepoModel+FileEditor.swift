@@ -38,7 +38,7 @@ extension RepoModel {
         do {
             fileEditor = FileEditorSession(file: try EditableTextFile.open(path: file.change.path, in: repository.root))
         } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            let message = FriendlyError.message(for: error)
             toast(.warning, "Không sửa được \(file.change.fileName) trong app", message: message, actions: [
                 ToastAction(title: "Mở bằng trình soạn thảo") { [weak self] in self?.openInEditor(path: file.change.path) },
             ])

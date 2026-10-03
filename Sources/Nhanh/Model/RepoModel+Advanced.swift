@@ -230,6 +230,7 @@ extension RepoModel {
     }
 }
 
-struct LFSMissingError: LocalizedError {
-    var errorDescription: String? { "Không tìm thấy git-lfs. Cài bằng `brew install git-lfs` rồi chạy `git lfs install`." }
+struct LFSMissingError: LocalizedError, UserFacingError {
+    var errorDescription: String? { userMessage }
+    var userMessage: String { "Không tìm thấy git-lfs. Cài bằng `brew install git-lfs` rồi chạy `git lfs install`." }
 }

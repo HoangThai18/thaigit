@@ -218,7 +218,7 @@ struct CloneSheet: View {
             } catch {
                 isCloning = false
                 if !Task.isCancelled {
-                    errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    errorMessage = FriendlyError.message(for: error)
                     suggestGitHubLogin = github.isConfigured && (error as? GitError).flatMap(GitHubAuthFailure.detect) != nil
                 }
             }

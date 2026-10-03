@@ -148,7 +148,7 @@ struct IssuesSheet: View {
                 jiraIssues = try await jira.client().myOpenIssues()
             }
         } catch {
-            message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            message = FriendlyError.message(for: error)
         }
     }
 }
@@ -221,7 +221,7 @@ private struct JiraConnectForm: View {
                             token = ""
                             onConnected()
                         } catch {
-                            self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                            self.error = FriendlyError.message(for: error)
                         }
                         working = false
                     }

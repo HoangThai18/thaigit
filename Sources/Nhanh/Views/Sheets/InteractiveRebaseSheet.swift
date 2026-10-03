@@ -148,7 +148,7 @@ struct InteractiveRebaseSheet: View {
                 alreadyPushed = await model.repository.isAncestor(oldest.id, of: upstream)
             }
         } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            errorMessage = FriendlyError.message(for: error)
         }
         isLoading = false
     }

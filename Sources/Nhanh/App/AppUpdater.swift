@@ -126,7 +126,7 @@ final class AppUpdater {
             UserDefaults.standard.set(manifest.notes, forKey: Prefs.pendingUpdateNotes)
             if userInitiated { offerRestart(staged) }
         } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            let message = FriendlyError.message(for: error)
             phase = .failed(message)
             if userInitiated { Self.alert("Không kiểm tra được bản cập nhật", message) }
         }
@@ -154,7 +154,7 @@ final class AppUpdater {
         do {
             try UpdateInstaller.install(staged, replacing: app)
         } catch {
-            Self.alert("Không cài được bản cập nhật", (error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+            Self.alert("Không cài được bản cập nhật", FriendlyError.message(for: error))
             return
         }
         phase = .idle

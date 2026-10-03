@@ -88,7 +88,7 @@ extension RepoModel {
                 case GitHubRepoAPIError.notFound where token == nil, GitHubRepoAPIError.rateLimited where token == nil:
                     list.state = .needsLogin
                 default:
-                    list.state = .failed(error.localizedDescription)
+                    list.state = .failed(FriendlyError.message(for: error))
                 }
                 pullRequests = list
             }

@@ -255,6 +255,6 @@ final class GitHubAccountManager {
     }
 
     static func describe(_ error: any Error) -> String {
-        (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        FriendlyError.message(for: error)
     }
 }

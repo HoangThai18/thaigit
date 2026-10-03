@@ -219,7 +219,7 @@ final class TabsModel {
                 guard !Task.isCancelled, tab.kind == .repository(path) else { return }
                 tab.isLoading = false
                 tab.kind = .welcome
-                tab.loadError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                tab.loadError = FriendlyError.message(for: error)
                 save()
             }
         }

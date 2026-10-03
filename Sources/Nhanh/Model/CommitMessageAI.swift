@@ -56,11 +56,16 @@ enum CommitMessageAI {
         throw AIError.unavailable(unavailableReason ?? "")
     }
 
-    enum AIError: LocalizedError {
+    enum AIError: LocalizedError, UserFacingError {
         case nothingStaged
         case emptyAnswer
         case tooLarge
         case unavailable(String)
+
+        var userMessage: String {
+            let text = errorDescription ?? ""
+            return text.isEmpty ? "Apple Intelligence chưa sẵn sàng trên máy này." : text
+        }
 
         var errorDescription: String? {
             switch self {

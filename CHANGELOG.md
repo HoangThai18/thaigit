@@ -2,6 +2,10 @@
 
 Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
+## 1.1.1 — 2026-10-03
+
+- Thông báo lỗi dễ hiểu hơn: khi một thao tác không thành công, Thaigit chỉ hiện một câu tiếng Việt nói rõ chuyện gì xảy ra và nên làm gì (đăng nhập lại, kiểm tra mạng, commit hoặc stash trước…) thay vì nguyên văn lỗi của git hay của hệ thống; chi tiết kỹ thuật vẫn xem được trong Nhật ký lệnh git
+
 ## 1.1.0 — 2026-10-03
 
 - Merge từ repository khác: lấy một nhánh của repo khác (thư mục trên máy hoặc URL) merge vào nhánh của repo đang mở mà không thêm remote; nhớ nguồn đã dùng để lần sau bấm "Merge lại" trong menu Pull; hai repo không chung lịch sử thì hỏi trước khi merge

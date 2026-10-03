@@ -98,7 +98,7 @@ extension RepoModel {
                 }
             } catch {
                 guard !Task.isCancelled else { return }
-                diffState = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+                diffState = .failed(FriendlyError.message(for: error))
             }
         }
     }

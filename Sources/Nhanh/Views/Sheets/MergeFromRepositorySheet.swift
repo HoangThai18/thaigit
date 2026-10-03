@@ -237,10 +237,10 @@ struct MergeFromRepositorySheet: View {
             }
             if gitError.contains("Authentication failed") || gitError.contains("could not read Username")
                 || gitError.contains("Permission denied") {
-                return "Không đăng nhập được vào \(source). Kiểm tra tài khoản / token, hoặc dùng bản clone của repo đó trên máy (không cần đăng nhập).\n\(gitError.message)"
+                return "Không đăng nhập được vào \(source). Kiểm tra tài khoản / token, hoặc dùng bản clone của repo đó trên máy (không cần đăng nhập)."
             }
         }
-        return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        return FriendlyError.message(for: error)
     }
 
     private func merge() {

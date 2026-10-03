@@ -401,7 +401,7 @@ private struct FileHistorySheet: View {
             do {
                 commits = try await model.repository.fileHistory(path: path)
             } catch {
-                errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                errorMessage = FriendlyError.message(for: error)
             }
             isLoading = false
         }

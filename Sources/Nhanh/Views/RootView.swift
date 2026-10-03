@@ -98,7 +98,7 @@ struct RootView: View {
                 try await GitRepository.initialize(at: url, environment: environment)
                 tabs.open(path: url.path)
             } catch {
-                tabs.selected.loadError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                tabs.selected.loadError = FriendlyError.message(for: error)
             }
         }
     }
