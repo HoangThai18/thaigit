@@ -6,6 +6,9 @@ build/
 .claude/
 .env
 .env.*
+!.env.example
+server/data/
+server/secrets/
 node_modules/
 dist/
 target/

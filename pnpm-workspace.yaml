@@ -2,5 +2,6 @@ packages:
   - apps/*
   - packages/*
   - site
+  - server
 allowBuilds:
   esbuild: false

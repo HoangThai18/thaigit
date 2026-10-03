@@ -109,6 +109,12 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.workingDiffBytes(FILE, 'unstaged');
     await r.workingDiffBytes(RENAMED, 'staged', 0);
     await r.workingDiffBytes(FILE, 'untracked');
+    await r.stagedDiffBytes();
+    await r.commitPatchBytes(SHA, SHA);
+    await r.commitPatchBytes(SHA, null, 0);
+    await r.branchDiffBytes('main', 'feature/x');
+    await r.recentSubjects(10);
+    await r.recentSubjects(10, 'feature/x', 'main');
     await r.blob(`HEAD:${FILE.path}`);
     await r.blob(`:${FILE.path}`);
     await r.workingFileBytes(FILE.path);

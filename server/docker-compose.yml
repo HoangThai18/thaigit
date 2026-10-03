@@ -1,0 +1,42 @@
+# Chạy bằng Docker (thay cho systemd). Ở gốc repo:  docker compose -f server/docker-compose.yml up -d --build
+# Secret đặt trong server/secrets/*.txt (chmod 600, đã nằm trong .gitignore). Cổng chỉ mở trên 127.0.0.1 của VPS.
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      AI_ID_SECRET_FILE: /run/secrets/ai_id_secret
+      AI_TOKEN_SECRET_FILE: /run/secrets/ai_token_secret
+      TELEMETRY_ID_SECRET_FILE: /run/secrets/telemetry_id_secret
+      # Hermes chạy trên máy chủ (ngoài container): dùng địa chỉ của host.
+      HERMES_BASE_URL: http://host.docker.internal:11434/v1
+      # Docker đổi IP nguồn thành gateway của mạng bridge → tin dải đó để đọc X-Real-IP từ Caddy/nginx của host.
+      TRUSTED_PROXY: 172.16.0.0/12
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    secrets: [ai_id_secret, ai_token_secret, telemetry_id_secret]
+    ports:
+      - 127.0.0.1:8787:8787
+      - 127.0.0.1:8788:8788
+    volumes:
+      - thaigit-data:/data
+    stop_grace_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+secrets:
+  ai_id_secret:
+    file: ./secrets/ai_id_secret.txt
+  ai_token_secret:
+    file: ./secrets/ai_token_secret.txt
+  telemetry_id_secret:
+    file: ./secrets/telemetry_id_secret.txt
+
+volumes:
+  thaigit-data:

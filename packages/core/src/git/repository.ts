@@ -338,6 +338,74 @@ export class GitRepository {
     }
   }
 
+  /** Toàn bộ thay đổi đã stage (byte thô) — ngữ cảnh cho AI viết commit message. */
+  async stagedDiffBytes(context = 3): Promise<Uint8Array> {
+    assertContext(context);
+    const args = ['--cached', '-M', '--no-color', `-U${context}`, '--src-prefix=a/', '--dst-prefix=b/'];
+    return (await this.runner.run('diff', args, { env: DIFF_ENV })).stdout;
+  }
+
+  /** Toàn bộ diff của một commit so với cha đầu tiên (commit gốc so với cây rỗng). */
+  async commitPatchBytes(sha: string, parent: string | null, context = 3): Promise<Uint8Array> {
+    assertArgument(sha);
+    if (parent !== null) assertArgument(parent);
+    assertContext(context);
+    const args = [
+      '-p',
+      '-M',
+      '--no-color',
+      `-U${context}`,
+      '--src-prefix=a/',
+      '--dst-prefix=b/',
+      '--no-commit-id',
+      ...(parent !== null ? [parent, sha] : ['--root', sha]),
+    ];
+    return (await this.runner.run('diff-tree', args)).stdout;
+  }
+
+  /** Diff của nhánh `head` so với điểm rẽ khỏi `base` (`base...head`) — ngữ cảnh mô tả Pull Request. */
+  async branchDiffBytes(base: string, head: string, context = 3): Promise<Uint8Array> {
+    assertArgument(base);
+    assertArgument(head);
+    assertContext(context);
+    const args = [
+      '-M',
+      '--no-color',
+      `-U${context}`,
+      '--src-prefix=a/',
+      '--dst-prefix=b/',
+      `${base}...${head}`,
+      '--',
+    ];
+    return (await this.runner.run('diff', args, { env: DIFF_ENV })).stdout;
+  }
+
+  /** Subject của các commit gần nhất trên `rev` (mới → cũ); repo chưa có commit → []. */
+  async recentSubjects(limit = 10, rev = 'HEAD', excludeRev: string | null = null): Promise<string[]> {
+    assertArgument(rev);
+    if (excludeRev !== null) assertArgument(excludeRev);
+    const range = excludeRev === null ? [rev] : [`${excludeRev}..${rev}`];
+    try {
+      const output = await this.runner.text('log', [
+        '-z',
+        '--no-merges',
+        '--format=%s',
+        `--max-count=${Math.max(1, Math.trunc(limit))}`,
+        ...range,
+        '--',
+      ]);
+      return output.split('\0').filter((subject) => subject.trim() !== '');
+    } catch (error) {
+      if (
+        error instanceof GitError &&
+        (error.contains('does not have any commits') || error.contains('bad revision'))
+      ) {
+        return [];
+      }
+      throw error;
+    }
+  }
+
   /** Nội dung blob, ví dụ "HEAD:path", ":path" (index), "<sha>:path". */
   async blob(spec: string): Promise<Uint8Array> {
     assertArgument(spec);

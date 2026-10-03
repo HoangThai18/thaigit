@@ -1,0 +1,42 @@
+# systemd: chạy API Thaigit từ bản checkout của repo trên VPS (Node 24 chạy thẳng TypeScript).
+#   sudo cp server/deploy/thaigit-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now thaigit-api
+# Đường dẫn repo mặc định /srv/thaigit — sửa WorkingDirectory nếu checkout nằm chỗ khác.
+[Unit]
+Description=Thaigit API (AI proxy toi Hermes + thong ke)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/thaigit/server
+EnvironmentFile=/etc/thaigit-api.env
+ExecStart=/usr/bin/env node --disable-warning=ExperimentalWarning src/main.ts
+Restart=on-failure
+RestartSec=3
+# Xả stream AI đang chạy khi tắt (main.ts chờ tối đa 100 s).
+TimeoutStopSec=120
+KillSignal=SIGTERM
+
+# Người dùng tạm, chỉ ghi được thư mục dữ liệu riêng (/var/lib/thaigit-api, quyền 700).
+DynamicUser=yes
+StateDirectory=thaigit-api
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# Không tranh tài nguyên với model.
+MemoryMax=256M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

@@ -5,6 +5,7 @@ export { AppVersion } from './version.ts';
 export * from './git/index.ts';
 export * from './diff/index.ts';
 export * from './graph/index.ts';
+export * from './ai/index.ts';
 export {
   decodeUtf8Lossy,
   decodeUtf8Strict,

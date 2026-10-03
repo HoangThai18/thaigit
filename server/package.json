@@ -1,0 +1,25 @@
+{
+  "name": "@thaigit/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Máy chủ Thaigit trên VPS: proxy AI tới Hermes tự host (giới hạn năng lực, quota), thống kê có đồng ý, đếm lượt tải, trang admin chỉ-đọc",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/main.ts",
+    "test": "vitest run",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.3",
+    "@thaigit/contracts": "workspace:*",
+    "hono": "^4.13.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

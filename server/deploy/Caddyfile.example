@@ -1,0 +1,17 @@
+# Thêm vào khối git.thaipro.store sẵn có (trang tĩnh), TRƯỚC file_server. API dùng chung tên miền với trang chủ:
+#   https://git.thaipro.store/v1/…, /download/mac, /download/win, /healthz
+git.thaipro.store {
+	@api path /v1/* /download/* /healthz
+	handle @api {
+		reverse_proxy 127.0.0.1:8787 {
+			# IP thật cho giới hạn tốc độ (API chỉ tin header này khi đến từ 127.0.0.1).
+			header_up X-Real-IP {remote_host}
+			# SSE: đẩy từng chữ ngay, không gom.
+			flush_interval -1
+		}
+	}
+	# Không ghi log truy cập cho API (log của Caddy chứa IP).
+	log_skip @api
+
+	# … phần trang tĩnh sẵn có (root, file_server, handle_errors) giữ nguyên bên dưới …
+}

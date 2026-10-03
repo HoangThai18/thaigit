@@ -261,7 +261,26 @@ function parseHeaderLine(file: FileBuilder, line: Uint8Array): void {
     file.similarity = parseUnsigned(tail('similarity index ').slice(0, -1));
   } else if (startsWithAscii(line, 'Binary files ') || startsWithAscii(line, 'GIT binary patch')) {
     file.isBinary = true;
+    // File nhị phân không có dòng "---"/"+++": lấy đường dẫn từ "Binary files a/x and b/y differ".
+    if (file.oldPath === null && file.newPath === null && startsWithAscii(line, 'Binary files ')) {
+      const paths = binaryPaths(tail('Binary files '));
+      if (paths !== null) [file.oldPath, file.newPath] = paths;
+    }
   }
+}
+
+/** "a/x and b/y differ" → [x, y] (`/dev/null` → null). Thử từng chỗ " and " vì tên file có thể chứa chữ đó. */
+function binaryPaths(rest: string): [string | null, string | null] | null {
+  if (!rest.endsWith(' differ')) return null;
+  const body = rest.slice(0, -' differ'.length);
+  for (let at = body.indexOf(' and '); at !== -1; at = body.indexOf(' and ', at + 1)) {
+    const left = body.slice(0, at);
+    const right = body.slice(at + ' and '.length);
+    const isSide = (value: string, prefix: string) =>
+      value === '/dev/null' || value.startsWith(prefix) || value.startsWith(`"${prefix}`);
+    if (isSide(left, 'a/') && isSide(right, 'b/')) return [parsePath(left), parsePath(right)];
+  }
+  return null;
 }
 
 /** "a/path" → "path", "/dev/null" → null. Git thêm TAB cuối đường dẫn có dấu cách. */
