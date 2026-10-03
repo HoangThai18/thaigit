@@ -51,10 +51,10 @@ export function DownloadButton({
 export function ReleaseDetails({ initial }: { initial: MacRelease | null }) {
   const release = useMacRelease(initial);
   if (!release) {
-    return <p className="hash">Bản phát hành đầu tiên đang được chuẩn bị — có thể build ngay từ mã nguồn.</p>;
+    return <p className="note">Bản phát hành đầu tiên đang được chuẩn bị — có thể build ngay từ mã nguồn.</p>;
   }
   return (
-    <p className="hash">
+    <p className="note">
       Phát hành {formatDate(release.publishedAt)}
       {release.sha256 && (
         <>

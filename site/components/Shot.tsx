@@ -5,10 +5,16 @@ export function Shot({
   name,
   priority = false,
   sizes = '(max-width: 980px) 100vw, 680px',
+  alt,
+  className,
+  style,
 }: {
   name: ShotName;
   priority?: boolean;
   sizes?: string;
+  alt?: string;
+  className?: string;
+  style?: React.CSSProperties;
 }) {
   const shot = SHOTS[name];
   return (
@@ -18,7 +24,10 @@ export function Shot({
       sizes={sizes}
       width={shot.width}
       height={shot.height}
-      alt={shot.alt}
+      alt={alt ?? shot.alt}
+      className={className}
+      style={style}
+      draggable={false}
       loading={priority ? 'eager' : 'lazy'}
       fetchPriority={priority ? 'high' : 'auto'}
       decoding="async"

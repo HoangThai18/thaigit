@@ -60,10 +60,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f4f7fb' },
-    { media: '(prefers-color-scheme: dark)', color: '#0c111d' },
-  ],
+  themeColor: '#0c111d',
+  colorScheme: 'dark',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -73,7 +71,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a className="skip-link" href="#noi-dung">
           Bỏ qua tới nội dung
         </a>
-        <div className="backdrop" aria-hidden="true" />
         <Header />
         <main id="noi-dung">{children}</main>
         <Footer />
