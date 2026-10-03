@@ -27,6 +27,10 @@ export interface RepoPort {
   watch(onChange: (event: RepoChangedEvent) => void): Promise<() => Promise<void>>;
   /** Ghi nhận tin tưởng; trả repo mới ở trạng thái `trusted`. */
   trust(): Promise<RepoPort>;
+  /** Tích hợp hệ điều hành (chỉ có trong app Tauri): mở terminal / trình soạn thảo / trình quản lý file tại repo. */
+  openInTerminal?(): Promise<void>;
+  openInEditor?(relativePath?: string): Promise<void>;
+  reveal?(relativePath?: string): Promise<void>;
 }
 
 export interface Host {

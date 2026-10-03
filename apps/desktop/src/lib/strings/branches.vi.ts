@@ -254,4 +254,10 @@ export const branches = {
   menuOpenDiff: 'Xem diff',
   menuCopyPath: 'Sao chép đường dẫn',
   copyPathLabel: 'đường dẫn',
+  menuOpenInEditor: 'Mở bằng trình soạn thảo',
+  menuReveal: 'Hiện trong thư mục',
+  menuOpenTerminal: 'Mở Terminal tại repo',
+  menuOpenRepoInEditor: 'Mở repo bằng trình soạn thảo',
+  menuRevealRepo: 'Mở thư mục repo',
+  osFailed: 'Không mở được ứng dụng',
 } as const;

@@ -342,10 +342,57 @@ export function fileMenu(store: RepoStore, change: FileChange, source: DiffSourc
     });
   }
   items.push({ kind: 'separator' });
+  const port = store.port;
+  const onDisk = (source.kind === 'unstaged' || source.kind === 'staged') && change.kind !== 'deleted';
+  if (onDisk && port.openInEditor) {
+    items.push({
+      title: vi.branches.menuOpenInEditor,
+      icon: 'pencil',
+      run: () => void osAction(store, () => port.openInEditor?.(change.path)),
+    });
+  }
+  if (onDisk && port.reveal) {
+    items.push({
+      title: vi.branches.menuReveal,
+      icon: 'folder',
+      run: () => void osAction(store, () => port.reveal?.(change.path)),
+    });
+  }
   items.push({
     title: vi.branches.menuCopyPath,
     icon: 'copy',
     run: () => void store.copy(change.path, vi.branches.copyPathLabel),
   });
   return tidyMenu(items);
+}
+
+/** Mở ứng dụng ngoài (terminal, trình soạn thảo, trình quản lý file); lỗi chỉ báo câu thân thiện. */
+export async function osAction(store: RepoStore, run: () => Promise<void> | undefined): Promise<void> {
+  try {
+    await run();
+  } catch (error) {
+    store.showError(vi.branches.osFailed, error);
+  }
+}
+
+/** Mục "mở ra ngoài" của repo (menu Thêm trên thanh công cụ). */
+export function repoOsItems(store: RepoStore): MenuItem[] {
+  const port = store.port;
+  return tidyMenu([
+    port.openInTerminal && {
+      title: vi.branches.menuOpenTerminal,
+      icon: 'terminal',
+      run: () => void osAction(store, () => port.openInTerminal?.()),
+    },
+    port.openInEditor && {
+      title: vi.branches.menuOpenRepoInEditor,
+      icon: 'pencil',
+      run: () => void osAction(store, () => port.openInEditor?.()),
+    },
+    port.reveal && {
+      title: vi.branches.menuRevealRepo,
+      icon: 'folder',
+      run: () => void osAction(store, () => port.reveal?.()),
+    },
+  ]);
 }
