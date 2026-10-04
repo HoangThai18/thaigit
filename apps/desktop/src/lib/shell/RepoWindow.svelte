@@ -36,6 +36,7 @@
   import BranchSwitcher from './BranchSwitcher.svelte';
   import BusyBar from './BusyBar.svelte';
   import CommandLogPanel from './CommandLogPanel.svelte';
+  import CommandPalette from './CommandPalette.svelte';
   import Splitter from './Splitter.svelte';
 
   interface Props {
@@ -58,6 +59,7 @@
   const centerCovered = $derived(store.diff.file !== null || store.blame.target !== null);
   let showLog = $state(false);
   let showBranchPicker = $state(false);
+  let showPalette = $state(false);
   const search = untrack(() => new GraphSearch(store));
 
   $effect(() => startAutoFetch(store));
@@ -87,7 +89,8 @@
       menus.current !== null ||
       rebaseEditor.current !== null ||
       showLog ||
-      showBranchPicker
+      showBranchPicker ||
+      showPalette
     )
       return;
     if (!(event.ctrlKey || event.metaKey)) return;
@@ -97,7 +100,8 @@
       search.show();
       return;
     }
-    if (!event.shiftKey && !event.altKey && code === 'KeyB') showBranchPicker = true;
+    if (!event.shiftKey && !event.altKey && code === 'KeyP') showPalette = true;
+    else if (!event.shiftKey && !event.altKey && code === 'KeyB') showBranchPicker = true;
     else if (event.altKey && !event.shiftKey && code === 'KeyF') void fetch(store);
     else if (event.shiftKey && !event.altKey && code === 'KeyL') void pull(store);
     else if (event.shiftKey && !event.altKey && code === 'KeyP') void push(store);
@@ -160,7 +164,12 @@
         <span class="subtitle" data-tauri-drag-region><bdi>{showBidi(store.branchSubtitle)}</bdi></span>
       </div>
       <span class="grow" data-tauri-drag-region></span>
-      <ActionBar {store} onshowlog={() => (showLog = true)} onsearch={() => search.show()} />
+      <ActionBar
+        {store}
+        onshowlog={() => (showLog = true)}
+        onsearch={() => search.show()}
+        onpalette={() => (showPalette = true)}
+      />
       <span class="divider" data-tauri-drag-region></span>
       <button
         type="button"
@@ -273,6 +282,16 @@
 
 {#if showBranchPicker}
   <BranchPicker {store} onclose={() => (showBranchPicker = false)} />
+{/if}
+
+{#if showPalette}
+  <CommandPalette
+    {store}
+    onclose={() => (showPalette = false)}
+    onsearch={() => search.show()}
+    onshowlog={() => (showLog = true)}
+    onbranchpicker={() => (showBranchPicker = true)}
+  />
 {/if}
 
 {#if showLog}

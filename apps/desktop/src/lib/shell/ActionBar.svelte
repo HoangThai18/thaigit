@@ -22,9 +22,10 @@
     store: RepoStore;
     onshowlog: () => void;
     onsearch?: () => void;
+    onpalette?: () => void;
   }
 
-  let { store, onshowlog, onsearch }: Props = $props();
+  let { store, onshowlog, onsearch, onpalette }: Props = $props();
 
   const behind = $derived(store.status.behind);
   const ahead = $derived(store.status.ahead);
@@ -58,6 +59,12 @@
     menus.openBelow(
       moreButton,
       tidyMenu([
+        onpalette && {
+          title: vi.palette.open,
+          icon: 'search',
+          shortcut: vi.palette.shortcut,
+          run: onpalette,
+        },
         onsearch && { title: vi.graph.search, icon: 'search', shortcut: 'Ctrl/⌘ + F', run: onsearch },
         { title: vi.remote.refresh, icon: 'reset', run: () => store.refreshEverything() },
         { title: vi.remote.commandLog, icon: 'terminal', run: onshowlog },
