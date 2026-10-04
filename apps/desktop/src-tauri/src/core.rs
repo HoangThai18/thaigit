@@ -377,7 +377,7 @@ impl Core {
         self.ops.register(entry)
     }
 
-    fn require_git(&self, sub: &str) -> Result<Arc<GitInfo>> {
+    pub(crate) fn require_git(&self, sub: &str) -> Result<Arc<GitInfo>> {
         let git = self.locator.current()?;
         if git.too_old {
             return Err(AppError::GitTooOld(git.warning.clone().unwrap_or_else(|| "Phiên bản git quá cũ".into())));

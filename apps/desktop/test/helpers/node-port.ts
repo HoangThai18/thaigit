@@ -63,7 +63,7 @@ export async function openTestPort(
   const location = await locateRepository(root, { baseEnv: ISOLATED_ENV });
   const exec = new NodeExec({ cwd: location.root, gitDir: location.gitDir, baseEnv: ISOLATED_ENV });
   const fs = new NodeRepoFs({ ...location });
-  const typedGit = new NodeTypedGit({ cwd: location.root, baseEnv: ISOLATED_ENV });
+  const typedGit = new NodeTypedGit({ cwd: location.root, gitDir: location.gitDir, baseEnv: ISOLATED_ENV });
   const listeners = new Set<(event: RepoChangedEvent) => void>();
   const watchers = { count: 0, stopped: 0 };
   const info: OpenedRepo = { repoId: 'test', ...location, trust: 'trusted', findings: [] };

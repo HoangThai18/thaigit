@@ -2,15 +2,26 @@
 // URL remote là chỗ chạy lệnh). Mỗi lệnh tự kiểm đầu vào theo chính sách: khoá config thuộc `configSetAllowlist`,
 // URL không phải `ext::`/`fd::`/bắt đầu bằng `-`, tên remote không thể bị hiểu thành cờ.
 
-import { buildGitArgv, gitPolicy, type PolicyViolation } from '@thaigit/contracts';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import {
+  buildGitArgv,
+  gitPolicy,
+  type PolicyViolation,
+  type RebaseResult,
+  type RebaseStepRequest,
+} from '@thaigit/contracts';
 import { decodeUtf8 } from '../git/bytes.ts';
 import { AdapterError, GitError } from '../git/runner.ts';
 import type { TypedGit } from '../ports/index.ts';
 import { gitEnvFor, spawnGit, type NodeGitConfig } from './process.ts';
+import { buildRebaseTodo, sequenceEditor, validateRebasePlan } from './rebase-todo.ts';
 
 export interface NodeTypedGitOptions extends NodeGitConfig {
   /** Gốc working tree của repo (thư mục chạy git). */
   cwd: string;
+  /** Git dir của repo (nơi ghi file todo của rebase tương tác); thiếu thì hỏi `git rev-parse --absolute-git-dir`. */
+  gitDir?: string;
 }
 
 function policyError(message: string, violation: PolicyViolation): AdapterError {
@@ -83,6 +94,41 @@ export class NodeTypedGit implements TypedGit {
     assertSafeRemoteName(name, 'remote');
     assertSafeRemoteUrl(url, 'remote');
     await this.run('remote', ['set-url', '--', name, url]);
+  }
+
+  /** Như `git_rebase_interactive` của Rust: todo + file lời trong `<gitDir>/thaigit-rebase/`, sequence editor chỉ chép file. */
+  async rebaseInteractive(onto: string, steps: readonly RebaseStepRequest[]): Promise<RebaseResult> {
+    validateRebasePlan(onto, steps);
+    const directory = join(await this.gitDir(), 'thaigit-rebase');
+    await rm(directory, { recursive: true, force: true });
+    await mkdir(directory, { recursive: true });
+    const messageFile = (index: number): string => join(directory, `message-${index}`);
+    for (const [index, step] of steps.entries()) {
+      if (step.action === 'reword') await writeFile(messageFile(index), step.message ?? '', 'utf8');
+    }
+    const todoPath = join(directory, 'todo');
+    await writeFile(todoPath, buildRebaseTodo(steps, messageFile), 'utf8');
+    const result = await spawnGit({
+      ...this.options,
+      argv: buildGitArgv('rebase', ['-i', '--autostash', '--no-autosquash', onto]),
+      cwd: this.options.cwd,
+      env: { ...gitEnvFor(this.options, 'background'), GIT_SEQUENCE_EDITOR: sequenceEditor(todoPath) },
+      cancellable: false,
+    });
+    return { exitCode: result.code, stdout: decodeUtf8(result.stdout), stderr: decodeUtf8(result.stderr) };
+  }
+
+  private async gitDir(): Promise<string> {
+    if (this.options.gitDir !== undefined) return this.options.gitDir;
+    const result = await spawnGit({
+      ...this.options,
+      argv: buildGitArgv('rev-parse', ['--absolute-git-dir']),
+      cwd: this.options.cwd,
+      env: gitEnvFor(this.options, 'background'),
+      cancellable: false,
+    });
+    if (result.code !== 0) throw new AdapterError('io', 'Không tìm được git dir của repo.');
+    return decodeUtf8(result.stdout).trim();
   }
 
   private async run(sub: string, args: readonly string[]): Promise<void> {

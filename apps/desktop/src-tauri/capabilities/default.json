@@ -20,6 +20,7 @@
     "allow-git-config-set",
     "allow-git-remote-add",
     "allow-git-remote-set-url",
+    "allow-git-rebase-interactive",
     "allow-repo-health",
     "allow-remove-stale-lock",
     "allow-fs-read-git-file",

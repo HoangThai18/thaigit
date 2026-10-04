@@ -39,6 +39,10 @@ const fakeTyped: TypedGit = {
   configSet: async (key) => void typedCalls.push(`configSet ${key}`),
   remoteAdd: async (name) => void typedCalls.push(`remoteAdd ${name}`),
   remoteSetUrl: async (name) => void typedCalls.push(`remoteSetUrl ${name}`),
+  rebaseInteractive: async (onto) => {
+    typedCalls.push(`rebaseInteractive ${onto}`);
+    return { exitCode: 0, stdout: '', stderr: '' };
+  },
 };
 
 const SHA = 'a'.repeat(40);
@@ -169,6 +173,11 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.fastForward('main', 'origin/main');
     for (const style of ['automatic', 'noFastForward', 'fastForwardOnly', 'squash'] as const)
       await r.merge('feature', style);
+    await r.rebaseCommits(SHA);
+    await r.interactiveRebase(SHA, [
+      { commit: COMMIT, action: 'pick' },
+      { commit: { ...COMMIT, id: 'b'.repeat(40) }, action: 'reword', message: 'mới' },
+    ]);
     await r.rebase('origin/main');
     await r.rebase('origin/main', 'feature');
     await r.cherryPick(SHA);
@@ -253,7 +262,12 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
       ).toBe(false);
     }
     expect(exec.requests.length).toBeGreaterThan(130);
-    expect(typedCalls).toEqual(['configSet user.name', 'remoteAdd up', 'remoteSetUrl up']);
+    expect(typedCalls).toEqual([
+      'configSet user.name',
+      `rebaseInteractive ${SHA}`,
+      'remoteAdd up',
+      'remoteSetUrl up',
+    ]);
 
     const publicMethods = Object.getOwnPropertyNames(GitRepository.prototype).filter(
       (name) =>

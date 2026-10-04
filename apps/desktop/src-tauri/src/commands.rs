@@ -16,6 +16,7 @@ use crate::exec::FrameSink;
 use crate::health::RepoHealth;
 use crate::locate::GitInfo;
 use crate::os_integration;
+use crate::rebase::{RebaseOutcome, RebaseStep};
 use crate::registry::{OpenSource, OpenedRepo, PickedFolder, RecentRepo, new_detach_flag};
 use crate::repo_fs;
 use crate::typed::ConfigScope;
@@ -125,6 +126,16 @@ pub async fn git_remote_add(core: CoreState<'_>, repo_id: String, name: String, 
 #[tauri::command]
 pub async fn git_remote_set_url(core: CoreState<'_>, repo_id: String, name: String, url: String) -> Result<()> {
     core.git_remote_set_url(&repo_id, &name, &url).await
+}
+
+#[tauri::command]
+pub async fn git_rebase_interactive(
+    core: CoreState<'_>,
+    repo_id: String,
+    onto: String,
+    steps: Vec<RebaseStep>,
+) -> Result<RebaseOutcome> {
+    core.git_rebase_interactive(&repo_id, &onto, &steps).await
 }
 
 #[tauri::command]

@@ -23,6 +23,7 @@ export {
   cloneRepoInfo,
   configSet,
   initRepoInfo,
+  rebaseInteractive,
   remoteAdd,
   remoteSetUrl,
   splitDestination,

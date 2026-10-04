@@ -71,7 +71,12 @@ export function createDevBridgeHost(): Host | null {
     prepareSnapshotIndex: refuse,
   };
 
-  const typedGit: TypedGit = { configSet: refuse, remoteAdd: refuse, remoteSetUrl: refuse };
+  const typedGit: TypedGit = {
+    configSet: refuse,
+    remoteAdd: refuse,
+    remoteSetUrl: refuse,
+    rebaseInteractive: refuse,
+  };
 
   function bind(info: OpenedRepo): RepoPort {
     return {

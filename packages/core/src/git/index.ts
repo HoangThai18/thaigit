@@ -21,6 +21,15 @@ export {
   progressFraction,
 } from './parsers.ts';
 export { isValidRefName, isValidRemoteName } from './refname.ts';
+export {
+  REBASE_ACTIONS,
+  rebasePlanProblem,
+  rebaseRequest,
+  type InteractiveRebaseResult,
+  type RebaseAction,
+  type RebasePlanProblem,
+  type RebaseStep,
+} from './rebase.ts';
 export { classifyGitPath } from './watch-paths.ts';
 export { buildHistory, type BuildHistoryOptions, type History } from './history.ts';
 export {

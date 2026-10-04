@@ -1,5 +1,5 @@
 import { Channel } from '@tauri-apps/api/core';
-import { Commands, type OpenedRepo } from '@thaigit/contracts';
+import { Commands, type OpenedRepo, type RebaseResult, type RebaseStepRequest } from '@thaigit/contracts';
 import { toCommandFailure } from './errors.ts';
 import { FrameCollector, type RawFrame, newOpId } from './gitExec.ts';
 import { call } from './invoke.ts';
@@ -91,4 +91,13 @@ export function remoteAdd(repoId: string, name: string, url: string): Promise<vo
 
 export function remoteSetUrl(repoId: string, name: string, url: string): Promise<void> {
   return call<void>(Commands.gitRemoteSetUrl, { repoId, name, url });
+}
+
+/** Rebase tương tác theo kế hoạch có cấu trúc — Rust kiểm từng mục và tự soạn file todo. */
+export function rebaseInteractive(
+  repoId: string,
+  onto: string,
+  steps: readonly RebaseStepRequest[],
+): Promise<RebaseResult> {
+  return call<RebaseResult>(Commands.gitRebaseInteractive, { repoId, onto, steps });
 }

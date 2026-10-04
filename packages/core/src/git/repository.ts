@@ -45,6 +45,7 @@ import {
   parseStashList,
   parseStatus,
 } from './parsers.ts';
+import { rebaseRequest, type InteractiveRebaseResult, type RebaseStep } from './rebase.ts';
 import { isValidRefName, isValidRemoteName } from './refname.ts';
 import { AdapterError, GitError, GitRunner } from './runner.ts';
 
@@ -775,6 +776,50 @@ export class GitRepository {
     assertArgument(onto);
     if (branch !== null) assertArgument(branch);
     await this.runner.run('rebase', branch === null ? [onto] : [onto, branch]);
+  }
+
+  /**
+   * Các commit sẽ được viết lại khi rebase tương tác từ sau `base` tới HEAD, cũ trước mới sau. `null` khi `base` không nằm trong
+   * lịch sử của HEAD (không rebase từ đó được).
+   */
+  async rebaseCommits(base: string): Promise<Commit[] | null> {
+    assertArgument(base);
+    const ancestor = await this.runner.run('merge-base', ['--is-ancestor', base, 'HEAD'], {
+      acceptExitCodes: [0, 1],
+    });
+    if (ancestor.code !== 0) return null;
+    const out = await this.runner.run('log', [
+      '-z',
+      `--format=${LOG_FORMAT}`,
+      '--reverse',
+      '--topo-order',
+      `${base}..HEAD`,
+      '--',
+    ]);
+    return parseLog(out.stdout);
+  }
+
+  /**
+   * Rebase tương tác nhánh hiện tại lên `onto` (sha đầy đủ) theo kế hoạch (cũ → mới). Thay đổi chưa commit được tự cất rồi trả
+   * lại. Git dừng giữa chừng (xung đột…) → `GitError` như rebase thường (Tiếp tục / Bỏ qua / Huỷ).
+   */
+  async interactiveRebase(onto: string, steps: readonly RebaseStep[]): Promise<InteractiveRebaseResult> {
+    assertArgument(onto);
+    const startedAt = Date.now();
+    const result = await this.requireTyped().rebaseInteractive(onto, rebaseRequest(steps));
+    const args = ['rebase', '-i', '--autostash', '--no-autosquash', onto];
+    this.runner.log?.record({
+      args,
+      startedAt,
+      durationMs: Date.now() - startedAt,
+      exitCode: result.exitCode,
+      cancelled: false,
+      stderr: result.stderr,
+    });
+    if (result.exitCode !== 0) throw new GitError(args, result.exitCode, result.stdout, result.stderr);
+    return /autostash/i.test(result.stderr + result.stdout) && /conflict/i.test(result.stderr + result.stdout)
+      ? 'autostashConflict'
+      : 'done';
   }
 
   async cherryPick(sha: string, mainline: number | null = null): Promise<void> {

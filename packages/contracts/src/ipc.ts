@@ -68,6 +68,26 @@ export interface RepoChangedEvent {
   kinds: RepoChangeKind[];
 }
 
+/** Việc làm với một commit trong rebase tương tác. */
+export type RebaseAction = 'pick' | 'reword' | 'squash' | 'fixup' | 'drop';
+
+/**
+ * Một dòng kế hoạch của `git_rebase_interactive` (xếp cũ → mới). `sha` phải là sha đầy đủ; `message` chỉ dùng với `reword`.
+ * Rust tự soạn file todo từ đây — webview không bao giờ gửi todo thô (dòng `exec` chạy lệnh shell).
+ */
+export interface RebaseStepRequest {
+  action: RebaseAction;
+  sha: string;
+  message?: string;
+}
+
+/** Kết quả `git_rebase_interactive`: mã thoát ≠ 0 khi git dừng giữa chừng (xung đột, commit rỗng…). */
+export interface RebaseResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
 /** Lỗi chuẩn hoá từ Rust (invoke reject với object này). */
 export interface CommandError {
   code:
@@ -100,6 +120,7 @@ export const Commands = {
   gitConfigSet: 'git_config_set',
   gitRemoteAdd: 'git_remote_add',
   gitRemoteSetUrl: 'git_remote_set_url',
+  gitRebaseInteractive: 'git_rebase_interactive',
   repoHealth: 'repo_health',
   removeStaleLock: 'remove_stale_lock',
   fsReadGitFile: 'fs_read_git_file',

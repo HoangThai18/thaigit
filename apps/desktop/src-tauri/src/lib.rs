@@ -23,6 +23,7 @@ pub mod locks;
 pub mod os_integration;
 pub mod pathutil;
 pub mod policy;
+pub mod rebase;
 pub mod registry;
 pub mod repo_fs;
 pub mod safe_mode;
@@ -139,6 +140,7 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::git_config_set,
         commands::git_remote_add,
         commands::git_remote_set_url,
+        commands::git_rebase_interactive,
         commands::repo_health,
         commands::remove_stale_lock,
         commands::fs_read_git_file,

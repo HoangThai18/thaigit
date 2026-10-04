@@ -18,6 +18,7 @@ import { vi } from '../strings.vi.ts';
 import { describePullRequest, explainCommit } from '../ai/actions.ts';
 import { AI_ENABLED } from '../ai/enabled.ts';
 import { openBlame, openFileHistory } from '../history/actions.ts';
+import { beginInteractiveRebase } from '../rebase/actions.ts';
 import { assignAccountForRepo } from '../forge/assignOwner.ts';
 import { createPullRequest } from '../forge/createPullRequest.svelte.ts';
 import { targetOf } from '../forge/pullRequests.ts';
@@ -88,6 +89,12 @@ export function commitMenu(store: RepoStore, entry: GraphEntry): MenuItem[] {
       icon: 'revert',
       disabled: store.headOid === null,
       run: () => void revert(store, commit),
+    },
+    {
+      title: vi.rebase.menu,
+      icon: 'rebase',
+      disabled: isHead || store.currentBranch === null,
+      run: () => void beginInteractiveRebase(store, commit),
     },
     {
       kind: 'submenu',

@@ -26,6 +26,7 @@ import {
   openInTerminal,
   openRepoInfo,
   pickRepoFolder,
+  rebaseInteractive,
   remoteAdd,
   remoteSetUrl,
   removeStaleLock,
@@ -67,7 +68,10 @@ export interface TauriRepo {
   /** `Exec` của repo: `kind` read/write/network, khoá theo repo, huỷ theo bậc cho `network`. */
   readonly exec: Exec;
   readonly fs: RepoFs;
-  /** Lệnh git có kiểu: `configSet` (khoá trong allowlist), `remoteAdd`/`remoteSetUrl` (URL đã kiểm). */
+  /**
+   * Lệnh git có kiểu: `configSet` (khoá trong allowlist), `remoteAdd`/`remoteSetUrl` (URL đã kiểm), `rebaseInteractive`
+   * (kế hoạch có cấu trúc).
+   */
   readonly typedGit: TypedGit;
   /** Theo dõi thay đổi (đã debounce/lọc gitignore ở Rust). Trả hàm dừng. */
   watch(onChange: (event: RepoChangedEvent) => void): Promise<() => Promise<void>>;
@@ -92,6 +96,7 @@ export function createTypedGit(repoId: string): TypedGit {
     configSet: (key, value, scope) => configSet(repoId, key, value, scope),
     remoteAdd: (name, url) => remoteAdd(repoId, name, url),
     remoteSetUrl: (name, url) => remoteSetUrl(repoId, name, url),
+    rebaseInteractive: (onto, steps) => rebaseInteractive(repoId, onto, steps),
   };
 }
 

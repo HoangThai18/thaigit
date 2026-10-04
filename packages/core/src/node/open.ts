@@ -78,7 +78,7 @@ export async function openRepository(
   return new GitRepository({
     exec: new NodeExec({ ...options, cwd: root, gitDir }),
     fs: new NodeRepoFs({ root, gitDir, commonDir }),
-    typed: new NodeTypedGit({ ...options, cwd: root }),
+    typed: new NodeTypedGit({ ...options, cwd: root, gitDir }),
     root,
     gitDir,
     commonDir,

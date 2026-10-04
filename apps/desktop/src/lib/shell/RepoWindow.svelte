@@ -15,6 +15,8 @@
   import { showBidi } from '../format/bidi.ts';
   import GraphView from '../graph/GraphView.svelte';
   import BlamePane from '../history/BlamePane.svelte';
+  import InteractiveRebaseDialog from '../rebase/InteractiveRebaseDialog.svelte';
+  import { rebaseEditor } from '../rebase/rebaseEditor.svelte.ts';
   import SearchBar from '../graph/SearchBar.svelte';
   import { GraphSearch } from '../graph/search.svelte.ts';
   import { untrack } from 'svelte';
@@ -83,6 +85,7 @@
       event.defaultPrevented ||
       dialogs.current !== null ||
       menus.current !== null ||
+      rebaseEditor.current !== null ||
       showLog ||
       showBranchPicker
     )
@@ -107,6 +110,10 @@
 <svelte:window onkeydown={onwindowkeydown} />
 
 <DragGhost />
+
+{#if rebaseEditor.current}
+  <InteractiveRebaseDialog {store} session={rebaseEditor.current} />
+{/if}
 
 {#snippet sidebarToggle()}
   <button

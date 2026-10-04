@@ -46,7 +46,8 @@ export async function prefillPendingMessage(store: RepoStore): Promise<void> {
   draft.body = message.body;
 }
 
-function onConflict(store: RepoStore, operation: string): (error: unknown) => boolean {
+/** Xử lý lỗi xung đột / bị thay đổi chưa commit chặn của merge, rebase, cherry-pick… (dùng chung cho rebase tương tác). */
+export function onConflict(store: RepoStore, operation: string): (error: unknown) => boolean {
   return (error) => {
     const handled = handleConflictError(store, error, operation, () => void quickStash(store));
     if (handled) void prefillPendingMessage(store);

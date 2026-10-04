@@ -14,6 +14,7 @@ import { ai } from './strings/ai.vi.ts';
 import { branches } from './strings/branches.vi.ts';
 import { dnd } from './strings/dnd.vi.ts';
 import { history } from './strings/history.vi.ts';
+import { rebase } from './strings/rebase.vi.ts';
 import { remote } from './strings/remote.vi.ts';
 import { risk } from './strings/risk.vi.ts';
 import { settings } from './strings/settings.vi.ts';
@@ -33,6 +34,7 @@ const viStrings = {
   settings,
   dnd,
   history,
+  rebase,
   accounts,
   pullRequests,
   snapshots,

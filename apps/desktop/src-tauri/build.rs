@@ -15,6 +15,7 @@ const APP_COMMANDS: &[&str] = &[
     "git_config_set",
     "git_remote_add",
     "git_remote_set_url",
+    "git_rebase_interactive",
     "repo_health",
     "remove_stale_lock",
     "fs_read_git_file",
