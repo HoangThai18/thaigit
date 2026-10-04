@@ -16,6 +16,7 @@ import { dnd } from './strings/dnd.vi.ts';
 import { history } from './strings/history.vi.ts';
 import { palette } from './strings/palette.vi.ts';
 import { rebase } from './strings/rebase.vi.ts';
+import { related } from './strings/related.vi.ts';
 import { remote } from './strings/remote.vi.ts';
 import { risk } from './strings/risk.vi.ts';
 import { settings } from './strings/settings.vi.ts';
@@ -37,6 +38,7 @@ const viStrings = {
   history,
   rebase,
   palette,
+  related,
   accounts,
   pullRequests,
   snapshots,

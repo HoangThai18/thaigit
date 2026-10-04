@@ -59,7 +59,7 @@ describe('NodeExec: chính sách', () => {
         { sub: 'status', args: [`-ccore.fsmonitor=${script}`], code: 'flag-rejected' },
         { sub: 'fetch', args: [`--upload-pack=${script}`, 'origin'], code: 'flag-rejected' },
         { sub: 'fetch', args: ['ext::sh -c id', 'main'], code: 'url-rejected' },
-        { sub: 'submodule', args: ['update'], code: 'sub-not-allowed' },
+        { sub: 'submodule', args: ['foreach', 'touch pwned'], code: 'second-not-allowed' },
         { sub: 'config', args: ['core.fsmonitor', script], code: 'config-write' },
         { sub: 'remote', args: ['add', 'x', 'https://example.com'], code: 'typed-only' },
         { sub: 'status', args: [], env: { GIT_SSH_COMMAND: script }, code: 'env-rejected' },

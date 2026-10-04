@@ -436,6 +436,41 @@ export interface CommitDetails {
   readonly files: readonly FileChange[];
 }
 
+// MARK: - Worktree, submodule
+
+/** Một worktree (`git worktree list --porcelain`). */
+export interface Worktree {
+  readonly path: string;
+  /** Commit đang checkout (`null` với repo chưa có commit / bare). */
+  readonly head: string | null;
+  /** Tên nhánh ngắn (không có `refs/heads/`); `null` khi detached HEAD. */
+  readonly branch: string | null;
+  readonly bare: boolean;
+  readonly locked: boolean;
+  /** Thư mục không còn (git sẽ dọn khi `worktree prune`). */
+  readonly prunable: boolean;
+}
+
+export type SubmoduleState =
+  /** Khớp commit mà repo cha ghi nhận. */
+  | 'ok'
+  /** Chưa `submodule update --init`. */
+  | 'uninitialized'
+  /** Đang ở commit khác commit repo cha ghi nhận. */
+  | 'modified'
+  /** Xung đột khi merge. */
+  | 'conflict';
+
+/** Một submodule (`git submodule status`). */
+export interface Submodule {
+  /** Đường dẫn trong repo cha (dấu `/`). */
+  readonly path: string;
+  readonly sha: string;
+  readonly state: SubmoduleState;
+  /** Mô tả của git (tag / nhánh gần nhất), có thể rỗng. */
+  readonly describe: string;
+}
+
 // MARK: - Lịch sử một file, blame
 
 /** Một commit trong lịch sử của một file (`git log --follow`): `change` là file ĐÓ ở commit đó (tên cũ nếu sau này đổi tên). */

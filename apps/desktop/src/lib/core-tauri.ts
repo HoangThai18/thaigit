@@ -24,6 +24,7 @@ import {
   locateGit,
   openInEditor,
   openInTerminal,
+  openRelatedRepo,
   openRepoInfo,
   pickRepoFolder,
   rebaseInteractive,
@@ -35,6 +36,7 @@ import {
   runGit,
   trustRepoInfo,
   watchRepo,
+  worktreeAdd,
 } from './ipc/index.ts';
 
 export type {
@@ -88,6 +90,7 @@ export interface TauriRepo {
   openInTerminal(): Promise<void>;
   openInEditor(relativePath?: string): Promise<void>;
   reveal(relativePath?: string): Promise<void>;
+  openRelated(kind: 'worktree' | 'submodule', path: string): Promise<void>;
 }
 
 /** `TypedGit` của một repo. */
@@ -96,6 +99,8 @@ export function createTypedGit(repoId: string): TypedGit {
     configSet: (key, value, scope) => configSet(repoId, key, value, scope),
     remoteAdd: (name, url) => remoteAdd(repoId, name, url),
     remoteSetUrl: (name, url) => remoteSetUrl(repoId, name, url),
+    worktreeAdd: (destToken, name, branch, createBranch, start) =>
+      worktreeAdd(repoId, destToken, name, branch, createBranch, start),
     rebaseInteractive: (onto, steps) => rebaseInteractive(repoId, onto, steps),
   };
 }
@@ -115,6 +120,7 @@ export function bindRepo(info: OpenedRepo): TauriRepo {
     openInTerminal: () => openInTerminal(repoId),
     openInEditor: (relativePath) => openInEditor(repoId, relativePath),
     reveal: (relativePath) => reveal(repoId, relativePath),
+    openRelated: (kind, path) => openRelatedRepo(repoId, kind, path),
   };
 }
 

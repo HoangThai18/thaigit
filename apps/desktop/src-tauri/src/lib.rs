@@ -24,6 +24,7 @@ pub mod os_integration;
 pub mod pathutil;
 pub mod policy;
 pub mod rebase;
+pub mod related;
 pub mod registry;
 pub mod repo_fs;
 pub mod safe_mode;
@@ -92,10 +93,15 @@ pub fn build_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -
 
 static WINDOW_SERIAL: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
 
+/// Nhãn cho cửa sổ thêm kế tiếp (`repo-N`).
+pub fn next_window_label() -> String {
+    let serial = WINDOW_SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    format!("repo-{serial}")
+}
+
 /// `new_window`: mở thêm một cửa sổ (màn hình chính) để làm việc với repo khác song song.
 pub fn open_new_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
-    let serial = WINDOW_SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    build_window(app, &format!("repo-{serial}"))
+    build_window(app, &next_window_label())
 }
 
 /// Thư mục truyền qua dòng lệnh ("Mở bằng…"): chỉ nhận đường dẫn là thư mục thật.
@@ -141,6 +147,8 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::git_remote_add,
         commands::git_remote_set_url,
         commands::git_rebase_interactive,
+        commands::git_worktree_add,
+        commands::open_related_repo,
         commands::repo_health,
         commands::remove_stale_lock,
         commands::fs_read_git_file,

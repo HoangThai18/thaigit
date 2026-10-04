@@ -17,6 +17,7 @@ use crate::health::RepoHealth;
 use crate::locate::GitInfo;
 use crate::os_integration;
 use crate::rebase::{RebaseOutcome, RebaseStep};
+use crate::related::RelatedKind;
 use crate::registry::{OpenSource, OpenedRepo, PickedFolder, RecentRepo, new_detach_flag};
 use crate::repo_fs;
 use crate::typed::ConfigScope;
@@ -74,8 +75,8 @@ pub fn forget_recent_repo(core: CoreState<'_>, id: String) {
 
 /// Thư mục do hệ điều hành đưa vào lúc khởi động ("Mở bằng", argv): lấy một lần, dạng token.
 #[tauri::command]
-pub fn take_launch_paths(core: CoreState<'_>) -> Vec<PickedFolder> {
-    core.registry.take_launch_paths()
+pub fn take_launch_paths<R: Runtime>(window: WebviewWindow<R>, core: CoreState<'_>) -> Vec<PickedFolder> {
+    core.registry.take_launch_paths_for(window.label())
 }
 
 // --- git ----------------------------------------------------------------------------------------------------------------
@@ -136,6 +137,29 @@ pub async fn git_rebase_interactive(
     steps: Vec<RebaseStep>,
 ) -> Result<RebaseOutcome> {
     core.git_rebase_interactive(&repo_id, &onto, &steps).await
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn git_worktree_add(
+    core: CoreState<'_>,
+    repo_id: String,
+    dest_token: String,
+    name: String,
+    branch: String,
+    create_branch: bool,
+    start: Option<String>,
+) -> Result<String> {
+    core.git_worktree_add(&repo_id, &dest_token, &name, &branch, create_branch, start.as_deref()).await
+}
+
+/// Mở một worktree / submodule của repo đang mở trong cửa sổ mới (Rust kiểm git có xác nhận đường dẫn đó không).
+#[tauri::command]
+pub async fn open_related_repo<R: Runtime>(app: AppHandle<R>, core: CoreState<'_>, repo_id: String, kind: RelatedKind, path: String) -> Result<()> {
+    let dir = core.related_repo_path(&repo_id, kind, &path).await?;
+    let label = crate::next_window_label();
+    core.registry.set_window_launch(&label, dir);
+    crate::build_window(&app, &label).map_err(|error| AppError::Internal(format!("mở cửa sổ mới: {error}")))
 }
 
 #[tauri::command]

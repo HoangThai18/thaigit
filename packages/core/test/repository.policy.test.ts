@@ -39,6 +39,10 @@ const fakeTyped: TypedGit = {
   configSet: async (key) => void typedCalls.push(`configSet ${key}`),
   remoteAdd: async (name) => void typedCalls.push(`remoteAdd ${name}`),
   remoteSetUrl: async (name) => void typedCalls.push(`remoteSetUrl ${name}`),
+  worktreeAdd: async (token, name) => {
+    typedCalls.push(`worktreeAdd ${name}`);
+    return `${token}/${name}`;
+  },
   rebaseInteractive: async (onto) => {
     typedCalls.push(`rebaseInteractive ${onto}`);
     return { exitCode: 0, stdout: '', stderr: '' };
@@ -175,6 +179,16 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.fastForward('main', 'origin/main');
     for (const style of ['automatic', 'noFastForward', 'fastForwardOnly', 'squash'] as const)
       await r.merge('feature', style);
+    await r.worktrees();
+    await r.addWorktree('token', 'repo-x', 'nhánh/x', true, 'main');
+    await r.addWorktree('token', 'repo-y', 'main', false);
+    await r.removeWorktree('/tmp/repo-x', true);
+    await r.removeWorktree('/tmp/repo-x', false);
+    await r.pruneWorktrees();
+    await r.submodules();
+    await r.updateSubmodules(null);
+    await r.updateSubmodules(['vendor/thư viện', '-lạ']);
+    await r.syncSubmodules();
     await r.rebaseCommits(SHA);
     await r.interactiveRebase(SHA, [
       { commit: COMMIT, action: 'pick' },
@@ -266,6 +280,8 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     expect(exec.requests.length).toBeGreaterThan(130);
     expect(typedCalls).toEqual([
       'configSet user.name',
+      'worktreeAdd repo-x',
+      'worktreeAdd repo-y',
       `rebaseInteractive ${SHA}`,
       'remoteAdd up',
       'remoteSetUrl up',

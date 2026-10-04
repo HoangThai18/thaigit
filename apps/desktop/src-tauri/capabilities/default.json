@@ -21,6 +21,8 @@
     "allow-git-remote-add",
     "allow-git-remote-set-url",
     "allow-git-rebase-interactive",
+    "allow-git-worktree-add",
+    "allow-open-related-repo",
     "allow-repo-health",
     "allow-remove-stale-lock",
     "allow-fs-read-git-file",

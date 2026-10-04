@@ -14,6 +14,9 @@ import {
   type ConflictEntry,
   type FileChange,
   type FileHistoryEntry,
+  type Submodule,
+  type SubmoduleState,
+  type Worktree,
   type GitRef,
   type HeadState,
   type RefKind,
@@ -164,6 +167,70 @@ export function parseFileHistory(data: Uint8Array | string, path: string): FileH
   }
   if (commit !== null) entries.push({ commit, change: change ?? fileChange(tracked, 'modified') });
   return entries;
+}
+
+// MARK: - Worktree, submodule
+
+/** Parse `git worktree list --porcelain -z`: các trường ngăn bởi NUL, mỗi worktree kết thúc bằng một trường rỗng. */
+export function parseWorktrees(data: Uint8Array | string): Worktree[] {
+  const result: Worktree[] = [];
+  let current: { -readonly [K in keyof Worktree]: Worktree[K] } | null = null;
+  const flush = (): void => {
+    if (current !== null) result.push(current);
+    current = null;
+  };
+  for (const field of asText(data).split('\0')) {
+    if (field === '') {
+      flush();
+      continue;
+    }
+    const space = field.indexOf(' ');
+    const key = space < 0 ? field : field.slice(0, space);
+    const value = space < 0 ? '' : field.slice(space + 1);
+    if (key === 'worktree') {
+      flush();
+      current = { path: value, head: null, branch: null, bare: false, locked: false, prunable: false };
+      continue;
+    }
+    if (current === null) continue;
+    if (key === 'HEAD') current.head = /^0+$/.test(value) ? null : value;
+    else if (key === 'branch') current.branch = value.startsWith('refs/heads/') ? value.slice(11) : value;
+    else if (key === 'bare') current.bare = true;
+    else if (key === 'locked') current.locked = true;
+    else if (key === 'prunable') current.prunable = true;
+  }
+  flush();
+  return result;
+}
+
+const SUBMODULE_STATES: Readonly<Record<string, SubmoduleState>> = {
+  ' ': 'ok',
+  '-': 'uninitialized',
+  '+': 'modified',
+  U: 'conflict',
+};
+
+/** Parse `git submodule status`: mỗi dòng "<trạng thái><sha> <đường dẫn>[ (<mô tả>)]". */
+export function parseSubmoduleStatus(data: Uint8Array | string): Submodule[] {
+  const result: Submodule[] = [];
+  for (const line of asText(data).split('\n')) {
+    if (line.length < 3) continue;
+    const state = SUBMODULE_STATES[line.charAt(0)];
+    const rest = line.slice(1);
+    const space = rest.indexOf(' ');
+    if (state === undefined || space < 0) continue;
+    const sha = rest.slice(0, space);
+    let path = rest.slice(space + 1);
+    let describe = '';
+    const open = path.lastIndexOf(' (');
+    if (open >= 0 && path.endsWith(')')) {
+      describe = path.slice(open + 2, -1);
+      path = path.slice(0, open);
+    }
+    if (path === '') continue;
+    result.push({ path, sha, state, describe });
+  }
+  return result;
 }
 
 // MARK: - Blame

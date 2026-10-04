@@ -96,6 +96,41 @@ export class NodeTypedGit implements TypedGit {
     await this.run('remote', ['set-url', '--', name, url]);
   }
 
+  /** Như `git_worktree_add` của Rust; trên Node "token" chính là đường dẫn thư mục cha (như `NodeGitHost.cloneRepo`). */
+  async worktreeAdd(
+    destToken: string,
+    name: string,
+    branch: string,
+    createBranch: boolean,
+    start: string | null,
+  ): Promise<string> {
+    for (const value of [branch, ...(start === null ? [] : [start])]) {
+      if (value === '' || value.startsWith('-') || /[\s\u0000-\u001f]/.test(value))
+        throw new AdapterError('policy', `Tên nhánh "${value}" không hợp lệ.`);
+    }
+    if (name === '' || /[/\\\0]/.test(name) || name === '.' || name === '..')
+      throw new AdapterError('policy', 'Tên thư mục không hợp lệ.');
+    const dest = join(destToken, name);
+    const args = createBranch
+      ? ['add', '-b', branch, dest, ...(start === null ? [] : [start])]
+      : ['add', dest, branch];
+    const result = await spawnGit({
+      ...this.options,
+      argv: buildGitArgv('worktree', args),
+      cwd: this.options.cwd,
+      env: gitEnvFor(this.options, 'background'),
+      cancellable: false,
+    });
+    if (result.code !== 0)
+      throw new GitError(
+        ['worktree', ...args],
+        result.code,
+        decodeUtf8(result.stdout),
+        decodeUtf8(result.stderr),
+      );
+    return dest;
+  }
+
   /** Như `git_rebase_interactive` của Rust: todo + file message trong `<gitDir>/thaigit-rebase/`, sequence editor chỉ chép file. */
   async rebaseInteractive(onto: string, steps: readonly RebaseStepRequest[]): Promise<RebaseResult> {
     validateRebasePlan(onto, steps);

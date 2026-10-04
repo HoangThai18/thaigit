@@ -606,9 +606,11 @@ impl Core {
                 request.sub
             )));
         }
-        // `remote prune|set-head|show` cũng liên lạc với máy chủ nên bị coi như lệnh mạng khi có khoá không vô hiệu hoá được.
+        // `remote prune|set-head|show` (và `submodule update`) cũng liên lạc với máy chủ nên bị coi như lệnh mạng khi có khoá
+        // không vô hiệu hoá được (`submodule update` clone / fetch theo `.gitmodules` của repo).
         let contacts_remote = kind == ExecKind::Network
-            || (request.sub == "remote" && matches!(request.args.first().map(String::as_str), Some("prune" | "set-head" | "show")));
+            || (request.sub == "remote" && matches!(request.args.first().map(String::as_str), Some("prune" | "set-head" | "show")))
+            || (request.sub == "submodule" && request.args.first().map(String::as_str) == Some("update"));
         if let Some(restrictions) = &entry.restrictions
             && contacts_remote
             && (restrictions.blocks_network || (kind == ExecKind::Network && profile == EnvProfile::Background))

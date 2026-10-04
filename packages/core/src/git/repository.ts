@@ -21,6 +21,8 @@ import {
   type FileChange,
   type FileHistoryEntry,
   type GitRef,
+  type Submodule,
+  type Worktree,
   type LogOrder,
   type MergeStyle,
   type PullMode,
@@ -44,6 +46,8 @@ import {
   parseRemotes,
   parseStashList,
   parseStatus,
+  parseSubmoduleStatus,
+  parseWorktrees,
 } from './parsers.ts';
 import { rebaseRequest, type InteractiveRebaseResult, type RebaseStep } from './rebase.ts';
 import { isValidRefName, isValidRemoteName } from './refname.ts';
@@ -1077,6 +1081,64 @@ export class GitRepository {
     assertArgument(oldName);
     if (!isValidRemoteName(newName)) throw new RepositoryError('invalidName', newName);
     await this.runner.run('remote', ['rename', oldName, newName]);
+  }
+
+  // MARK: - Worktree, submodule
+
+  async worktrees(): Promise<Worktree[]> {
+    const out = await this.runner.run('worktree', ['list', '--porcelain', '-z']);
+    return parseWorktrees(out.stdout);
+  }
+
+  /** Thêm worktree (lệnh có kiểu: thư mục đích do hộp thoại native chọn). Trả đường dẫn worktree mới. */
+  async addWorktree(
+    destToken: string,
+    name: string,
+    branch: string,
+    createBranch: boolean,
+    start: string | null = null,
+  ): Promise<string> {
+    assertArgument(branch);
+    if (start !== null) assertArgument(start);
+    return this.requireTyped().worktreeAdd(destToken, name, branch, createBranch, start);
+  }
+
+  /** Gỡ worktree (`force`: kể cả khi còn thay đổi chưa commit — thay đổi đó mất). */
+  async removeWorktree(path: string, force: boolean): Promise<void> {
+    assertArgument(path);
+    await this.runner.run('worktree', ['remove', ...(force ? ['--force'] : []), path]);
+  }
+
+  /** Dọn thông tin của worktree đã bị xoá thư mục. */
+  async pruneWorktrees(): Promise<void> {
+    await this.runner.run('worktree', ['prune']);
+  }
+
+  /** Các submodule; repo không có `.gitmodules` thì trả rỗng mà không chạy git. */
+  async submodules(): Promise<Submodule[]> {
+    // File quá lớn so với giới hạn đọc vẫn là có `.gitmodules` → cứ hỏi git.
+    const exists = await this.fs.readWorktreeFile('.gitmodules', 1024 * 1024).then(
+      (bytes) => bytes !== null,
+      () => true,
+    );
+    if (!exists) return [];
+    const out = await this.runner.run('submodule', ['status']);
+    return parseSubmoduleStatus(out.stdout);
+  }
+
+  /** `submodule update --init --recursive` cho `paths` (null = tất cả). */
+  async updateSubmodules(paths: readonly string[] | null): Promise<void> {
+    const args = ['update', '--init', '--recursive'];
+    if (paths !== null) {
+      for (const path of paths) assertNoNul(path);
+      args.push('--', ...paths);
+    }
+    await this.runner.run('submodule', args, { env: LITERAL_PATHSPECS });
+  }
+
+  /** Chép lại URL submodule từ `.gitmodules` vào cấu hình (sau khi remote của submodule đổi địa chỉ). */
+  async syncSubmodules(): Promise<void> {
+    await this.runner.run('submodule', ['sync', '--recursive']);
   }
 
   // MARK: - Stash

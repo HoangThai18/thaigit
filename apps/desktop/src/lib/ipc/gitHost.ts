@@ -93,6 +93,23 @@ export function remoteSetUrl(repoId: string, name: string, url: string): Promise
   return call<void>(Commands.gitRemoteSetUrl, { repoId, name, url });
 }
 
+/** Thêm worktree trong thư mục do hộp thoại native chọn (`destToken`); trả đường dẫn worktree mới. */
+export function worktreeAdd(
+  repoId: string,
+  destToken: string,
+  name: string,
+  branch: string,
+  createBranch: boolean,
+  start: string | null,
+): Promise<string> {
+  return call<string>(Commands.gitWorktreeAdd, { repoId, destToken, name, branch, createBranch, start });
+}
+
+/** Mở một worktree / submodule của repo trong cửa sổ mới — Rust kiểm git có xác nhận đường dẫn đó. */
+export function openRelatedRepo(repoId: string, kind: 'worktree' | 'submodule', path: string): Promise<void> {
+  return call<void>(Commands.openRelatedRepo, { repoId, kind, path });
+}
+
 /** Rebase tương tác theo kế hoạch có cấu trúc — Rust kiểm từng mục và tự soạn file todo. */
 export function rebaseInteractive(
   repoId: string,

@@ -36,6 +36,8 @@ export interface PrefsData {
     tags: boolean;
     stashes: boolean;
     pullRequests: boolean;
+    worktrees: boolean;
+    submodules: boolean;
   };
   columns: PreferredWidths;
   /** Kiểu pull của nút Pull (mặc định `merge`). */
@@ -85,7 +87,15 @@ export function defaultPrefs(): PrefsData {
     showInspector: true,
     sidebarWidth: SIDEBAR_LIMITS.ideal,
     inspectorWidth: INSPECTOR_LIMITS.ideal,
-    sidebarSections: { local: true, remote: true, tags: false, stashes: true, pullRequests: false },
+    sidebarSections: {
+      local: true,
+      remote: true,
+      tags: false,
+      stashes: true,
+      pullRequests: false,
+      worktrees: true,
+      submodules: true,
+    },
     columns: { ...DEFAULT_WIDTHS },
     pullMode: 'merge',
     fetchPrune: true,
@@ -149,6 +159,8 @@ export function sanitizePrefs(raw: unknown): PrefsData {
       tags: bool(sections.tags, base.sidebarSections.tags),
       stashes: bool(sections.stashes, base.sidebarSections.stashes),
       pullRequests: bool(sections.pullRequests, base.sidebarSections.pullRequests),
+      worktrees: bool(sections.worktrees, base.sidebarSections.worktrees),
+      submodules: bool(sections.submodules, base.sidebarSections.submodules),
     },
     columns: sanitizePreferred(source.columns),
     pullMode: PULL_MODES.find((mode) => mode === source.pullMode) ?? base.pullMode,

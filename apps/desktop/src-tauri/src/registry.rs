@@ -180,6 +180,8 @@ pub struct Registry {
     recent: Mutex<Vec<RecentRepo>>,
     recent_path: PathBuf,
     launch: Mutex<Vec<PathBuf>>,
+    /// Repo cần mở trong một cửa sổ cụ thể (nhãn cửa sổ → thư mục): worktree / submodule mở sang cửa sổ mới.
+    window_launch: Mutex<HashMap<String, PathBuf>>,
     pub trust: TrustStore,
 }
 
@@ -210,6 +212,7 @@ impl Registry {
             recent: Mutex::new(items),
             recent_path,
             launch: Mutex::new(Vec::new()),
+            window_launch: Mutex::new(HashMap::new()),
             trust: TrustStore::new(data_dir),
         }
     }
@@ -255,6 +258,20 @@ impl Registry {
     pub fn take_launch_paths(&self) -> Vec<PickedFolder> {
         let paths: Vec<PathBuf> = std::mem::take(&mut *self.launch.lock().unwrap_or_else(|p| p.into_inner()));
         paths.iter().filter_map(|p| canonical(p).ok()).filter(|p| p.is_dir()).map(|p| self.grant_folder(&p)).collect()
+    }
+
+    /// Ghi repo cần mở cho cửa sổ `label` (đặt TRƯỚC khi dựng cửa sổ để nó đọc được ngay khi khởi động).
+    pub fn set_window_launch(&self, label: &str, path: PathBuf) {
+        self.window_launch.lock().unwrap_or_else(|p| p.into_inner()).insert(label.to_string(), path);
+    }
+
+    /// Như `take_launch_paths` nhưng ưu tiên repo dành riêng cho cửa sổ `label` (worktree / submodule mở sang cửa sổ mới).
+    pub fn take_launch_paths_for(&self, label: &str) -> Vec<PickedFolder> {
+        let own = self.window_launch.lock().unwrap_or_else(|p| p.into_inner()).remove(label);
+        match own.and_then(|path| canonical(&path).ok()).filter(|path| path.is_dir()) {
+            Some(path) => vec![self.grant_folder(&path)],
+            None => self.take_launch_paths(),
+        }
     }
 
     // --- repo ----------------------------------------------------------------------------------------------------

@@ -25,8 +25,10 @@ export {
   initRepoInfo,
   rebaseInteractive,
   remoteAdd,
+  openRelatedRepo,
   remoteSetUrl,
   splitDestination,
+  worktreeAdd,
 } from './gitHost.ts';
 export type { CloneOptions } from './gitHost.ts';
 export {

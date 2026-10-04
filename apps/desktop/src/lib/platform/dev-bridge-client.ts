@@ -75,6 +75,7 @@ export function createDevBridgeHost(): Host | null {
     configSet: refuse,
     remoteAdd: refuse,
     remoteSetUrl: refuse,
+    worktreeAdd: refuse,
     rebaseInteractive: refuse,
   };
 

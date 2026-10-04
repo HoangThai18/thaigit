@@ -6,6 +6,7 @@ import { dnd } from './strings/dnd.en.ts';
 import { history } from './strings/history.en.ts';
 import { palette } from './strings/palette.en.ts';
 import { rebase } from './strings/rebase.en.ts';
+import { related } from './strings/related.en.ts';
 import { remote } from './strings/remote.en.ts';
 import { risk } from './strings/risk.en.ts';
 import { settings } from './strings/settings.en.ts';
@@ -27,6 +28,7 @@ export const en: Strings = {
   history,
   rebase,
   palette,
+  related,
   accounts,
   pullRequests,
   snapshots,

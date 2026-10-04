@@ -58,6 +58,8 @@ describe('sanitizePrefs', () => {
       remote: true,
       tags: true,
       stashes: true,
+      worktrees: true,
+      submodules: true,
       pullRequests: false,
     });
     expect(prefs.columns).toMatchObject({ refs: 400, author: 60 });
@@ -110,6 +112,8 @@ describe('PrefsStore', () => {
       remote: true,
       tags: true,
       stashes: true,
+      worktrees: true,
+      submodules: true,
       pullRequests: false,
     });
     expect(store.value.columns).toMatchObject({ author: 200, refs: 190 });

@@ -121,6 +121,8 @@ export const Commands = {
   gitRemoteAdd: 'git_remote_add',
   gitRemoteSetUrl: 'git_remote_set_url',
   gitRebaseInteractive: 'git_rebase_interactive',
+  gitWorktreeAdd: 'git_worktree_add',
+  openRelatedRepo: 'open_related_repo',
   repoHealth: 'repo_health',
   removeStaleLock: 'remove_stale_lock',
   fsReadGitFile: 'fs_read_git_file',

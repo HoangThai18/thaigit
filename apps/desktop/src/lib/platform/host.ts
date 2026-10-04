@@ -31,6 +31,8 @@ export interface RepoPort {
   openInTerminal?(): Promise<void>;
   openInEditor?(relativePath?: string): Promise<void>;
   reveal?(relativePath?: string): Promise<void>;
+  /** Mở một worktree (đường dẫn git báo) / submodule (đường dẫn trong repo) của repo này trong cửa sổ mới (chỉ app Tauri). */
+  openRelated?(kind: 'worktree' | 'submodule', path: string): Promise<void>;
 }
 
 export interface Host {

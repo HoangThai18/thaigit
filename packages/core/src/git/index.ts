@@ -17,7 +17,9 @@ export {
   parseRemotes,
   parseStashList,
   parseStatus,
+  parseSubmoduleStatus,
   parseTrack,
+  parseWorktrees,
   progressFraction,
 } from './parsers.ts';
 export { isValidRefName, isValidRemoteName } from './refname.ts';

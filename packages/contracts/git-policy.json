@@ -290,6 +290,11 @@
       "kind": "read",
       "allowShort": ["-u"]
     },
+    "submodule": {
+      "kind": "write",
+      "allowSecond": ["status", "update", "init", "sync"],
+      "readForms": [{ "args": ["status"], "rest": true }]
+    },
     "switch": {
       "kind": "write",
       "allowShort": ["-c", "-C"]
@@ -306,6 +311,12 @@
     "version": {
       "kind": "read"
     },
+    "worktree": {
+      "kind": "write",
+      "allowSecond": ["list", "remove", "prune"],
+      "typedSecond": ["add"],
+      "readForms": [{ "args": ["list"], "rest": true }]
+    },
     "write-tree": {
       "kind": "write"
     }
@@ -314,7 +325,8 @@
     "clone": "git_clone(url, destination) — URL đã kiểm, thư mục đích do dialog native chọn",
     "init": "git_init(destination)",
     "config-set": "git_config_set(key, value) — key thuộc configSetAllowlist",
-    "remote add / set-url": "git_remote_add(name, url) / git_remote_set_url(name, url) — URL đã kiểm"
+    "remote add / set-url": "git_remote_add(name, url) / git_remote_set_url(name, url) — URL đã kiểm",
+    "worktree add": "git_worktree_add(repoId, destToken, name, branch, createBranch, start) — thư mục đích do dialog native chọn"
   },
   "configSetAllowlist": [
     "user.name",

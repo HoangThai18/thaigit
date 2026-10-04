@@ -18,6 +18,14 @@
   import { untrack } from 'svelte';
   import { checkout } from '../actions/branches.ts';
   import { beginAddRemote, remoteMenu } from '../actions/manageRemotes.ts';
+  import {
+    beginAddWorktree,
+    isCurrentWorktree,
+    openWorktree,
+    submoduleMenu,
+    worktreeMenu,
+    worktreeName,
+  } from '../actions/related.ts';
   import { refMenu, stashMenu } from '../actions/menus.ts';
   import { showBidi } from '../format/bidi.ts';
   import { containsFolded, foldText } from '../format/natural.ts';
@@ -123,7 +131,7 @@
   key: keyof typeof sections,
   title: string,
   count: number,
-  icon: 'laptop' | 'cloud' | 'tag' | 'archive',
+  icon: 'laptop' | 'cloud' | 'tag' | 'archive' | 'folder' | 'folder-open',
 )}
   <button
     type="button"
@@ -330,6 +338,101 @@
       {/if}
     </section>
 
+    <!-- WORKTREES -->
+    {#if !filtering}
+      <section>
+        {@render sectionHeader('worktrees', vi.related.worktrees, store.worktrees.length, 'folder')}
+        {#if sections.worktrees}
+          {#if store.port.typedGit}
+            <div class="toolbar">
+              <button
+                type="button"
+                class="mini"
+                title={vi.related.addWorktree}
+                aria-label={vi.related.addWorktree}
+                onclick={() => void beginAddWorktree(store)}
+              >
+                <Icon name="plus" size={12} strokeWidth={2.4} />
+              </button>
+            </div>
+          {/if}
+          {#if store.worktrees.length <= 1}
+            <p class="placeholder">{vi.related.noWorktrees}</p>
+          {:else}
+            <!-- Khoá theo vị trí: dữ liệu repo không bảo đảm duy nhất. -->
+            {#each store.worktrees as worktree, index (index)}
+              {@const current = isCurrentWorktree(store, worktree)}
+              <button
+                type="button"
+                class="sb-row"
+                class:missing={worktree.prunable}
+                title={showBidi(
+                  [
+                    worktree.path,
+                    index === 0 ? vi.related.worktreeMain : '',
+                    current ? vi.related.worktreeCurrent : '',
+                    worktree.locked ? vi.related.worktreeLocked : '',
+                    worktree.prunable ? vi.related.worktreeMissing : '',
+                  ]
+                    .filter((line) => line !== '')
+                    .join('\n'),
+                )}
+                oncontextmenu={(event) => menus.openAt(event, worktreeMenu(store, worktree, index))}
+                ondblclick={() => openWorktree(store, worktree)}
+              >
+                <span class="sb-icon">
+                  {#if current}
+                    <span class="badge"><Icon name="check" size={10} strokeWidth={3.2} /></span>
+                  {:else}
+                    <Icon name="folder" size={15} />
+                  {/if}
+                </span>
+                <span class="sb-title"><bdi>{showBidi(worktreeName(worktree))}</bdi></span>
+              </button>
+            {/each}
+          {/if}
+        {/if}
+      </section>
+    {/if}
+
+    <!-- SUBMODULES -->
+    {#if store.submodules.length > 0 && !filtering}
+      <section>
+        {@render sectionHeader('submodules', vi.related.submodules, store.submodules.length, 'folder-open')}
+        {#if sections.submodules}
+          {#each store.submodules as submodule, index (index)}
+            <button
+              type="button"
+              class="sb-row"
+              class:missing={submodule.state === 'uninitialized'}
+              title={showBidi(
+                [
+                  submodule.path,
+                  submodule.describe,
+                  submodule.state === 'uninitialized'
+                    ? vi.related.submoduleUninitialized
+                    : submodule.state === 'modified'
+                      ? vi.related.submoduleModified
+                      : submodule.state === 'conflict'
+                        ? vi.related.submoduleConflict
+                        : '',
+                ]
+                  .filter((line) => line !== '')
+                  .join('\n'),
+              )}
+              oncontextmenu={(event) => menus.openAt(event, submoduleMenu(store, submodule))}
+            >
+              <span class="sb-icon"><Icon name="folder-open" size={15} /></span>
+              <span class="sb-title"><bdi>{showBidi(submodule.path)}</bdi></span>
+              {#if submodule.state === 'modified' || submodule.state === 'conflict'}
+                <span class="sb-flag" aria-hidden="true">●</span>
+              {/if}
+            </button>
+          {/each}
+        {/if}
+      </section>
+    {/if}
+
     <PullRequestSection {store} />
   </div>
 </div>
@@ -436,6 +539,18 @@
     margin: 2px 10px 6px 34px;
     color: var(--text-tertiary);
     font-size: 12px;
+  }
+
+  .sb-row.missing .sb-title {
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  .sb-flag {
+    flex: none;
+    margin-left: auto;
+    color: var(--warning);
+    font-size: 9px;
   }
 
   .toolbar {

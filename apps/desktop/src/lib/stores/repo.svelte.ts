@@ -29,6 +29,8 @@ import {
   type Remote,
   type RepoOperation,
   type Stash,
+  type Submodule,
+  type Worktree,
   type WorkingTreeStatus,
 } from '@thaigit/core';
 import type { RepoChangedEvent } from '@thaigit/contracts';
@@ -164,6 +166,9 @@ export class RepoStore {
   status = $state.raw<WorkingTreeStatus>(EMPTY_STATUS);
   stashes = $state.raw<readonly Stash[]>([]);
   remotes = $state.raw<readonly Remote[]>([]);
+  /** Các worktree của repo (gồm chính worktree đang mở). */
+  worktrees = $state.raw<readonly Worktree[]>([]);
+  submodules = $state.raw<readonly Submodule[]>([]);
   operation = $state.raw<RepoOperation | null>(null);
   /** Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Lấy đầy đủ từ remote". */
   historyGaps = $state.raw<HistoryGaps>(NO_HISTORY_GAPS);
@@ -505,15 +510,25 @@ export class RepoStore {
     // Lần đầu: lịch sử chạy song song với refs/status. HEAD chưa biết nên luôn thêm `HEAD` vào log; repo mà HEAD chưa có
     // commit nhưng vẫn có nhánh khác được xử lý bên dưới.
     const firstLog = first ? settle(this.fetchLog(true)) : null;
-    const [statusResult, refsResult, stashResult, remoteResult, operationResult, gapsResult] =
-      await Promise.all([
-        wantsStatus ? settle(git.status()) : null,
-        wantsRefs ? settle(git.refs()) : null,
-        wantsRefs ? settle(git.stashes()) : null,
-        wantsRefs ? settle(git.remotes()) : null,
-        wantsStatus ? settle(git.operationState()) : null,
-        wantsRefs ? settle(git.historyGaps()) : null,
-      ]);
+    const [
+      statusResult,
+      refsResult,
+      stashResult,
+      remoteResult,
+      operationResult,
+      gapsResult,
+      worktreeResult,
+      submoduleResult,
+    ] = await Promise.all([
+      wantsStatus ? settle(git.status()) : null,
+      wantsRefs ? settle(git.refs()) : null,
+      wantsRefs ? settle(git.stashes()) : null,
+      wantsRefs ? settle(git.remotes()) : null,
+      wantsStatus ? settle(git.operationState()) : null,
+      wantsRefs ? settle(git.historyGaps()) : null,
+      wantsRefs ? settle(git.worktrees()) : null,
+      wantsRefs ? settle(git.submodules()) : null,
+    ]);
     if (this.disposed) return;
 
     if (statusResult) {
@@ -542,6 +557,12 @@ export class RepoStore {
       }
     }
     if (remoteResult?.ok && !jsonEqual(remoteResult.value, this.remotes)) this.remotes = remoteResult.value;
+    // Worktree / submodule chỉ để hiện ở sidebar: lỗi (git cũ, repo lạ) thì giữ danh sách cũ, không báo.
+    if (worktreeResult?.ok && !jsonEqual(worktreeResult.value, this.worktrees))
+      this.worktrees = worktreeResult.value;
+    if (submoduleResult?.ok && !jsonEqual(submoduleResult.value, this.submodules)) {
+      this.submodules = submoduleResult.value;
+    }
     // Lỗi khi kiểm (git quá cũ…) không đáng báo: chỉ là không hiện thanh gợi ý.
     if (gapsResult?.ok && !jsonEqual(gapsResult.value, this.historyGaps)) this.historyGaps = gapsResult.value;
     if (operationResult?.ok && !jsonEqual(operationResult.value, this.operation)) {
