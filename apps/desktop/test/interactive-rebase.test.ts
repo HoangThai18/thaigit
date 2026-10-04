@@ -82,7 +82,7 @@ describe('RebaseSession', () => {
     expect(session.steps.at(-1)?.action).toBe('fixup');
     expect(session.problem).toBeNull();
     session.setAction(2, 'reword');
-    await until(() => session.steps[0]?.message !== undefined, 'điền lời đầy đủ');
+    await until(() => session.steps[0]?.message !== undefined, 'điền message đầy đủ');
     expect(session.steps[0]?.message).toBe('Lời đầy đủ của 3\n\nThân');
     session.setMessage(2, '   ');
     expect(session.problem).toBe('emptyMessage');
@@ -96,7 +96,7 @@ describe('RebaseSession', () => {
 });
 
 describe('rebase tương tác trên repo thật', () => {
-  it('menu commit mở hộp thoại; đảo, sửa lời, gộp; xong có Hoàn tác', async () => {
+  it('menu commit mở hộp thoại; đảo, reword, gộp; xong có Hoàn tác', async () => {
     const { test, store, toasts } = await openStore();
     const base = entryOf(store, 'gốc');
     const item = commitMenu(store, base)
@@ -110,7 +110,7 @@ describe('rebase tương tác trên repo thật', () => {
     expect(session.rows.map((step) => step.commit.subject)).toEqual(['ba', 'hai', 'một']);
     session.move(2, 0); // "một" lên trên cùng (mới nhất)
     session.setAction(1, 'reword'); // ba
-    session.setMessage(1, 'Ba — lời mới');
+    session.setMessage(1, 'Ba — message mới');
     session.setAction(2, 'squash'); // hai gộp vào… commit bên dưới không còn: hai đang dưới cùng
     expect(session.problem).toBe('leadingSquash');
     session.setAction(2, 'pick');
@@ -118,7 +118,7 @@ describe('rebase tương tác trên repo thật', () => {
     const before = store.headOid;
     await runInteractiveRebase(store, session);
     expect(rebaseEditor.current).toBeNull();
-    expect(subjects(test.root, 3)).toEqual(['Ba — lời mới', 'hai', 'gốc']);
+    expect(subjects(test.root, 3)).toEqual(['Ba — message mới', 'hai', 'gốc']);
     expect(
       rawGit(test.root, ['-c', 'core.quotepath=false', 'show', '--name-only', '--format=', 'HEAD'])
         .trim()

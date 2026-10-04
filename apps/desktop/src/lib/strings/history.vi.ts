@@ -25,9 +25,9 @@ export const history = {
 
   // Blame (vùng giữa)
   blameLabel: 'Blame',
-  blameWorkingTree: 'Bản đang sửa',
+  blameWorkingTree: 'Bản hiện tại (gồm thay đổi chưa commit)',
   blameAtCommit: (sha: string) => `Tại ${sha}`,
-  blameLoading: 'Đang tính ai sửa từng dòng…',
+  blameLoading: 'Đang chạy blame…',
   blameFailed: 'Không blame được file này',
   blameEmpty: 'File trống.',
   blameRetry: 'Thử lại',

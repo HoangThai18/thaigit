@@ -21,7 +21,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Tìm & chuyển nhánh (Ctrl + B, hoặc từ nút nhánh trên thanh công cụ): gõ vài chữ (không cần dấu) để lọc mọi nhánh local và remote, Enter để checkout
 - Lịch sử file: chuột phải một file → "Lịch sử file" để xem mọi commit đã sửa file đó (kể cả trước khi đổi tên), bấm một commit để xem thay đổi của riêng file ấy
 - Blame: chuột phải một file → "Blame" để xem ai sửa từng dòng, commit nào, khi nào; dòng chưa commit được đánh dấu riêng, bấm vào cột trái để nhảy tới commit trên graph
-- Rebase tương tác: chuột phải một commit trên graph → "Rebase tương tác từ đây…" để sắp xếp lại, sửa lời, gộp (giữ hoặc bỏ lời) hay bỏ các commit sau nó; kéo tay nắm hoặc Alt + ↑ / ↓ để đổi chỗ, phím P / R / S / F / D để chọn nhanh. Thay đổi chưa commit được tự cất rồi trả lại, gặp xung đột thì dừng như rebase thường, xong có Hoàn tác
+- Rebase tương tác: chuột phải một commit trên graph → "Rebase tương tác từ đây…" để đổi thứ tự, sửa message (reword), gộp commit (squash / fixup) hay bỏ commit (drop) với các commit phía sau nó. Kéo tay nắm hoặc Alt + ↑ / ↓ để đổi chỗ, phím P / R / S / F / D để chọn nhanh. Thay đổi chưa commit được tự cất rồi trả lại; gặp xung đột thì dừng lại như rebase thường; xong có nút Hoàn tác
 - Quản lý remote ở sidebar: nút + để thêm remote (fetch luôn nếu muốn), chuột phải một remote để fetch riêng remote đó, sửa địa chỉ, đổi tên, sao chép địa chỉ hoặc xoá (có Hoàn tác)
 
 ## 2.0.0 — 2026-10-03

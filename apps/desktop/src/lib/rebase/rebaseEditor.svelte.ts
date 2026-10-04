@@ -17,7 +17,7 @@ export class RebaseSession {
   /** Các commit ban đầu, cũ → mới. */
   readonly original: readonly Commit[];
   steps = $state.raw<readonly RebaseStep[]>([]);
-  /** Lời đầy đủ của từng commit (để điền sẵn khi chọn "Sửa lời"). */
+  /** Message đầy đủ của từng commit (để điền sẵn khi chọn reword). */
   private readonly fullMessages = new Map<string, string>();
 
   constructor(
@@ -78,7 +78,7 @@ export class RebaseSession {
     this.steps = rows.reverse();
   }
 
-  /** Điền lời đầy đủ của commit vào ô "Sửa lời" (nếu người dùng chưa gõ gì). */
+  /** Điền message đầy đủ của commit vào ô soạn của reword (nếu người dùng chưa gõ gì). */
   private async prefillMessage(commit: Commit): Promise<void> {
     let message = this.fullMessages.get(commit.id);
     if (message === undefined) {

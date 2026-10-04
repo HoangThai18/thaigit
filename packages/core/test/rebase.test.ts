@@ -25,7 +25,7 @@ describe('rebasePlanProblem', () => {
   const [one, two] = [commit('1'), commit('2')];
   const pick = (c: Commit): RebaseStep => ({ commit: c, action: 'pick' });
 
-  it('nhận ra kế hoạch rỗng, có merge, gộp ở đầu, lời trống, bỏ hết, không đổi gì', () => {
+  it('nhận ra kế hoạch rỗng, có merge, gộp ở đầu, message trống, bỏ hết, không đổi gì', () => {
     expect(rebasePlanProblem([], [])).toBe('empty');
     expect(rebasePlanProblem([pick(commit('m', ['x', 'y']))], [])).toBe('merge');
     expect(
@@ -48,7 +48,7 @@ describe('rebasePlanProblem', () => {
 });
 
 describe('soạn todo (bộ chuyển Node, cùng luật với rebase.rs)', () => {
-  it('chỉ nhận sha đầy đủ, không trùng; lời commit đi qua file, không bao giờ vào todo', () => {
+  it('chỉ nhận sha đầy đủ, không trùng; message đi qua file, không bao giờ vào todo', () => {
     expect(() => validateRebasePlan(A, [{ action: 'pick', sha: B }])).not.toThrow();
     for (const sha of ['HEAD', '-x', `${B}\nexec id`]) {
       expect(() => validateRebasePlan(A, [{ action: 'pick', sha }])).toThrow(/rebase/);
@@ -103,19 +103,23 @@ describe('GitRepository.interactiveRebase', () => {
       expect(await t.repo.rebaseCommits(other)).toBeNull();
     }));
 
-  it('đảo thứ tự, sửa lời, gộp, bỏ — giữ thay đổi chưa commit', () =>
+  it('đảo thứ tự, reword, gộp, bỏ — giữ thay đổi chưa commit', () =>
     withTestRepo(async (t) => {
       const { base } = await linear(t);
       const commits = (await t.repo.rebaseCommits(base))!;
       await t.write('đang sửa.txt', 'chưa commit\n');
       const result = await t.repo.interactiveRebase(base, [
-        { commit: commits[2]!, action: 'reword', message: 'Ba — lời mới\n\n#12 vẫn giữ\n' },
+        { commit: commits[2]!, action: 'reword', message: 'Ba — message mới\n\n#12 vẫn giữ\n' },
         { commit: commits[0]!, action: 'pick' },
         { commit: commits[1]!, action: 'fixup' },
       ]);
       expect(result).toBe('done');
-      expect(t.git('log', '--format=%s', '-n3').trim().split('\n')).toEqual(['một', 'Ba — lời mới', 'gốc']);
-      expect(t.git('log', '-1', '--skip=1', '--format=%B').trim()).toBe('Ba — lời mới\n\n#12 vẫn giữ');
+      expect(t.git('log', '--format=%s', '-n3').trim().split('\n')).toEqual([
+        'một',
+        'Ba — message mới',
+        'gốc',
+      ]);
+      expect(t.git('log', '-1', '--skip=1', '--format=%B').trim()).toBe('Ba — message mới\n\n#12 vẫn giữ');
       expect(await t.exists('hai.txt')).toBe(true);
       expect(await t.read('đang sửa.txt')).toBe('chưa commit\n');
     }));

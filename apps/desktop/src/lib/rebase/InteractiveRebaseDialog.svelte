@@ -1,6 +1,6 @@
 <!--
   Hộp thoại rebase tương tác (như GitKraken): các commit sau commit gốc, mới nhất trên cùng. Mỗi hàng chọn một việc (Giữ /
-  Sửa lời / Gộp / Gộp bỏ lời / Bỏ), kéo tay nắm hoặc Alt + ↑ / ↓ để đổi thứ tự; "Sửa lời" mở ô soạn lời mới ngay trong hàng.
+  Reword / Squash / Fixup / Drop), kéo tay nắm hoặc Alt + ↑ / ↓ để đổi thứ tự; reword mở ô soạn message mới ngay trong hàng.
   Phím tắt trên hàng: P / R / S / F / D. Esc = Huỷ (không bấm nền để huỷ — tránh mất kế hoạch đang soạn).
 -->
 <script lang="ts">
@@ -392,7 +392,7 @@
 
   .action {
     flex: none;
-    width: 118px;
+    width: 214px;
     padding: 3px 6px;
     border: 1px solid var(--field-border);
     border-radius: var(--radius-s);

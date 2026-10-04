@@ -68,7 +68,7 @@ export interface RepoChangedEvent {
   kinds: RepoChangeKind[];
 }
 
-/** Việc làm với một commit trong rebase tương tác. */
+/** Thao tác cho một commit trong rebase tương tác (pick / reword / squash / fixup / drop). */
 export type RebaseAction = 'pick' | 'reword' | 'squash' | 'fixup' | 'drop';
 
 /**

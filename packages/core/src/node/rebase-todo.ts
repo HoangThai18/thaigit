@@ -1,5 +1,5 @@
 // Bản Node (test) của phần soạn todo trong `apps/desktop/src-tauri/src/rebase.rs` — giữ đúng cùng luật: sha đầy đủ, không
-// trùng, lời commit đi qua file (không bao giờ nằm trong todo), sequence editor chỉ dùng lệnh dựng sẵn của shell.
+// trùng, message đi qua file (không bao giờ nằm trong todo), sequence editor chỉ dùng lệnh dựng sẵn của shell.
 
 import type { RebaseStepRequest } from '@thaigit/contracts';
 import { AdapterError } from '../git/runner.ts';
@@ -28,7 +28,7 @@ export function validateRebasePlan(onto: string, steps: readonly RebaseStepReque
         new TextEncoder().encode(message).length > MAX_MESSAGE ||
         message.includes('\0')
       )
-        reject('lời commit mới rỗng, quá dài hoặc chứa NUL');
+        reject('message mới rỗng, quá dài hoặc chứa NUL');
     }
   }
   const firstKept = steps.find((step) => step.action !== 'drop');

@@ -1,4 +1,4 @@
-// Rebase tương tác (port RebasePlan của GitRepository+Rebase.swift): kế hoạch xếp cũ → mới, mỗi commit một việc. Chỉ phần
+// Rebase tương tác (port RebasePlan của GitRepository+Rebase.swift): kế hoạch xếp cũ → mới, mỗi commit một thao tác. Chỉ phần
 // thuần (kiểm kế hoạch) ở đây — chạy thật là lệnh có kiểu `TypedGit.rebaseInteractive` (Rust tự soạn file todo).
 
 import type { RebaseAction, RebaseStepRequest } from '@thaigit/contracts';
@@ -24,7 +24,7 @@ export type RebasePlanProblem =
   | 'merge'
   /** Commit cũ nhất còn lại là squash / fixup: không có gì phía trước để gộp vào. */
   | 'leadingSquash'
-  /** Sửa lời mà để trống. */
+  /** Reword mà để trống message. */
   | 'emptyMessage'
   /** Bỏ hết mọi commit. */
   | 'allDropped'
@@ -49,7 +49,7 @@ export function rebasePlanProblem(
   return null;
 }
 
-/** Kế hoạch dạng gửi qua IPC (chỉ sha + việc + lời). */
+/** Kế hoạch dạng gửi qua IPC (chỉ sha + thao tác + message). */
 export function rebaseRequest(steps: readonly RebaseStep[]): RebaseStepRequest[] {
   return steps.map((step) =>
     step.action === 'reword'

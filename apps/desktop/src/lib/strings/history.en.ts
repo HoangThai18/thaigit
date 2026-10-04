@@ -23,9 +23,9 @@ export const history: Translation<typeof source> = {
   blameCurrent: 'Blame current version',
 
   blameLabel: 'Blame',
-  blameWorkingTree: 'Working copy',
+  blameWorkingTree: 'Current version (including uncommitted changes)',
   blameAtCommit: (sha: string) => `At ${sha}`,
-  blameLoading: 'Working out who changed each line…',
+  blameLoading: 'Running blame…',
   blameFailed: 'Couldn’t blame this file',
   blameEmpty: 'The file is empty.',
   blameRetry: 'Try again',

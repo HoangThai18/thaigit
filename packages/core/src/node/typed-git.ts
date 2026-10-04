@@ -96,7 +96,7 @@ export class NodeTypedGit implements TypedGit {
     await this.run('remote', ['set-url', '--', name, url]);
   }
 
-  /** Như `git_rebase_interactive` của Rust: todo + file lời trong `<gitDir>/thaigit-rebase/`, sequence editor chỉ chép file. */
+  /** Như `git_rebase_interactive` của Rust: todo + file message trong `<gitDir>/thaigit-rebase/`, sequence editor chỉ chép file. */
   async rebaseInteractive(onto: string, steps: readonly RebaseStepRequest[]): Promise<RebaseResult> {
     validateRebasePlan(onto, steps);
     const directory = join(await this.gitDir(), 'thaigit-rebase');

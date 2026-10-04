@@ -1,15 +1,15 @@
 //! Rebase tương tác (`git_rebase_interactive`) — lệnh có kiểu, KHÔNG đi qua `git_exec`: `git rebase -i` cần một sequence editor
-//! và lời commit mới chạy qua dòng `exec` của file todo, tức là chạy lệnh shell. Webview (không tin cậy) chỉ gửi kế hoạch có
-//! cấu trúc (sha + việc làm + lời commit); Rust kiểm từng mục rồi TỰ soạn file todo và file lời trong `<gitDir>/thaigit-rebase/`.
+//! và message mới chạy qua dòng `exec` của file todo, tức là chạy lệnh shell. Webview (không tin cậy) chỉ gửi kế hoạch có
+//! cấu trúc (sha + thao tác + message); Rust kiểm từng mục rồi TỰ soạn file todo và file message trong `<gitDir>/thaigit-rebase/`.
 //!
 //! - Sequence editor chỉ dùng lệnh dựng sẵn của shell (`read` / `printf`) để chép file todo của app đè lên todo git soạn — không
 //!   gọi chương trình ngoài nào, chạy được cả `sh` của Git for Windows. Đặt qua `GIT_SEQUENCE_EDITOR` nên lấn `sequence.editor`
 //!   do repo tự đặt.
-//! - Sửa lời commit = `pick` rồi `exec git commit --amend … -F <file lời>` (không mở trình soạn thảo). Cờ `-c` an toàn của chính
+//! - Reword = `pick` rồi `exec git commit --amend … -F <file message>` (không mở trình soạn thảo). Cờ `-c` an toàn của chính
 //!   sách đi theo sang lệnh `git` con qua `GIT_CONFIG_PARAMETERS` (git tự truyền).
-//! - Gộp (`squash`) giữ lời của cả hai commit: `GIT_EDITOR=true` của chính sách nhận nguyên lời ghép sẵn.
+//! - `squash` giữ message của cả hai commit: `GIT_EDITOR=true` của chính sách nhận nguyên message git đã ghép sẵn.
 //! - Gặp xung đột thì git dừng như rebase thường; app hiện Tiếp tục / Bỏ qua / Huỷ (lệnh `rebase --continue|--skip|--abort`
-//!   thường). File lời phải còn tới lúc đó nên chỉ dọn ở lần rebase tương tác kế tiếp.
+//!   thường). File message phải còn tới lúc đó nên chỉ dọn ở lần rebase tương tác kế tiếp.
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
@@ -25,7 +25,7 @@ use crate::policy::EnvProfile;
 
 /// Số commit tối đa trong một kế hoạch.
 const MAX_STEPS: usize = 2000;
-/// Độ dài tối đa của một lời commit mới (byte).
+/// Độ dài tối đa của một message mới (byte).
 const MAX_MESSAGE: usize = 64 * 1024;
 const DIR_NAME: &str = "thaigit-rebase";
 
@@ -45,7 +45,7 @@ pub enum RebaseAction {
 pub struct RebaseStep {
     pub action: RebaseAction,
     pub sha: String,
-    /// Lời commit mới — bắt buộc với `reword`, bị bỏ qua với việc khác.
+    /// Message mới — bắt buộc với `reword`, bị bỏ qua với thao tác khác.
     #[serde(default)]
     pub message: Option<String>,
 }
@@ -63,7 +63,7 @@ fn is_object_id(value: &str) -> bool {
     matches!(value.len(), 40 | 64) && value.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-/// Kiểm kế hoạch: sha đầy đủ (không ref, không cờ), không trùng, lời commit hợp lệ, commit cũ nhất còn lại không phải gộp.
+/// Kiểm kế hoạch: sha đầy đủ (không ref, không cờ), không trùng, message hợp lệ, commit cũ nhất còn lại không phải gộp.
 pub fn validate_plan(onto: &str, steps: &[RebaseStep]) -> Result<()> {
     if !is_object_id(onto) {
         return Err(AppError::policy("`onto` phải là sha đầy đủ"));
@@ -82,7 +82,7 @@ pub fn validate_plan(onto: &str, steps: &[RebaseStep]) -> Result<()> {
         if step.action == RebaseAction::Reword {
             let message = step.message.as_deref().unwrap_or("");
             if message.trim().is_empty() || message.len() > MAX_MESSAGE || message.contains('\0') {
-                return Err(AppError::policy("lời commit mới rỗng, quá dài hoặc chứa NUL"));
+                return Err(AppError::policy("message mới rỗng, quá dài hoặc chứa NUL"));
             }
         }
     }
@@ -104,7 +104,7 @@ fn sh_path(path: &Path) -> Result<String> {
     Ok(if cfg!(windows) { text.replace('\\', "/") } else { text.to_string() })
 }
 
-/// Nội dung file todo. `message_file(i)` là đường dẫn (dạng `sh`) file lời của dòng thứ i.
+/// Nội dung file todo. `message_file(i)` là đường dẫn (dạng `sh`) file message của dòng thứ i.
 pub fn build_todo(steps: &[RebaseStep], message_file: impl Fn(usize) -> String) -> String {
     let mut lines = Vec::with_capacity(steps.len());
     for (index, step) in steps.iter().enumerate() {
@@ -152,7 +152,7 @@ impl Core {
         for (index, step) in steps.iter().enumerate() {
             if step.action == RebaseAction::Reword {
                 let message = step.message.as_deref().unwrap_or("");
-                std::fs::write(message_path(index), message).map_err(|e| AppError::Io(format!("không ghi được lời commit: {e}")))?;
+                std::fs::write(message_path(index), message).map_err(|e| AppError::Io(format!("không ghi được message: {e}")))?;
             }
         }
         let mut message_files = Vec::with_capacity(steps.len());
@@ -268,14 +268,14 @@ mod tests {
         core.trust_repo(&opened.repo_id).await.unwrap();
         let steps = vec![
             step(RebaseAction::Pick, &shas[2], None),
-            step(RebaseAction::Reword, &shas[0], Some("Một — lời mới\n\nThân có # không bị bỏ\n")),
+            step(RebaseAction::Reword, &shas[0], Some("Một — message mới\n\nThân có # không bị bỏ\n")),
             step(RebaseAction::Fixup, &shas[1], None),
             step(RebaseAction::Drop, &shas[3], None),
         ];
         let outcome = core.git_rebase_interactive(&opened.repo_id, &onto, &steps).await.unwrap();
         assert_eq!(outcome.exit_code, 0, "{}", outcome.stderr);
-        assert_eq!(head_subjects(&repo, 3), ["Một — lời mới", "ba", "gốc"]);
-        assert_eq!(repo.git(&["log", "-1", "--format=%B"]).trim_end(), "Một — lời mới\n\nThân có # không bị bỏ");
+        assert_eq!(head_subjects(&repo, 3), ["Một — message mới", "ba", "gốc"]);
+        assert_eq!(repo.git(&["log", "-1", "--format=%B"]).trim_end(), "Một — message mới\n\nThân có # không bị bỏ");
         assert!(repo.exists("hai.txt"), "fixup giữ thay đổi của commit bị gộp");
         assert!(!repo.exists("bốn.txt"), "drop bỏ commit");
         assert_eq!(String::from_utf8(repo.read("dang-sua.txt")).unwrap(), "chưa commit\n", "autostash trả lại thay đổi");
