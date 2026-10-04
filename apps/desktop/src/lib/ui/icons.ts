@@ -121,6 +121,8 @@ export const ICONS = {
   ],
   stop: [rect(7, 7, 10, 10, 1.8)],
   clock: [circle(12, 12, 8.2), d('M12 7.4V12l3.2 2')],
+  history: [d('M4.3 12a7.7 7.7 0 1 0 2.2-5.4'), d('M4.2 4.4v3.9h3.9'), d('M12 8v4.2l2.8 1.8')],
+  blame: [circle(7, 8, 2.6), d('M3 17.6a4 4 0 0 1 8 0'), d('M14 7h6.5M14 12h6.5M14 17h4.5')],
 } as const satisfies Record<string, readonly IconShape[]>;
 
 export type IconName = keyof typeof ICONS;

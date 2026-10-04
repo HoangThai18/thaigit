@@ -17,6 +17,7 @@
   } from '@thaigit/core';
   import { untrack } from 'svelte';
   import { checkout } from '../actions/branches.ts';
+  import { beginAddRemote, remoteMenu } from '../actions/manageRemotes.ts';
   import { refMenu, stashMenu } from '../actions/menus.ts';
   import { showBidi } from '../format/bidi.ts';
   import { containsFolded, foldText } from '../format/natural.ts';
@@ -224,6 +225,17 @@
         {#if store.remotes.length === 0}
           <p class="placeholder">{vi.sidebar.noRemote}</p>
         {/if}
+        <div class="toolbar">
+          <button
+            type="button"
+            class="mini"
+            title={vi.remote.addRemote}
+            aria-label={vi.remote.addRemote}
+            onclick={() => void beginAddRemote(store)}
+          >
+            <Icon name="plus" size={12} strokeWidth={2.4} />
+          </button>
+        </div>
         {#each store.remotes as remote (remote.name)}
           {@const open = filtering || (remoteOpen[remote.name] ?? false)}
           <button
@@ -233,6 +245,7 @@
             title={showBidi(remote.fetchUrl)}
             data-drop={dropAttr('remote', remote.name)}
             onclick={() => (remoteOpen[remote.name] = !open)}
+            oncontextmenu={(event) => menus.openAt(event, remoteMenu(store, remote))}
           >
             <span class="sb-chevron"
               ><Icon name={open ? 'chevron-down' : 'chevron-right'} size={11} strokeWidth={2.4} /></span
@@ -423,6 +436,29 @@
     margin: 2px 10px 6px 34px;
     color: var(--text-tertiary);
     font-size: 12px;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 2px 10px 4px 34px;
+  }
+
+  .mini {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 18px;
+    border: 0;
+    border-radius: var(--radius-s);
+    background: var(--chip-fill);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .mini:hover {
+    color: var(--text);
   }
 
   .badge {

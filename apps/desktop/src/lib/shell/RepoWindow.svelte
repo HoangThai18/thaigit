@@ -14,6 +14,7 @@
   import DiffPane from '../diff/DiffPane.svelte';
   import { showBidi } from '../format/bidi.ts';
   import GraphView from '../graph/GraphView.svelte';
+  import BlamePane from '../history/BlamePane.svelte';
   import SearchBar from '../graph/SearchBar.svelte';
   import { GraphSearch } from '../graph/search.svelte.ts';
   import { untrack } from 'svelte';
@@ -51,6 +52,8 @@
       store.remotes.length > 0 &&
       (gaps.shallow || gaps.narrowRemotes.length > 0),
   );
+  /** Vùng giữa đang bị diff / blame che (graph ẩn đi). */
+  const centerCovered = $derived(store.diff.file !== null || store.blame.target !== null);
   let showLog = $state(false);
   let showBranchPicker = $state(false);
   const search = untrack(() => new GraphSearch(store));
@@ -86,7 +89,7 @@
       return;
     if (!(event.ctrlKey || event.metaKey)) return;
     const code = event.code;
-    if (!event.shiftKey && !event.altKey && code === 'KeyF' && store.diff.file === null) {
+    if (!event.shiftKey && !event.altKey && code === 'KeyF' && !centerCovered) {
       event.preventDefault();
       search.show();
       return;
@@ -231,8 +234,8 @@
             {/if}
           </div>
         {/if}
-        <!-- Graph giữ nguyên khi mở diff (ẩn đi) để quay lại không phải dựng lại / mất vị trí cuộn. -->
-        <div class="graph-area" class:hidden={store.diff.file !== null}>
+        <!-- Graph giữ nguyên khi mở diff / blame (ẩn đi) để quay lại không phải dựng lại / mất vị trí cuộn. -->
+        <div class="graph-area" class:hidden={centerCovered}>
           <GraphView {store} {search} />
           <SearchBar {search} />
         </div>
@@ -240,6 +243,8 @@
           <div class="graph-area"><ConflictPane {store} /></div>
         {:else if store.diff.file !== null}
           <div class="graph-area"><DiffPane {store} /></div>
+        {:else if store.blame.target !== null}
+          <div class="graph-area"><BlamePane {store} /></div>
         {/if}
       </div>
       {#if showInspector}

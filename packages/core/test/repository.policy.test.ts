@@ -120,6 +120,8 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.blob(`:${FILE.path}`);
     await r.workingFileBytes(FILE.path);
     await r.fileHistory('-bắt đầu bằng gạch.txt', 50);
+    await r.blame('-bắt đầu bằng gạch.txt');
+    await r.blame(FILE.path, SHA);
     await r.resolveCommit('HEAD~1');
     await r.config('user.name');
     await r.setConfig('user.name', 'Tên', 'global');
@@ -218,6 +220,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.deleteRemoteTag('origin', 'v1', network);
     await r.addRemote('up', 'https://example.com/a.git');
     await r.setRemoteUrl('up', 'https://example.com/b.git');
+    await r.renameRemote('up', 'nguồn/mới');
     await r.removeRemote('up');
     await r.stashPush(null, false);
     await r.stashPush('Đang làm dở -u', true);

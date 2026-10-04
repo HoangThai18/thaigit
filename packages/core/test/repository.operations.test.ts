@@ -15,6 +15,7 @@ import {
   isDetachedHead,
   isMergeCommit,
   isStatusClean,
+  isUncommittedBlame,
   isWorkingTreeCommit,
   isUnbornHead,
   isValidRefName,
@@ -441,8 +442,13 @@ describe('nhánh, stash, log, lịch sử file', () => {
         'sửa',
       );
       const history = await t.repo.fileHistory('mới.txt');
-      expect(history.map((commit) => commit.subject)).toEqual(['sửa', 'đổi tên', 'tạo']);
-      expect((await t.repo.fileHistory('mới.txt', 1)).map((commit) => commit.subject)).toEqual(['sửa']);
+      expect(history.map((entry) => entry.commit.subject)).toEqual(['sửa', 'đổi tên', 'tạo']);
+      expect(history.map((entry) => entry.change)).toEqual([
+        { path: 'mới.txt', kind: 'modified' },
+        { path: 'mới.txt', oldPath: 'cũ.txt', kind: 'renamed' },
+        { path: 'cũ.txt', kind: 'added' },
+      ]);
+      expect((await t.repo.fileHistory('mới.txt', 1)).map((entry) => entry.commit.subject)).toEqual(['sửa']);
 
       const log = await t.repo.log({ limit: 10, order: 'topo', includeHead: true });
       const renameCommit = log.find((commit) => commit.subject === 'đổi tên');
@@ -452,6 +458,31 @@ describe('nhánh, stash, log, lịch sử file', () => {
       expect(details.files).toEqual([{ path: 'mới.txt', oldPath: 'cũ.txt', kind: 'renamed' }]);
       const root = log.find((commit) => commit.subject === 'tạo');
       expect((await t.repo.commitDetails(root as Commit)).files).toEqual([{ path: 'cũ.txt', kind: 'added' }]);
+    }));
+});
+
+describe('blame', () => {
+  it('quy từng dòng về commit (cả tại một commit cũ), dòng chưa commit mang sha toàn số 0', () =>
+    withTestRepo(async (t) => {
+      const first = await commitFile(t, 'a.txt', 'một\nhai\n', 'tạo a');
+      const second = await commitFile(t, 'a.txt', 'một\nhai sửa\nba\n', 'sửa a');
+
+      const blame = await t.repo.blame('a.txt');
+      expect(blame.lines.map((line) => [line.text, line.sha, line.startsGroup])).toEqual([
+        ['một', first, true],
+        ['hai sửa', second, true],
+        ['ba', second, false],
+      ]);
+      expect(blame.commits.get(first)?.summary).toBe('tạo a');
+
+      // Tại commit cũ: chỉ có nội dung của commit đó.
+      expect((await t.repo.blame('a.txt', first)).lines.map((line) => line.text)).toEqual(['một', 'hai']);
+
+      await t.write('a.txt', 'một\nhai sửa\nba\nbốn chưa commit\n');
+      const working = await t.repo.blame('a.txt');
+      const last = working.lines.at(-1);
+      expect(last?.text).toBe('bốn chưa commit');
+      expect(isUncommittedBlame(last?.sha ?? '')).toBe(true);
     }));
 });
 

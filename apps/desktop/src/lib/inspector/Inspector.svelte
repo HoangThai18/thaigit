@@ -1,5 +1,9 @@
-<!-- Panel chi tiết bên phải: Dòng thời gian khi đang mở, không thì theo `store.selection` (commit / stash / WIP / chưa chọn). -->
+<!--
+  Panel chi tiết bên phải: Lịch sử file hoặc Dòng thời gian khi đang mở (chỉ một trong hai), không thì theo `store.selection`
+  (commit / stash / WIP / chưa chọn).
+-->
 <script lang="ts">
+  import FileHistoryPanel from '../history/FileHistoryPanel.svelte';
   import { vi } from '../strings.vi.ts';
   import TimelinePanel from '../snapshots/TimelinePanel.svelte';
   import type { RepoStore } from '../stores/repo.svelte.ts';
@@ -17,7 +21,9 @@
 </script>
 
 <div class="inspector" role="region" aria-label={vi.inspector.ariaLabel}>
-  {#if store.timeline.isOpen}
+  {#if store.fileHistory.isOpen}
+    <FileHistoryPanel {store} />
+  {:else if store.timeline.isOpen}
     <TimelinePanel {store} />
   {:else if selection.kind === 'workingTree'}
     <WipPanel {store} />

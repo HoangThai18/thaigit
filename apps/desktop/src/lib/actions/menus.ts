@@ -17,6 +17,7 @@ import { tidyMenu, type MenuItem } from '../stores/menus.svelte.ts';
 import { vi } from '../strings.vi.ts';
 import { describePullRequest, explainCommit } from '../ai/actions.ts';
 import { AI_ENABLED } from '../ai/enabled.ts';
+import { openBlame, openFileHistory } from '../history/actions.ts';
 import { assignAccountForRepo } from '../forge/assignOwner.ts';
 import { createPullRequest } from '../forge/createPullRequest.svelte.ts';
 import { targetOf } from '../forge/pullRequests.ts';
@@ -347,7 +348,7 @@ export function fileMenu(store: RepoStore, change: FileChange, source: DiffSourc
       run: () => void unstageFiles(store, [change]),
     });
   }
-  items.push({ kind: 'separator' });
+  items.push({ kind: 'separator' }, ...historyItems(store, change, source), { kind: 'separator' });
   const port = store.port;
   const onDisk = (source.kind === 'unstaged' || source.kind === 'staged') && change.kind !== 'deleted';
   if (onDisk && port.openInEditor) {
@@ -370,6 +371,28 @@ export function fileMenu(store: RepoStore, change: FileChange, source: DiffSourc
     run: () => void store.copy(change.path, vi.branches.copyPathLabel),
   });
   return tidyMenu(items);
+}
+
+/**
+ * Lịch sử file / Blame (như GitKraken): file chưa từng commit (chưa track, mới thêm) thì không có gì để xem. Với file của một
+ * commit, blame tại chính commit đó; file đã xoá thì không blame được.
+ */
+function historyItems(store: RepoStore, change: FileChange, source: DiffSource): MenuItem[] {
+  if (source.kind === 'stash' || source.kind === 'conflict') return [];
+  const workingTree = source.kind === 'unstaged' || source.kind === 'staged';
+  if (workingTree && (change.kind === 'untracked' || change.kind === 'added')) return [];
+  const items: MenuItem[] = [
+    { title: vi.history.menuFileHistory, icon: 'history', run: () => openFileHistory(store, change.path) },
+  ];
+  if (change.kind !== 'deleted') {
+    const rev = source.kind === 'commit' ? source.sha : null;
+    items.push({
+      title: rev === null ? vi.history.menuBlame : vi.history.menuBlameAtCommit,
+      icon: 'blame',
+      run: () => openBlame(store, change.path, rev),
+    });
+  }
+  return items;
 }
 
 /** Mở ứng dụng ngoài (terminal, trình soạn thảo, trình quản lý file); lỗi chỉ báo câu thân thiện. */

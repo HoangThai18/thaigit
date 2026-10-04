@@ -17,3 +17,11 @@ export function isValidRefName(name: string, branch = true): boolean {
   // Mỗi thành phần ngăn bởi "/": không rỗng (loại luôn "/" đầu/cuối và "//"), không mở đầu bằng ".", không kết thúc ".lock".
   return name.split('/').every((part) => part !== '' && !part.startsWith('.') && !part.endsWith('.lock'));
 }
+
+/**
+ * Tên remote hợp lệ: git đòi `refs/remotes/<tên>/x` là ref hợp lệ (`valid_remote_name`), tức cùng luật thành phần với tên tag —
+ * kể cả cấm `-` ở đầu (không thì `git remote rename a -x` bị hiểu là cờ).
+ */
+export function isValidRemoteName(name: string): boolean {
+  return isValidRefName(name, false);
+}

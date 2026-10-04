@@ -436,6 +436,44 @@ export interface CommitDetails {
   readonly files: readonly FileChange[];
 }
 
+// MARK: - Lịch sử một file, blame
+
+/** Một commit trong lịch sử của một file (`git log --follow`): `change` là file ĐÓ ở commit đó (tên cũ nếu sau này đổi tên). */
+export interface FileHistoryEntry {
+  readonly commit: Commit;
+  readonly change: FileChange;
+}
+
+/** Commit mà blame quy một nhóm dòng về. */
+export interface BlameCommit {
+  readonly sha: string;
+  readonly authorName: string;
+  readonly authorEmail: string;
+  /** Giây Unix. */
+  readonly authorDate: number;
+  readonly summary: string;
+}
+
+export interface BlameLine {
+  /** Số dòng trong file (bắt đầu từ 1). */
+  readonly number: number;
+  readonly text: string;
+  readonly sha: string;
+  /** Dòng đầu của một nhóm dòng liền nhau cùng commit (chỉ dòng này hiện tác giả / lời commit). */
+  readonly startsGroup: boolean;
+}
+
+/** Kết quả `git blame`: từng dòng của file thuộc commit nào. */
+export interface Blame {
+  readonly lines: readonly BlameLine[];
+  readonly commits: ReadonlyMap<string, BlameCommit>;
+}
+
+/** Dòng chưa commit (blame trên working tree): git ghi sha toàn số 0. */
+export function isUncommittedBlame(sha: string): boolean {
+  return /^0+$/.test(sha);
+}
+
 /** Phần thân message (bỏ dòng tóm tắt đầu tiên). */
 export function commitBody(message: string): string {
   const trimmed = message.trim();

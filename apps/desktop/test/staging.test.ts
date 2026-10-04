@@ -157,10 +157,15 @@ describe('stage theo dòng / hunk', () => {
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe(`${afterDiscard.join('\n')}\n`);
 
     lastAction(toasts, 'Hoàn tác')();
-    await until(
-      () => readFileSync(join(test.root, 'a.txt'), 'utf8') === `${changed.join('\n')}\n`,
-      'hoàn tác huỷ hunk',
-    );
+    // `git apply` xoá rồi tạo lại file: đọc đúng lúc đó gặp ENOENT — coi như chưa xong, không phải lỗi.
+    const current = (): string | null => {
+      try {
+        return readFileSync(join(test.root, 'a.txt'), 'utf8');
+      } catch {
+        return null;
+      }
+    };
+    await until(() => current() === `${changed.join('\n')}\n`, 'hoàn tác huỷ hunk');
   });
 });
 

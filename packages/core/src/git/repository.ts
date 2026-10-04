@@ -14,10 +14,12 @@ import { decodeUtf8, encodeUtf8, nulSeparated } from './bytes.ts';
 import {
   fileChange,
   fileChangeAllPaths,
+  type Blame,
   type Commit,
   type CommitDetails,
   type ConflictKind,
   type FileChange,
+  type FileHistoryEntry,
   type GitRef,
   type LogOrder,
   type MergeStyle,
@@ -30,9 +32,12 @@ import {
   type WorkingTreeStatus,
 } from './models.ts';
 import {
+  FILE_HISTORY_FORMAT,
   LOG_FORMAT,
   REF_FORMAT,
   STASH_FORMAT,
+  parseBlame,
+  parseFileHistory,
   parseLog,
   parseNameStatus,
   parseRefs,
@@ -40,7 +45,7 @@ import {
   parseStashList,
   parseStatus,
 } from './parsers.ts';
-import { isValidRefName } from './refname.ts';
+import { isValidRefName, isValidRemoteName } from './refname.ts';
 import { AdapterError, GitError, GitRunner } from './runner.ts';
 
 export type RepositoryErrorKind = 'notARepository' | 'bareRepository' | 'invalidName';
@@ -449,21 +454,38 @@ export class GitRepository {
     return this.fs.readWorktreeFile(path, maxBytes);
   }
 
-  async fileHistory(path: string, limit = 300): Promise<Commit[]> {
+  /** Các commit đụng tới `path` (mới → cũ), theo dấu qua các lần đổi tên; mỗi mục kèm file đó ở commit đó. */
+  async fileHistory(path: string, limit = 300): Promise<FileHistoryEntry[]> {
     assertNoNul(path);
     const out = await this.runner.run(
       'log',
       [
         '-z',
-        `--format=${LOG_FORMAT}`,
+        `--format=${FILE_HISTORY_FORMAT}`,
         '--follow',
+        '--name-status',
         `--max-count=${Math.max(1, Math.trunc(limit))}`,
         '--',
         path,
       ],
       { env: LITERAL_PATHSPECS },
     );
-    return parseLog(out.stdout);
+    return parseFileHistory(out.stdout, path);
+  }
+
+  /**
+   * Blame `path` tại `rev` (null: bản trong working tree, kể cả dòng chưa commit). `-M`: dòng chuyển chỗ trong file vẫn tính
+   * về commit gốc (không dùng `-C`: cờ ngắn này bị chính sách chặn). `--no-textconv` do chính sách chạy git tự chèn.
+   */
+  async blame(path: string, rev: string | null = null): Promise<Blame> {
+    assertNoNul(path);
+    if (rev !== null) assertArgument(rev);
+    const out = await this.runner.run(
+      'blame',
+      ['--porcelain', '-M', ...(rev !== null ? [rev] : []), '--', path],
+      { env: DIFF_ENV },
+    );
+    return parseBlame(out.stdout);
   }
 
   async resolveCommit(rev: string): Promise<string> {
@@ -984,6 +1006,13 @@ export class GitRepository {
   async removeRemote(name: string): Promise<void> {
     assertArgument(name);
     await this.runner.run('remote', ['remove', name]);
+  }
+
+  /** Đổi tên remote: git đổi luôn nhánh remote (`refs/remotes/<cũ>/…`) và upstream của các nhánh local đang theo dõi. */
+  async renameRemote(oldName: string, newName: string): Promise<void> {
+    assertArgument(oldName);
+    if (!isValidRemoteName(newName)) throw new RepositoryError('invalidName', newName);
+    await this.runner.run('remote', ['rename', oldName, newName]);
   }
 
   // MARK: - Stash

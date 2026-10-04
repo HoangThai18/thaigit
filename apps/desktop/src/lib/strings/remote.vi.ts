@@ -109,6 +109,48 @@ export const remote = {
   askpassPrivacy: 'Thaigit chỉ chuyển câu trả lời cho git, không lưu lại.',
   askpassContinue: 'Tiếp tục',
 
+  // Quản lý remote (sidebar → REMOTE)
+  addRemote: 'Thêm remote…',
+  addRemoteTitle: 'Thêm remote',
+  addRemoteMessage:
+    'Remote là một bản của repo trên máy chủ (GitHub, GitLab…) hoặc thư mục khác để fetch / push.',
+  remoteNameLabel: 'Tên',
+  remoteUrlLabel: 'Địa chỉ (URL)',
+  remoteNameRequired: 'Nhập tên remote',
+  remoteNameInvalid:
+    'Tên không hợp lệ (không dấu cách, không bắt đầu bằng “-”, không có ký tự ~ ^ : ? * [ \\)',
+  remoteExists: (name: string) => `Đã có remote “${name}”`,
+  remoteUrlRequired: 'Nhập địa chỉ của remote',
+  fetchAfterAdd: 'Fetch ngay sau khi thêm',
+  addRemoteRunning: (name: string) => `Thêm remote ${name}`,
+  remoteAdded: (name: string) => `Đã thêm remote ${name}`,
+  fetchRemote: (name: string) => `Fetch ${name}`,
+  remoteFetched: (name: string) => `Đã fetch ${name}`,
+  editRemoteUrl: 'Sửa địa chỉ…',
+  editRemoteUrlTitle: (name: string) => `Địa chỉ của remote ${name}`,
+  saveRemoteUrl: 'Lưu',
+  editRemoteUrlRunning: (name: string) => `Đổi địa chỉ remote ${name}`,
+  remoteUrlChanged: (name: string) => `Đã đổi địa chỉ remote ${name}`,
+  renameRemote: 'Đổi tên…',
+  renameRemoteTitle: (name: string) => `Đổi tên remote ${name}`,
+  renameRemoteMessage: 'Các nhánh của remote và nhánh local đang theo dõi nó được đổi theo.',
+  renameRemoteConfirm: 'Đổi tên',
+  renameRemoteRunning: (name: string) => `Đổi tên remote ${name}`,
+  remoteRenamed: (oldName: string, newName: string) => `Đã đổi remote ${oldName} → ${newName}`,
+  removeRemote: 'Xoá remote…',
+  removeRemoteTitle: (name: string) => `Xoá remote ${name}?`,
+  removeRemoteMessage: (branches: number) =>
+    branches > 0
+      ? `Thaigit bỏ ${branches} nhánh remote khỏi máy bạn; các nhánh local đang theo dõi remote này không còn upstream. Repo trên máy chủ không bị đụng tới.`
+      : 'Repo trên máy chủ không bị đụng tới.',
+  removeRemoteConfirm: 'Xoá remote',
+  removeRemoteRunning: (name: string) => `Xoá remote ${name}`,
+  remoteRemoved: (name: string) => `Đã xoá remote ${name}`,
+  undoRemoveRemote: 'Hoàn tác',
+  remoteRestored: (name: string) => `Đã thêm lại remote ${name} — Fetch để thấy lại các nhánh của nó`,
+  copyRemoteUrl: 'Sao chép địa chỉ',
+  remoteUrlCopyLabel: 'địa chỉ',
+
   // Nhật ký lệnh
   commandLogTitle: 'Nhật ký lệnh git',
   commandLogEmpty: 'Chưa chạy lệnh nào.',

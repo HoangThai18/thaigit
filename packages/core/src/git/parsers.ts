@@ -6,10 +6,14 @@ import {
   changeKindFromCode,
   conflictKindFromCode,
   fileChange,
+  type Blame,
+  type BlameCommit,
+  type BlameLine,
   type ChangeKind,
   type Commit,
   type ConflictEntry,
   type FileChange,
+  type FileHistoryEntry,
   type GitRef,
   type HeadState,
   type RefKind,
@@ -111,6 +115,100 @@ export function parseLog(data: Uint8Array | string): Commit[] {
     start = end + 1;
   }
   return commits;
+}
+
+// MARK: - Lịch sử một file
+
+/**
+ * Định dạng cho `git log -z --follow --name-status`: \x1e mở đầu bản ghi commit để phân biệt với token của name-status
+ * (cũng ngăn bằng NUL).
+ */
+export const FILE_HISTORY_FORMAT = `%x1e${LOG_FORMAT}`;
+
+/**
+ * Parse `git log -z --format=FILE_HISTORY_FORMAT --follow --name-status -- <path>`. Đi từ mới về cũ: commit đổi tên
+ * (`R100 cũ mới`) làm các commit cũ hơn mang tên cũ. Commit không kèm name-status (merge) lấy tên đang theo dõi.
+ */
+export function parseFileHistory(data: Uint8Array | string, path: string): FileHistoryEntry[] {
+  const tokens = asText(data).split('\0');
+  const entries: FileHistoryEntry[] = [];
+  let tracked = path;
+  let commit: Commit | null = null;
+  let change: FileChange | null = null;
+  for (let index = 0; index < tokens.length; index++) {
+    const raw = tokens[index] ?? '';
+    // Một số phiên bản git chèn "\n" trước bản ghi kế tiếp / trước name-status.
+    const token = raw.startsWith('\n') ? raw.slice(1) : raw;
+    if (token.startsWith('\x1e')) {
+      if (commit !== null) entries.push({ commit, change: change ?? fileChange(tracked, 'modified') });
+      commit = parseLog(token.slice(1))[0] ?? null;
+      change = null;
+      continue;
+    }
+    if (commit === null || change !== null || token === '') continue;
+    const code = token.charAt(0);
+    if (code === 'R' || code === 'C') {
+      const oldPath = tokens[index + 1] ?? '';
+      const newPath = tokens[index + 2] ?? '';
+      index += 2;
+      if (oldPath === '' || newPath === '') continue;
+      change = fileChange(newPath, code === 'R' ? 'renamed' : 'copied', oldPath);
+      tracked = oldPath;
+    } else {
+      const filePath = tokens[index + 1] ?? '';
+      index += 1;
+      if (filePath === '') continue;
+      change = fileChange(filePath, changeKindFromCode(code));
+      tracked = filePath;
+    }
+  }
+  if (commit !== null) entries.push({ commit, change: change ?? fileChange(tracked, 'modified') });
+  return entries;
+}
+
+// MARK: - Blame
+
+const BLAME_HEADER = /^([0-9a-f]{40}|[0-9a-f]{64}) \d+ \d+/;
+
+/**
+ * Parse `git blame --porcelain` (port Blame.parse của app Swift): mỗi dòng mở đầu bằng "<sha> <dòng gốc> <dòng mới> [số dòng]",
+ * thông tin commit (author, author-mail, author-time, summary…) chỉ có ở lần đầu commit xuất hiện, nội dung dòng bắt đầu bằng
+ * tab. Nội dung không phải UTF-8 được giải mã lỏng (chỉ để xem).
+ */
+export function parseBlame(data: Uint8Array | string): Blame {
+  const lines: BlameLine[] = [];
+  const commits = new Map<string, BlameCommit>();
+  let current: string | null = null;
+  let previous: string | null = null;
+  for (const raw of asText(data).split('\n')) {
+    if (raw.startsWith('\t')) {
+      if (current === null) continue;
+      const text = raw.endsWith('\r') ? raw.slice(1, -1) : raw.slice(1);
+      lines.push({ number: lines.length + 1, text, sha: current, startsGroup: current !== previous });
+      previous = current;
+      continue;
+    }
+    const header = BLAME_HEADER.exec(raw);
+    if (header) {
+      current = header[1] ?? null;
+      if (current !== null && !commits.has(current)) {
+        commits.set(current, { sha: current, authorName: '', authorEmail: '', authorDate: 0, summary: '' });
+      }
+      continue;
+    }
+    if (current === null) continue;
+    const info = commits.get(current);
+    if (!info) continue;
+    const space = raw.indexOf(' ');
+    const key = space < 0 ? raw : raw.slice(0, space);
+    const value = space < 0 ? '' : raw.slice(space + 1);
+    if (key === 'author') commits.set(current, { ...info, authorName: value });
+    else if (key === 'author-mail')
+      commits.set(current, { ...info, authorEmail: value.replace(/^<|>$/g, '') });
+    else if (key === 'author-time') commits.set(current, { ...info, authorDate: parseInteger(value) ?? 0 });
+    else if (key === 'summary') commits.set(current, { ...info, summary: value });
+  }
+  return { lines, commits };
 }
 
 // MARK: - Refs

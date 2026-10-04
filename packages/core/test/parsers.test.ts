@@ -16,12 +16,15 @@ import {
   isDetachedHead,
   isMergeCommit,
   isStatusClean,
+  isUncommittedBlame,
   isUnbornHead,
   isWorkingTreeCommit,
   operationCanContinue,
   operationCanSkip,
   operationShortName,
   operationTitle,
+  parseBlame,
+  parseFileHistory,
   parseLog,
   parseNameStatus,
   parseRefs,
@@ -426,5 +429,82 @@ describe('Parsers: ca biên', () => {
     expect(operationCanContinue({ kind: 'merging' })).toBe(true);
     expect(operationCanSkip({ kind: 'merging' })).toBe(false);
     expect(operationCanSkip({ kind: 'applyingPatches' })).toBe(true);
+  });
+});
+
+describe('Parsers: lịch sử một file, blame', () => {
+  const record = (sha: string, subject: string) =>
+    `\x1e${sha}\x1f\x1fA\x1fa@x\x1f1700000000\x1fA\x1fa@x\x1f1700000000\x1f${subject}\0`;
+
+  it('parseFileHistory theo dấu rename: commit cũ hơn mang tên cũ, merge không name-status lấy tên đang theo dõi', () => {
+    const a = 'a'.repeat(40);
+    const b = 'b'.repeat(40);
+    const c = 'c'.repeat(40);
+    const d = 'd'.repeat(40);
+    const data =
+      `${record(a, 'sửa')}\nM\0mới.txt\0` +
+      `${record(b, 'đổi tên')}\nR100\0cũ.txt\0mới.txt\0` +
+      record(c, 'merge') +
+      `${record(d, 'tạo')}\nA\0cũ.txt\0`;
+    const entries = parseFileHistory(data, 'mới.txt');
+    expect(entries.map((entry) => entry.commit.subject)).toEqual(['sửa', 'đổi tên', 'merge', 'tạo']);
+    expect(entries.map((entry) => entry.change)).toEqual([
+      { path: 'mới.txt', kind: 'modified' },
+      { path: 'mới.txt', oldPath: 'cũ.txt', kind: 'renamed' },
+      { path: 'cũ.txt', kind: 'modified' },
+      { path: 'cũ.txt', kind: 'added' },
+    ]);
+  });
+
+  it('parseFileHistory: tên file mở đầu bằng \\x1e / xuống dòng không bị coi là commit mới', () => {
+    const a = 'a'.repeat(40);
+    const entries = parseFileHistory(`${record(a, 's')}\nM\0\x1elạ\0`, '\x1elạ');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.change.path).toBe('\x1elạ');
+    expect(parseFileHistory('', 'x')).toEqual([]);
+  });
+
+  it('parseBlame nhóm dòng liền nhau cùng commit, thông tin commit chỉ ở lần đầu, bỏ \\r cuối dòng', () => {
+    const a = 'a'.repeat(40);
+    const zero = '0'.repeat(40);
+    const data = [
+      `${a} 1 1 2`,
+      'author Nguyễn Văn A',
+      'author-mail <a@x>',
+      'author-time 1700000000',
+      'author-tz +0700',
+      'summary Tạo file',
+      'filename f.txt',
+      '\tdòng một\r',
+      `${a} 2 2`,
+      '\tdòng hai',
+      `${zero} 3 3 1`,
+      'author Not Committed Yet',
+      'author-mail <not.committed.yet>',
+      'author-time 1700000100',
+      'summary Version of f.txt from f.txt',
+      'filename f.txt',
+      '\t',
+      `${a} 3 4 1`,
+      'filename f.txt',
+      '\t\tthụt đầu dòng',
+      '',
+    ].join('\n');
+    const blame = parseBlame(data);
+    expect(blame.lines).toEqual([
+      { number: 1, text: 'dòng một', sha: a, startsGroup: true },
+      { number: 2, text: 'dòng hai', sha: a, startsGroup: false },
+      { number: 3, text: '', sha: zero, startsGroup: true },
+      { number: 4, text: '\tthụt đầu dòng', sha: a, startsGroup: true },
+    ]);
+    expect(blame.commits.get(a)).toEqual({
+      sha: a,
+      authorName: 'Nguyễn Văn A',
+      authorEmail: 'a@x',
+      authorDate: 1700000000,
+      summary: 'Tạo file',
+    });
+    expect(isUncommittedBlame(zero)).toBe(true);
+    expect(isUncommittedBlame(a)).toBe(false);
   });
 });

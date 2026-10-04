@@ -3,6 +3,7 @@ import { accounts, pullRequests } from './strings/accounts.en.ts';
 import { ai } from './strings/ai.en.ts';
 import { branches } from './strings/branches.en.ts';
 import { dnd } from './strings/dnd.en.ts';
+import { history } from './strings/history.en.ts';
 import { remote } from './strings/remote.en.ts';
 import { risk } from './strings/risk.en.ts';
 import { settings } from './strings/settings.en.ts';
@@ -21,6 +22,7 @@ export const en: Strings = {
   ai,
   settings,
   dnd,
+  history,
   accounts,
   pullRequests,
   snapshots,

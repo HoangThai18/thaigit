@@ -4,10 +4,13 @@
 export { sha256Hex } from './bytes.ts';
 export * from './models.ts';
 export {
+  FILE_HISTORY_FORMAT,
   LOG_FORMAT,
   REF_FORMAT,
   STASH_FORMAT,
   defaultCloneDirectoryName,
+  parseBlame,
+  parseFileHistory,
   parseLog,
   parseNameStatus,
   parseRefs,
@@ -17,7 +20,7 @@ export {
   parseTrack,
   progressFraction,
 } from './parsers.ts';
-export { isValidRefName } from './refname.ts';
+export { isValidRefName, isValidRemoteName } from './refname.ts';
 export { classifyGitPath } from './watch-paths.ts';
 export { buildHistory, type BuildHistoryOptions, type History } from './history.ts';
 export {

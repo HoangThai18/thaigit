@@ -501,7 +501,9 @@ describe('Repository: đường dẫn lạ và đầu vào xấu', () => {
       expect(text((await t.repo.workingFileBytes(path)) ?? new Uint8Array(0))).toBe('nội dung mới\n');
       await t.repo.discard([path]);
       expect(await t.read(path)).toBe('nội dung\n');
-      expect((await t.repo.fileHistory(path)).map((commit) => commit.subject)).toEqual(['đường dẫn dài']);
+      expect((await t.repo.fileHistory(path)).map((entry) => entry.commit.subject)).toEqual([
+        'đường dẫn dài',
+      ]);
     }));
 
   it('addToGitignore thêm theo byte và git thực sự bỏ qua file đó', () =>
@@ -585,7 +587,11 @@ describe('Repository: đường dẫn lạ và đầu vào xấu', () => {
         fetchUrl: 'https://example.com/b.git',
         pushUrl: 'https://example.com/b.git',
       });
-      await t.repo.removeRemote('origin');
+      await t.repo.renameRemote('origin', 'nguồn');
+      expect((await t.repo.remotes()).map((remote) => remote.name)).toEqual(['nguồn']);
+      await expect(t.repo.renameRemote('nguồn', '--mirror')).rejects.toBeInstanceOf(RepositoryError);
+      await expect(t.repo.renameRemote('nguồn', 'a..b')).rejects.toBeInstanceOf(RepositoryError);
+      await t.repo.removeRemote('nguồn');
       expect(await t.repo.remotes()).toEqual([]);
       await expect(t.repo.setConfig('core.fsmonitor', 'touch /tmp/pwned', 'local')).rejects.toMatchObject({
         code: 'policy',

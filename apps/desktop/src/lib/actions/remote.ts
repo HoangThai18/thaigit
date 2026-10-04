@@ -8,6 +8,7 @@ import { dialogs as globalDialogs, textValue, type DialogStore } from '../stores
 import type { PullModePref } from '../stores/prefs.svelte.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { gitErrorContains, handleConflictError, handleNetworkError } from './errors.ts';
+import { beginAddRemote } from './manageRemotes.ts';
 import { quickStash } from './stash.ts';
 
 export interface PushRequest {
@@ -24,7 +25,9 @@ export function pullModeFromPref(pref: PullModePref): PullMode {
 
 function noRemote(store: RepoStore): boolean {
   if (store.remotes.length > 0) return false;
-  store.notify('info', vi.remote.noRemote);
+  store.notify('info', vi.remote.noRemote, {
+    actions: [{ title: vi.remote.addRemote, run: () => void beginAddRemote(store) }],
+  });
   return true;
 }
 

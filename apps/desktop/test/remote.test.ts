@@ -6,6 +6,13 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { shouldAutoFetch } from '../src/lib/actions/autoFetch.ts';
 import { beginCreateBranch, checkout, switchToBranch } from '../src/lib/actions/branches.ts';
+import {
+  beginAddRemote,
+  beginEditRemoteUrl,
+  beginRenameRemote,
+  remoteMenu,
+  removeRemote,
+} from '../src/lib/actions/manageRemotes.ts';
 import { backgroundFetch, completeHistory, fetch, pull, push, sync } from '../src/lib/actions/remote.ts';
 import { commit } from '../src/lib/actions/commit.ts';
 import { popLatestStash, quickStash } from '../src/lib/actions/stash.ts';
@@ -13,6 +20,7 @@ import { DialogStore } from '../src/lib/stores/dialogs.svelte.ts';
 import { PrefsStore } from '../src/lib/stores/prefs.svelte.ts';
 import { RepoStore } from '../src/lib/stores/repo.svelte.ts';
 import { ToastStore } from '../src/lib/stores/toasts.svelte.ts';
+import { vi as strings } from '../src/lib/strings.vi.ts';
 import { openTestPort, rawGit, type TestPort } from './helpers/node-port.ts';
 
 const cleanups: (() => Promise<void> | void)[] = [];
@@ -323,5 +331,79 @@ describe('nhánh / stash từ thanh công cụ', () => {
     expect(lastToast(toasts)).toBe('Đã lấy đủ nhánh và lịch sử từ remote');
     expect(store.historyGaps).toEqual({ shallow: false, narrowRemotes: [] });
     expect(store.remoteBranches.map((ref) => ref.fullName)).toContain('refs/remotes/origin/feature/x');
+  });
+});
+
+describe('quản lý remote', () => {
+  it('thêm remote qua form (fetch luôn), sửa địa chỉ, đổi tên, xoá rồi hoàn tác', async () => {
+    const { store, toasts, dialogs, bare } = await openWithRemote();
+    const backup = `${bare.slice(0, -'origin.git'.length)}backup.git`;
+    rawGit(store.rootPath, ['init', '-q', '--bare', '-b', 'main', backup]);
+    rawGit(store.rootPath, ['push', '-q', backup, 'main']);
+
+    const adding = beginAddRemote(store, dialogs);
+    await until(() => dialogs.current !== null, 'form thêm remote');
+    const form = dialogs.current;
+    if (form?.kind !== 'form') throw new Error('không phải form');
+    expect(form.validate?.({ name: 'origin', url: backup, fetch: true })).toBe(
+      strings.remote.remoteExists('origin'),
+    );
+    expect(form.validate?.({ name: '-x', url: backup, fetch: true })).toBe(strings.remote.remoteNameInvalid);
+    expect(form.validate?.({ name: 'backup', url: '', fetch: true })).toBe(strings.remote.remoteUrlRequired);
+    dialogs.submit({ name: 'backup', url: backup, fetch: true });
+    await adding;
+    await until(() => store.remotes.length === 2, 'có remote mới');
+    await until(
+      () => store.remoteBranches.some((ref) => ref.fullName === 'refs/remotes/backup/main'),
+      'đã fetch remote mới',
+    );
+
+    const backupRemote = store.remotes.find((remote) => remote.name === 'backup')!;
+    const editing = beginEditRemoteUrl(store, backupRemote, dialogs);
+    await until(() => dialogs.current !== null, 'form sửa địa chỉ');
+    dialogs.submit({ url: bare });
+    await editing;
+    await until(() => store.remotes.find((remote) => remote.name === 'backup')?.fetchUrl === bare, 'đổi URL');
+
+    const renaming = beginRenameRemote(
+      store,
+      store.remotes.find((remote) => remote.name === 'backup')!,
+      dialogs,
+    );
+    await until(() => dialogs.current !== null, 'form đổi tên');
+    dialogs.submit({ name: 'dự-phòng' });
+    await renaming;
+    await until(
+      () => store.remoteBranches.some((ref) => ref.fullName === 'refs/remotes/dự-phòng/main'),
+      'đổi tên kéo theo nhánh remote',
+    );
+
+    const removing = removeRemote(
+      store,
+      store.remotes.find((remote) => remote.name === 'dự-phòng')!,
+      dialogs,
+    );
+    await until(() => dialogs.current !== null, 'hỏi xoá');
+    expect(dialogs.current?.kind === 'confirm' && dialogs.current.destructive).toBe(true);
+    dialogs.answer('confirm');
+    await removing;
+    await until(() => store.remotes.length === 1, 'đã xoá');
+    action(toasts, strings.remote.undoRemoveRemote)();
+    await until(() => store.remotes.some((remote) => remote.name === 'dự-phòng'), 'hoàn tác xoá');
+    expect(store.remotes.find((remote) => remote.name === 'dự-phòng')?.fetchUrl).toBe(bare);
+  });
+
+  it('menu remote có fetch / sửa / đổi tên / sao chép / xoá', async () => {
+    const { store } = await openWithRemote();
+    const titles = remoteMenu(store, store.remotes[0]!).flatMap((item) =>
+      item.kind === 'separator' ? [] : [item.title],
+    );
+    expect(titles).toEqual([
+      strings.remote.fetchRemote('origin'),
+      strings.remote.editRemoteUrl,
+      strings.remote.renameRemote,
+      strings.remote.copyRemoteUrl,
+      strings.remote.removeRemote,
+    ]);
   });
 });

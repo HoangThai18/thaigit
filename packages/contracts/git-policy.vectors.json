@@ -63,6 +63,15 @@
     { "sub": "diff", "args": ["-o", "/tmp/overwrite"], "reject": "flag-rejected" },
     { "sub": "diff", "args": ["--ext-diff"], "reject": "flag-rejected" },
     { "sub": "log", "args": ["--textconv", "-p"], "reject": "flag-rejected" },
+    { "sub": "blame", "args": ["--porcelain", "-M", "abc123", "--", "src/app.ts"], "reject": null },
+    { "sub": "blame", "args": ["--porcelain", "-C", "--", "src/app.ts"], "reject": "flag-rejected" },
+    { "sub": "blame", "args": ["--porcelain", "--", "-C"], "reject": null },
+    { "sub": "blame", "args": ["--textconv", "--", "a.png"], "reject": "flag-rejected" },
+    { "sub": "blame", "args": ["--contents", "/etc/passwd", "--", "a.txt"], "reject": "flag-rejected" },
+    { "sub": "blame", "args": ["--cont=/etc/passwd", "--", "a.txt"], "reject": "flag-rejected" },
+    { "sub": "blame", "args": ["--ignore-revs-file=/etc/passwd", "--", "a.txt"], "reject": "flag-rejected" },
+    { "sub": "blame", "args": ["-S", "/etc/passwd", "--", "a.txt"], "reject": "flag-rejected" },
+    { "sub": "blame", "args": ["-c", "core.pager=sh", "--", "a.txt"], "reject": "flag-rejected" },
     { "sub": "commit", "args": ["--template=/etc/passwd"], "reject": "flag-rejected" },
     { "sub": "status", "args": ["--git-dir=/tmp/evil"], "reject": "flag-rejected" },
     { "sub": "status", "args": ["--work-tree=/"], "reject": "flag-rejected" },
@@ -170,6 +179,7 @@
     { "sub": "write-tree", "args": [], "kind": "write" },
     { "sub": "commit-tree", "args": ["4b825dc", "--no-gpg-sign"], "kind": "write" },
     { "sub": "reflog", "args": ["delete", "x@{1}"], "kind": "write" },
+    { "sub": "blame", "args": ["--porcelain", "--", "a.txt"], "kind": "read" },
     { "sub": "nope", "args": [], "kind": null },
     { "sub": "__proto__", "args": ["list"], "kind": null }
   ]

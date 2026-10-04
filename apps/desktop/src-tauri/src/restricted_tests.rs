@@ -639,6 +639,8 @@ async fn fail_closed_repo_still_allows_plain_object_reads_and_everything_after_t
         ("b18", ExecKind::Read, "cat-file", vec!["--filters", "HEAD:a.txt"]),
         ("b19", ExecKind::Write, "tag", vec!["v1"]),
         ("b20", ExecKind::Network, "fetch", vec!["--all"]),
+        // blame trên working tree đọc file qua bộ lọc clean của repo.
+        ("b21", ExecKind::Read, "blame", vec!["--porcelain", "--", "a.txt"]),
     ] {
         let (result, sink) = run(&fx.core, "main", request(id, op, kind, sub, &args)).await;
         assert_eq!(result.unwrap_err().code(), "untrusted", "{sub} {args:?}");

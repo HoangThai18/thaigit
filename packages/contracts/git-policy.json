@@ -16,7 +16,7 @@
   ],
   "diffSafety": {
     "args": ["--no-ext-diff", "--no-textconv"],
-    "after": [["diff"], ["show"], ["diff-tree"], ["log"], ["stash", "show"]]
+    "after": [["diff"], ["show"], ["diff-tree"], ["log"], ["blame"], ["stash", "show"]]
   },
   "env": {
     "set": {
@@ -135,6 +135,11 @@
     "bisect": {
       "kind": "write",
       "rejectSecond": ["run"]
+    },
+    "blame": {
+      "kind": "read",
+      "rejectExtraLong": ["--contents", "--ignore-revs-file"],
+      "rejectExtraShort": ["-S"]
     },
     "branch": {
       "kind": "write",
