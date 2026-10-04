@@ -73,6 +73,16 @@
 
   /* Chừa chỗ cho nút đèn giao thông macOS khi cửa sổ dùng thanh tiêu đề chồng (xem html.titlebar-overlay). */
   --titlebar-inset: 0px;
+
+  /* Màu cú pháp trong diff (sáng). */
+  --syn-comment: #6a737d;
+  --syn-keyword: #c2185b;
+  --syn-string: #0b7a3e;
+  --syn-number: #b35900;
+  --syn-function: #6f42c1;
+  --syn-type: #0b62c4;
+  --syn-property: #005cc5;
+  --syn-punctuation: #57606a;
 }
 
 /* Tối theo hệ thống (khi người dùng không ép sáng). */
@@ -101,6 +111,15 @@
     --row-selected: rgb(255 255 255 / 0.14);
     --row-selected-focus: rgb(47 134 232 / 0.38);
     --chip-fill: rgb(255 255 255 / 0.12);
+    /* Màu cú pháp trong diff (tối). */
+    --syn-comment: #7d8799;
+    --syn-keyword: #ff7ab2;
+    --syn-string: #8bd49c;
+    --syn-number: #f0a35e;
+    --syn-function: #c3a6ff;
+    --syn-type: #6cb6ff;
+    --syn-property: #79c0ff;
+    --syn-punctuation: #a0a8b8;
     --scrollbar-thumb: rgb(255 255 255 / 0.25);
   }
 }
@@ -131,6 +150,15 @@
   --row-selected-focus: rgb(47 134 232 / 0.38);
   --chip-fill: rgb(255 255 255 / 0.12);
   --scrollbar-thumb: rgb(255 255 255 / 0.25);
+  /* Màu cú pháp trong diff (tối). */
+  --syn-comment: #7d8799;
+  --syn-keyword: #ff7ab2;
+  --syn-string: #8bd49c;
+  --syn-number: #f0a35e;
+  --syn-function: #c3a6ff;
+  --syn-type: #6cb6ff;
+  --syn-property: #79c0ff;
+  --syn-punctuation: #a0a8b8;
 }
 
 /*

@@ -13,7 +13,8 @@
   "dependencies": {
     "@tauri-apps/api": "^2.12.1",
     "@thaigit/contracts": "workspace:*",
-    "@thaigit/core": "workspace:*"
+    "@thaigit/core": "workspace:*",
+    "refractor": "^4.9.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

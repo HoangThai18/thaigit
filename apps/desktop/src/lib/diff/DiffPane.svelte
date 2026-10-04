@@ -13,6 +13,7 @@
   } from '@thaigit/core';
   import { prefs } from '../stores/prefs.svelte.ts';
   import ImageDiff from './ImageDiff.svelte';
+  import { languageFor, lineSegments, tokenizeLine } from './syntax.ts';
   import {
     applyToSelection,
     discardFiles,
@@ -53,6 +54,8 @@
   const presentation = $derived(state.kind === 'text' ? state.presentation : null);
   const split = $derived(prefs.value.diffLayout === 'split');
   const ignoreWhitespace = $derived(prefs.value.diffIgnoreWhitespace);
+  /** Ngôn ngữ để tô màu cú pháp (theo đuôi file); `null` = không tô. */
+  const language = $derived(file ? languageFor(file.change.path) : null);
 
   function toggleWhitespace(): void {
     prefs.update({ diffIgnoreWhitespace: !ignoreWhitespace });
@@ -162,13 +165,12 @@
 <svelte:window onkeydown={onwindowkeydown} />
 
 {#snippet lineText(line: PresentationLine)}
-  {#if line.highlight}
-    {line.text.slice(0, line.highlight.start)}<mark
-      >{line.text.slice(line.highlight.start, line.highlight.end)}</mark
-    >{line.text.slice(line.highlight.end)}
-  {:else}
-    {line.text}
-  {/if}
+  {#each lineSegments(tokenizeLine(line.text, language), line.highlight) as segment, index (index)}
+    {#if segment.marked}<mark class={segment.type ? `tok tok-${segment.type}` : undefined}
+        >{segment.text}</mark
+      >{:else if segment.type}<span class="tok tok-{segment.type}">{segment.text}</span
+      >{:else}{segment.text}{/if}
+  {/each}
 {/snippet}
 
 {#snippet lineBody(line: PresentationLine)}
@@ -693,6 +695,67 @@
 
   .text {
     padding-right: 16px;
+  }
+
+  /* Tô màu cú pháp (loại token của Prism / refractor); màu ở theme/tokens.css cho cả sáng lẫn tối. */
+  .tok-comment,
+  .tok-prolog,
+  .tok-doctype,
+  .tok-cdata {
+    color: var(--syn-comment);
+    font-style: italic;
+  }
+
+  .tok-keyword,
+  .tok-important,
+  .tok-atrule,
+  .tok-rule,
+  .tok-selector {
+    color: var(--syn-keyword);
+  }
+
+  .tok-string,
+  .tok-char,
+  .tok-template-string,
+  .tok-attr-value,
+  .tok-regex,
+  .tok-url {
+    color: var(--syn-string);
+  }
+
+  .tok-number,
+  .tok-boolean,
+  .tok-constant,
+  .tok-symbol,
+  .tok-unit {
+    color: var(--syn-number);
+  }
+
+  .tok-function,
+  .tok-function-variable,
+  .tok-method {
+    color: var(--syn-function);
+  }
+
+  .tok-class-name,
+  .tok-builtin,
+  .tok-type,
+  .tok-namespace,
+  .tok-tag {
+    color: var(--syn-type);
+  }
+
+  .tok-property,
+  .tok-attr-name,
+  .tok-key,
+  .tok-variable,
+  .tok-parameter {
+    color: var(--syn-property);
+  }
+
+  .tok-operator,
+  .tok-punctuation {
+    color: var(--syn-punctuation);
   }
 
   .line.addition {

@@ -24,6 +24,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Rebase tương tác: chuột phải một commit trên graph → "Rebase tương tác từ đây…" để đổi thứ tự, sửa message (reword), gộp commit (squash / fixup) hay bỏ commit (drop) với các commit phía sau nó. Kéo tay nắm hoặc Alt + ↑ / ↓ để đổi chỗ, phím P / R / S / F / D để chọn nhanh. Thay đổi chưa commit được tự cất rồi trả lại; gặp xung đột thì dừng lại như rebase thường; xong có nút Hoàn tác
 - Quản lý remote ở sidebar: nút + để thêm remote (fetch luôn nếu muốn), chuột phải một remote để fetch riêng remote đó, sửa địa chỉ, đổi tên, sao chép địa chỉ hoặc xoá (có Hoàn tác)
 - Command palette (Ctrl + P, hoặc menu Thêm): gõ vài chữ (không cần dấu) để chạy nhanh mọi thao tác — fetch, pull, push, stash, tạo / chuyển nhánh, thêm remote, cài đặt… — checkout nhánh / tag, hoặc mở diff của file đang thay đổi
+- Diff tô màu cú pháp cho các ngôn ngữ phổ biến (TypeScript / JavaScript, Svelte, Vue, Rust, Go, Python, Java, Kotlin, Swift, C / C++, C#, PHP, Ruby, CSS, HTML, JSON, YAML, Markdown, SQL, shell…), cả giao diện sáng lẫn tối
 - Diff có nút "Bỏ qua khoảng trắng" (git diff -w): ẩn các thay đổi chỉ về thụt lề / khoảng trắng để dễ đọc; khi bật thì tạm không stage từng dòng
 - Câu chữ giao diện dùng đúng thuật ngữ git quen thuộc (detached HEAD, hard reset, upstream, shallow clone, annotated tag, message, parent…) thay cho các chữ dịch gượng như "HEAD tách rời", "Reset cứng", "lời nhắn"
 
