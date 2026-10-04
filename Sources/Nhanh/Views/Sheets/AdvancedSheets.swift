@@ -56,7 +56,7 @@ struct CommitSigningSheet: View {
         } content: {
             Form {
                 Toggle("Ký mọi commit", isOn: $config.signCommits)
-                Toggle("Ký tag có chú thích", isOn: $config.signTags)
+                Toggle("Ký annotated tag", isOn: $config.signTags)
                 Picker("Kiểu khoá", selection: $config.format) {
                     Text("SSH").tag(SignatureFormat.ssh)
                     Text("GPG").tag(SignatureFormat.openpgp)

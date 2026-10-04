@@ -133,7 +133,7 @@ struct TimelineView: View {
         let reason = switch entry.reason {
         case .auto: String(localized: "Tự lưu")
         case .beforeRestore: String(localized: "Trước khi khôi phục")
-        case .manual: String(localized: "Lưu tay")
+        case .manual: String(localized: "Lưu thủ công")
         }
         guard let files = entry.files else { return reason }
         return reason + " · " + String(localized: "\(files) file khác HEAD")

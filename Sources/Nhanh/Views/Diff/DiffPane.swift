@@ -189,8 +189,8 @@ private struct DiffHeader: View {
                 .fixedSize()
 
                 Picker("", selection: $split) {
-                    Image(systemName: "rectangle.grid.1x2").tag(false).help("Gộp (unified)")
-                    Image(systemName: "rectangle.split.2x1").tag(true).help("Tách đôi (trước | sau)")
+                    Image(systemName: "rectangle.grid.1x2").tag(false).help("Một cột (unified)")
+                    Image(systemName: "rectangle.split.2x1").tag(true).help("Hai cột (trước | sau)")
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 84)

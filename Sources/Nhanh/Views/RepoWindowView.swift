@@ -213,7 +213,7 @@ struct RepoActionBar: View {
                 model.pull()
             }
             .fixedSize()
-            .help("Kéo commit mới từ remote về nhánh hiện tại (⇧⌘L)")
+            .help("Lấy commit mới từ remote về nhánh hiện tại (⇧⌘L)")
 
             Button { model.push() } label: {
                 Label(model.status.ahead > 0 ? "Push ↑\(model.status.ahead)" : "Push", systemImage: "arrow.up.circle")
@@ -340,7 +340,7 @@ struct HistoryGapsBanner: View {
         if !gaps.narrowRemotes.isEmpty {
             parts.append(String(localized: "Repo chỉ đang lấy một vài nhánh của \(gaps.narrowRemotes.joined(separator: ", ")) nên các nhánh khác trên remote không hiện, kể cả khi Fetch."))
         }
-        if gaps.shallow { parts.append(String(localized: "Đây là bản clone nông nên còn thiếu các commit cũ.")) }
+        if gaps.shallow { parts.append(String(localized: "Đây là shallow clone nên còn thiếu các commit cũ.")) }
         return parts.joined(separator: " ")
     }
 

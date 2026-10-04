@@ -108,7 +108,7 @@ struct InteractiveRebaseTests {
         var emptyReword = unchanged
         emptyReword[2].action = .reword
         emptyReword[2].message = "  \n"
-        #expect(RebasePlan.problem(emptyReword, original: commits) == "Lời commit mới không được để trống.")
+        #expect(RebasePlan.problem(emptyReword, original: commits) == "Message mới không được để trống.")
         #expect(RebasePlan.shellQuote("/a b/it's") == "'/a b/it'\\''s'")
     }
 }

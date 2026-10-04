@@ -32,7 +32,7 @@ struct StashDetailView: View {
                         Text(stash.selector).font(.caption.monospaced()).foregroundStyle(.secondary)
                         Spacer()
                     }
-                    Text(stash.displayMessage.isEmpty ? String(localized: "(không có lời nhắn)") : stash.displayMessage)
+                    Text(stash.displayMessage.isEmpty ? String(localized: "(không có message)") : stash.displayMessage)
                         .font(.title3.weight(.semibold))
                         .textSelection(.enabled)
                     Text([stash.branchName.map { String(localized: "Từ nhánh \($0)") }, VietnameseDate.absolute(stash.date)]
@@ -42,10 +42,10 @@ struct StashDetailView: View {
                     HStack {
                         Button { model.applyStash(stash) } label: { Label("Apply", systemImage: "tray.and.arrow.down") }
                             .glassButtonStyle()
-                            .help("Áp dụng thay đổi, vẫn giữ stash")
+                            .help("Apply thay đổi, vẫn giữ stash")
                         Button { model.popStash(stash) } label: { Label("Pop", systemImage: "tray.and.arrow.up") }
                             .glassButtonStyle(prominent: true)
-                            .help("Áp dụng thay đổi rồi xoá stash")
+                            .help("Apply thay đổi rồi xoá stash")
                         Spacer()
                         Button(role: .destructive) { model.dropStash(stash) } label: { Label("Xoá", systemImage: "trash") }
                     }
@@ -113,13 +113,13 @@ private struct DetailContent: View {
                     }
                     if !commit.parents.isEmpty {
                         HStack(spacing: 6) {
-                            Text("cha").font(.caption).foregroundStyle(.secondary)
+                            Text("parent").font(.caption).foregroundStyle(.secondary)
                                 .frame(width: 46, alignment: .leading)
                             ForEach(commit.parents, id: \.self) { parent in
                                 Button(String(parent.prefix(7))) { model.reveal(commit: parent) }
                                     .buttonStyle(.link)
                                     .font(.caption.monospaced())
-                                    .help("Tới commit cha")
+                                    .help("Tới commit parent")
                             }
                         }
                     }

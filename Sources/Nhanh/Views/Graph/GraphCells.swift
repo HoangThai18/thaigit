@@ -216,7 +216,7 @@ final class RefsCellView: NSTableCellView {
         didSet {
             needsDisplay = true
             toolTip = labels.isEmpty ? nil : labels.flatMap { label -> [String] in
-                if label.isDetachedHead { return [String(localized: "HEAD (tách rời)")] }
+                if label.isDetachedHead { return [String(localized: "HEAD (detached)")] }
                 let pull = label.pullRequest.map { ["Pull Request #\($0.number): \($0.title)"] } ?? []
                 return pull + label.refs.map { ref in
                     switch ref.kind {

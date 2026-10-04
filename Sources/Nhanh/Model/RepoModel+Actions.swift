@@ -299,7 +299,7 @@ extension RepoModel {
     func checkoutDetached(_ sha: String, label: String) {
         confirmation = Confirmation(
             title: "Checkout \(label)?",
-            message: String(localized: "Bạn sẽ ở chế độ “HEAD tách rời” (không thuộc nhánh nào). Muốn commit tiếp, hãy tạo nhánh mới tại đó."),
+            message: String(localized: "Bạn sẽ ở trạng thái detached HEAD (không thuộc nhánh nào). Muốn commit tiếp thì hãy tạo nhánh mới tại đó."),
             confirmTitle: "Checkout"
         ) { [weak self] in
             guard let self else { return }
@@ -307,7 +307,7 @@ extension RepoModel {
             perform("Checkout \(label)") { repo in
                 try await repo.switchDetached(sha)
             } onSuccess: { [weak self] in
-                self?.toast(.success, String(localized: "Đang ở \(label) (HEAD tách rời)"), actions: [
+                self?.toast(.success, String(localized: "Đang ở \(label) (detached HEAD)"), actions: [
                     ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.restoreHead(previous) },
                 ])
             } onError: { [weak self] error in
@@ -344,10 +344,10 @@ extension RepoModel {
     /// Cất thay đổi vào stash rồi chạy thao tác (GitKraken gọi là auto-stash).
     func stashThen(_ title: String, _ work: @escaping (GitRepository) async throws -> Void) {
         perform(title) { repo in
-            try await repo.stashPush(message: String(localized: "Thaigit: tự cất trước khi \(title.lowercased())"), includeUntracked: true)
+            try await repo.stashPush(message: String(localized: "Thaigit: tự stash trước khi \(title.lowercased())"), includeUntracked: true)
             try await work(repo)
         } onSuccess: { [weak self] in
-            self?.toast(.success, String(localized: "\(title) xong — thay đổi đã được cất vào stash"), actions: [
+            self?.toast(.success, String(localized: "\(title) xong — thay đổi của bạn đã được stash"), actions: [
                 ToastAction(title: "Pop stash") { [weak self] in self?.popLatestStash() },
             ])
         }
@@ -564,7 +564,7 @@ extension RepoModel {
     func revert(_ commit: Commit) {
         var message = String(localized: "Tạo một commit mới trên \(currentBranch ?? "HEAD") đảo ngược thay đổi của \(commit.shortSHA). Lịch sử cũ giữ nguyên.")
         if commit.isMerge, let firstParent = commit.parents.first {
-            message += String(localized: "\n\nĐây là commit merge: thay đổi được đảo ngược so với cha thứ nhất (\(firstParent.prefix(7))).")
+            message += String(localized: "\n\nĐây là merge commit: thay đổi được đảo ngược so với parent đầu tiên (\(firstParent.prefix(7))).")
         }
         message += String(localized: "\n\n“Revert, chưa commit” chỉ stage thay đổi đảo ngược để bạn xem lại hoặc sửa trước khi tự commit.")
         confirmation = Confirmation(
@@ -641,9 +641,9 @@ extension RepoModel {
         switch mode {
         case .hard:
             confirmation = Confirmation(
-                title: String(localized: "Reset cứng \(target) về \(commit.shortSHA)?"),
+                title: String(localized: "Hard reset \(target) về \(commit.shortSHA)?"),
                 message: String(localized: "Mọi thay đổi chưa commit sẽ MẤT VĨNH VIỄN. Các commit sau \(commit.shortSHA) sẽ không còn trên nhánh (vẫn hoàn tác được ngay sau đó)."),
-                confirmTitle: String(localized: "Reset cứng"),
+                confirmTitle: String(localized: "Hard reset"),
                 isDestructive: true,
                 action: run
             )
@@ -788,7 +788,7 @@ extension RepoModel {
             return
         }
         guard branch.upstream != nil, !branch.upstreamGone else {
-            toast(.warning, String(localized: "Nhánh \(branch.name) chưa có nhánh tương ứng trên remote"), actions: [
+            toast(.warning, String(localized: "Nhánh \(branch.name) chưa có upstream trên remote"), actions: [
                 ToastAction(title: String(localized: "Push lên remote")) { [weak self] in self?.push() },
             ])
             return
@@ -817,7 +817,7 @@ extension RepoModel {
             guard let self, let gitError = error as? GitError else { return false }
             if handleGitHubAuthError(error, operation: "Pull") { return true }
             if gitError.contains("Not possible to fast-forward") || gitError.contains("divergent") {
-                showError(String(localized: "Nhánh local và remote đã tách nhau"), error, actions: [
+                showError(String(localized: "Nhánh local và remote đã diverge"), error, actions: [
                     ToastAction(title: "Pull (merge)") { [weak self] in self?.pull(mode: .merge) },
                     ToastAction(title: "Pull (rebase)") { [weak self] in self?.pull(mode: .rebase) },
                 ])
@@ -962,7 +962,7 @@ extension RepoModel {
         perform("Stash") { repo in
             try await repo.stashPush(message: message.isEmpty ? nil : message, includeUntracked: includeUntracked)
         } onSuccess: { [weak self] in
-            self?.toast(.success, String(localized: "Đã cất thay đổi vào stash"), actions: [
+            self?.toast(.success, String(localized: "Đã stash thay đổi"), actions: [
                 ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.popLatestStash() },
             ])
         }
@@ -972,7 +972,7 @@ extension RepoModel {
         perform("Apply stash") { repo in
             try await repo.stashApply(stash.selector)
         } onSuccess: { [weak self] in
-            self?.toast(.success, String(localized: "Đã áp dụng stash “\(stash.displayMessage)”"))
+            self?.toast(.success, String(localized: "Đã apply stash “\(stash.displayMessage)”"))
         } onError: { [weak self] error in
             self?.handleConflictError(error, operation: "Apply stash") ?? false
         }
@@ -1197,7 +1197,7 @@ extension RepoModel {
             .action(String(localized: "Bỏ stage tất cả"), systemImage: "minus.circle", enabled: !status.staged.isEmpty) { [weak self] in self?.unstageAll() },
             .separator,
             .action(String(localized: "Stash tất cả thay đổi"), systemImage: "archivebox") { [weak self] in self?.quickStash() },
-            .action(String(localized: "Stash kèm lời nhắn…"), systemImage: "square.and.pencil") { [weak self] in self?.beginStash() },
+            .action(String(localized: "Stash kèm message…"), systemImage: "square.and.pencil") { [weak self] in self?.beginStash() },
             .separator,
             .action(String(localized: "Huỷ tất cả thay đổi…"), systemImage: "trash", destructive: true, enabled: operation == nil) { [weak self] in
                 self?.discardAllChanges()
@@ -1304,7 +1304,7 @@ extension RepoModel {
     func stashMenu(_ stash: Stash) -> [MenuItemSpec] {
         [
             .action(String(localized: "Apply (giữ stash)"), systemImage: "tray.and.arrow.down") { [weak self] in self?.applyStash(stash) },
-            .action(String(localized: "Pop (áp dụng rồi xoá)"), systemImage: "tray.and.arrow.up") { [weak self] in self?.popStash(stash) },
+            .action(String(localized: "Pop (apply rồi xoá stash)"), systemImage: "tray.and.arrow.up") { [weak self] in self?.popStash(stash) },
             .separator,
             .action(String(localized: "Xoá stash…"), systemImage: "trash", destructive: true) { [weak self] in self?.dropStash(stash) },
         ]

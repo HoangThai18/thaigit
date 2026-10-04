@@ -316,7 +316,7 @@ public enum RepoOperation: Sendable, Equatable {
             return String(localized: "Đang rebase")
         case .cherryPicking: return String(localized: "Đang cherry-pick")
         case .reverting: return String(localized: "Đang revert")
-        case .applyingPatches: return String(localized: "Đang áp dụng patch (git am)")
+        case .applyingPatches: return String(localized: "Đang apply patch (git am)")
         case .bisecting: return String(localized: "Đang bisect")
         }
     }
@@ -328,7 +328,7 @@ public enum RepoOperation: Sendable, Equatable {
         case .rebasing: return "rebase"
         case .cherryPicking: return "cherry-pick"
         case .reverting: return "revert"
-        case .applyingPatches: return String(localized: "áp dụng patch")
+        case .applyingPatches: return String(localized: "apply patch")
         case .bisecting: return "bisect"
         }
     }

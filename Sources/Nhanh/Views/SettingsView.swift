@@ -85,7 +85,7 @@ private struct GeneralSettings: View {
             }
             Section("Diff") {
                 Stepper("Số dòng ngữ cảnh quanh thay đổi: \(diffContext)", value: $diffContext, in: 0...20)
-                Toggle("Mặc định hiển thị tách đôi (trước | sau)", isOn: $diffSplit)
+                Toggle("Mặc định hiển thị diff hai cột (trước | sau)", isOn: $diffSplit)
             }
             UpdateSettingsSection()
         }

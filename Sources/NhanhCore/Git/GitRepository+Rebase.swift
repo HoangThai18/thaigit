@@ -44,7 +44,7 @@ public enum RebasePlan {
             return String(localized: "Commit cũ nhất còn lại không gộp được (không có commit nào phía trước để gộp vào).")
         }
         if steps.contains(where: { $0.action == .reword && ($0.message ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
-            return String(localized: "Lời commit mới không được để trống.")
+            return String(localized: "Message mới không được để trống.")
         }
         if steps.map(\.commit.id) == original.map(\.id), steps.allSatisfy({ $0.action == .pick }) {
             return unchanged

@@ -210,7 +210,7 @@ private struct PushSheet: View {
             model.performPush(request)
         } content: {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Nhánh này chưa có nhánh tương ứng trên remote. Nhánh mới sẽ được tạo trên remote.")
+                Text("Nhánh này chưa có upstream. Nhánh mới sẽ được tạo trên remote.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -237,7 +237,7 @@ private struct StashSheet: View {
             model.stash(message: message, includeUntracked: includeUntracked)
         } content: {
             VStack(alignment: .leading, spacing: 8) {
-                TextField("Lời nhắn (tuỳ chọn), ví dụ: đang sửa dở form đăng nhập", text: $message)
+                TextField("Message (tuỳ chọn), ví dụ: đang sửa dở form đăng nhập", text: $message)
                     .textFieldStyle(.roundedBorder)
                 Toggle("Gồm cả file mới (chưa track)", isOn: $includeUntracked)
             }

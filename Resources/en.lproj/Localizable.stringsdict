@@ -434,7 +434,7 @@
 			<string>Tests skipped or narrowed (skip / only) in %lld files</string>
 		</dict>
 	</dict>
-	<key>Đổi thư viện phụ thuộc (%lld file)</key>
+	<key>Đổi dependency (%lld file)</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
 		<string>%#@count@</string>

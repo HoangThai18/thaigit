@@ -285,7 +285,7 @@ struct SidebarView: View {
                 Image(systemName: worktree.isMain ? "folder.fill" : "folder")
                     .foregroundStyle(.secondary)
                     .frame(width: 16)
-                Text(worktree.branch ?? String(localized: "HEAD tách rời"))
+                Text(worktree.branch ?? String(localized: "Detached HEAD"))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 4)
@@ -314,7 +314,7 @@ struct SidebarView: View {
             Label(ref.name, systemImage: "tag")
                 .lineLimit(1)
                 .tag("ref:" + ref.fullName)
-                .help(ref.isAnnotatedTag ? "Tag có chú thích" : "Tag")
+                .help(ref.isAnnotatedTag ? "Annotated tag" : "Tag")
         }
     }
 

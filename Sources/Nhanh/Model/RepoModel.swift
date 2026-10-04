@@ -206,7 +206,7 @@ final class RepoModel {
     var headDescription: String {
         switch status.head {
         case .branch(let name, _): return name
-        case .detached(let oid): return String(localized: "HEAD tách rời @ \(oid.prefix(7))")
+        case .detached(let oid): return String(localized: "Detached HEAD @ \(oid.prefix(7))")
         case .unknown: return ""
         }
     }

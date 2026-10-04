@@ -6,11 +6,11 @@ extension RebaseAction: Identifiable {
 
     var title: String {
         switch self {
-        case .pick: return String(localized: "Giữ")
-        case .reword: return String(localized: "Sửa lời")
-        case .squash: return String(localized: "Gộp")
-        case .fixup: return String(localized: "Gộp, bỏ lời")
-        case .drop: return String(localized: "Bỏ")
+        case .pick: return String(localized: "Pick — giữ nguyên")
+        case .reword: return String(localized: "Reword — sửa message")
+        case .squash: return String(localized: "Squash — gộp, giữ message")
+        case .fixup: return String(localized: "Fixup — gộp, bỏ message")
+        case .drop: return String(localized: "Drop — bỏ commit")
         }
     }
 
@@ -37,7 +37,7 @@ extension RebaseAction: Identifiable {
 }
 
 /// Interactive rebase như GitKraken: các commit sau `base` (mới ở trên, cũ ở dưới — như graph); mỗi commit chọn
-/// Giữ / Sửa lời / Gộp / Gộp bỏ lời / Bỏ, kéo để đổi thứ tự, phím P R S F D cho dòng đang chọn.
+/// pick / reword / squash / fixup / drop, kéo để đổi thứ tự, phím P R S F D cho dòng đang chọn.
 struct InteractiveRebaseSheet: View {
     @Bindable var model: RepoModel
     let base: String
@@ -100,7 +100,7 @@ struct InteractiveRebaseSheet: View {
 
             HStack {
                 let warning = problem.flatMap { $0 == RebasePlan.unchanged || isLoading ? nil : $0 }
-                Text(warning ?? String(localized: "P giữ · R sửa lời · S gộp · F gộp bỏ lời · D bỏ · kéo để đổi thứ tự"))
+                Text(warning ?? String(localized: "Phím tắt: P pick · R reword · S squash · F fixup · D drop · kéo để đổi thứ tự"))
                     .font(.caption)
                     .foregroundStyle(warning == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
                     .lineLimit(2)
@@ -173,13 +173,13 @@ private struct RebaseStepRow: View {
                 Image(systemName: "line.3.horizontal")
                     .foregroundStyle(.tertiary)
                     .help("Kéo để đổi thứ tự")
-                Picker("Việc", selection: $step.action) {
+                Picker("Thao tác", selection: $step.action) {
                     ForEach(RebaseAction.allCases) { action in
                         Label(action.title, systemImage: action.systemImage).tag(action)
                     }
                 }
                 .labelsHidden()
-                .frame(width: 140)
+                .frame(width: 220)
                 .tint(tint)
                 AvatarView(name: step.commit.authorName, email: step.commit.authorEmail, size: 20)
                 Text(step.commit.subject)
@@ -198,7 +198,7 @@ private struct RebaseStepRow: View {
                     .foregroundStyle(.secondary)
             }
             if step.action == .reword {
-                TextField("Lời commit mới", text: Binding(get: { step.message ?? "" }, set: { step.message = $0 }), axis: .vertical)
+                TextField("Message mới", text: Binding(get: { step.message ?? "" }, set: { step.message = $0 }), axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(2...6)
                     .padding(.leading, 30)

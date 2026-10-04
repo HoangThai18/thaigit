@@ -470,7 +470,7 @@ private struct RiskBanner: View {
         return switch flag.code {
         case .testsRemoved: String(localized: "Xoá \(count) file test")
         case .testsSkipped: String(localized: "Tắt bớt test (skip / only) trong \(count) file")
-        case .depsChanged: String(localized: "Đổi thư viện phụ thuộc (\(count) file)")
+        case .depsChanged: String(localized: "Đổi dependency (\(count) file)")
         case .ciChanged: String(localized: "Đổi CI / Docker (\(count) file)")
         case .largeFile: String(localized: "\(count) file lớn hơn 1 MB")
         case .secret: String(localized: "\(count) file có thể chứa mật khẩu hoặc khoá bí mật")
