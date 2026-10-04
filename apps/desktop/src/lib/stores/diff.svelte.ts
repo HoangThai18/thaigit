@@ -71,6 +71,8 @@ export interface DiffHost {
   readonly status: WorkingTreeStatus;
   readonly stashes: readonly Stash[];
   diffContext(): number;
+  /** Bỏ qua thay đổi chỉ về khoảng trắng (chỉ để xem: tắt stage từng dòng). */
+  diffIgnoreWhitespace(): boolean;
   reportError(title: string, error: unknown): void;
 }
 
@@ -121,7 +123,8 @@ export class DiffStore {
   /** Stage / bỏ stage / huỷ từng hunk hoặc dòng được không (file thường, không nhị phân, không phải chỉ đổi quyền). */
   get supportsPartial(): boolean {
     const diff = this.fileDiff;
-    return diff !== null && supportsPartialStaging(diff);
+    // Diff đã bỏ khoảng trắng không khớp từng byte với file thật nên patch dựng từ nó không áp được.
+    return diff !== null && !this.host.diffIgnoreWhitespace() && supportsPartialStaging(diff);
   }
 
   open(change: FileChange, source: DiffSource): void {
@@ -312,6 +315,7 @@ export class DiffStore {
   private async fetchBytes(file: OpenFile): Promise<Uint8Array> {
     const git = this.host.git;
     const context = this.host.diffContext();
+    const ignoreWhitespace = this.host.diffIgnoreWhitespace();
     const source = file.source;
     switch (source.kind) {
       case 'unstaged':
@@ -319,15 +323,16 @@ export class DiffStore {
           file.change,
           file.change.kind === 'untracked' ? 'untracked' : 'unstaged',
           context,
+          ignoreWhitespace,
         );
       case 'staged':
-        return git.workingDiffBytes(file.change, 'staged', context);
+        return git.workingDiffBytes(file.change, 'staged', context, ignoreWhitespace);
       case 'commit':
-        return git.commitDiffBytes(source.sha, source.parent, file.change, context);
+        return git.commitDiffBytes(source.sha, source.parent, file.change, context, ignoreWhitespace);
       case 'stash': {
         const stash = this.host.stashes.find((candidate) => candidate.sha === source.sha);
         if (!stash) throw new Error('Stash không còn tồn tại');
-        return git.stashDiffBytes(stash, file.change, context);
+        return git.stashDiffBytes(stash, file.change, context, ignoreWhitespace);
       }
       case 'conflict':
         throw new Error('Xung đột được nạp riêng (loadConflict)');

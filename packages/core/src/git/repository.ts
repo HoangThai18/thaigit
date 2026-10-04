@@ -329,12 +329,16 @@ export class GitRepository {
     return { commit, message, files };
   }
 
-  /** Diff một file của commit (unified, BYTE thô — đưa cho `diff/` để parse). */
+  /**
+   * Diff một file của commit (unified, BYTE thô — đưa cho `diff/` để parse). `ignoreWhitespace`: bỏ thay đổi chỉ về khoảng
+   * trắng (`--ignore-all-space`, như "Ignore whitespace" của GitKraken).
+   */
   async commitDiffBytes(
     sha: string,
     parent: string | null,
     file: FileChange,
     context = 3,
+    ignoreWhitespace = false,
   ): Promise<Uint8Array> {
     assertArgument(sha);
     if (parent !== null) assertArgument(parent);
@@ -344,6 +348,7 @@ export class GitRepository {
       '-M',
       '--no-color',
       `-U${context}`,
+      ...(ignoreWhitespace ? ['--ignore-all-space'] : []),
       '--src-prefix=a/',
       '--dst-prefix=b/',
       '--no-commit-id',
@@ -354,10 +359,24 @@ export class GitRepository {
     return (await this.runner.run('diff-tree', args, { env: LITERAL_PATHSPECS })).stdout;
   }
 
-  /** Diff một file trong working tree/index (byte thô). `untracked` so với /dev/null (git trả mã 1 khi có khác biệt). */
-  async workingDiffBytes(change: FileChange, kind: WorkingDiffKind, context = 3): Promise<Uint8Array> {
+  /**
+   * Diff một file trong working tree/index (byte thô). `untracked` so với /dev/null (git trả mã 1 khi có khác biệt).
+   * `ignoreWhitespace`: diff chỉ để XEM — patch dựng từ nó không áp lại được (không stage từng dòng khi bật).
+   */
+  async workingDiffBytes(
+    change: FileChange,
+    kind: WorkingDiffKind,
+    context = 3,
+    ignoreWhitespace = false,
+  ): Promise<Uint8Array> {
     assertContext(context);
-    const common = ['--no-color', `-U${context}`, '--src-prefix=a/', '--dst-prefix=b/'];
+    const common = [
+      '--no-color',
+      `-U${context}`,
+      ...(ignoreWhitespace && kind !== 'untracked' ? ['--ignore-all-space'] : []),
+      '--src-prefix=a/',
+      '--dst-prefix=b/',
+    ];
     switch (kind) {
       case 'unstaged':
         return (await this.runner.run('diff', [...common, '--', change.path], { env: DIFF_ENV })).stdout;
@@ -1104,11 +1123,16 @@ export class GitRepository {
   }
 
   /** Diff một file của stash (byte thô). File chưa track nằm ở cha thứ 3 của commit stash. */
-  async stashDiffBytes(stash: Stash, file: FileChange, context = 3): Promise<Uint8Array> {
+  async stashDiffBytes(
+    stash: Stash,
+    file: FileChange,
+    context = 3,
+    ignoreWhitespace = false,
+  ): Promise<Uint8Array> {
     const untrackedParent = stash.parents[2];
     if (file.kind === 'untracked' && untrackedParent !== undefined)
-      return this.commitDiffBytes(untrackedParent, null, file, context);
-    return this.commitDiffBytes(stash.sha, stash.parents[0] ?? null, file, context);
+      return this.commitDiffBytes(untrackedParent, null, file, context, ignoreWhitespace);
+    return this.commitDiffBytes(stash.sha, stash.parents[0] ?? null, file, context, ignoreWhitespace);
   }
 
   // MARK: - Tag

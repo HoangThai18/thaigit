@@ -65,6 +65,9 @@ export const staging: Translation<typeof source> = {
   layoutLabel: 'Diff layout',
   layoutUnified: 'Unified',
   layoutSplit: 'Split',
+  ignoreWhitespace: 'Ignore whitespace',
+  ignoreWhitespaceTip:
+    'Hide changes that only touch whitespace / indentation (git diff -w). While on, you can’t stage or discard single lines.',
   navLabel: 'Move between files — Alt + ↑ / ↓ jumps between hunks',
   previousFile: 'Previous file (Alt + Shift + ↑)',
   nextFile: 'Next file (Alt + Shift + ↓)',
@@ -76,6 +79,7 @@ export const staging: Translation<typeof source> = {
   imageFailed: "Couldn't read the image.",
   imageSize: (width: number, height: number, bytes: string) => `${width} × ${height} px · ${bytes}`,
   empty: 'No content changes (maybe only the file mode changed, or it was renamed).',
+  emptyWhitespace: 'Only whitespace changed — turn off “Ignore whitespace” to see it.',
   tooLargeTitle: 'Very large diff',
   tooLargeMessage: (lines: number, additions: number, deletions: number) =>
     `${lines.toLocaleString('en-US')} changed lines (+${additions} −${deletions}). Showing it may be slow.`,

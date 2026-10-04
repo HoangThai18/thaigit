@@ -48,6 +48,8 @@ export interface PrefsData {
   diffContext: number;
   /** Diff gộp (một cột) hay tách đôi (cũ | mới). */
   diffLayout: DiffLayout;
+  /** Diff bỏ qua thay đổi chỉ về khoảng trắng (`--ignore-all-space`). */
+  diffIgnoreWhitespace: boolean;
   /** Tự lưu snapshot thư mục làm việc khi file đổi (Dòng thời gian). */
   snapshotsEnabled: boolean;
   snapshotKeepDays: number;
@@ -90,6 +92,7 @@ export function defaultPrefs(): PrefsData {
     autoFetchMinutes: 10,
     diffContext: 3,
     diffLayout: 'unified',
+    diffIgnoreWhitespace: false,
     snapshotsEnabled: true,
     snapshotKeepDays: snapshotSpec.defaults.keepDays,
     snapshotKeepCount: snapshotSpec.defaults.keepCount,
@@ -153,6 +156,7 @@ export function sanitizePrefs(raw: unknown): PrefsData {
     autoFetchMinutes: clamp(source.autoFetchMinutes, 0, AUTO_FETCH_MINUTES_MAX, base.autoFetchMinutes),
     diffContext: clamp(source.diffContext, 0, DIFF_CONTEXT_MAX, base.diffContext),
     diffLayout: source.diffLayout === 'split' ? 'split' : 'unified',
+    diffIgnoreWhitespace: bool(source.diffIgnoreWhitespace, base.diffIgnoreWhitespace),
     snapshotsEnabled: bool(source.snapshotsEnabled, base.snapshotsEnabled),
     snapshotKeepDays: clamp(
       source.snapshotKeepDays,

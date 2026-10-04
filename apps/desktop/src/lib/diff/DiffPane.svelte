@@ -52,6 +52,13 @@
   const state = $derived(diff.state);
   const presentation = $derived(state.kind === 'text' ? state.presentation : null);
   const split = $derived(prefs.value.diffLayout === 'split');
+  const ignoreWhitespace = $derived(prefs.value.diffIgnoreWhitespace);
+
+  function toggleWhitespace(): void {
+    prefs.update({ diffIgnoreWhitespace: !ignoreWhitespace });
+    diff.clearSelection();
+    void diff.load();
+  }
   const rows = $derived.by<readonly Row[]>(() => {
     if (!presentation) return [];
     const result: Row[] = [];
@@ -269,6 +276,17 @@
           >
         </div>
       {/if}
+      {#if file.change.kind !== 'untracked' && state.kind !== 'binary'}
+        <div class="layout">
+          <button
+            type="button"
+            class:active={ignoreWhitespace}
+            aria-pressed={ignoreWhitespace}
+            title={vi.staging.ignoreWhitespaceTip}
+            onclick={toggleWhitespace}>{vi.staging.ignoreWhitespace}</button
+          >
+        </div>
+      {/if}
       {#if unstaged}
         <button
           type="button"
@@ -296,7 +314,7 @@
       {:else if state.kind === 'binary'}
         <ImageDiff {store} {file} />
       {:else if state.kind === 'empty'}
-        <p class="message">{vi.staging.empty}</p>
+        <p class="message">{ignoreWhitespace ? vi.staging.emptyWhitespace : vi.staging.empty}</p>
       {:else if state.kind === 'failed'}
         <div class="message">
           <strong>{vi.staging.loadFailed}</strong>

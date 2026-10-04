@@ -269,6 +269,7 @@ export class RepoStore {
         return store.stashes;
       },
       diffContext: () => store.prefs.value.diffContext,
+      diffIgnoreWhitespace: () => store.prefs.value.diffIgnoreWhitespace,
       reportError: (title, error) => store.showError(title, error),
     });
     this.risks = new RiskStore({

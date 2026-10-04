@@ -67,6 +67,9 @@ export const staging = {
   layoutLabel: 'Bố cục diff',
   layoutUnified: 'Một cột',
   layoutSplit: 'Hai cột',
+  ignoreWhitespace: 'Bỏ qua khoảng trắng',
+  ignoreWhitespaceTip:
+    'Ẩn các thay đổi chỉ về khoảng trắng / thụt lề (git diff -w). Khi bật thì không stage / huỷ từng dòng được.',
   navLabel: 'Chuyển file — Alt + ↑ / ↓ để nhảy giữa các hunk',
   previousFile: 'File trước (Alt + Shift + ↑)',
   nextFile: 'File sau (Alt + Shift + ↓)',
@@ -78,6 +81,7 @@ export const staging = {
   imageFailed: 'Không đọc được ảnh.',
   imageSize: (width: number, height: number, bytes: string) => `${width} × ${height} px · ${bytes}`,
   empty: 'Không có thay đổi nội dung (có thể chỉ đổi quyền file hoặc đổi tên).',
+  emptyWhitespace: 'Chỉ có thay đổi về khoảng trắng — tắt “Bỏ qua khoảng trắng” để xem.',
   tooLargeTitle: 'Diff rất lớn',
   tooLargeMessage: (lines: number, additions: number, deletions: number) =>
     `${lines.toLocaleString('vi-VN')} dòng thay đổi (+${additions} −${deletions}). Hiển thị có thể chậm.`,
