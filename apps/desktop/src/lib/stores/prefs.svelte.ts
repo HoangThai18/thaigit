@@ -61,6 +61,10 @@ export interface PrefsData {
   snapshotsDisabledRepos: string[];
   /** Đã hiện thông báo giải thích lần đầu tự lưu. */
   snapshotNoticeShown: boolean;
+  /** Repo đang mở ở các tab của cửa sổ chính (id trong danh sách gần đây) — mở lại khi khởi động app. */
+  openTabs: string[];
+  /** Vị trí tab đang chọn trong `openTabs`. */
+  activeTab: number;
 }
 
 export const SIDEBAR_LIMITS = { min: 210, max: 440, ideal: 260 } as const;
@@ -74,6 +78,7 @@ export const SNAPSHOT_KEEP_DAYS = { min: 1, max: 90 } as const;
 export const SNAPSHOT_KEEP_COUNT = { min: 20, max: 2000 } as const;
 /** Trần số repo trong danh sách tắt tự lưu (localStorage không phình mãi). */
 const SNAPSHOT_DISABLED_MAX = 500;
+const OPEN_TABS_MAX = 20;
 
 export function defaultPrefs(): PrefsData {
   return {
@@ -110,6 +115,8 @@ export function defaultPrefs(): PrefsData {
     snapshotKeepCount: snapshotSpec.defaults.keepCount,
     snapshotsDisabledRepos: [],
     snapshotNoticeShown: false,
+    openTabs: [],
+    activeTab: 0,
   };
 }
 
@@ -187,6 +194,8 @@ export function sanitizePrefs(raw: unknown): PrefsData {
     ),
     snapshotsDisabledRepos: stringList(source.snapshotsDisabledRepos, SNAPSHOT_DISABLED_MAX),
     snapshotNoticeShown: bool(source.snapshotNoticeShown, base.snapshotNoticeShown),
+    openTabs: stringList(source.openTabs, OPEN_TABS_MAX),
+    activeTab: clamp(source.activeTab, 0, OPEN_TABS_MAX - 1, base.activeTab),
   };
 }
 

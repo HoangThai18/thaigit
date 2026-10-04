@@ -9,6 +9,7 @@
   import { popLatestStash, quickStash } from '../actions/stash.ts';
   import { repoForgeItems, repoOsItems } from '../actions/menus.ts';
   import { newWindow } from '../ipc/os.ts';
+  import { app } from '../stores/app.svelte.ts';
   import { toasts } from '../stores/toasts.svelte.ts';
   import { vi } from '../strings.vi.ts';
   import { hasTauriInternals } from '../platform/host.ts';
@@ -73,9 +74,14 @@
         ...repoForgeItems(store),
         { kind: 'separator' },
         ...repoOsItems(store),
+        app.newTab && {
+          title: vi.tabs.newTab,
+          shortcut: vi.tabs.newTabShortcut,
+          run: () => app.newTab?.(),
+        },
         hasTauriInternals() && {
           title: vi.welcome.newWindow,
-          shortcut: 'Ctrl/⌘ + T',
+          shortcut: vi.tabs.newWindowShortcut,
           run: () =>
             void newWindow().catch((error: unknown) => toasts.error(vi.welcome.newWindowFailed, error)),
         },

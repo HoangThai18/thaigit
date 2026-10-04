@@ -12,6 +12,8 @@ export class AppStore {
   /** Mới → cũ. */
   recent = $state.raw<readonly RecentRepo[]>([]);
   recentLoaded = $state(false);
+  /** Mở tab mới trong cửa sổ này (App.svelte gắn vào; menu Thêm / command palette gọi). */
+  newTab: (() => void) | null = null;
 
   constructor(private readonly notify: ToastStore = toasts) {}
 

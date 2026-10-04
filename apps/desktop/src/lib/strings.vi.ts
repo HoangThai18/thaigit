@@ -24,6 +24,7 @@ import { settings } from './strings/settings.vi.ts';
 import { shell } from './strings/shell.vi.ts';
 import { snapshots } from './strings/snapshots.vi.ts';
 import { staging } from './strings/staging.vi.ts';
+import { tabs } from './strings/tabs.vi.ts';
 import type { Translation } from './strings/types.ts';
 import { update } from './strings/update.vi.ts';
 
@@ -41,6 +42,7 @@ const viStrings = {
   palette,
   related,
   lfs,
+  tabs,
   accounts,
   pullRequests,
   snapshots,

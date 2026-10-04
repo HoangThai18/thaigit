@@ -32,6 +32,8 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Push tự đẩy file LFS trước (git lfs push), kể cả khi repo chưa cài hook của git-lfs — remote không còn bị nhận file con trỏ mà thiếu nội dung
 - Diff của file LFS có ghi chú "chỉ là con trỏ tới … trên máy chủ LFS" kèm dung lượng thật
 - An toàn hơn với repo lạ: khoá cấu hình git-lfs có thể chạy chương trình (lfs.customtransfer.*.path, lfs.extension.*) được tính khi hỏi tin tưởng repo; repo chưa tin tưởng thì chưa chạy lệnh LFS. Hook chuẩn do git-lfs cài không còn làm app hỏi lại tin tưởng
+- Tab nhiều repo trong một cửa sổ (như GitKraken): Ctrl + T mở tab mới, Ctrl + W đóng tab, Ctrl + Tab / Ctrl + Shift + Tab hoặc Ctrl + 1…9 để chuyển; kéo tab để đổi chỗ, nhấp chuột giữa để đóng, chuột phải để đóng các tab khác. Repo ở tab nền vẫn được theo dõi và tự fetch, chuyển tab là thấy ngay; mở một repo đã có tab thì chuyển sang tab đó. Cửa sổ chính nhớ các tab và mở lại khi khởi động app
+- Cửa sổ mới chuyển sang Ctrl + Shift + N (Ctrl + T giờ là tab mới)
 - Câu chữ giao diện dùng đúng thuật ngữ git quen thuộc (detached HEAD, hard reset, upstream, shallow clone, annotated tag, message, parent…) thay cho các chữ dịch gượng như "HEAD tách rời", "Reset cứng", "lời nhắn"
 
 ## 2.0.0 — 2026-10-03

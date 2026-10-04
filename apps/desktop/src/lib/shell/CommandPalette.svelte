@@ -12,6 +12,7 @@
   import { popLatestStash } from '../actions/stash.ts';
   import { showBidi } from '../format/bidi.ts';
   import { newWindow } from '../ipc/os.ts';
+  import { app } from '../stores/app.svelte.ts';
   import { hasTauriInternals } from '../platform/host.ts';
   import { tidyMenu, type MenuItem } from '../stores/menus.svelte.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
@@ -75,9 +76,14 @@
       { title: vi.remote.addRemote, icon: 'cloud', run: () => void beginAddRemote(store) },
       ...repoForgeItems(store),
       ...repoOsItems(store),
+      app.newTab && {
+        title: vi.tabs.newTab,
+        shortcut: vi.tabs.newTabShortcut,
+        run: () => app.newTab?.(),
+      },
       hasTauriInternals() && {
         title: vi.welcome.newWindow,
-        shortcut: 'Ctrl/⌘ + T',
+        shortcut: vi.tabs.newWindowShortcut,
         run: () =>
           void newWindow().catch((error: unknown) => toasts.error(vi.welcome.newWindowFailed, error)),
       },

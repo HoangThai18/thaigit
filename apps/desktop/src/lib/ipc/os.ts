@@ -1,3 +1,4 @@
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { Commands } from '@thaigit/contracts';
 import { call } from './invoke.ts';
 
@@ -32,4 +33,9 @@ export function setNativeLocale(locale: 'vi' | 'en'): Promise<void> {
 /** Mở thêm một cửa sổ Thaigit (màn hình chính) để làm việc với repo khác song song. */
 export function newWindow(): Promise<void> {
   return call<void>(Commands.newWindow);
+}
+
+/** Cửa sổ đầu tiên của app (nhãn `main` trong tauri.conf) — chỉ cửa sổ này nhớ và mở lại các tab khi khởi động. */
+export function isMainWindow(): boolean {
+  return getCurrentWebviewWindow().label === 'main';
 }
