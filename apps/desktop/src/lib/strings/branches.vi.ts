@@ -23,13 +23,13 @@ export const branches = {
   pickerRemote: 'Remote',
   detachedConfirmTitle: (label: string) => `Checkout ${label}?`,
   detachedConfirmMessage:
-    'Bạn sẽ ở chế độ “HEAD tách rời” (không thuộc nhánh nào). Muốn commit tiếp, hãy tạo nhánh mới tại đó.',
-  detached: (label: string) => `Đang ở ${label} (HEAD tách rời)`,
+    'Bạn sẽ ở trạng thái detached HEAD (không thuộc nhánh nào). Muốn commit tiếp thì hãy tạo nhánh mới tại đó.',
+  detached: (label: string) => `Đang ở ${label} (detached HEAD)`,
   undoCheckout: 'Hoàn tác checkout',
   checkoutBlocked: 'Không checkout được vì có thay đổi chưa commit',
   stashAndCheckout: 'Stash rồi checkout',
-  autoStashMessage: (title: string) => `Thaigit: tự cất trước khi ${title.toLowerCase()}`,
-  doneWithStash: (title: string) => `${title} xong — thay đổi đã được cất vào stash`,
+  autoStashMessage: (title: string) => `Thaigit: tự stash trước khi ${title.toLowerCase()}`,
+  doneWithStash: (title: string) => `${title} xong — thay đổi của bạn đã được stash`,
   popStash: 'Pop stash',
 
   // Tạo nhánh
@@ -49,25 +49,25 @@ export const branches = {
 
   // Stash
   stashTitle: 'Stash',
-  stashed: 'Đã cất thay đổi vào stash',
+  stashed: 'Đã stash thay đổi',
   nothingToStash: 'Không có thay đổi nào để stash',
   noStash: 'Không có stash nào',
   popTitle: 'Pop stash',
   popped: 'Đã lấy lại thay đổi từ stash',
   stashKept: 'Stash vẫn được giữ lại vì có xung đột',
   applyStashTitle: 'Apply stash',
-  stashApplied: (label: string) => `Đã áp dụng stash “${label}”`,
+  stashApplied: (label: string) => `Đã apply stash “${label}”`,
   dropStash: 'Xoá stash',
   dropStashConfirmTitle: (label: string) => `Xoá stash “${label}”?`,
   stashDropped: 'Đã xoá stash',
   restoreStash: 'Khôi phục stash',
   undoHint: 'Có thể bấm “Hoàn tác” ngay sau đó.',
-  stashWithMessage: 'Stash kèm lời nhắn…',
+  stashWithMessage: 'Stash kèm message…',
   stashMessageTitle: 'Stash thay đổi',
-  stashMessageLabel: 'Lời nhắn (tuỳ chọn)',
+  stashMessageLabel: 'Message (tuỳ chọn)',
   stashIncludeUntracked: 'Gồm cả file mới (chưa track)',
   stashApplyKeep: 'Apply (giữ stash)',
-  stashPopDrop: 'Pop (áp dụng rồi xoá)',
+  stashPopDrop: 'Pop (apply rồi xoá stash)',
   dropStashMenu: 'Xoá stash…',
 
   // Xoá / đổi tên nhánh
@@ -114,7 +114,7 @@ export const branches = {
   revertConfirmMessage: (branch: string, sha: string) =>
     `Tạo một commit mới trên ${branch} đảo ngược thay đổi của ${sha}. Lịch sử cũ giữ nguyên.`,
   revertMergeNote: (parent: string) =>
-    `Đây là commit merge: thay đổi được đảo ngược so với cha thứ nhất (${parent}).`,
+    `Đây là merge commit: thay đổi được đảo ngược so với parent đầu tiên (${parent}).`,
   revertNoCommitNote:
     '“Revert, chưa commit” chỉ stage thay đổi đảo ngược để bạn xem lại hoặc sửa trước khi tự commit.',
   revertAndCommit: 'Revert & commit',
@@ -129,10 +129,10 @@ export const branches = {
   resetTitle: (branch: string, mode: string) => `Reset ${branch} (${mode})`,
   resetDone: (branch: string, sha: string) => `Đã reset ${branch} về ${sha}`,
   undoReset: 'Hoàn tác reset',
-  resetHardConfirmTitle: (branch: string, sha: string) => `Reset cứng ${branch} về ${sha}?`,
+  resetHardConfirmTitle: (branch: string, sha: string) => `Hard reset ${branch} về ${sha}?`,
   resetHardConfirmMessage: (sha: string) =>
     `Mọi thay đổi chưa commit sẽ MẤT VĨNH VIỄN. Các commit sau ${sha} sẽ không còn trên nhánh (vẫn hoàn tác được ngay sau đó).`,
-  resetHard: 'Reset cứng',
+  resetHard: 'Hard reset',
   resetSoft: 'Soft — giữ mọi thay đổi ở trạng thái đã stage',
   resetMixed: 'Mixed — giữ thay đổi, bỏ stage',
   resetHardMenu: 'Hard — bỏ mọi thay đổi',
@@ -164,7 +164,7 @@ export const branches = {
   createTagTitle: 'Tạo tag',
   createTagMessage: (label: string) => `Tag gắn vào commit ${label}.`,
   tagNameLabel: 'Tên tag',
-  tagMessageLabel: 'Lời nhắn (có thì tạo tag annotated)',
+  tagMessageLabel: 'Message (nếu có sẽ tạo annotated tag)',
   tagPushToRemote: (remote: string) => `Push tag lên ${remote}`,
   createTag: 'Tạo tag',
   tagNameRequired: 'Nhập tên tag',

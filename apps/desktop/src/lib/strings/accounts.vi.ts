@@ -16,7 +16,7 @@ export const accounts = {
   tokenHelp: (host: string) =>
     `Tạo ở phần Settings → Developer settings của ${host}. Dán vào đây: token chỉ nằm trong kho bí mật của máy.`,
   addSubmit: 'Thêm',
-  adding: 'Đang kiểm token…',
+  adding: 'Đang kiểm tra token…',
   loginByCode: 'Đăng nhập bằng mã',
   loginHelp: 'Mở trang đăng nhập, nhập mã hiện ở trên. Hết mã hoặc đóng hộp thoại thì huỷ.',
   codeLabel: 'Mã đăng nhập',

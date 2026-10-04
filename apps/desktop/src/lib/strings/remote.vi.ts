@@ -8,7 +8,7 @@ export const remote = {
   fetchTip: 'Lấy thông tin mới từ mọi remote (Ctrl+Alt+F)',
   pull: 'Pull',
   pullBehind: (count: number) => `Pull ↓${count}`,
-  pullTip: 'Kéo commit mới từ remote về nhánh hiện tại (Ctrl+Shift+L)',
+  pullTip: 'Lấy commit mới từ remote về nhánh hiện tại (Ctrl+Shift+L)',
   pullOptions: 'Kiểu pull khác',
   pullMerge: 'Pull (merge nếu cần)',
   pullRebase: 'Pull (rebase)',
@@ -46,7 +46,7 @@ export const remote = {
     missingBranches ? 'Repo chưa có đủ nhánh từ remote' : 'Repo chưa có đủ lịch sử từ remote',
   historyGapsNarrow: (remotes: readonly string[]) =>
     `Repo chỉ đang lấy một vài nhánh của ${remotes.join(', ')} nên các nhánh khác trên remote không hiện, kể cả khi Fetch.`,
-  historyGapsShallow: 'Đây là bản clone nông nên còn thiếu các commit cũ.',
+  historyGapsShallow: 'Đây là shallow clone nên còn thiếu các commit cũ.',
   completeHistory: 'Lấy đầy đủ từ remote',
   completeHistoryTip: 'Theo dõi mọi nhánh của remote, tải các commit còn thiếu rồi fetch',
   historyCompleted: 'Đã lấy đủ nhánh và lịch sử từ remote',
@@ -54,12 +54,12 @@ export const remote = {
 
   // Pull
   needBranchToPull: 'Cần đứng trên một nhánh để pull',
-  noUpstream: (branch: string) => `Nhánh ${branch} chưa có nhánh tương ứng trên remote`,
+  noUpstream: (branch: string) => `Nhánh ${branch} chưa có upstream trên remote`,
   pushToRemote: 'Push lên remote',
   pulled: (branch: string) => `Đã pull về ${branch}`,
   upToDate: (branch: string) => `${branch} đã mới nhất`,
   undoPull: 'Hoàn tác pull',
-  diverged: 'Nhánh local và remote đã tách nhau',
+  diverged: 'Nhánh local và remote đã diverge',
   pullWithMerge: 'Pull (merge)',
   pullWithRebase: 'Pull (rebase)',
 
@@ -78,8 +78,7 @@ export const remote = {
     `Ghi đè ${target} bằng bản trên máy bạn (--force-with-lease: sẽ dừng nếu remote có commit mới mà bạn chưa fetch).`,
   forcePushConfirm: 'Force push',
   publishTitle: (branch: string) => `Push nhánh ${branch} lên remote`,
-  publishMessage:
-    'Nhánh này chưa có nhánh tương ứng trên remote. Thaigit sẽ tạo nhánh trên remote và đặt làm upstream.',
+  publishMessage: 'Nhánh này chưa có upstream. Thaigit sẽ tạo nhánh trên remote và đặt làm upstream.',
   publishRemote: 'Remote',
   publishBranch: 'Tên nhánh trên remote',
   publishConfirm: 'Push',

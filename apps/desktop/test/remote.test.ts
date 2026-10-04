@@ -131,7 +131,7 @@ describe('fetch / pull', () => {
     await store.refreshAndWait(7);
 
     await pull(store, 'fastForwardOnly');
-    expect(lastToast(toasts)).toBe('Nhánh local và remote đã tách nhau');
+    expect(lastToast(toasts)).toBe('Nhánh local và remote đã diverge');
     action(toasts, 'Pull (rebase)')();
     await until(() => lastToast(toasts) === 'Đã pull về main', 'pull rebase');
     expect(test.git('log', '--format=%s', '-3').trim().split('\n')).toEqual([
@@ -146,7 +146,7 @@ describe('fetch / pull', () => {
     test.git('switch', '-q', '-c', 'moi');
     await store.refreshAndWait(7);
     await pull(store);
-    expect(lastToast(toasts)).toBe('Nhánh moi chưa có nhánh tương ứng trên remote');
+    expect(lastToast(toasts)).toBe('Nhánh moi chưa có upstream trên remote');
     expect(toasts.items.at(-1)?.actions.map((item) => item.title)).toEqual(['Push lên remote']);
   });
 

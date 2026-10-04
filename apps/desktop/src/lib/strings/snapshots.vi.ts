@@ -22,7 +22,7 @@ export const snapshots = {
 
   reasonAuto: 'Tự lưu',
   reasonBeforeRestore: 'Trước khi khôi phục',
-  reasonManual: 'Lưu tay',
+  reasonManual: 'Lưu thủ công',
   filesVsHead: (count: number) => `${count} file khác HEAD`,
 
   compareTitle: 'Khác với bây giờ',

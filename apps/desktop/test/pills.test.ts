@@ -89,7 +89,7 @@ describe('buildRefLabels', () => {
     expect(labels.map((label) => label.text)).toEqual(['HEAD', 'v1']);
     expect(labels[0]?.isDetachedHead).toBe(true);
     expect(pillIcons(labels[0] as RefLabel)).toEqual(['warning']);
-    expect(pillTooltip(labels[0] as RefLabel)).toBe('HEAD (tách rời)');
+    expect(pillTooltip(labels[0] as RefLabel)).toBe('HEAD (detached)');
   });
 
   it('commit không có nhãn thì không có khoá', () => {

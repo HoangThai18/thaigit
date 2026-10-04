@@ -15,10 +15,10 @@ export const update = {
   checkFailed: 'Không kiểm tra được bản cập nhật',
   installConfirmTitle: (version: string) => `Cập nhật lên Thaigit ${version}?`,
   installConfirmMessage:
-    'Thaigit sẽ tải bản mới, kiểm chữ ký rồi cài và tự khởi động lại. Các repo đang mở sẽ được mở lại.',
+    'Thaigit sẽ tải bản mới, xác minh chữ ký rồi cài và tự khởi động lại. Các repo đang mở sẽ được mở lại.',
   installConfirm: 'Cập nhật & khởi động lại',
   downloading: 'Đang tải bản cập nhật',
-  verifying: 'Đang kiểm chữ ký',
+  verifying: 'Đang xác minh chữ ký',
   installing: 'Đang cài đặt',
   ready: 'Đã cài xong — đang khởi động lại',
   failed: 'Cập nhật không thành công',
