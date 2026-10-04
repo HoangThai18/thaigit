@@ -1,4 +1,5 @@
 // Worktree / submodule: parser thuần và thao tác trên git thật (qua NodeExec + chính sách).
+import { realpathSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -35,6 +36,10 @@ describe('parser', () => {
   });
 });
 
+/** Cùng một thư mục? Git trên Windows in `C:/…/x` (gạch xuôi), `path.join` cho `C:\\…\\x` — so qua realpath. */
+const samePath = (a: string | undefined, b: string): boolean =>
+  a !== undefined && realpathSync(a) === realpathSync(b);
+
 describe('worktree trên git thật', () => {
   it('liệt kê, thêm (nhánh mới / nhánh có sẵn), gỡ, dọn', () =>
     withTestRepo(async (t) => {
@@ -46,14 +51,16 @@ describe('worktree trên git thật', () => {
       const existing = await t.repo.addWorktree(parent, 'repo-co-san', 'co-san', false);
       let list = await t.repo.worktrees();
       expect(list.map((item) => item.branch).sort()).toEqual(['co-san', 'main', 'tinh-nang']);
-      expect(list.find((item) => item.branch === 'tinh-nang')?.path).toBe(added);
+      expect(samePath(list.find((item) => item.branch === 'tinh-nang')?.path, added)).toBe(true);
       await expect(t.repo.addWorktree(parent, 'x', '--detach', false)).rejects.toThrow();
 
       await t.repo.removeWorktree(added, false);
       // Thư mục worktree bị xoá ngoài app: git đánh dấu prunable, `worktree prune` dọn.
+      const existingPath = list.find((item) => item.branch === 'co-san')?.path;
+      expect(samePath(existingPath, existing)).toBe(true);
       await rm(existing, { recursive: true, force: true });
       list = await t.repo.worktrees();
-      expect(list.find((item) => item.path === existing)?.prunable).toBe(true);
+      expect(list.find((item) => item.path === existingPath)?.prunable).toBe(true);
       await t.repo.pruneWorktrees();
       expect((await t.repo.worktrees()).map((item) => item.branch)).toEqual(['main']);
     }));

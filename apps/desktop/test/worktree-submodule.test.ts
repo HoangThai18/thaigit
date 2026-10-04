@@ -1,5 +1,5 @@
 import { mkdtemp, realpath, rm } from 'node:fs/promises';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -90,7 +90,10 @@ describe('worktree', () => {
     await adding;
     await until(() => store.worktrees.length === 2, 'có worktree mới');
     const added = store.worktrees.find((item) => item.branch === 'tinh-nang/x')!;
-    expect(added.path).toBe(join(parent, defaultFolder(store.name, 'tinh-nang/x')));
+    // Git trên Windows in `C:/…` (gạch xuôi): so qua realpath thay vì so chuỗi.
+    expect(realpathSync(added.path)).toBe(
+      realpathSync(join(parent, defaultFolder(store.name, 'tinh-nang/x'))),
+    );
     expect(worktreeName(added)).toBe('tinh-nang/x');
     expect(titles(worktreeMenu(store, added, 1))).toContain(strings.related.removeWorktree);
 
