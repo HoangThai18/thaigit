@@ -93,7 +93,8 @@ export async function openTestPort(
     emit: (event) => {
       for (const listener of [...listeners]) listener({ repoId: 'test', ...event });
     },
-    cleanup: () => rm(root, { recursive: true, force: true, maxRetries: 3 }),
+    // Windows: tiến trình git vừa xong (hoặc đang dừng) có thể còn giữ thư mục một lúc → EBUSY; thử lại lâu hơn.
+    cleanup: () => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }),
   };
 }
 
