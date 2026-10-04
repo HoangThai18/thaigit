@@ -32,6 +32,7 @@ import {
   fastForward,
 } from './branches.ts';
 import { cherryPick, discardAll, ignore, merge, rebaseCurrent, reset, revert } from './history.ts';
+import { lfsFileItems } from './lfs.ts';
 import { pull, push, pushBranch } from './remote.ts';
 import { discardFiles, stageAll, stageFiles, unstageAll, unstageFiles } from './staging.ts';
 import { applyStash, beginStash, dropStash, popStash, quickStash } from './stash.ts';
@@ -358,6 +359,7 @@ export function fileMenu(store: RepoStore, change: FileChange, source: DiffSourc
   items.push({ kind: 'separator' }, ...historyItems(store, change, source), { kind: 'separator' });
   const port = store.port;
   const onDisk = (source.kind === 'unstaged' || source.kind === 'staged') && change.kind !== 'deleted';
+  if (onDisk) items.push(...lfsFileItems(store, change));
   if (onDisk && port.openInEditor) {
     items.push({
       title: vi.branches.menuOpenInEditor,

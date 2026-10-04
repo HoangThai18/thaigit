@@ -224,6 +224,9 @@ export const shell: Translation<typeof source> = {
       io: "Couldn't read / write data on this computer — check permissions and free disk space.",
       gitMissing:
         'Git was not found on this computer — install Git (Windows: Git for Windows) and reopen Thaigit.',
+      lfsMissing: "Git LFS isn't installed — install Git LFS (git-lfs.com) and try again.",
+      lfsServer:
+        'The Git LFS server returned an error or an LFS file is missing — see the git command log for details.',
       gitTooOld: 'The installed git is too old — please update git.',
       untrusted: "The repository isn't trusted yet, so Thaigit won't run this command.",
       notARepository: 'This folder is not a git repository.',

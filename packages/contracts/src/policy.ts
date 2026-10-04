@@ -22,6 +22,8 @@ export interface SubcommandRule {
   allowLong?: string[];
   allowSecond?: string[];
   typedSecond?: string[];
+  /** Loại riêng theo đối số đầu (`lfs fetch` → `network`); không có thì dùng `kind`. */
+  secondKinds?: Record<string, ExecKind>;
   rejectSecond?: string[];
   /** Đối số đầu thuộc danh sách này phải là đối số DUY NHẤT (`remote -v` ok, `remote -v add …` bị chặn). */
   aloneSecond?: string[];
@@ -68,9 +70,9 @@ export function matchesReadForm(rule: SubcommandRule, args: readonly string[]): 
 }
 
 /**
- * Loại thao tác hiệu lực của một lệnh (nguồn sự thật cho khoá theo repo và quyền huỷ): loại của subcommand, nhưng subcommand
- * `write` mà args khớp một dạng chỉ-đọc (`stash list`, `remote -v`…) thì là `read`. `undefined` = subcommand không có trong chính
- * sách. Rust (`derived_kind`) phải cho kết quả giống hệt trên mọi ca `kinds` của `git-policy.vectors.json`.
+ * Loại thao tác hiệu lực của một lệnh (nguồn sự thật cho khoá theo repo và quyền huỷ): loại của subcommand (hoặc của đối số
+ * đầu, `secondKinds`), nhưng lệnh `write` mà args khớp một dạng chỉ-đọc (`stash list`, `remote -v`…) thì là `read`.
+ * `undefined` = subcommand không có trong chính sách. Rust (`derived_kind`) phải cho kết quả giống hệt trên mọi ca `kinds` của `git-policy.vectors.json`.
  */
 export function effectiveKind(
   sub: string,
@@ -79,7 +81,12 @@ export function effectiveKind(
 ): ExecKind | undefined {
   const rule = Object.hasOwn(policy.subcommands, sub) ? policy.subcommands[sub] : undefined;
   if (!rule) return undefined;
-  return rule.kind === 'write' && matchesReadForm(rule, args) ? 'read' : rule.kind;
+  const second = args[0];
+  const kind =
+    second !== undefined && rule.secondKinds && Object.hasOwn(rule.secondKinds, second)
+      ? rule.secondKinds[second]!
+      : rule.kind;
+  return kind === 'write' && matchesReadForm(rule, args) ? 'read' : kind;
 }
 
 export type PolicyViolation =

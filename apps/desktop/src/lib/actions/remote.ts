@@ -8,6 +8,7 @@ import { dialogs as globalDialogs, textValue, type DialogStore } from '../stores
 import type { PullModePref } from '../stores/prefs.svelte.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { gitErrorContains, handleConflictError, handleNetworkError } from './errors.ts';
+import { usesLfs } from './lfs.ts';
 import { beginAddRemote } from './manageRemotes.ts';
 import { quickStash } from './stash.ts';
 
@@ -252,13 +253,17 @@ export async function pushBranch(
 
 export function performPush(store: RepoStore, request: PushRequest, dialogs?: DialogStore): Promise<void> {
   const progress = store.progressReporter();
+  const lfs = usesLfs(store);
   const title = request.force
     ? vi.remote.forcePushTitle(request.localBranch)
     : vi.remote.pushTitle(request.localBranch);
   return store.perform(
     title,
-    (git, signal) =>
-      git.push({
+    async (git, signal) => {
+      // Hook pre-push của git-lfs có thể không chạy (repo chưa có hook, hoặc hook bị tắt) → tự đẩy file LFS trước, nếu không
+      // remote chỉ nhận con trỏ mà thiếu nội dung.
+      if (lfs) await git.lfsPush(request.remote, request.localBranch, { onProgress: progress, signal });
+      await git.push({
         remote: request.remote,
         localBranch: request.localBranch,
         remoteBranch: request.remoteBranch,
@@ -266,7 +271,8 @@ export function performPush(store: RepoStore, request: PushRequest, dialogs?: Di
         force: request.force,
         onProgress: progress,
         signal,
-      }),
+      });
+    },
     {
       showsProgress: true,
       cancellable: true,

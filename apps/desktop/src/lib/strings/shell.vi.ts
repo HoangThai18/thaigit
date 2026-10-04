@@ -223,6 +223,8 @@ export const shell = {
       busy: 'Repository đang bận với một thao tác khác — thử lại sau giây lát.',
       io: 'Không đọc / ghi được dữ liệu trên máy — kiểm tra quyền truy cập và dung lượng ổ đĩa.',
       gitMissing: 'Không tìm thấy git trên máy — hãy cài Git (Windows: Git for Windows) rồi mở lại Thaigit.',
+      lfsMissing: 'Máy chưa cài Git LFS — hãy cài Git LFS (git-lfs.com) rồi thử lại.',
+      lfsServer: 'Máy chủ Git LFS báo lỗi hoặc thiếu file LFS — xem chi tiết trong Nhật ký lệnh git.',
       gitTooOld: 'Phiên bản git trên máy quá cũ — hãy cập nhật git.',
       untrusted: 'Repository chưa được tin tưởng nên Thaigit không chạy lệnh này.',
       notARepository: 'Thư mục này không phải repository git.',

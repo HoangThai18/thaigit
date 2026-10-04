@@ -49,6 +49,7 @@ import {
   parseSubmoduleStatus,
   parseWorktrees,
 } from './parsers.ts';
+import { parseLfsPatterns, type LfsPattern } from './lfs.ts';
 import { rebaseRequest, type InteractiveRebaseResult, type RebaseStep } from './rebase.ts';
 import { isValidRefName, isValidRemoteName } from './refname.ts';
 import { AdapterError, GitError, GitRunner } from './runner.ts';
@@ -1139,6 +1140,53 @@ export class GitRepository {
   /** Chép lại URL submodule từ `.gitmodules` vào cấu hình (sau khi remote của submodule đổi địa chỉ). */
   async syncSubmodules(): Promise<void> {
     await this.runner.run('submodule', ['sync', '--recursive']);
+  }
+
+  // MARK: - Git LFS
+
+  /** Phiên bản git-lfs (`git-lfs/3.4.1 (…)` → `3.4.1`); null = máy chưa cài Git LFS. */
+  async lfsVersion(): Promise<string | null> {
+    try {
+      const out = await this.runner.run('lfs', ['version']);
+      return /^git-lfs\/(\S+)/.exec(decodeUtf8(out.stdout).trim())?.[1] ?? null;
+    } catch (error) {
+      if (error instanceof GitError) return null;
+      throw error;
+    }
+  }
+
+  /** Mẫu LFS trong `.gitattributes` ở gốc repo — đọc file, không cần git-lfs. */
+  async lfsPatterns(): Promise<LfsPattern[]> {
+    const bytes = await this.fs.readWorktreeFile('.gitattributes', 1024 * 1024).catch(() => null);
+    return bytes === null ? [] : parseLfsPatterns(decodeUtf8(bytes));
+  }
+
+  /** Thêm mẫu vào `.gitattributes` (`git lfs track`); file đổi chưa được stage. */
+  async lfsTrack(pattern: string): Promise<void> {
+    assertNoNul(pattern);
+    await this.runner.run('lfs', ['track', '--', pattern]);
+  }
+
+  async lfsUntrack(pattern: string): Promise<void> {
+    assertNoNul(pattern);
+    await this.runner.run('lfs', ['untrack', '--', pattern]);
+  }
+
+  /** Tải file LFS của nhánh hiện tại về bộ nhớ đệm (`pull`: và thay con trỏ trong working tree bằng file thật). */
+  async lfsFetch(pull: boolean, options: NetworkOptions = {}): Promise<void> {
+    await this.runner.run('lfs', [pull ? 'pull' : 'fetch'], networkRunOptions(options));
+  }
+
+  /** Đẩy file LFS của `branch` lên `remote` — chạy trước `git push` vì hook pre-push của git-lfs có thể không chạy. */
+  async lfsPush(remote: string, branch: string, options: NetworkOptions = {}): Promise<void> {
+    assertArgument(remote);
+    assertArgument(branch);
+    await this.runner.run('lfs', ['push', remote, branch], networkRunOptions(options));
+  }
+
+  /** Xoá bản LFS cũ trong bộ nhớ đệm cục bộ (chỉ bản đã có trên remote và không còn được commit gần đây dùng). */
+  async lfsPrune(): Promise<void> {
+    await this.runner.run('lfs', ['prune']);
   }
 
   // MARK: - Stash

@@ -22,6 +22,7 @@ export {
   parseWorktrees,
   progressFraction,
 } from './parsers.ts';
+export { parseLfsPatterns, parseLfsPointer, type LfsPattern, type LfsPointer } from './lfs.ts';
 export { isValidRefName, isValidRemoteName } from './refname.ts';
 export {
   REBASE_ACTIONS,

@@ -10,6 +10,7 @@ const text = vi.errors.friendly;
 
 /** Mẫu lỗi git quen thuộc → câu thân thiện (theo thứ tự ưu tiên; so không phân biệt hoa thường). */
 const GIT_PATTERNS: readonly (readonly [readonly string[], string])[] = [
+  [["'lfs' is not a git command", "'git-lfs' was not found"], text.lfsMissing],
   [['Please tell me who you are', 'empty ident', 'unable to auto-detect email address'], text.identity],
   [
     [
@@ -39,6 +40,7 @@ const GIT_PATTERNS: readonly (readonly [readonly string[], string])[] = [
     ],
     text.network,
   ],
+  [['batch response:', 'Smudge error', 'LFS: ', 'Object does not exist on the server'], text.lfsServer],
   [[".lock': File exists", 'index.lock', 'Unable to create', 'cannot lock ref'], text.lockFile],
   [
     ['would be overwritten', 'Please commit your changes or stash them', 'Your local changes'],

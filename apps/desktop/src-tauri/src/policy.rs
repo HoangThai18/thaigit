@@ -69,6 +69,9 @@ pub struct SubcommandRule {
     pub allow_second: Option<Vec<String>>,
     #[serde(default)]
     pub typed_second: Vec<String>,
+    /// Loại riêng theo đối số đầu (`lfs fetch` → `network`); không có thì dùng `kind`.
+    #[serde(default)]
+    pub second_kinds: BTreeMap<String, ExecKind>,
     #[serde(default)]
     pub reject_second: Vec<String>,
     /// Đối số đầu thuộc danh sách này phải là đối số DUY NHẤT (`remote -v` ok, `remote -v add …` bị chặn).
@@ -454,14 +457,16 @@ impl GitPolicy {
         })
     }
 
-    /// Loại thao tác hiệu lực của lệnh: `read` cho dạng chỉ-đọc của subcommand `write` (`readForms` trong git-policy.json, khớp
-    /// theo TOÀN BỘ hình dạng args). Bản port của `effectiveKind` (policy.ts).
+    /// Loại thao tác hiệu lực của lệnh: loại của subcommand (hoặc của đối số đầu, `secondKinds`), nhưng `read` cho dạng chỉ-đọc
+    /// của lệnh `write` (`readForms` trong git-policy.json, khớp theo TOÀN BỘ hình dạng args). Bản port của `effectiveKind`
+    /// (policy.ts).
     pub fn derived_kind(&self, sub: &str, args: &[String]) -> Option<ExecKind> {
         let rule = self.rule(sub)?;
-        if rule.kind == ExecKind::Write && rule.read_forms.iter().any(|form| form.matches(args)) {
+        let kind = args.first().and_then(|second| rule.second_kinds.get(second)).copied().unwrap_or(rule.kind);
+        if kind == ExecKind::Write && rule.read_forms.iter().any(|form| form.matches(args)) {
             return Some(ExecKind::Read);
         }
-        Some(rule.kind)
+        Some(kind)
     }
 
     /// Chọn loại thao tác theo yêu cầu: có thể mạnh hơn chính sách (khoá chặt hơn) nhưng không yếu hơn, và chỉ

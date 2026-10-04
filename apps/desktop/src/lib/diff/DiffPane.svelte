@@ -13,6 +13,8 @@
   } from '@thaigit/core';
   import { prefs } from '../stores/prefs.svelte.ts';
   import ImageDiff from './ImageDiff.svelte';
+  import { formatBytes } from './images.ts';
+  import { lfsPointerOf } from './lfs.ts';
   import { languageFor, lineSegments, tokenizeLine } from './syntax.ts';
   import {
     applyToSelection,
@@ -52,6 +54,7 @@
   const file = $derived(diff.file);
   const state = $derived(diff.state);
   const presentation = $derived(state.kind === 'text' ? state.presentation : null);
+  const lfsPointer = $derived(lfsPointerOf(presentation));
   const split = $derived(prefs.value.diffLayout === 'split');
   const ignoreWhitespace = $derived(prefs.value.diffIgnoreWhitespace);
   /** Ngôn ngữ để tô màu cú pháp (theo đuôi file); `null` = không tô. */
@@ -338,6 +341,16 @@
           >
         </div>
       {:else}
+        {#if lfsPointer}
+          <p class="lfs-note">
+            <Icon name="cloud" size={13} />
+            <span
+              ><strong>{vi.lfs.pointerTitle}</strong> — {vi.lfs.pointerMessage(
+                formatBytes(lfsPointer.size),
+              )}</span
+            >
+          </p>
+        {/if}
         <div class="lines" style:--digits={digits}>
           <VirtualList
             bind:this={list.current}
@@ -599,8 +612,22 @@
 
   .body {
     position: relative;
+    display: flex;
     flex: 1;
+    flex-direction: column;
     min-height: 0;
+  }
+
+  .lfs-note {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin: 0;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--separator);
+    background: var(--surface-muted);
+    color: var(--text-secondary);
+    font-size: 12px;
   }
 
   .message {
@@ -618,7 +645,8 @@
   }
 
   .lines {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     font-family: var(--font-mono);
     font-size: 12px;
   }

@@ -1,5 +1,5 @@
 {
-  "$comment": "Chính sách chạy git của Thaigit — một nguồn sự thật cho Rust (thực thi trong app, include_str!) và adapter Node (test). Ý nghĩa từng mục: packages/contracts/README.md. Với subcommand `write`: `readForms` liệt kê các DẠNG chỉ-đọc (không cần khoá độc quyền theo repo) — một dạng khớp khi args BẮT ĐẦU bằng đúng dãy `args` của nó và, trừ khi có `rest: true`, không còn đối số nào sau đó (nên `remote -v update` KHÔNG phải `remote -v`); `aloneSecond` là các đối số đầu chỉ được đứng MỘT MÌNH (`remote -v add …` bị chặn). Cả hai do TS (`effectiveKind`, `validateGitCommand`) và Rust (`derived_kind`, `validate`) đọc chung; ca kiểm thử ở git-policy.vectors.json.",
+  "$comment": "Chính sách chạy git của Thaigit — một nguồn sự thật cho Rust (thực thi trong app, include_str!) và adapter Node (test). Ý nghĩa từng mục: packages/contracts/README.md. Với subcommand `write`: `readForms` liệt kê các DẠNG chỉ-đọc (không cần khoá độc quyền theo repo) — một dạng khớp khi args BẮT ĐẦU bằng đúng dãy `args` của nó và, trừ khi có `rest: true`, không còn đối số nào sau đó (nên `remote -v update` KHÔNG phải `remote -v`); `secondKinds` đổi loại theo đối số đầu (`lfs fetch` là `network`, `lfs track` vẫn `write`); `aloneSecond` là các đối số đầu chỉ được đứng MỘT MÌNH (`remote -v add …` bị chặn). Cả hai do TS (`effectiveKind`, `validateGitCommand`) và Rust (`derived_kind`, `validate`) đọc chung; ca kiểm thử ở git-policy.vectors.json.",
   "version": 1,
   "globalConfig": [
     "core.quotepath=false",
@@ -198,6 +198,14 @@
     },
     "hash-object": {
       "kind": "write"
+    },
+    "lfs": {
+      "kind": "write",
+      "allowSecond": ["version", "ls-files", "track", "untrack", "fetch", "pull", "push", "prune"],
+      "secondKinds": { "fetch": "network", "pull": "network", "push": "network" },
+      "readForms": [{ "args": ["version"] }],
+      "rejectExtraLong": ["--verify-remote", "--verify-unreachable"],
+      "urls": true
     },
     "log": {
       "kind": "read",

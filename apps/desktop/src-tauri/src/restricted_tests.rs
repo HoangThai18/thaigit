@@ -835,3 +835,25 @@ async fn trust_only_covers_the_findings_the_user_was_shown() {
     // Quyết định gắn với tập khoá: mở lại vẫn tin cậy khi tập không đổi.
     assert_eq!(open(&fx.core, &fx.repo).await.trust, "trusted");
 }
+
+#[tokio::test]
+async fn git_lfs_waits_for_trust_and_its_standard_hooks_are_not_findings() {
+    let fx = Fx::new().await;
+    let hooks = fx.repo.root().join(".git/hooks");
+    let lfs_hook = "#!/bin/sh\ncommand -v git-lfs >/dev/null 2>&1 || { echo >&2 \"\\nThis repository is configured for Git LFS but 'git-lfs' was not found on your path.\\n\"; exit 2; }\ngit lfs pre-push \"$@\"\n";
+    std::fs::write(hooks.join("pre-push"), lfs_hook).unwrap();
+    assert_eq!(fx.open().await.trust, "trusted", "hook chuẩn của git-lfs không phải hook lạ");
+
+    std::fs::copy(fx.script("hook", "exit 0"), hooks.join("pre-commit")).unwrap();
+    let opened = fx.open().await;
+    assert_eq!(opened.trust, "unknown");
+    for (op, kind, args) in [("l1", ExecKind::Write, vec!["ls-files"]), ("l2", ExecKind::Write, vec!["track", "--", "*.bin"]), ("l3", ExecKind::Network, vec!["fetch"])] {
+        let (result, sink) = run(&fx.core, "main", request(&opened.repo_id, op, kind, "lfs", &args)).await;
+        assert_eq!(result.unwrap_err().code(), "untrusted", "{args:?}");
+        assert!(sink.frames().is_empty());
+    }
+    // `lfs version` không cài gì nên chạy được (git-lfs có thể không có trên máy chạy test: chỉ cần không bị chặn).
+    let (result, _) = run(&fx.core, "main", request(&opened.repo_id, "l4", ExecKind::Read, "lfs", &["version"])).await;
+    assert!(result.is_ok());
+    assert!(std::fs::read_dir(&fx.core.empty_hooks_dir).map(|dir| dir.count() == 0).unwrap_or(true));
+}

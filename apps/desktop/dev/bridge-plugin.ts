@@ -277,6 +277,22 @@ async function createRuntime(
         }
         return sendBytes(res, bytes);
       }
+      case 'GET /worktree-file': {
+        const rel = url.searchParams.get('rel') ?? '';
+        const max = Number(url.searchParams.get('max') ?? '');
+        let bytes: Uint8Array | null;
+        try {
+          bytes = await fs.readWorktreeFile(rel, Number.isFinite(max) && max > 0 ? max : undefined);
+        } catch (error) {
+          throw adapterFailure(error);
+        }
+        if (bytes === null) {
+          res.writeHead(204, { 'cache-control': 'no-store' });
+          res.end();
+          return;
+        }
+        return sendBytes(res, bytes);
+      }
       case 'GET /changes': {
         const afterParam = url.searchParams.get('after');
         if (afterParam === null) return sendJson(res, 200, { seq, kinds: [] } satisfies BridgeChanges);

@@ -14,6 +14,7 @@ import { ai } from './strings/ai.vi.ts';
 import { branches } from './strings/branches.vi.ts';
 import { dnd } from './strings/dnd.vi.ts';
 import { history } from './strings/history.vi.ts';
+import { lfs } from './strings/lfs.vi.ts';
 import { palette } from './strings/palette.vi.ts';
 import { rebase } from './strings/rebase.vi.ts';
 import { related } from './strings/related.vi.ts';
@@ -39,6 +40,7 @@ const viStrings = {
   rebase,
   palette,
   related,
+  lfs,
   accounts,
   pullRequests,
   snapshots,

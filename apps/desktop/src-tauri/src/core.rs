@@ -606,6 +606,11 @@ impl Core {
                 request.sub
             )));
         }
+        // git-lfs tự cài hook vào thư mục hook hiệu lực — với repo chưa tin cậy đó là thư mục hook rỗng DÙNG CHUNG của app. Chỉ
+        // `lfs version` (không cài gì) được chạy trước khi tin tưởng.
+        if entry.restrictions.is_some() && request.sub == "lfs" && request.args.first().map(String::as_str) != Some("version") {
+            return Err(AppError::Untrusted("Repo chưa được tin cậy nên chưa dùng được Git LFS. Hãy tin tưởng repo để tiếp tục.".into()));
+        }
         // `remote prune|set-head|show` (và `submodule update`) cũng liên lạc với máy chủ nên bị coi như lệnh mạng khi có khoá
         // không vô hiệu hoá được (`submodule update` clone / fetch theo `.gitmodules` của repo).
         let contacts_remote = kind == ExecKind::Network

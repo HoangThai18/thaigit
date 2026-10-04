@@ -28,6 +28,10 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Submodule (mục SUBMODULES ở sidebar, chỉ hiện khi repo có submodule): xem trạng thái (chưa khởi tạo / lệch commit), cập nhật một hoặc tất cả submodule (update --init --recursive), đồng bộ URL, mở submodule trong cửa sổ mới
 - Diff tô màu cú pháp cho các ngôn ngữ phổ biến (TypeScript / JavaScript, Svelte, Vue, Rust, Go, Python, Java, Kotlin, Swift, C / C++, C#, PHP, Ruby, CSS, HTML, JSON, YAML, Markdown, SQL, shell…), cả giao diện sáng lẫn tối
 - Diff có nút "Bỏ qua khoảng trắng" (git diff -w): ẩn các thay đổi chỉ về thụt lề / khoảng trắng để dễ đọc; khi bật thì tạm không stage từng dòng
+- Git LFS (mục GIT LFS ở sidebar, hiện khi repo dùng LFS): xem các mẫu file đang track, nút + để track mẫu mới, chuột phải để bỏ track; fetch / pull file LFS và dọn bộ nhớ đệm (prune). Chuột phải một file → Git LFS → "Track mọi file .psd bằng LFS" để bắt đầu dùng LFS
+- Push tự đẩy file LFS trước (git lfs push), kể cả khi repo chưa cài hook của git-lfs — remote không còn bị nhận file con trỏ mà thiếu nội dung
+- Diff của file LFS có ghi chú "chỉ là con trỏ tới … trên máy chủ LFS" kèm dung lượng thật
+- An toàn hơn với repo lạ: khoá cấu hình git-lfs có thể chạy chương trình (lfs.customtransfer.*.path, lfs.extension.*) được tính khi hỏi tin tưởng repo; repo chưa tin tưởng thì chưa chạy lệnh LFS. Hook chuẩn do git-lfs cài không còn làm app hỏi lại tin tưởng
 - Câu chữ giao diện dùng đúng thuật ngữ git quen thuộc (detached HEAD, hard reset, upstream, shallow clone, annotated tag, message, parent…) thay cho các chữ dịch gượng như "HEAD tách rời", "Reset cứng", "lời nhắn"
 
 ## 2.0.0 — 2026-10-03

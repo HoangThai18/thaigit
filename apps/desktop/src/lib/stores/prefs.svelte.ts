@@ -38,6 +38,7 @@ export interface PrefsData {
     pullRequests: boolean;
     worktrees: boolean;
     submodules: boolean;
+    lfs: boolean;
   };
   columns: PreferredWidths;
   /** Kiểu pull của nút Pull (mặc định `merge`). */
@@ -95,6 +96,7 @@ export function defaultPrefs(): PrefsData {
       pullRequests: false,
       worktrees: true,
       submodules: true,
+      lfs: true,
     },
     columns: { ...DEFAULT_WIDTHS },
     pullMode: 'merge',
@@ -161,6 +163,7 @@ export function sanitizePrefs(raw: unknown): PrefsData {
       pullRequests: bool(sections.pullRequests, base.sidebarSections.pullRequests),
       worktrees: bool(sections.worktrees, base.sidebarSections.worktrees),
       submodules: bool(sections.submodules, base.sidebarSections.submodules),
+      lfs: bool(sections.lfs, base.sidebarSections.lfs),
     },
     columns: sanitizePreferred(source.columns),
     pullMode: PULL_MODES.find((mode) => mode === source.pullMode) ?? base.pullMode,

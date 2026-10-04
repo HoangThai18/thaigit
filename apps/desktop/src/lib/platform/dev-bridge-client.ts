@@ -63,7 +63,11 @@ export function createDevBridgeHost(): Host | null {
       const response = await request(`/git-file?rel=${encodeURIComponent(relative)}`);
       return response.status === 204 ? null : new Uint8Array(await response.arrayBuffer());
     },
-    readWorktreeFile: refuse,
+    async readWorktreeFile(relative, maxBytes) {
+      const max = maxBytes === undefined ? '' : `&max=${maxBytes}`;
+      const response = await request(`/worktree-file?rel=${encodeURIComponent(relative)}${max}`);
+      return response.status === 204 ? null : new Uint8Array(await response.arrayBuffer());
+    },
     writeWorktreeFile: refuse,
     appendGitignore: refuse,
     trashUntracked: refuse,

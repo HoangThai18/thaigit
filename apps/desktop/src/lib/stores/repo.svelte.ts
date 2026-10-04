@@ -26,6 +26,7 @@ import {
   type GraphRow,
   type HeadState,
   type HistoryGaps,
+  type LfsPattern,
   type Remote,
   type RepoOperation,
   type Stash,
@@ -169,6 +170,10 @@ export class RepoStore {
   /** Các worktree của repo (gồm chính worktree đang mở). */
   worktrees = $state.raw<readonly Worktree[]>([]);
   submodules = $state.raw<readonly Submodule[]>([]);
+  /** Mẫu Git LFS trong `.gitattributes` gốc (rỗng = repo không dùng LFS). */
+  lfsPatterns = $state.raw<readonly LfsPattern[]>([]);
+  /** Phiên bản git-lfs trên máy: `undefined` = chưa kiểm, `null` = chưa cài. */
+  lfsVersion = $state.raw<string | null | undefined>(undefined);
   operation = $state.raw<RepoOperation | null>(null);
   /** Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Lấy đầy đủ từ remote". */
   historyGaps = $state.raw<HistoryGaps>(NO_HISTORY_GAPS);
@@ -519,6 +524,8 @@ export class RepoStore {
       gapsResult,
       worktreeResult,
       submoduleResult,
+      lfsPatternResult,
+      lfsVersionResult,
     ] = await Promise.all([
       wantsStatus ? settle(git.status()) : null,
       wantsRefs ? settle(git.refs()) : null,
@@ -528,6 +535,8 @@ export class RepoStore {
       wantsRefs ? settle(git.historyGaps()) : null,
       wantsRefs ? settle(git.worktrees()) : null,
       wantsRefs ? settle(git.submodules()) : null,
+      wantsStatus ? settle(git.lfsPatterns()) : null,
+      first ? settle(git.lfsVersion()) : null,
     ]);
     if (this.disposed) return;
 
@@ -557,12 +566,16 @@ export class RepoStore {
       }
     }
     if (remoteResult?.ok && !jsonEqual(remoteResult.value, this.remotes)) this.remotes = remoteResult.value;
-    // Worktree / submodule chỉ để hiện ở sidebar: lỗi (git cũ, repo lạ) thì giữ danh sách cũ, không báo.
+    // Worktree / submodule / LFS chỉ để hiện ở sidebar: lỗi (git cũ, repo lạ) thì giữ danh sách cũ, không báo.
     if (worktreeResult?.ok && !jsonEqual(worktreeResult.value, this.worktrees))
       this.worktrees = worktreeResult.value;
     if (submoduleResult?.ok && !jsonEqual(submoduleResult.value, this.submodules)) {
       this.submodules = submoduleResult.value;
     }
+    if (lfsPatternResult?.ok && !jsonEqual(lfsPatternResult.value, this.lfsPatterns)) {
+      this.lfsPatterns = lfsPatternResult.value;
+    }
+    if (lfsVersionResult?.ok) this.lfsVersion = lfsVersionResult.value;
     // Lỗi khi kiểm (git quá cũ…) không đáng báo: chỉ là không hiện thanh gợi ý.
     if (gapsResult?.ok && !jsonEqual(gapsResult.value, this.historyGaps)) this.historyGaps = gapsResult.value;
     if (operationResult?.ok && !jsonEqual(operationResult.value, this.operation)) {

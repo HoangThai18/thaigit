@@ -26,6 +26,7 @@
     worktreeMenu,
     worktreeName,
   } from '../actions/related.ts';
+  import { beginTrackLfs, lfsPatternMenu, lfsSectionMenu } from '../actions/lfs.ts';
   import { refMenu, stashMenu } from '../actions/menus.ts';
   import { showBidi } from '../format/bidi.ts';
   import { containsFolded, foldText } from '../format/natural.ts';
@@ -433,6 +434,54 @@
       </section>
     {/if}
 
+    <!-- GIT LFS: chỉ hiện khi repo có mẫu LFS trong .gitattributes (track mẫu đầu tiên từ menu chuột phải của file). -->
+    {#if store.lfsPatterns.length > 0 && !filtering}
+      <section>
+        {@render sectionHeader('lfs', vi.lfs.section, store.lfsPatterns.length, 'cloud')}
+        {#if sections.lfs}
+          <div class="toolbar">
+            <button
+              type="button"
+              class="mini"
+              title={vi.lfs.track}
+              aria-label={vi.lfs.track}
+              onclick={() => void beginTrackLfs(store)}
+            >
+              <Icon name="plus" size={12} strokeWidth={2.4} />
+            </button>
+            <button
+              type="button"
+              class="mini"
+              title={vi.lfs.more}
+              aria-label={vi.lfs.more}
+              aria-haspopup="menu"
+              onclick={(event) => menus.openBelow(event.currentTarget, lfsSectionMenu(store))}
+            >
+              <Icon name="more" size={12} strokeWidth={2.4} />
+            </button>
+          </div>
+          {#if store.lfsVersion === null}
+            <p class="placeholder">{vi.lfs.notInstalled}</p>
+          {/if}
+          {#each store.lfsPatterns as pattern, index (index)}
+            <button
+              type="button"
+              class="sb-row"
+              title={showBidi(
+                [vi.lfs.patternTitle(pattern.display), pattern.lockable ? vi.lfs.lockable : '']
+                  .filter((line) => line !== '')
+                  .join('\n'),
+              )}
+              oncontextmenu={(event) => menus.openAt(event, lfsPatternMenu(store, pattern))}
+            >
+              <span class="sb-icon"><Icon name="cloud" size={15} /></span>
+              <span class="sb-title mono"><bdi>{showBidi(pattern.display)}</bdi></span>
+            </button>
+          {/each}
+        {/if}
+      </section>
+    {/if}
+
     <PullRequestSection {store} />
   </div>
 </div>
@@ -538,6 +587,11 @@
   .placeholder {
     margin: 2px 10px 6px 34px;
     color: var(--text-tertiary);
+    font-size: 12px;
+  }
+
+  .sb-title.mono {
+    font-family: var(--font-mono);
     font-size: 12px;
   }
 

@@ -102,6 +102,9 @@ pub enum KeyKind {
     SshDefaultKeyCommand,
     /// `submodule.<tên>.update = !lệnh` (`pull --recurse-submodules` → `submodule update`).
     SubmoduleUpdate,
+    /// `lfs.customtransfer.<tên>.path`, `lfs.extension.<tên>.clean|smudge`: git-lfs (bộ lọc `filter.lfs` của người dùng, lệnh
+    /// `git lfs …`) chạy chương trình này. `.lfsconfig` trong repo thì git-lfs không đọc các khoá này.
+    LfsProgram,
 }
 
 static KEY_PATTERNS: LazyLock<Vec<(Regex, KeyKind)>> = LazyLock::new(|| {
@@ -132,6 +135,9 @@ static KEY_PATTERNS: LazyLock<Vec<(Regex, KeyKind)>> = LazyLock::new(|| {
         (r"^core\.alternaterefscommand$", KeyKind::AlternateRefsCommand),
         (r"^gpg\.ssh\.defaultkeycommand$", KeyKind::SshDefaultKeyCommand),
         (r"^submodule\..+\.update$", KeyKind::SubmoduleUpdate),
+        // git chỉ hạ chữ tên section/khoá; phần giữa (`[lfs "customTransfer.x"]`) giữ nguyên mà git-lfs có thể so không phân biệt hoa thường.
+        (r"(?i)^lfs\.customtransfer\..+\.path$", KeyKind::LfsProgram),
+        (r"(?i)^lfs\.extension\..+\.(clean|smudge)$", KeyKind::LfsProgram),
     ];
     table.iter().map(|(pattern, kind)| (Regex::new(pattern).expect("regex khoá hợp lệ"), *kind)).collect()
 });
@@ -155,18 +161,34 @@ pub fn read_hooks(common_dir: &Path) -> Vec<HookFile> {
         .filter_map(|e| e.ok())
         .filter(|e| !e.file_name().to_string_lossy().ends_with(".sample"))
         .filter(|e| e.file_type().is_ok_and(|t| t.is_file() || t.is_symlink()))
-        .map(|e| {
-            let digest = std::fs::metadata(e.path())
-                .ok()
-                .filter(|m| m.len() <= 1024 * 1024)
-                .and_then(|_| std::fs::read(e.path()).ok())
-                .map(|bytes| hex(&Sha256::digest(&bytes)))
-                .unwrap_or_else(|| "không-đọc-được".to_string());
-            HookFile { name: e.file_name().to_string_lossy().into_owned(), digest }
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            let bytes = std::fs::metadata(e.path()).ok().filter(|m| m.len() <= 1024 * 1024).and_then(|_| std::fs::read(e.path()).ok());
+            if bytes.as_deref().is_some_and(|bytes| is_git_lfs_hook(&name, bytes)) {
+                return None;
+            }
+            let digest = bytes.map(|bytes| hex(&Sha256::digest(&bytes))).unwrap_or_else(|| "không-đọc-được".to_string());
+            Some(HookFile { name, digest })
         })
         .collect();
     hooks.sort_by(|a, b| a.name.cmp(&b.name));
     hooks
+}
+
+/// Hook chuẩn do git-lfs cài (`git lfs install`, `git lfs track`…): chỉ gọi `git lfs <tên hook> "$@"`, tức chương trình git-lfs
+/// của người dùng như bộ lọc `filter.lfs` — không tính là hook của repo. Khớp NGUYÊN VĂN khuôn của git-lfs (bản `echo` cũ và
+/// bản `printf` mới); câu báo lỗi trong nháy kép không được có `"`, `$`, `` ` `` hay `\` (trừ `\n`) nên không chèn lệnh được.
+fn is_git_lfs_hook(name: &str, bytes: &[u8]) -> bool {
+    static TEMPLATE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(concat!(
+            r#"\A#!/bin/sh\r?\n"#,
+            r#"command -v git-lfs >/dev/null 2>&1 \|\| \{ (?:echo >&2 |printf >&2 "\\n%s\\n\\n" )"(?:[^"$`\\\r\n]|\\n)*"; exit 2; \}\r?\n"#,
+            r#"git lfs (pre-push|post-checkout|post-commit|post-merge) "\$@"(?:\r?\n)?\z"#,
+        ))
+        .expect("regex hook git-lfs hợp lệ")
+    });
+    let Ok(text) = std::str::from_utf8(bytes) else { return false };
+    TEMPLATE.captures(text).is_some_and(|caps| &caps[1] == name)
 }
 
 pub fn hex(bytes: &[u8]) -> String {
@@ -321,7 +343,9 @@ pub fn build_restrictions(entries: &[ConfigEntry], empty_hooks: &Path) -> Restri
                 let value = trusted.filter(|v| !v.contains(" for ")).unwrap_or("");
                 restrictions.proxy_command = Some(value.to_string());
             }
-            KeyKind::Filter | KeyKind::DiffDriver | KeyKind::DiffExternal => restrictions.config.push((key, neutral(""))),
+            KeyKind::Filter | KeyKind::DiffDriver | KeyKind::DiffExternal | KeyKind::LfsProgram => {
+                restrictions.config.push((key, neutral("")))
+            }
             // Driver rỗng sẽ "thành công" mà không gộp gì; `false` buộc báo xung đột (an toàn).
             KeyKind::MergeDriver => restrictions.config.push((key, neutral("false"))),
             KeyKind::CredentialHelper => {
@@ -491,6 +515,10 @@ mod tests {
             ("core.alternaterefscommand", KeyKind::AlternateRefsCommand),
             ("gpg.ssh.defaultkeycommand", KeyKind::SshDefaultKeyCommand),
             ("submodule.libs/x.update", KeyKind::SubmoduleUpdate),
+            ("lfs.customtransfer.x.path", KeyKind::LfsProgram),
+            ("lfs.extension.foo.clean", KeyKind::LfsProgram),
+            ("lfs.extension.foo.smudge", KeyKind::LfsProgram),
+            ("lfs.CustomTransfer.x.path", KeyKind::LfsProgram),
         ];
         for (key, kind) in hits {
             assert_eq!(classify_key(key), Some(kind), "{key}");
@@ -498,6 +526,7 @@ mod tests {
         for key in [
             "user.name", "core.autocrlf", "remote.origin.url", "branch.main.remote", "core.filemode", "alias.co", "filter.lfs.required",
             "sequence.replaceeditor", "trailer.sign.key", "submodule.x.url", "submodule.recurse", "core.alternaterefsprefixes",
+            "lfs.url", "lfs.customtransfer.x.args", "lfs.extension.foo.priority",
         ] {
             assert_eq!(classify_key(key), None, "{key}");
         }
@@ -736,6 +765,30 @@ mod tests {
         std::fs::write(hooks.join("pre-commit"), b"#!/bin/sh\necho changed\n").unwrap();
         assert_ne!(read_hooks(dir.path())[0].digest, found[0].digest);
         assert!(read_hooks(&dir.path().join("none")).is_empty());
+    }
+
+    #[test]
+    fn standard_git_lfs_hooks_are_not_findings_but_anything_else_is() {
+        let message = "This repository is configured for Git LFS but 'git-lfs' was not found on your path. If you no longer wish to use Git LFS, remove this hook by deleting the 'pre-push' file in the hooks directory (set by 'core.hookspath'; usually '.git/hooks').";
+        let echo = format!("#!/bin/sh\ncommand -v git-lfs >/dev/null 2>&1 || {{ echo >&2 \"\\n{message}\\n\"; exit 2; }}\ngit lfs pre-push \"$@\"\n");
+        let printf = format!("#!/bin/sh\r\ncommand -v git-lfs >/dev/null 2>&1 || {{ printf >&2 \"\\n%s\\n\\n\" \"{message}\"; exit 2; }}\r\ngit lfs pre-push \"$@\"\r\n");
+        assert!(is_git_lfs_hook("pre-push", echo.as_bytes()));
+        assert!(is_git_lfs_hook("pre-push", printf.as_bytes()));
+        // Sai tên hook, thêm lệnh, chèn `$(…)` / `` ` `` / nháy kép vào câu báo → là hook lạ.
+        assert!(!is_git_lfs_hook("post-merge", echo.as_bytes()));
+        assert!(!is_git_lfs_hook("pre-push", format!("{echo}touch /tmp/pwned\n").as_bytes()));
+        for bad in ["$(touch /tmp/pwned)", "`id`", "\"; id; echo \"", "\\\"; id #"] {
+            let hook = echo.replace("Git LFS but", &format!("Git LFS {bad} but"));
+            assert!(!is_git_lfs_hook("pre-push", hook.as_bytes()), "{bad}");
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let hooks = dir.path().join("hooks");
+        std::fs::create_dir(&hooks).unwrap();
+        std::fs::write(hooks.join("pre-push"), &echo).unwrap();
+        std::fs::write(hooks.join("post-merge"), &echo).unwrap();
+        let names: Vec<String> = read_hooks(dir.path()).into_iter().map(|h| h.name).collect();
+        assert_eq!(names, ["post-merge"]);
     }
 
     #[test]

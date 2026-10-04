@@ -189,6 +189,15 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.updateSubmodules(null);
     await r.updateSubmodules(['vendor/thư viện', '-lạ']);
     await r.syncSubmodules();
+    await r.lfsVersion();
+    await r.lfsPatterns();
+    await r.lfsTrack('*.psd');
+    await r.lfsTrack('thư mục/có cách *.bin');
+    await r.lfsUntrack('*.psd');
+    await r.lfsFetch(false);
+    await r.lfsFetch(true);
+    await r.lfsPush('origin', 'main');
+    await r.lfsPrune();
     await r.rebaseCommits(SHA);
     await r.interactiveRebase(SHA, [
       { commit: COMMIT, action: 'pick' },
