@@ -13,6 +13,10 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Ẩn nhánh khỏi graph hoặc "Chỉ hiện nhánh này" (solo) từ menu chuột phải của nhánh — graph gọn lại khi repo có nhiều nhánh; dải báo phía trên graph có nút "Hiện tất cả nhánh"; nhớ riêng cho từng repo
 - Hàng nút trên thanh công cụ dễ nhìn hơn: nền sáng có viền, mỗi thao tác một màu biểu tượng (Fetch xanh dương, Pull xanh ngọc, Push xanh lá, Branch tím, Stash / Pop cam)
 - Nút Cài đặt và Profile ở góc phải thanh công cụ: avatar tên / email Git đang dùng để commit, bấm để đổi tên & email (cho riêng repo hoặc mọi repo), chọn tài khoản GitHub / GitLab cho repo hoặc mở Cài đặt
+- Chữ chú giải trên thanh công cụ và thông báo gọi đúng tên lệnh: "Fetch từ mọi remote", "Pull commit mới từ remote về nhánh hiện tại", "Push commit của nhánh hiện tại lên remote", "Stash mọi thay đổi chưa commit", "Pop stash mới nhất", "Fetch đầy đủ từ remote", "Đã pop thay đổi từ stash" thay cho "lấy thông tin mới", "đẩy commit", "cất tạm", "lấy lại stash", "lấy đầy đủ"
+- Bản tiếng Anh dùng đúng thuật ngữ git (Fetch / Pull / Push / Stash / Pop) thay cho các cụm diễn giải như "Get the latest information…", "Bring new commits…", "Put all uncommitted changes aside", "Bring back the latest stash"
+- Hộp chọn thư mục / chọn chương trình git do Rust hiện đổi sang "Choose Folder" / "Choose the Git executable"
+- Dòng bản quyền trong thông tin gói cài đặt đổi sang tiếng Anh
 
 ## 2.1.0 — 2026-10-04
 

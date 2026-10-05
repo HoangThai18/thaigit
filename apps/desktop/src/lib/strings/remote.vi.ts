@@ -5,10 +5,10 @@
 export const remote = {
   // Thanh công cụ
   fetch: 'Fetch',
-  fetchTip: 'Lấy thông tin mới từ mọi remote (Ctrl+Alt+F)',
+  fetchTip: 'Fetch từ mọi remote (Ctrl+Alt+F)',
   pull: 'Pull',
   pullBehind: (count: number) => `Pull ↓${count}`,
-  pullTip: 'Lấy commit mới từ remote về nhánh hiện tại (Ctrl+Shift+L)',
+  pullTip: 'Pull commit mới từ remote về nhánh hiện tại (Ctrl+Shift+L)',
   pullOptions: 'Kiểu pull khác',
   pullMerge: 'Pull (merge nếu cần)',
   pullRebase: 'Pull (rebase)',
@@ -19,13 +19,13 @@ export const remote = {
   undoLast: (title: string) => `Hoàn tác: ${title}`,
   push: 'Push',
   pushAhead: (count: number) => `Push ↑${count}`,
-  pushTip: 'Đẩy commit của nhánh hiện tại lên remote (Ctrl+Shift+P)',
+  pushTip: 'Push commit của nhánh hiện tại lên remote (Ctrl+Shift+P)',
   branch: 'Branch',
   branchTip: 'Tạo nhánh mới từ commit hiện tại (Ctrl+Shift+B)',
   stash: 'Stash',
-  stashTip: 'Cất tạm mọi thay đổi chưa commit',
+  stashTip: 'Stash mọi thay đổi chưa commit',
   pop: 'Pop',
-  popTip: 'Lấy lại stash mới nhất',
+  popTip: 'Pop stash mới nhất',
   more: 'Thêm',
   refresh: 'Làm mới',
   commandLog: 'Nhật ký lệnh git…',
@@ -50,9 +50,9 @@ export const remote = {
   historyGapsNarrow: (remotes: readonly string[]) =>
     `Repo chỉ đang lấy một vài nhánh của ${remotes.join(', ')} nên các nhánh khác trên remote không hiện, kể cả khi Fetch.`,
   historyGapsShallow: 'Đây là shallow clone nên còn thiếu các commit cũ.',
-  completeHistory: 'Lấy đầy đủ từ remote',
-  completeHistoryTip: 'Theo dõi mọi nhánh của remote, tải các commit còn thiếu rồi fetch',
-  historyCompleted: 'Đã lấy đủ nhánh và lịch sử từ remote',
+  completeHistory: 'Fetch đầy đủ từ remote',
+  completeHistoryTip: 'Theo dõi mọi nhánh của remote, tải các commit còn thiếu rồi Fetch',
+  historyCompleted: 'Đã fetch đủ nhánh và lịch sử từ remote',
   later: 'Để sau',
 
   // Pull

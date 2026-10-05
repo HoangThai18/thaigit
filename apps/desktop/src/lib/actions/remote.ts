@@ -49,7 +49,7 @@ export function fetch(store: RepoStore): Promise<void> {
 }
 
 /**
- * "Lấy đầy đủ từ remote" (thanh báo khi repo thiếu nhánh / lịch sử): remote chỉ theo dõi vài nhánh thì thêm refspec mọi
+ * "Fetch đầy đủ từ remote" (thanh báo khi repo thiếu nhánh / lịch sử): remote chỉ theo dõi vài nhánh thì thêm refspec mọi
  * nhánh (giữ refspec cũ), clone nông thì lấy nốt commit cũ, rồi fetch để các nhánh như `main` hiện ra.
  */
 export function completeHistory(store: RepoStore): Promise<void> {

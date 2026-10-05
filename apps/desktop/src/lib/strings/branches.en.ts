@@ -47,11 +47,11 @@ export const branches: Translation<typeof source> = {
   deleteTitle: (name: string) => `Delete branch ${name}`,
 
   stashTitle: 'Stash',
-  stashed: 'Changes saved to a stash',
+  stashed: 'Changes stashed',
   nothingToStash: 'No changes to stash',
   noStash: 'No stashes',
   popTitle: 'Pop stash',
-  popped: 'Changes restored from the stash',
+  popped: 'Changes popped from the stash',
   stashKept: 'The stash was kept because of conflicts',
   applyStashTitle: 'Apply stash',
   stashApplied: (label: string) => `Applied stash “${label}”`,

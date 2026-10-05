@@ -203,7 +203,7 @@ struct RepoActionBar: View {
             Button { model.fetch() } label: {
                 ToolLabel("Fetch", systemImage: "arrow.triangle.2.circlepath", color: ToolColor.fetch)
             }
-            .help("Lấy thông tin mới từ mọi remote (⌥⌘F)")
+            .help("Fetch từ mọi remote (⌥⌘F)")
 
             Menu {
                 Button("Pull (merge nếu cần)") { model.pull(mode: .merge) }
@@ -228,13 +228,13 @@ struct RepoActionBar: View {
             .padding(.horizontal, 8)
             .frame(minHeight: 28)
             .background(ToolbarChrome())
-            .help("Lấy commit mới từ remote về nhánh hiện tại (⇧⌘L)")
+            .help("Pull commit mới từ remote về nhánh hiện tại (⇧⌘L)")
 
             Button { model.push() } label: {
                 ToolLabel(verbatim: model.status.ahead > 0 ? "Push ↑\(model.status.ahead)" : "Push", systemImage: "arrow.up.circle",
                           color: ToolColor.push)
             }
-            .help("Đẩy commit của nhánh hiện tại lên remote (⇧⌘P)")
+            .help("Push commit của nhánh hiện tại lên remote (⇧⌘P)")
 
             Button { model.beginCreateBranchAtHead() } label: {
                 ToolLabel("Branch", systemImage: "arrow.triangle.branch", color: ToolColor.branch)
@@ -245,13 +245,13 @@ struct RepoActionBar: View {
                 ToolLabel("Stash", systemImage: "archivebox.fill", color: ToolColor.stash)
             }
             .disabled(model.status.isClean)
-            .help("Cất tạm mọi thay đổi chưa commit")
+            .help("Stash mọi thay đổi chưa commit")
 
             Button { model.popLatestStash() } label: {
                 ToolLabel("Pop", systemImage: "tray.and.arrow.up.fill", color: ToolColor.pop)
             }
             .disabled(model.stashes.isEmpty)
-            .help("Lấy lại stash mới nhất")
+            .help("Pop stash mới nhất")
 
             Menu {
                 Button(model.terminal?.isVisible == true ? "Ẩn terminal trong app" : "Terminal trong app") { model.toggleTerminal() }
@@ -416,7 +416,7 @@ struct HistoryGapsBanner: View {
             Spacer()
             Button("Để sau") { model.historyGapsDismissed = true }
                 .glassButtonStyle()
-            Button("Lấy đầy đủ từ remote") { model.completeHistory() }
+            Button("Fetch đầy đủ từ remote") { model.completeHistory() }
                 .glassButtonStyle(prominent: true)
                 .help("Theo dõi mọi nhánh của remote, tải các commit còn thiếu rồi fetch")
                 .disabled(model.busy != nil)

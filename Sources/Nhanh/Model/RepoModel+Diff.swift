@@ -208,7 +208,7 @@ extension RepoModel {
         }
         if diff.hunks.isEmpty {
             if diff.isModeChangeOnly {
-                return .message(String(localized: "Chỉ đổi quyền file: \(diff.oldMode ?? "?") → \(diff.newMode ?? "?")"))
+                return .message(String(localized: "Chỉ đổi file mode: \(diff.oldMode ?? "?") → \(diff.newMode ?? "?")"))
             }
             if let old = diff.oldPath, let new = diff.newPath, old != new {
                 return .message(String(localized: "Đổi tên “\(old)” → “\(new)”, nội dung không đổi."))

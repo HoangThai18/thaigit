@@ -325,7 +325,7 @@ describe('nhánh / stash từ thanh công cụ', () => {
     await until(() => store.stashes.length === 0 && store.status.unstaged.length === 1, 'pop lại');
   });
 
-  it('remote chỉ theo dõi một nhánh: báo thiếu nhánh, "Lấy đầy đủ từ remote" đưa nhánh khác về', async () => {
+  it('remote chỉ theo dõi một nhánh: báo thiếu nhánh, "Fetch đầy đủ từ remote" đưa nhánh khác về', async () => {
     const { test, store, toasts, other } = await openWithRemote();
     rawGit(other, ['switch', '-q', '-c', 'feature/x']);
     pushFromOther(other, 'x.txt', 'x\n', 'Nhánh feature');
@@ -339,7 +339,7 @@ describe('nhánh / stash từ thanh công cụ', () => {
     expect(store.remoteBranches.map((ref) => ref.fullName)).not.toContain('refs/remotes/origin/feature/x');
 
     await completeHistory(store);
-    expect(lastToast(toasts)).toBe('Đã lấy đủ nhánh và lịch sử từ remote');
+    expect(lastToast(toasts)).toBe('Đã fetch đủ nhánh và lịch sử từ remote');
     expect(store.historyGaps).toEqual({ shallow: false, narrowRemotes: [] });
     expect(store.remoteBranches.map((ref) => ref.fullName)).toContain('refs/remotes/origin/feature/x');
   });

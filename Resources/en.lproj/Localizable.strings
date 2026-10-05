@@ -141,7 +141,7 @@
 "Chưa đặt tên Git" = "Git name not set";
 "Chưa đặt tên và email cho git — chạy git config --global user.name / user.email rồi thử lại." = "Your git name and email aren't set — run git config --global user.name / user.email and try again.";
 "Chưa đọc được token của @%@ — đăng nhập lại tài khoản này" = "Couldn't read the token of @%@ — sign in to this account again";
-"Chương trình git" = "Git program";
+"Chương trình git" = "Git executable";
 "Chạy trên máy (Apple Intelligence)" = "Runs on your Mac (Apple Intelligence)";
 "Chỉ bên kia có file này. “Incoming” giữ file, “Current” xoá nó." = "Only the other side has this file. “Incoming” keeps it, “Current” deletes it.";
 "Chỉ fast-forward" = "Fast-forward only";
@@ -154,7 +154,7 @@
 "Chỉ xoá cấu hình remote trên máy bạn (%@)." = "Only removes the remote configuration on your Mac (%@).";
 "Chỉ xoá nhánh trên máy bạn. Có thể bấm “Hoàn tác” ngay sau đó." = "Only deletes the branch on your Mac. You can click “Undo” right after.";
 "Chỉ xoá tag trên máy bạn. Có thể bấm “Hoàn tác” ngay sau đó." = "Only deletes the tag on your Mac. You can click “Undo” right after.";
-"Chỉ đổi quyền file: %@ → %@" = "File mode changed only: %@ → %@";
+"Chỉ đổi file mode: %@ → %@" = "Only the file mode changed: %@ → %@";
 "Chọn" = "Choose";
 "Chọn bản muốn giữ." = "Choose the version to keep.";
 "Chọn hoặc tạo thư mục cho repository mới" = "Choose or create a folder for the new repository";
@@ -202,7 +202,7 @@
 "Cả hai bên đều thêm" = "Both sides added";
 "Cả hai bên đều xoá" = "Both sides deleted";
 "Cả hai bên đều xoá file này. Chọn bất kỳ để xác nhận xoá." = "Both sides deleted this file. Choose either to confirm the deletion.";
-"Cất tạm mọi thay đổi chưa commit" = "Put all uncommitted changes aside";
+"Stash mọi thay đổi chưa commit" = "Stash all uncommitted changes";
 "Cấu hình ký commit" = "Configure Commit Signing";
 "Cần cài GnuPG (brew install gnupg) và thêm khoá công khai GPG vào GitHub để hiện “Verified”." = "Install GnuPG (brew install gnupg) and add your GPG public key to GitHub to show “Verified”.";
 "Cần có ít nhất một commit trước khi tạo nhánh" = "You need at least one commit before creating a branch";
@@ -322,7 +322,7 @@
 "Squash — gộp, giữ message" = "Squash — combine, keep message";
 "Mở danh sách file chưa commit để stage, bỏ stage, huỷ và commit (⌘0)" = "Open the uncommitted files to stage, unstage, discard and commit (⌘0)";
 "Một cột (unified)" = "Unified";
-"Gộp thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó" = "Fold the staged changes into the last commit and/or edit its message";
+"Amend thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó" = "Amend the last commit with the staged changes and/or edit its message";
 "Fixup — gộp, bỏ message" = "Fixup — combine, drop message";
 "HEAD (detached)" = "HEAD (detached)";
 "HEAD cũ" = "previous HEAD";
@@ -489,7 +489,7 @@
 "Kiểm tra ngay" = "Check Now";
 "Kiểm tra nhánh %@" = "Check branch %@";
 "Kiểu khoá" = "Key type";
-"Lấy commit mới từ remote về nhánh hiện tại (⇧⌘L)" = "Bring new commits from the remote into the current branch (⇧⌘L)";
+"Pull commit mới từ remote về nhánh hiện tại (⇧⌘L)" = "Pull new commits from the remote into the current branch (⇧⌘L)";
 "Kéo để đổi thứ tự" = "Drag to reorder";
 "Ký commit" = "Commit Signing";
 "Ký commit (GPG / SSH)…" = "Commit Signing (GPG / SSH)…";
@@ -514,10 +514,10 @@
 "Lưu tên & email Git" = "Save Git Name & Email";
 "Lưu vào thư mục" = "Save to folder";
 "Lấy PR #%lld" = "Fetch PR #%lld";
-"Lấy lại stash mới nhất" = "Bring back the latest stash";
+"Pop stash mới nhất" = "Pop the latest stash";
 "Lấy một nhánh của repo khác rồi merge vào %@, không thêm remote. Nguồn là thư mục trên máy thì không cần đăng nhập." = "Take a branch from another repository and merge it into %@ without adding a remote. A local folder source needs no sign-in.";
-"Lấy thông tin mới từ mọi remote (⌥⌘F)" = "Get the latest information from all remotes (⌥⌘F)";
-"Lấy đầy đủ từ remote" = "Get Everything from Remote";
+"Fetch từ mọi remote (⌥⌘F)" = "Fetch from all remotes (⌥⌘F)";
+"Fetch đầy đủ từ remote" = "Fetch Everything from Remote";
 "Lệnh git %@ thất bại (mã thoát %d)." = "git %@ failed (exit code %d).";
 "Lệnh git tới https://github.com/<owner>/… chọn tài khoản theo owner: owner bạn tự gán → owner là chính tài khoản → tổ chức mà tài khoản là thành viên → tài khoản mặc định." = "Git commands to https://github.com/<owner>/… pick the account by owner: an owner you assigned → the account itself → an organization the account belongs to → the default account.";
 "Lệnh, ví dụ git status" = "Command, e.g. git status";
@@ -947,7 +947,7 @@
 "Xác thực: Thaigit dùng SSH key, ssh-agent và Keychain sẵn có trên máy (giống terminal). Đã đăng nhập GitHub (thẻ Tài khoản) thì repo HTTPS trên github.com dùng tài khoản đó. Nếu cần mật khẩu, token hoặc passphrase, một hộp thoại sẽ hiện ra." = "Authentication: Thaigit uses the SSH keys, ssh-agent and Keychain already on your Mac (like the terminal). If you're signed in to GitHub (Accounts tab), HTTPS repositories on github.com use that account. If a password, token or passphrase is needed, a dialog will appear.";
 "ban@cong-ty.vn" = "you@company.com";
 "bạn đã gán" = "assigned by you";
-"bản đang sửa (gồm cả dòng chưa commit)" = "working copy (including uncommitted lines)";
+"bản đang sửa (gồm cả dòng chưa commit)" = "working tree (including uncommitted lines)";
 "parent" = "parent";
 "chính" = "main";
 "chữ ký" = "signature";
@@ -1039,7 +1039,7 @@
 "Đã có nhánh tên này" = "A branch with this name already exists";
 "Đã có remote tên này" = "A remote with this name already exists";
 "Đã có tag tên này" = "A tag with this name already exists";
-"Đã stash thay đổi" = "Changes saved to a stash";
+"Đã stash thay đổi" = "Changes stashed";
 "Đã cập nhật %@" = "Updated %@";
 "Đã cập nhật lên Thaigit %@" = "Updated to Thaigit %@";
 "Đã cập nhật submodule" = "Submodules updated";
@@ -1062,7 +1062,7 @@
 "Đã lưu %@" = "Saved %@";
 "Đã lưu mốc" = "Snapshot saved";
 "Đã lưu tên & email cho Git" = "Git name & email saved";
-"Đã lấy lại thay đổi từ stash" = "Changes restored from the stash";
+"Đã pop thay đổi từ stash" = "Changes popped from the stash";
 "Đã lấy đủ nhánh và lịch sử từ remote" = "All branches and history fetched from the remote";
 "Đã merge %@ vào %@" = "Merged %@ into %@";
 "Đã pull về %@" = "Pulled into %@";
@@ -1129,7 +1129,7 @@
 "Đăng nhập lại…" = "Sign In Again…";
 "Đăng nhập để fetch / pull / push repo HTTPS trên github.com và chọn nhanh repo khi clone — không cần tự tạo token. Có thể thêm nhiều tài khoản (cá nhân, công ty…)." = "Sign in to fetch / pull / push HTTPS repositories on github.com and quickly pick repositories when cloning — no need to create a token yourself. You can add several accounts (personal, work…).";
 "Đường dẫn git" = "Git path";
-"Đẩy commit của nhánh hiện tại lên remote (⇧⌘P)" = "Send the current branch's commits to the remote (⇧⌘P)";
+"Push commit của nhánh hiện tại lên remote (⇧⌘P)" = "Push the current branch's commits to the remote (⇧⌘P)";
 "Đặt làm mặc định" = "Make Default";
 "Để sau" = "Later";
 "Để tìm ảnh, Thaigit gửi mã băm SHA-256 của email người commit tới Gravatar; với repo có remote github.com, gửi email người commit tới API GitHub. Tắt thì không gửi gì nữa." = "To find pictures, Thaigit sends a SHA-256 hash of the committer's email to Gravatar; for repositories with a github.com remote, it sends the committer's email to the GitHub API. Turn this off to send nothing.";

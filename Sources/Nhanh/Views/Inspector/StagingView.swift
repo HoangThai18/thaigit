@@ -395,7 +395,7 @@ struct CommitComposer: View {
                     .controlSize(.small)
                     // Đang merge / revert…: commit là để hoàn tất thao tác, không sửa commit trước.
                     .disabled(model.headOID == nil || model.operation != nil)
-                    .help("Gộp thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó")
+                    .help("Amend thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó")
             }
             TextField("Tóm tắt (bắt buộc)", text: $model.commitSummary)
                 .textFieldStyle(.roundedBorder)

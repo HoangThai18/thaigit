@@ -780,14 +780,14 @@ extension RepoModel {
         }
     }
 
-    /// "Lấy đầy đủ từ remote" (thanh báo khi repo thiếu nhánh / lịch sử): remote chỉ theo dõi vài nhánh thì thêm refspec mọi
+    /// "Fetch đầy đủ từ remote" (thanh báo khi repo thiếu nhánh / lịch sử): remote chỉ theo dõi vài nhánh thì thêm refspec mọi
     /// nhánh (giữ refspec cũ), clone nông thì lấy nốt commit cũ, rồi fetch để các nhánh như `main` hiện ra.
     func completeHistory() {
         guard !remotes.isEmpty else { return }
         let gaps = extras.historyGaps
         let source = defaultRemote
         let progress = progressReporter()
-        perform(String(localized: "Lấy đầy đủ từ remote"), showsProgress: true, cancellable: true, refresh: .all) { repo in
+        perform(String(localized: "Fetch đầy đủ từ remote"), showsProgress: true, cancellable: true, refresh: .all) { repo in
             for remote in gaps.narrowRemotes { try await repo.trackAllBranches(remote: remote) }
             if gaps.shallow, let source { try await repo.unshallow(remote: source, onProgress: progress) }
             try await repo.fetch(remote: nil, prune: Prefs.fetchPruneValue, onProgress: progress)
@@ -795,7 +795,7 @@ extension RepoModel {
             self?.lastFetch = Date()
             self?.toast(.success, String(localized: "Đã lấy đủ nhánh và lịch sử từ remote"))
         } onError: { [weak self] error in
-            self?.handleGitHubAuthError(error, operation: String(localized: "Lấy đầy đủ từ remote")) ?? false
+            self?.handleGitHubAuthError(error, operation: String(localized: "Fetch đầy đủ từ remote")) ?? false
         }
     }
 
@@ -1000,7 +1000,7 @@ extension RepoModel {
         perform("Pop stash") { repo in
             try await repo.stashPop(stash.selector)
         } onSuccess: { [weak self] in
-            self?.toast(.success, String(localized: "Đã lấy lại thay đổi từ stash"))
+            self?.toast(.success, String(localized: "Đã pop thay đổi từ stash"))
         } onError: { [weak self] error in
             guard let self else { return false }
             if handleConflictError(error, operation: "Pop stash") {

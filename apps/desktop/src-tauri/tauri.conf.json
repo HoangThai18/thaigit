@@ -33,7 +33,7 @@
     "active": true,
     "targets": "all",
     "category": "DeveloperTool",
-    "copyright": "Thaigit — Git client cho macOS và Windows",
+    "copyright": "Thaigit — Git client for macOS and Windows",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -181,7 +181,7 @@ export class RepoStore {
   /** Phiên bản git-lfs trên máy: `undefined` = chưa kiểm, `null` = chưa cài. */
   lfsVersion = $state.raw<string | null | undefined>(undefined);
   operation = $state.raw<RepoOperation | null>(null);
-  /** Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Lấy đầy đủ từ remote". */
+  /** Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Fetch đầy đủ từ remote". */
   historyGaps = $state.raw<HistoryGaps>(NO_HISTORY_GAPS);
   /** Người dùng bấm "Để sau" trên thanh báo đó (chỉ trong phiên này). */
   historyGapsDismissed = $state(false);

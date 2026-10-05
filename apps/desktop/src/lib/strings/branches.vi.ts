@@ -54,7 +54,7 @@ export const branches = {
   nothingToStash: 'Không có thay đổi nào để stash',
   noStash: 'Không có stash nào',
   popTitle: 'Pop stash',
-  popped: 'Đã lấy lại thay đổi từ stash',
+  popped: 'Đã pop thay đổi từ stash',
   stashKept: 'Stash vẫn được giữ lại vì có xung đột',
   applyStashTitle: 'Apply stash',
   stashApplied: (label: string) => `Đã apply stash “${label}”`,

@@ -38,8 +38,8 @@ const VI: Texts = Texts {
 };
 
 const EN: Texts = Texts {
-    pick_folder: "Choose folder",
-    pick_git: "Choose the git program",
+    pick_folder: "Choose Folder",
+    pick_git: "Choose the Git executable",
     safe_mode_title: "Thaigit — safe mode",
     safe_mode_message: "Thaigit failed to start several times in a row. It is checking for a fix — if there is one, the update \
                         bar will appear at the top of the window. You can keep using the app.",

@@ -8,7 +8,7 @@ struct RepoExtras: Equatable {
     var worktrees: [Worktree] = []
     var gitFlow: GitFlowConfig?
     var usesLFS = false
-    /// Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Lấy đầy đủ từ remote".
+    /// Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Fetch đầy đủ từ remote".
     var historyGaps = HistoryGaps.none
 
     /// Worktree phụ (không tính thư mục repo chính).
