@@ -74,6 +74,8 @@
     "allow-ssh-keys-upload",
     "allow-ssh-keys-test",
     "allow-forge-list-merge-requests",
-    "allow-forge-create-merge-request"
+    "allow-forge-create-merge-request",
+    "allow-forge-list-assignable",
+    "allow-forge-set-people"
   ]
 }

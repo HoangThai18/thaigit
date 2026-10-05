@@ -74,6 +74,15 @@
     untrack(() => void refresh());
   });
 
+  /** Số lần lưu người review / người được gán đã thấy: đổi thì nạp lại danh sách để mở lại review thấy đúng. */
+  let seenPeopleVersion = 0;
+  $effect(() => {
+    const version = store.review.peopleVersion;
+    if (version === seenPeopleVersion) return;
+    seenPeopleVersion = version;
+    untrack(() => void refresh());
+  });
+
   function openWeb(item: ForgeMergeRequest): void {
     void openUrl(item.webUrl, true);
   }

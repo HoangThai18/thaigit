@@ -17,6 +17,7 @@
   import { checkoutPullRequest } from './checkoutPullRequest.ts';
   import { openReview } from './openReview.ts';
   import { pullRequestCheckout, requestStateLabel, targetOf } from './pullRequests.ts';
+  import ReviewPeople from './ReviewPeople.svelte';
   import { requestWording } from './wording.ts';
 
   interface Props {
@@ -45,6 +46,9 @@
       pullRequestCheckout(request, target.provider, target.owner, target.remote) !== null
     );
   });
+
+  /** Bitbucket chưa gán người được từ app (chỉ hiện danh sách người review). */
+  const editablePeople = $derived(review.provider === 'github' || review.provider === 'gitlab');
 
   let showFullBody = $state(false);
 </script>
@@ -91,6 +95,10 @@
         {/if}
       {:else}
         <p class="body none">{text.reviewNoDescription}</p>
+      {/if}
+      <ReviewPeople {store} role="reviewers" editable={editablePeople} />
+      {#if review.provider !== 'bitbucket'}
+        <ReviewPeople {store} role="assignees" editable={editablePeople} />
       {/if}
       <div class="buttons">
         <button type="button" class="btn" onclick={() => void openUrl(request.webUrl, true)}>

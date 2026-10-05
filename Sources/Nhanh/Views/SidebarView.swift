@@ -8,11 +8,14 @@ struct SidebarView: View {
     @Bindable var model: RepoModel
     @State private var selection: String?
     @State private var filter = ""
+    /// Chờ một nhịp rồi mới mở review của PR / MR vừa chọn: lướt phím mũi tên qua nhiều dòng không fetch từng dòng.
+    @State private var reviewTask: Task<Void, Never>?
     @AppStorage("sidebar.showLocal") private var showLocal = true
     @AppStorage("sidebar.showRemote") private var showRemote = true
     @AppStorage("sidebar.showTags") private var showTags = false
     @AppStorage("sidebar.showStashes") private var showStashes = true
     @AppStorage("sidebar.showPullRequests") private var showPullRequests = true
+    @AppStorage("sidebar.showMergeRequests") private var showMergeRequests = true
     @AppStorage("sidebar.showSubmodules") private var showSubmodules = true
     @AppStorage("sidebar.showWorktrees") private var showWorktrees = false
     @AppStorage("sidebar.showGitFlow") private var showGitFlow = true
@@ -53,6 +56,8 @@ struct SidebarView: View {
                     }
                 }
             }
+
+            mergeRequestSection
 
             Section(isExpanded: $showTags) {
                 if showTags { tagRows }
@@ -100,6 +105,8 @@ struct SidebarView: View {
                 model.applyStash(stash)
             } else if let pull = pullRequest(for: id) {
                 model.checkoutPullRequest(pull)
+            } else if let request = mergeRequest(for: id) {
+                model.checkoutMergeRequest(request)
             } else if let path = openablePath(for: id) {
                 model.openInNewTab(path)
             }
@@ -111,7 +118,9 @@ struct SidebarView: View {
             } else if let stash = stash(for: newValue) {
                 model.select(.stash(stash.sha))
             } else if let pull = pullRequest(for: newValue) {
-                model.revealPullRequest(pull)
+                scheduleReview(pull.forgeRequest, id: newValue)
+            } else if let request = mergeRequest(for: newValue) {
+                scheduleReview(request, id: newValue)
             }
         }
         .background {
@@ -219,6 +228,48 @@ struct SidebarView: View {
             LimitedRows(items: pulls, noun: "PR") { pull in
                 PullRequestRow(pull: pull, isCurrent: model.currentBranchRef.flatMap { model.pullRequest(for: $0) }?.number == pull.number)
                     .tag("pr:\(pull.number)")
+            }
+        }
+    }
+
+    /// Mục MERGE REQUESTS (repo ở GitLab) — tách khỏi `body` để biểu thức của List không quá nặng cho trình biên dịch.
+    @ViewBuilder
+    private var mergeRequestSection: some View {
+        if model.mergeRequests.state != .notGitLab, model.gitlabRemote != nil {
+            Section(isExpanded: $showMergeRequests) {
+                if showMergeRequests { mergeRequestRows }
+            } header: {
+                SidebarHeader(title: "MERGE REQUESTS", count: model.mergeRequests.items.count, systemImage: "arrow.triangle.pull") {
+                    model.beginCreatePullRequest()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mergeRequestRows: some View {
+        let list = model.mergeRequests
+        let requests = list.items.filter { matches("!\($0.number) \($0.title) \($0.sourceBranch) \($0.author)") }
+        switch list.state {
+        case .needsAccount:
+            PlaceholderRow(text: String(localized: "Thêm tài khoản GitLab trong Cài đặt để xem MR"))
+        case .failed(let message) where requests.isEmpty:
+            Button {
+                model.loadMergeRequests(force: true)
+            } label: {
+                Label("Không tải được MR — thử lại", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .help(message)
+        case .loading where requests.isEmpty, .idle:
+            PlaceholderRow(text: String(localized: "Đang tải…"))
+        default:
+            if requests.isEmpty {
+                PlaceholderRow(text: filtering ? String(localized: "Không có MR khớp") : String(localized: "Không có MR nào đang mở"))
+            }
+            LimitedRows(items: requests, noun: "MR") { request in
+                MergeRequestRow(request: request)
+                    .tag("mr:\(request.number)")
             }
         }
     }
@@ -373,6 +424,20 @@ struct SidebarView: View {
         return model.pullRequests.items.first { $0.number == number }
     }
 
+    private func scheduleReview(_ request: ForgeRequest, id: String) {
+        reviewTask?.cancel()
+        reviewTask = Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled, selection == id else { return }
+            model.openReview(request)
+        }
+    }
+
+    private func mergeRequest(for id: String) -> ForgeRequest? {
+        guard id.hasPrefix("mr:"), let number = Int(id.dropFirst(3)) else { return nil }
+        return model.mergeRequests.items.first { $0.number == number }
+    }
+
     /// Đường dẫn mở được thành tab (submodule đã tải về, worktree khác thư mục đang mở).
     private func openablePath(for id: String) -> String? {
         if id.hasPrefix("sub:"), let module = model.extras.submodules.first(where: { "sub:" + $0.path == id }),
@@ -389,6 +454,7 @@ struct SidebarView: View {
         if let ref = ref(for: id) { return model.menu(for: ref) }
         if let stash = stash(for: id) { return model.stashMenu(stash) }
         if let pull = pullRequest(for: id) { return model.pullRequestMenu(pull) }
+        if let request = mergeRequest(for: id) { return model.mergeRequestMenu(request) }
         if id.hasPrefix("sub:"), let module = model.extras.submodules.first(where: { "sub:" + $0.path == id }) {
             return model.submoduleMenu(module)
         }
@@ -515,6 +581,36 @@ private struct PullRequestRow: View {
                 .foregroundStyle(.secondary)
             Text(pull.title)
                 .fontWeight(isCurrent ? .semibold : .regular)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+        }
+        .help(tooltip)
+    }
+}
+
+private struct MergeRequestRow: View {
+    let request: ForgeRequest
+
+    /// Tách riêng khỏi `body` cho trình biên dịch khỏi phải suy kiểu một biểu thức dài.
+    private var tooltip: String {
+        var title = request.reference + " " + request.title
+        if request.isDraft { title += String(localized: " (nháp)") }
+        let branches = request.sourceBranch + " → " + request.targetBranch
+        var author = String(localized: "Tác giả: @") + request.author
+        if let updated = request.updatedAt { author += String(localized: " · cập nhật ") + VietnameseDate.relative(updated) }
+        return title + "\n" + branches + "\n" + author
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.triangle.pull")
+                .foregroundStyle(request.isDraft ? Color.secondary : Color.orange)
+                .frame(width: 16)
+            Text(request.reference)
+                .font(.callout.monospacedDigit())
+                .foregroundStyle(.secondary)
+            Text(request.title)
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 0)

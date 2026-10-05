@@ -12,7 +12,7 @@ use crate::accounts::{AccountsView, Provider};
 use crate::ssh_keys::SshKeysView;
 use crate::core::{Core, GitExecRequest};
 use crate::errors::{AppError, Result};
-use crate::forge::{self, DeviceCode, ForgeMergeRequest, ForgeRepository};
+use crate::forge::{self, DeviceCode, ForgeMergeRequest, ForgePerson, ForgeRepository, PeopleRole};
 use crate::exec::FrameSink;
 use crate::health::RepoHealth;
 use crate::locate::GitInfo;
@@ -629,6 +629,40 @@ pub async fn forge_create_merge_request(core: CoreState<'_>, request: NewMergeRe
         &request.source_branch,
         &request.target_branch,
         request.draft,
+    )
+    .await
+}
+
+/// Người có thể gán vào PR / MR của repo (GitHub `assignees`, GitLab thành viên project).
+#[tauri::command]
+pub async fn forge_list_assignable(core: CoreState<'_>, repo: RepoRef) -> Result<Vec<ForgePerson>> {
+    forge::assignable_for(&core.accounts, &repo.host, repo.provider, &repo.owner, &repo.repo).await
+}
+
+/// Đặt lại người review hoặc người được gán của một PR / MR; trả PR / MR đọc lại từ máy chủ.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetPeopleRequest {
+    host: String,
+    provider: Option<Provider>,
+    owner: String,
+    repo: String,
+    number: String,
+    role: PeopleRole,
+    people: Vec<ForgePerson>,
+}
+
+#[tauri::command]
+pub async fn forge_set_people(core: CoreState<'_>, request: SetPeopleRequest) -> Result<ForgeMergeRequest> {
+    forge::set_people_for(
+        &core.accounts,
+        &request.host,
+        request.provider,
+        &request.owner,
+        &request.repo,
+        &request.number,
+        request.role,
+        &request.people,
     )
     .await
 }

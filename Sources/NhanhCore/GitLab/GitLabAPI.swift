@@ -316,7 +316,7 @@ public struct GitLabAPI: Sendable {
         }
     }
 
-    private func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         do {
             return try await transport(request)
         } catch let error as GitLabError {

@@ -7,46 +7,13 @@ struct ComparisonView: View {
     @Bindable var model: RepoModel
     let from: String
     let to: String
-    @State private var showCommits = true
 
     var body: some View {
         if let comparison = model.comparison, comparison.from == from, comparison.to == to {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     header(comparison)
-                    if !comparison.commits.isEmpty {
-                        DisclosureGroup(isExpanded: $showCommits) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(comparison.commits.prefix(30)) { commit in
-                                    Button {
-                                        model.reveal(commit: commit.id)
-                                    } label: {
-                                        HStack(spacing: 8) {
-                                            AvatarView(name: commit.authorName, email: commit.authorEmail, repo: model.githubRepo, size: 18)
-                                            Text(commit.subject).lineLimit(1)
-                                            Spacer(minLength: 4)
-                                            Text(commit.shortSHA).font(.caption.monospaced()).foregroundStyle(.secondary)
-                                        }
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                                if comparison.commits.count > 30 {
-                                    Text("… và \(comparison.commits.count - 30) commit nữa").font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                            .padding(.top, 6)
-                        } label: {
-                            Text("\(comparison.commits.count)\(comparison.commits.count >= 300 ? "+" : "") commit có ở “Tới” mà “Từ” chưa có")
-                                .font(.callout.weight(.semibold))
-                        }
-                    }
-                    if comparison.files.isEmpty {
-                        Text("Hai bản giống hệt nhau — không có file nào khác.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        FileList(model: model, files: comparison.files, source: .compare(from: from, to: to))
-                    }
+                    ComparisonContent(model: model, comparison: comparison, from: from, to: to)
                 }
                 .padding(16)
             }
@@ -104,5 +71,62 @@ struct ComparisonView: View {
         .padding(.vertical, 7)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.06)))
         .onTapGesture { model.reveal(commit: sha) }
+    }
+}
+
+/// Phần chung của màn so sánh và màn review PR / MR: các commit ở giữa và danh sách file khác nhau (bấm file để xem diff).
+struct ComparisonContent: View {
+    @Bindable var model: RepoModel
+    let comparison: Comparison
+    let from: String
+    let to: String
+    /// Bấm commit để nhảy tới nó trên graph. Tắt ở panel review: nhảy tới commit là rời phép so sánh, panel review sẽ đóng.
+    var revealsCommits = true
+    @State private var showCommits = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if !comparison.commits.isEmpty {
+                DisclosureGroup(isExpanded: $showCommits) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(comparison.commits.prefix(30)) { commit in
+                            if revealsCommits {
+                                Button {
+                                    model.reveal(commit: commit.id)
+                                } label: {
+                                    commitRow(commit)
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                commitRow(commit)
+                            }
+                        }
+                        if comparison.commits.count > 30 {
+                            Text("… và \(comparison.commits.count - 30) commit nữa").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.top, 6)
+                } label: {
+                    Text("\(comparison.commits.count)\(comparison.commits.count >= 300 ? "+" : "") commit có ở “Tới” mà “Từ” chưa có")
+                        .font(.callout.weight(.semibold))
+                }
+            }
+            if comparison.files.isEmpty {
+                Text("Hai bản giống hệt nhau — không có file nào khác.")
+                    .foregroundStyle(.secondary)
+            } else {
+                FileList(model: model, files: comparison.files, source: .compare(from: from, to: to))
+            }
+        }
+    }
+
+    private func commitRow(_ commit: Commit) -> some View {
+        HStack(spacing: 8) {
+            AvatarView(name: commit.authorName, email: commit.authorEmail, repo: model.githubRepo, size: 18)
+            Text(commit.subject).lineLimit(1)
+            Spacer(minLength: 4)
+            Text(commit.shortSHA).font(.caption.monospaced()).foregroundStyle(.secondary)
+        }
+        .contentShape(Rectangle())
     }
 }

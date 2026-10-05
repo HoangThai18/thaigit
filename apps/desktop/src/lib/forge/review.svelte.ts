@@ -4,7 +4,7 @@
  *
  * Store chỉ giữ trạng thái; việc lấy nhánh về máy và tính danh sách file nằm ở `openReview.ts` (chạy qua hàng đợi thao tác của repo).
  */
-import type { ForgeMergeRequest, ForgeProvider } from '@thaigit/contracts';
+import type { ForgeMergeRequest, ForgePerson, ForgeProvider } from '@thaigit/contracts';
 import type { FileChange } from '@thaigit/core';
 import type { DiffSource, DiffStore } from '../stores/diff.svelte.ts';
 
@@ -25,6 +25,9 @@ export interface ReviewChanges {
 
 export type ReviewPhase = 'loading' | 'ready' | 'failed';
 
+/** Danh sách người có thể gán (nạp khi mở bảng chọn lần đầu của PR đang xem). */
+export type PeoplePhase = 'idle' | 'loading' | 'ready' | 'failed';
+
 export class ReviewStore {
   /** PR đang review; `null` = panel đóng. */
   request = $state.raw<ForgeMergeRequest | null>(null);
@@ -32,8 +35,16 @@ export class ReviewStore {
   provider = $state<ForgeProvider | null>(null);
   phase = $state<ReviewPhase>('loading');
   changes = $state.raw<ReviewChanges | null>(null);
+  /** Người có thể gán vào PR / MR (GitHub: người gán được của repo, GitLab: thành viên project). */
+  candidates = $state.raw<readonly ForgePerson[]>([]);
+  peoplePhase = $state<PeoplePhase>('idle');
+  /** Đang gửi thay đổi người review / người được gán lên máy chủ. */
+  saving = $state(false);
+  /** Tăng sau mỗi lần lưu thành công: danh sách PR / MR ở sidebar nạp lại cho khớp. */
+  peopleVersion = $state(0);
   /** Mỗi lần mở / đóng / tải lại tăng một bậc: kết quả của lần cũ về muộn thì bị bỏ. */
   private token = 0;
+  private peopleToken = 0;
 
   constructor(private readonly host: ReviewHost) {}
 
@@ -47,7 +58,10 @@ export class ReviewStore {
     this.host.closeFileHistory();
     const same =
       this.request !== null && this.request.host === request.host && this.request.number === request.number;
-    if (!same) this.dropOpenDiff();
+    if (!same) {
+      this.dropOpenDiff();
+      this.resetPeople();
+    }
     this.request = request;
     this.provider = provider;
     this.phase = 'loading';
@@ -73,6 +87,52 @@ export class ReviewStore {
     this.request = null;
     this.changes = null;
     this.phase = 'loading';
+    this.resetPeople();
+  }
+
+  /** Bắt đầu nạp danh sách người có thể gán; `null` nếu đang nạp hoặc đã nạp rồi (mở bảng chọn nhiều lần không gọi lại). */
+  beginPeople(): number | null {
+    if (this.request === null || this.peoplePhase === 'loading' || this.peoplePhase === 'ready') return null;
+    this.peoplePhase = 'loading';
+    return ++this.peopleToken;
+  }
+
+  finishPeople(token: number, people: readonly ForgePerson[]): void {
+    if (token !== this.peopleToken || this.request === null) return;
+    this.candidates = people;
+    this.peoplePhase = 'ready';
+  }
+
+  failPeople(token: number): void {
+    if (token !== this.peopleToken || this.request === null) return;
+    this.peoplePhase = 'failed';
+  }
+
+  /** Đánh dấu đang lưu; trả `false` nếu không có PR nào đang xem hoặc đang lưu dở (không gửi chồng hai lệnh). */
+  beginSaving(): boolean {
+    if (this.request === null || this.saving) return false;
+    this.saving = true;
+    return true;
+  }
+
+  /** Lưu xong: nhận PR / MR đọc lại từ máy chủ (chỉ khi vẫn đang xem đúng PR đó). */
+  finishSaving(updated: ForgeMergeRequest): void {
+    this.saving = false;
+    const request = this.request;
+    if (request === null || request.host !== updated.host || request.number !== updated.number) return;
+    this.request = updated;
+    this.peopleVersion += 1;
+  }
+
+  failSaving(): void {
+    this.saving = false;
+  }
+
+  private resetPeople(): void {
+    this.peopleToken++;
+    this.candidates = [];
+    this.peoplePhase = 'idle';
+    this.saving = false;
   }
 
   /** Đường dẫn file của PR đang mở diff (tô hàng trong danh sách), nếu có. */

@@ -29,6 +29,8 @@ function request(partial: Partial<ForgeMergeRequest> = {}): ForgeMergeRequest {
     headOwner: 'acme',
     updatedAt: '2026-10-05T10:00:00Z',
     commits: 3,
+    assignees: [],
+    reviewers: [],
     ...partial,
   };
 }

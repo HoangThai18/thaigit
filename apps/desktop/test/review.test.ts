@@ -43,6 +43,8 @@ function pr(partial: Partial<ForgeMergeRequest>): ForgeMergeRequest {
     headOwner: 'acme',
     updatedAt: '',
     commits: 1,
+    assignees: [],
+    reviewers: [],
     ...partial,
   };
 }
@@ -253,5 +255,60 @@ describe('openReview (git thật, remote cục bộ)', () => {
     store.review.close();
     store.review.fail(second);
     expect(store.review.isOpen).toBe(false);
+  });
+
+  it('người có thể gán: nạp một lần, bỏ kết quả cũ, chỉ lưu cho đúng PR đang xem, quên khi đổi / đóng PR', async () => {
+    const { store } = await openStore();
+    const review = store.review;
+    const an = { username: 'an', name: '', id: null };
+    expect(review.beginPeople()).toBeNull(); // chưa xem PR nào
+
+    const first = review.begin(pr({ number: '1' }), 'github');
+    review.finish(first, { head: 'x', from: 'y', files: [] });
+    const token = review.beginPeople();
+    expect(token).not.toBeNull();
+    expect(review.peoplePhase).toBe('loading');
+    expect(review.beginPeople()).toBeNull(); // đang nạp: không nạp chồng
+    review.finishPeople(token!, [an]);
+    expect(review.peoplePhase).toBe('ready');
+    expect(review.candidates).toEqual([an]);
+    expect(review.beginPeople()).toBeNull(); // đã nạp: dùng lại
+
+    // Tải lại đúng PR đó: giữ danh sách; sang PR khác: quên.
+    review.begin(pr({ number: '1' }), 'github');
+    expect(review.peoplePhase).toBe('ready');
+    const other = review.begin(pr({ number: '2' }), 'github');
+    review.finish(other, { head: 'x', from: 'y', files: [] });
+    expect(review.peoplePhase).toBe('idle');
+    expect(review.candidates).toEqual([]);
+
+    // Kết quả nạp của PR cũ về muộn thì bị bỏ; nạp lỗi thì cho thử lại.
+    const stale = review.beginPeople()!;
+    review.begin(pr({ number: '3' }), 'github');
+    review.finishPeople(stale, [an]);
+    expect(review.candidates).toEqual([]);
+    const failing = review.beginPeople()!;
+    review.failPeople(failing);
+    expect(review.peoplePhase).toBe('failed');
+    expect(review.beginPeople()).not.toBeNull();
+
+    // Lưu: không gửi chồng; kết quả chỉ nhận khi vẫn đang xem đúng PR đó.
+    expect(review.beginSaving()).toBe(true);
+    expect(review.beginSaving()).toBe(false);
+    review.finishSaving(pr({ number: '9', reviewers: [an] }));
+    expect(review.saving).toBe(false);
+    expect(review.request?.number).toBe('3');
+    expect(review.peopleVersion).toBe(0);
+    expect(review.beginSaving()).toBe(true);
+    review.finishSaving(pr({ number: '3', reviewers: [an] }));
+    expect(review.request?.reviewers).toEqual([an]);
+    expect(review.peopleVersion).toBe(1);
+    expect(review.beginSaving()).toBe(true);
+    review.failSaving();
+    expect(review.saving).toBe(false);
+
+    review.close();
+    expect(review.beginSaving()).toBe(false);
+    expect(review.peoplePhase).toBe('idle');
   });
 });

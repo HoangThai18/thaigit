@@ -72,9 +72,16 @@ extension RepoModel {
             created = try await GitLabAPI().createMergeRequest(request, in: project, token: token)
         } onSuccess: { [weak self] in
             guard let self, let created else { return }
-            toast(.success, String(localized: "Đã tạo Merge Request !\(created.iid)"), message: created.title, actions: created.webURL.map { url in
-                [ToastAction(title: String(localized: "Mở trên GitLab")) { NSWorkspace.shared.open(url) }]
-            } ?? [])
+            // Mở luôn review của MR vừa tạo để gán người review / người xử lý.
+            let request = ForgeRequest(kind: .gitlab, number: created.iid, title: created.title, body: new.body, author: "",
+                                       isDraft: new.draft, webURL: created.webURL, sourceBranch: new.head, targetBranch: new.base,
+                                       headSHA: nil, updatedAt: Date())
+            var actions = [ToastAction(title: String(localized: "Xem & gán reviewer")) { [weak self] in self?.openReview(request) }]
+            if let url = created.webURL {
+                actions.append(ToastAction(title: String(localized: "Mở trên GitLab")) { NSWorkspace.shared.open(url) })
+            }
+            toast(.success, String(localized: "Đã tạo Merge Request !\(created.iid)"), message: created.title, actions: actions)
+            loadMergeRequests(force: true)
         } onError: { [weak self] error in
             guard let self else { return false }
             if case GitLabError.unauthorized = error {

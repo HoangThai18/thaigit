@@ -2,7 +2,7 @@
 //! Pull Request / Merge Request. Mọi request đi từ Rust (webview không có scope HTTP), token chỉ nằm trong biến cục bộ
 //! của lệnh và không bao giờ vào log.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::accounts::{Provider, provider_for, valid_host};
 use crate::errors::{AppError, Result};
@@ -126,6 +126,31 @@ pub struct ForgeMergeRequest {
     pub updated_at: String,
     /// Số commit / thay đổi nếu API có (GitHub có `commits`).
     pub commits: Option<u32>,
+    /// Người được gán xử lý (Bitbucket không có khái niệm này).
+    pub assignees: Vec<ForgePerson>,
+    /// Người được nhờ review.
+    pub reviewers: Vec<ForgePerson>,
+}
+
+/// Người dùng trên máy chủ có thể được gán vào PR / MR (hoặc đã được gán).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgePerson {
+    pub username: String,
+    /// Tên hiển thị (có thể trống: GitHub trả danh sách người chỉ có `login`).
+    #[serde(default)]
+    pub name: String,
+    /// GitLab gán người theo số id; GitHub gán theo `username` (không có id).
+    #[serde(default)]
+    pub id: Option<i64>,
+}
+
+/// Danh sách nào của PR / MR đang được sửa.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PeopleRole {
+    Reviewers,
+    Assignees,
 }
 
 /// Mã của màn hình đăng nhập bằng mã (OAuth device flow).
@@ -629,6 +654,8 @@ fn parse_merge_request(
             head_owner: item["head"]["repo"]["owner"]["login"].as_str().unwrap_or(owner).to_string(),
             updated_at: item["updated_at"].as_str().unwrap_or_default().to_string(),
             commits: item["commits"].as_u64().map(|count| count as u32),
+            assignees: people(Provider::Github, &item["assignees"]),
+            reviewers: people(Provider::Github, &item["requested_reviewers"]),
         },
         Provider::Gitlab => ForgeMergeRequest {
             host: host.to_string(),
@@ -646,6 +673,8 @@ fn parse_merge_request(
             head_owner: if item["source_project_id"] == item["target_project_id"] { owner.to_string() } else { String::new() },
             updated_at: item["updated_at"].as_str().unwrap_or_default().to_string(),
             commits: None,
+            assignees: people(Provider::Gitlab, &item["assignees"]),
+            reviewers: people(Provider::Gitlab, &item["reviewers"]),
         },
         Provider::Bitbucket => ForgeMergeRequest {
             host: host.to_string(),
@@ -667,9 +696,33 @@ fn parse_merge_request(
             head_owner: item["source"]["repository"]["full_name"].as_str().unwrap_or_default().split('/').next().unwrap_or(owner).to_string(),
             updated_at: item["updated_on"].as_str().unwrap_or_default().to_string(),
             commits: None,
+            assignees: Vec::new(),
+            reviewers: people(Provider::Bitbucket, &item["reviewers"]),
         },
     };
     Some(merge_request)
+}
+
+/// Một người trong JSON của máy chủ (`None` nếu thiếu tên đăng nhập).
+fn person(provider: Provider, user: &serde_json::Value) -> Option<ForgePerson> {
+    let text = |key: &str| user[key].as_str().map(str::to_string);
+    match provider {
+        Provider::Github => Some(ForgePerson { username: text("login")?, name: String::new(), id: None }),
+        Provider::Gitlab => Some(ForgePerson {
+            username: text("username")?,
+            name: text("name").unwrap_or_default(),
+            id: user["id"].as_i64(),
+        }),
+        Provider::Bitbucket => {
+            let username = text("nickname").or_else(|| text("display_name")).filter(|name| !name.is_empty())?;
+            Some(ForgePerson { username, name: text("display_name").unwrap_or_default(), id: None })
+        }
+    }
+}
+
+/// Mảng người (`assignees`, `reviewers`…) trong JSON; không phải mảng thì rỗng.
+fn people(provider: Provider, value: &serde_json::Value) -> Vec<ForgePerson> {
+    value.as_array().map(|list| list.iter().filter_map(|user| person(provider, user)).collect()).unwrap_or_default()
 }
 
 /// Kiểm tra host + provider trước khi gọi API (webview gửi lên).
@@ -745,6 +798,171 @@ pub async fn create(
     accounts.refresh_due(&host).await;
     let (provider, token) = owner_token(accounts, &host, &owner)?;
     create_merge_request(&host, provider, &token, &owner, &repo, title, body, source_branch, target_branch, draft).await
+}
+
+/// Người có thể gán vào PR / MR của repo: GitHub `assignees`, GitLab thành viên (kể cả thừa hưởng từ nhóm). Bitbucket chưa hỗ trợ.
+pub async fn list_assignable(host: &str, provider: Provider, token: &str, owner: &str, repo: &str) -> Result<Vec<ForgePerson>> {
+    let client = http()?;
+    let base = provider.api_base(host);
+    let mut found: Vec<ForgePerson> = Vec::new();
+    for page in 1..=MAX_PAGES {
+        let url = match provider {
+            Provider::Github => format!("{base}/repos/{owner}/{repo}/assignees?per_page=100&page={page}"),
+            Provider::Gitlab => {
+                format!("{base}/projects/{}/members/all?per_page=100&page={page}", urlencode(&format!("{owner}/{repo}")))
+            }
+            Provider::Bitbucket => return Err(unsupported_people()),
+        };
+        let (status, value) = request(&client, reqwest::Method::GET, &url, token, None).await?;
+        check_status(provider, host, status, &value)?;
+        let raw = value.as_array().cloned().unwrap_or_default();
+        if raw.is_empty() {
+            break;
+        }
+        for item in &raw {
+            // Thành viên GitLab bị khoá / chờ duyệt không gán được.
+            if matches!(provider, Provider::Gitlab) && item["state"].as_str().is_some_and(|state| state != "active") {
+                continue;
+            }
+            let Some(user) = person(provider, item) else { continue };
+            if !found.iter().any(|known| known.username.eq_ignore_ascii_case(&user.username)) {
+                found.push(user);
+            }
+        }
+        if raw.len() < 100 {
+            break;
+        }
+    }
+    Ok(found)
+}
+
+fn unsupported_people() -> AppError {
+    AppError::policy("Bitbucket chưa hỗ trợ gán người ở đây — làm trên trang web")
+}
+
+/// Đặt lại danh sách người review hoặc người được gán của PR / MR rồi đọc lại PR / MR (kết quả thật của máy chủ).
+/// GitHub: assignees thay cả danh sách bằng một lệnh; reviewers so với danh sách hiện có để chỉ bỏ / thêm phần khác biệt.
+/// GitLab: `assignee_ids` / `reviewer_ids` (danh sách rỗng gửi `[0]` = bỏ hết).
+#[allow(clippy::too_many_arguments)]
+pub async fn set_people(
+    host: &str,
+    provider: Provider,
+    token: &str,
+    owner: &str,
+    repo: &str,
+    number: &str,
+    role: PeopleRole,
+    people: &[ForgePerson],
+) -> Result<ForgeMergeRequest> {
+    let client = http()?;
+    let base = provider.api_base(host);
+    match provider {
+        Provider::Github => {
+            if let Some(bad) = people.iter().find(|user| !valid_login(&user.username)) {
+                return Err(AppError::policy(format!("Tên người dùng không hợp lệ: {}", bad.username)));
+            }
+            match role {
+                PeopleRole::Assignees => {
+                    let url = format!("{base}/repos/{owner}/{repo}/issues/{number}");
+                    let logins: Vec<&str> = people.iter().map(|user| user.username.as_str()).collect();
+                    let payload = serde_json::json!({ "assignees": logins });
+                    let (status, value) = request(&client, reqwest::Method::PATCH, &url, token, Some(&payload)).await?;
+                    check_status(provider, host, status, &value)?;
+                }
+                PeopleRole::Reviewers => {
+                    let current = fetch_merge_request(host, provider, token, owner, repo, number).await?;
+                    let (add, remove) = reviewer_changes(&current.reviewers, people);
+                    let url = format!("{base}/repos/{owner}/{repo}/pulls/{number}/requested_reviewers");
+                    // Bỏ trước, thêm sau; mỗi nhóm một lệnh gọi (nhóm rỗng thì không gọi).
+                    for (method, logins) in [(reqwest::Method::DELETE, remove), (reqwest::Method::POST, add)] {
+                        if logins.is_empty() {
+                            continue;
+                        }
+                        let payload = serde_json::json!({ "reviewers": logins });
+                        let (status, value) = request(&client, method, &url, token, Some(&payload)).await?;
+                        check_status(provider, host, status, &value)?;
+                    }
+                }
+            }
+        }
+        Provider::Gitlab => {
+            let mut ids = Vec::with_capacity(people.len());
+            for user in people {
+                ids.push(user.id.ok_or_else(|| AppError::policy("Thiếu id người dùng GitLab"))?);
+            }
+            if ids.is_empty() {
+                ids.push(0);
+            }
+            let key = match role {
+                PeopleRole::Assignees => "assignee_ids",
+                PeopleRole::Reviewers => "reviewer_ids",
+            };
+            let url = format!("{base}/projects/{}/merge_requests/{number}", urlencode(&format!("{owner}/{repo}")));
+            let mut fields = serde_json::Map::new();
+            fields.insert(key.to_string(), serde_json::json!(ids));
+            let payload = serde_json::Value::Object(fields);
+            let (status, value) = request(&client, reqwest::Method::PUT, &url, token, Some(&payload)).await?;
+            check_status(provider, host, status, &value)?;
+        }
+        Provider::Bitbucket => return Err(unsupported_people()),
+    }
+    fetch_merge_request(host, provider, token, owner, repo, number).await
+}
+
+/// Tên đăng nhập GitHub (chữ, số, `-`, `_`, `.`; dài có hạn; `[` `]` cho tài khoản bot như `app[bot]`) — đi vào thân JSON chứ
+/// không vào URL, nhưng vẫn không nhận ký tự lạ.
+fn valid_login(login: &str) -> bool {
+    !login.is_empty()
+        && login.len() <= 100
+        && login.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '[' | ']'))
+}
+
+/// Từ danh sách review hiện có và danh sách mong muốn: (cần thêm, cần bỏ) — so tên đăng nhập không phân biệt hoa thường.
+fn reviewer_changes<'a>(current: &'a [ForgePerson], wanted: &'a [ForgePerson]) -> (Vec<&'a str>, Vec<&'a str>) {
+    let has = |list: &[ForgePerson], login: &str| list.iter().any(|user| user.username.eq_ignore_ascii_case(login));
+    let add = wanted.iter().filter(|user| !has(current, &user.username)).map(|user| user.username.as_str()).collect();
+    let remove = current.iter().filter(|user| !has(wanted, &user.username)).map(|user| user.username.as_str()).collect();
+    (add, remove)
+}
+
+/// Người có thể gán của `owner/repo` (webview gửi host + owner + repo; token chọn trong Rust).
+pub async fn assignable_for(
+    accounts: &crate::accounts::Accounts,
+    host: &str,
+    provider: Option<Provider>,
+    owner: &str,
+    repo: &str,
+) -> Result<Vec<ForgePerson>> {
+    let (host, _) = check_host(host, provider)?;
+    let (owner, repo) = check_repo_path(owner, repo)?;
+    accounts.refresh_due(&host).await;
+    let (provider, token) = owner_token(accounts, &host, &owner)?;
+    list_assignable(&host, provider, &token, &owner, &repo).await
+}
+
+/// Đặt lại người review / người được gán của một PR / MR của `owner/repo`.
+#[allow(clippy::too_many_arguments)]
+pub async fn set_people_for(
+    accounts: &crate::accounts::Accounts,
+    host: &str,
+    provider: Option<Provider>,
+    owner: &str,
+    repo: &str,
+    number: &str,
+    role: PeopleRole,
+    people: &[ForgePerson],
+) -> Result<ForgeMergeRequest> {
+    let (host, _) = check_host(host, provider)?;
+    let (owner, repo) = check_repo_path(owner, repo)?;
+    if number.is_empty() || number.len() > 12 || !number.chars().all(|c| c.is_ascii_digit()) {
+        return Err(AppError::policy("Số PR / MR không hợp lệ"));
+    }
+    if people.len() > 100 {
+        return Err(AppError::policy("Quá nhiều người được chọn"));
+    }
+    accounts.refresh_due(&host).await;
+    let (provider, token) = owner_token(accounts, &host, &owner)?;
+    set_people(&host, provider, &token, &owner, &repo, number, role, people).await
 }
 
 /// Tên nhánh hợp lệ cho `git` (không ký tự lạ, không khoảng trắng) — cũng chặn ký tự điều khiển.
@@ -848,6 +1066,80 @@ mod tests {
         assert_eq!(check_status(Provider::Github, "github.com", 422, &body).unwrap_err().code(), "conflict");
         assert_eq!(check_status(Provider::Github, "github.com", 429, &body).unwrap_err().code(), "io");
         assert_eq!(check_status(Provider::Github, "github.com", 503, &body).unwrap_err().code(), "io");
+    }
+
+    #[test]
+    fn people_are_read_from_each_provider() {
+        let github = serde_json::json!({
+            "number": 1,
+            "assignees": [{ "login": "an" }],
+            "requested_reviewers": [{ "login": "binh" }, { "login": "chi" }, { "id": 5 }],
+        });
+        let parsed = parse_merge_request("github.com", Provider::Github, "acme", "app", &github).unwrap();
+        assert_eq!(parsed.assignees, vec![ForgePerson { username: "an".into(), name: String::new(), id: None }]);
+        assert_eq!(parsed.reviewers.iter().map(|user| user.username.as_str()).collect::<Vec<_>>(), ["binh", "chi"]);
+
+        let gitlab = serde_json::json!({
+            "iid": 7,
+            "assignees": [{ "id": 2, "username": "binh", "name": "Bình" }],
+            "reviewers": [{ "id": 3, "username": "chi", "name": "Chi" }],
+        });
+        let parsed = parse_merge_request("gitlab.com", Provider::Gitlab, "acme", "app", &gitlab).unwrap();
+        assert_eq!(parsed.assignees, vec![ForgePerson { username: "binh".into(), name: "Bình".into(), id: Some(2) }]);
+        assert_eq!(parsed.reviewers[0].id, Some(3));
+
+        let bitbucket = serde_json::json!({
+            "id": 9,
+            "reviewers": [{ "nickname": "dung", "display_name": "Dũng" }, { "display_name": "Chỉ tên" }, {}],
+        });
+        let parsed = parse_merge_request("bitbucket.org", Provider::Bitbucket, "acme", "app", &bitbucket).unwrap();
+        assert!(parsed.assignees.is_empty());
+        assert_eq!(parsed.reviewers.len(), 2);
+        assert_eq!(parsed.reviewers[0].username, "dung");
+        assert_eq!(parsed.reviewers[0].name, "Dũng");
+        assert_eq!(parsed.reviewers[1].username, "Chỉ tên");
+
+        // Không có trường người → danh sách rỗng, không lỗi.
+        let bare = serde_json::json!({ "number": 2 });
+        let parsed = parse_merge_request("github.com", Provider::Github, "acme", "app", &bare).unwrap();
+        assert!(parsed.assignees.is_empty() && parsed.reviewers.is_empty());
+    }
+
+    #[test]
+    fn reviewer_changes_only_touch_the_difference() {
+        let person = |name: &str| ForgePerson { username: name.to_string(), name: String::new(), id: None };
+        let current = vec![person("An"), person("binh")];
+        let wanted = vec![person("an"), person("Chi")];
+        let (add, remove) = reviewer_changes(&current, &wanted);
+        assert_eq!(add, ["Chi"]);
+        assert_eq!(remove, ["binh"]);
+        let (add, remove) = reviewer_changes(&wanted, &wanted);
+        assert!(add.is_empty() && remove.is_empty());
+        let (add, remove) = reviewer_changes(&[], &[]);
+        assert!(add.is_empty() && remove.is_empty());
+    }
+
+    #[test]
+    fn github_logins_are_checked_before_going_into_a_request() {
+        for ok in ["an", "an-nguyen", "a_b.c", "copilot[bot]"] {
+            assert!(valid_login(ok), "{ok}");
+        }
+        let long = "x".repeat(101);
+        for bad in ["", "a b", "a\"b", "a/b", "a\nb", long.as_str()] {
+            assert!(!valid_login(bad), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn people_role_and_person_come_from_the_webview_as_camel_case() {
+        let role: PeopleRole = serde_json::from_str("\"reviewers\"").unwrap();
+        assert_eq!(role, PeopleRole::Reviewers);
+        assert!(serde_json::from_str::<PeopleRole>("\"owners\"").is_err());
+        let user: ForgePerson = serde_json::from_str(r#"{"username":"an","id":5}"#).unwrap();
+        assert_eq!(user, ForgePerson { username: "an".into(), name: String::new(), id: Some(5) });
+        let only_name: ForgePerson = serde_json::from_str(r#"{"username":"an"}"#).unwrap();
+        assert_eq!(only_name.id, None);
+        assert_eq!(serde_json::to_value(&user).unwrap()["username"], "an");
     }
 
     #[test]
