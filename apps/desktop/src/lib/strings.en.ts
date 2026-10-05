@@ -16,6 +16,7 @@ import { snapshots } from './strings/snapshots.en.ts';
 import { ssh } from './strings/ssh.en.ts';
 import { staging } from './strings/staging.en.ts';
 import { tabs } from './strings/tabs.en.ts';
+import { terminal } from './strings/terminal.en.ts';
 import { update } from './strings/update.en.ts';
 import type { Strings } from './strings.vi.ts';
 
@@ -39,4 +40,5 @@ export const en: Strings = {
   snapshots,
   risk,
   ssh,
+  terminal,
 };

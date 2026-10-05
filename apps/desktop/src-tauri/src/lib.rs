@@ -30,6 +30,7 @@ pub mod repo_fs;
 pub mod safe_mode;
 pub mod ssh_keys;
 pub mod store;
+pub mod terminal;
 pub mod trust;
 pub mod typed;
 pub mod updater;
@@ -123,6 +124,9 @@ fn reset_window_session(app: &tauri::AppHandle, label: &str) {
     if let Some(core) = app.try_state::<Arc<Core>>() {
         core.reset_window(label);
     }
+    if let Some(terminals) = app.try_state::<Arc<terminal::Terminals>>() {
+        terminals.close_window(label);
+    }
 }
 
 /// Context của app (cấu hình, capability, tài nguyên giao diện). `generate_context!` chỉ gọi được một lần trong crate nên
@@ -187,6 +191,10 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::accounts_set_identity,
         commands::accounts_set_client_id,
         commands::accounts_repositories,
+        commands::terminal_open,
+        commands::terminal_write,
+        commands::terminal_resize,
+        commands::terminal_close,
         commands::ssh_keys_list,
         commands::ssh_keys_generate,
         commands::ssh_keys_import,
@@ -213,6 +221,7 @@ pub fn run() {
             let core = Core::new(data_dir, Arc::new(TauriEvents(app.handle().clone())), askpass_deny);
             core.registry.push_launch_paths(launch_paths());
             app.manage(core.clone());
+            app.manage(Arc::new(terminal::Terminals::default()));
             // Seam S0: các khung này hiện là no-op; 2b (askpass) và 8a (updater) điền thân hàm, không phải sửa lại chỗ gọi.
             askpass::init(app.handle())?;
             credential::init(app.handle())?;

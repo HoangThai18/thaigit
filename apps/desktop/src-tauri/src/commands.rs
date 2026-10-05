@@ -399,6 +399,45 @@ pub fn accounts_set_client_id(core: CoreState<'_>, host: String, client_id: Stri
     Ok(core.accounts.view())
 }
 
+// --- terminal trong app -----------------------------------------------------------------------------------------------
+
+type TerminalsState<'a> = State<'a, Arc<crate::terminal::Terminals>>;
+
+/// Mở terminal ở thư mục gốc của repo `repo_id` (webview không chọn được chương trình hay thư mục khác).
+#[tauri::command]
+pub fn terminal_open<R: Runtime>(
+    window: WebviewWindow<R>,
+    core: CoreState<'_>,
+    terminals: TerminalsState<'_>,
+    repo_id: String,
+    cols: u16,
+    rows: u16,
+    channel: Channel<crate::terminal::TerminalEvent>,
+) -> Result<String> {
+    let entry = core.registry.get(&repo_id)?;
+    terminals.open(window.label(), &entry.root, cols, rows, core.locator.path_env(), move |event| {
+        let _ = channel.send(event);
+    })
+}
+
+#[tauri::command]
+pub fn terminal_write<R: Runtime>(window: WebviewWindow<R>, terminals: TerminalsState<'_>, id: String, data: String) -> Result<()> {
+    if data.len() > 64 * 1024 {
+        return Err(AppError::Policy("Dữ liệu gõ vào terminal quá lớn".into()));
+    }
+    terminals.write(window.label(), &id, &data)
+}
+
+#[tauri::command]
+pub fn terminal_resize<R: Runtime>(window: WebviewWindow<R>, terminals: TerminalsState<'_>, id: String, cols: u16, rows: u16) -> Result<()> {
+    terminals.resize(window.label(), &id, cols, rows)
+}
+
+#[tauri::command]
+pub fn terminal_close<R: Runtime>(window: WebviewWindow<R>, terminals: TerminalsState<'_>, id: String) {
+    terminals.close(window.label(), &id);
+}
+
 // --- khoá SSH ------------------------------------------------------------------------------------------------------------
 
 #[tauri::command]

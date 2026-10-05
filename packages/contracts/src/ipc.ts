@@ -165,6 +165,11 @@ export const Commands = {
   accountsSetIdentity: 'accounts_set_identity',
   accountsSetClientId: 'accounts_set_client_id',
   accountsRepositories: 'accounts_repositories',
+  // Terminal thật trong cửa sổ repo (PTY do Rust giữ; webview chỉ gửi phím gõ và kích thước).
+  terminalOpen: 'terminal_open',
+  terminalWrite: 'terminal_write',
+  terminalResize: 'terminal_resize',
+  terminalClose: 'terminal_close',
   // Khoá SSH riêng của Thaigit (khoá bí mật chỉ nằm trong Rust + kho bí mật của hệ điều hành).
   sshKeysList: 'ssh_keys_list',
   sshKeysGenerate: 'ssh_keys_generate',
@@ -289,6 +294,9 @@ export interface AccountsView {
   /** host → Client ID của OAuth App (device flow); thiếu thì chỉ dán được token. */
   oauthClientIds: Record<string, string>;
 }
+
+/** Sự kiện của terminal: output (base64) hoặc shell đã thoát. */
+export type TerminalEvent = { kind: 'data'; data: string } | { kind: 'exit' };
 
 /** Một khoá SSH của Thaigit — khoá bí mật không bao giờ qua IPC. */
 export interface SshKeyInfo {

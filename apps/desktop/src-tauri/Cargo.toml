@@ -42,6 +42,8 @@ keyring = "4"
 # Khoá SSH riêng của Thaigit (ssh_keys.rs): tạo khoá Ed25519 trong app, không ghi file tạm.
 ed25519-dalek = "2"
 getrandom = "0.2"
+# Terminal thật trong cửa sổ repo (terminal.rs): PTY đa nền tảng (ConPTY trên Windows).
+portable-pty = "0.9"
 
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.31", features = ["signal", "process"] }

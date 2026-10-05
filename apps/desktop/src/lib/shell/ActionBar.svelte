@@ -24,9 +24,12 @@
     onshowlog: () => void;
     onsearch?: () => void;
     onpalette?: () => void;
+    /** Bật / tắt panel terminal; không truyền thì không có nút. */
+    onterminal?: () => void;
+    terminalVisible?: boolean;
   }
 
-  let { store, onshowlog, onsearch, onpalette }: Props = $props();
+  let { store, onshowlog, onsearch, onpalette, onterminal, terminalVisible = false }: Props = $props();
 
   const behind = $derived(store.status.behind);
   const ahead = $derived(store.status.ahead);
@@ -206,6 +209,20 @@
     <span class="label">{vi.remote.pop}</span>
   </button>
 
+  {#if onterminal}
+    <button
+      type="button"
+      class="action"
+      class:pressed={terminalVisible}
+      title={vi.terminal.buttonTip}
+      aria-pressed={terminalVisible}
+      onclick={onterminal}
+    >
+      <span class="tone terminal"><Icon name="terminal" size={16} /></span>
+      <span class="label">{vi.terminal.button}</span>
+    </button>
+  {/if}
+
   <button
     type="button"
     class="action icon-only"
@@ -284,6 +301,14 @@
   .tone.stash,
   .tone.pop {
     color: #ff9500;
+  }
+
+  .tone.terminal {
+    color: #5e5ce6;
+  }
+
+  .action.pressed {
+    background: color-mix(in srgb, var(--text) 12%, transparent);
   }
 
   .action:disabled {

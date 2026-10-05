@@ -42,6 +42,8 @@
   import CommandLogPanel from './CommandLogPanel.svelte';
   import CommandPalette from './CommandPalette.svelte';
   import Splitter from './Splitter.svelte';
+  import TerminalPanel from '../terminal/TerminalPanel.svelte';
+  import { TerminalDock } from '../terminal/dock.svelte.ts';
 
   interface Props {
     store: RepoStore;
@@ -74,6 +76,7 @@
   );
   let showPalette = $state(false);
   const search = untrack(() => new GraphSearch(store));
+  const terminal = new TerminalDock();
 
   $effect(() => startAutoFetch(store));
   $effect(() => startAutoSnapshots(store));
@@ -108,6 +111,11 @@
       return;
     if (!(event.ctrlKey || event.metaKey)) return;
     const code = event.code;
+    if (!event.shiftKey && !event.altKey && code === 'Backquote') {
+      event.preventDefault();
+      terminal.toggle();
+      return;
+    }
     if (!event.shiftKey && !event.altKey && code === 'KeyF' && !centerCovered) {
       event.preventDefault();
       search.show();
@@ -194,6 +202,8 @@
         onshowlog={() => (showLog = true)}
         onsearch={() => search.show()}
         onpalette={() => (showPalette = true)}
+        onterminal={() => terminal.toggle()}
+        terminalVisible={terminal.visible}
       />
       <span class="divider" data-tauri-drag-region></span>
       <button
@@ -306,6 +316,9 @@
           <div class="graph-area"><DiffPane {store} /></div>
         {:else if store.blame.target !== null}
           <div class="graph-area"><BlamePane {store} /></div>
+        {/if}
+        {#if terminal.tabs.length > 0}
+          <TerminalPanel {store} dock={terminal} />
         {/if}
       </div>
       {#if showInspector}
