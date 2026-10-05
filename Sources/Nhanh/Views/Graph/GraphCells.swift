@@ -1,5 +1,6 @@
 import AppKit
 import NhanhCore
+import SwiftUI
 
 /// Ô vẽ graph: các đường làn, đường cong rẽ/nhập nhánh và node commit (ảnh đại diện tác giả, chưa có ảnh thì chữ cái đầu).
 final class GraphCellView: NSTableCellView {
@@ -288,6 +289,54 @@ final class RefsCellView: NSTableCellView {
         return result
     }
 
+    // MARK: Rê chuột vào "+N": khung nổi liệt kê các nhánh / tag bị gom (như GitKraken)
+
+    private var hoverTracking: NSTrackingArea?
+    private var overflowPopover: NSPopover?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        hoverTracking = area
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        let point = convert(event.locationInWindow, from: nil)
+        let layout = pillLayout()
+        guard let more = layout.moreRect, more.insetBy(dx: -3, dy: -4).contains(point) else {
+            closeOverflowPopover()
+            return
+        }
+        guard overflowPopover == nil else { return }
+        let hidden = Array(labels.suffix(layout.moreCount))
+        guard !hidden.isEmpty else { return }
+        let popover = NSPopover()
+        popover.behavior = .semitransient
+        popover.animates = false
+        popover.contentViewController = NSHostingController(rootView: OverflowRefsList(labels: hidden))
+        popover.show(relativeTo: more, of: self, preferredEdge: .maxY)
+        overflowPopover = popover
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        closeOverflowPopover()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        closeOverflowPopover()
+        super.mouseDown(with: event)
+    }
+
+    private func closeOverflowPopover() {
+        overflowPopover?.performClose(nil)
+        overflowPopover = nil
+    }
+
     /// Điểm `point` (toạ độ của ô) nằm trên viên "+N" (các nhãn không đủ chỗ hiện).
     func isOverflowHit(at point: CGPoint) -> Bool {
         pillLayout().moreRect?.insetBy(dx: -3, dy: -4).contains(point) ?? false
@@ -466,5 +515,33 @@ final class TextCellView: NSTableCellView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+}
+
+/// Nội dung khung nổi khi rê chuột vào "+N": các nhãn bị gom, bấm "+N" để chọn thao tác.
+private struct OverflowRefsList: View {
+    let labels: [RefLabel]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(labels) { label in
+                HStack(spacing: 6) {
+                    Image(systemName: label.isTag ? "tag.fill" : (label.hasLocal ? "laptopcomputer" : "cloud.fill"))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16)
+                    Text(label.text)
+                        .fontWeight(label.isCurrentBranch ? .semibold : .regular)
+                    if label.hasLocal && label.remoteCount > 0 {
+                        Image(systemName: "cloud.fill").foregroundStyle(.tertiary).font(.caption)
+                    }
+                }
+            }
+            Divider()
+            Text("Bấm “+\(labels.count)” để checkout / merge…")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .fixedSize()
     }
 }

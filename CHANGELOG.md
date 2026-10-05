@@ -21,6 +21,8 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Panel thay đổi: danh sách đang trống (Chưa stage / Đã stage) thu nhỏ để danh sách kia hiện được nhiều file hơn; dải "Nên xem lại trước khi commit" có nút ẩn
 - Đầu diff: nút không còn bị cắt chữ, rê chuột vào đường dẫn để xem đủ
 - Checkout khi còn thay đổi chưa commit: như GitKraken, Thaigit tự stash, chuyển nhánh rồi mang thay đổi sang nhánh mới — không còn báo lỗi đỏ; nếu thay đổi xung đột với nhánh mới thì bản gốc vẫn giữ trong stash
+- Rê chuột vào viên "+N" trên graph hiện ngay danh sách nhánh / tag bị gom
+- Đang xem một commit mà còn file chưa commit: đầu panel chi tiết nhắc "N file chưa commit" kèm nút Stage tất cả / Xem & commit
 
 ## 1.1.1 — 2026-10-03
 

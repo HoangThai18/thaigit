@@ -43,6 +43,7 @@
 "Apple Intelligence chưa sẵn sàng" = "Apple Intelligence isn't ready";
 "Apple Intelligence chưa sẵn sàng trên máy này." = "Apple Intelligence isn't ready on this Mac.";
 "Apply (giữ stash)" = "Apply (keep stash)";
+"Bấm “+%lld” để checkout / merge…" = "Click “+%lld” to check out / merge…";
 "Blame file đang mở" = "Blame Open File";
 "Blame — ai sửa từng dòng" = "Blame — Who Changed Each Line";
 "Bên hiện tại thêm" = "Added on the current side";
@@ -313,6 +314,7 @@
 "Gắn tag %@" = "Tag %@";
 "Gồm cả file mới (chưa track)" = "Include new (untracked) files";
 "Squash — gộp, giữ message" = "Squash — combine, keep message";
+"Mở danh sách file chưa commit để stage, bỏ stage, huỷ và commit (⌘0)" = "Open the uncommitted files to stage, unstage, discard and commit (⌘0)";
 "Một cột (unified)" = "Unified";
 "Gộp thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó" = "Fold the staged changes into the last commit and/or edit its message";
 "Fixup — gộp, bỏ message" = "Fixup — combine, drop message";
@@ -885,6 +887,7 @@
 "WIP trên %@: %@" = "WIP on %@: %@";
 "Worktree là một thư mục làm việc thứ hai của cùng repo — làm song song trên nhánh khác mà không phải stash hay checkout qua lại." = "A worktree is a second working folder of the same repository — work on another branch in parallel without stashing or switching back and forth.";
 "Worktree đang bị khoá" = "The worktree is locked";
+"Xem & commit" = "Review & Commit";
 "Xem nhánh" = "Show Branches";
 "Xem quyền của Thaigit" = "Review Thaigit's Permissions";
 "Xem thay đổi" = "Show Changes";

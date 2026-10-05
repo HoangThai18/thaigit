@@ -8,13 +8,62 @@ struct CommitDetailView: View {
 
     var body: some View {
         if let details = model.commitDetails, case .commit(let sha) = model.selection, details.commit.id == sha {
-            DetailContent(model: model, details: details, source: .commit(sha))
+            VStack(spacing: 0) {
+                if !model.status.isClean {
+                    UncommittedBanner(model: model)
+                }
+                DetailContent(model: model, details: details, source: .commit(sha))
+            }
         } else if model.isLoadingDetails {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ContentUnavailableView("Không có chi tiết", systemImage: "questionmark.circle")
         }
+    }
+}
+
+/// Đang xem một commit mà vẫn còn file chưa commit: nhắc ngay đầu panel, kèm nút stage / về màn commit (như dòng WIP của
+/// GitKraken) — không phải tự tìm dòng "// WIP" trên graph.
+private struct UncommittedBanner: View {
+    @Bindable var model: RepoModel
+
+    private var count: Int {
+        Set(model.status.staged.map(\.path) + model.status.unstaged.map(\.path) + model.status.conflicts.map(\.path)).count
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: model.status.conflicts.isEmpty ? "pencil.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(model.status.conflicts.isEmpty ? Color.orange : Color.red)
+                Text("\(count) file chưa commit")
+                    .font(.callout.weight(.semibold))
+                    .lineLimit(1)
+                    .fixedSize()
+                Text("trên \(model.headDescription)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            HStack(spacing: 6) {
+                if !model.status.unstaged.isEmpty {
+                    Button { model.stageAll() } label: { Label("Stage tất cả", systemImage: "plus.circle") }
+                        .glassButtonStyle()
+                        .fixedSize()
+                }
+                Button { model.selectWorkingTree() } label: { Label("Xem & commit", systemImage: "checkmark.circle") }
+                    .glassButtonStyle(prominent: true)
+                    .fixedSize()
+                    .help("Mở danh sách file chưa commit để stage, bỏ stage, huỷ và commit (⌘0)")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10)
+        .padding(.top, 10)
     }
 }
 
