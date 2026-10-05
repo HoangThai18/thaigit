@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import { UI } from '@/lib/ui';
 import { useLang } from './LangProvider';
 
-const MIN_TOTAL = 20;
-
 let pending: Promise<number | null> | null = null;
 
 async function fetchTotal(): Promise<number | null> {
@@ -32,7 +30,7 @@ export function DownloadCount() {
       alive = false;
     };
   }, []);
-  if (total === null || total < MIN_TOTAL) return null;
+  if (total === null) return null;
   const formatted = total.toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-US');
   return <span className="dl-count">{UI[lang].download.count(formatted)}</span>;
 }
