@@ -119,7 +119,7 @@
     disabled={busy || !store.canUndoLast}
     onclick={() => store.undoLast()}
   >
-    <Icon name="undo" size={16} />
+    <span class="tone undo"><Icon name="undo" size={16} /></span>
     <span class="label">{vi.remote.undo}</span>
   </button>
 
@@ -130,7 +130,7 @@
     disabled={busy}
     onclick={() => void fetch(store)}
   >
-    <Icon name="fetch" size={16} />
+    <span class="tone fetch"><Icon name="fetch" size={16} /></span>
     <span class="label">{vi.remote.fetch}</span>
   </button>
 
@@ -142,7 +142,7 @@
       disabled={busy}
       onclick={() => void pull(store)}
     >
-      <Icon name="pull" size={16} />
+      <span class="tone pull"><Icon name="pull" size={16} /></span>
       <span class="label">{behind > 0 ? vi.remote.pullBehind(behind) : vi.remote.pull}</span>
       {#if behind > 0}<span class="badge compact">{behind}</span>{/if}
     </button>
@@ -167,7 +167,7 @@
     disabled={busy}
     onclick={() => void push(store)}
   >
-    <Icon name="push" size={16} />
+    <span class="tone push"><Icon name="push" size={16} /></span>
     <span class="label">{ahead > 0 ? vi.remote.pushAhead(ahead) : vi.remote.push}</span>
     {#if ahead > 0}<span class="badge compact">{ahead}</span>{/if}
   </button>
@@ -180,7 +180,7 @@
     title={vi.remote.branchTip}
     onclick={() => void beginCreateBranch(store)}
   >
-    <Icon name="branch" size={16} />
+    <span class="tone branch"><Icon name="branch" size={16} /></span>
     <span class="label">{vi.remote.branch}</span>
   </button>
 
@@ -191,7 +191,7 @@
     disabled={isStatusClean(store.status)}
     onclick={() => void quickStash(store)}
   >
-    <Icon name="stash" size={16} />
+    <span class="tone stash"><Icon name="stash" size={16} /></span>
     <span class="label">{vi.remote.stash}</span>
   </button>
 
@@ -202,7 +202,7 @@
     disabled={store.stashes.length === 0}
     onclick={() => void popLatestStash(store)}
   >
-    <Icon name="archive" size={16} />
+    <span class="tone pop"><Icon name="archive" size={16} /></span>
     <span class="label">{vi.remote.pop}</span>
   </button>
 
@@ -231,24 +231,59 @@
     width: 8px;
   }
 
+  /* Nút như GitKraken: nền sáng, viền mảnh; màu nằm ở biểu tượng (mỗi thao tác một màu) để dễ nhận ra. */
   .action {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     height: 30px;
     padding: 0 10px;
-    border: 0;
+    border: 1px solid color-mix(in srgb, var(--text) 11%, transparent);
     border-radius: 8px;
-    background: none;
-    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--text) 4.5%, transparent);
+    color: var(--text);
     font: inherit;
     font-size: 12.5px;
+    font-weight: 500;
     white-space: nowrap;
   }
 
   .action:hover:not(:disabled) {
-    background: var(--row-hover);
-    color: var(--text);
+    background: color-mix(in srgb, var(--text) 9%, transparent);
+  }
+
+  .action:active:not(:disabled) {
+    background: color-mix(in srgb, var(--text) 14%, transparent);
+  }
+
+  .tone {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .tone.undo {
+    color: #8e8e93;
+  }
+
+  .tone.fetch {
+    color: #0a84ff;
+  }
+
+  .tone.pull {
+    color: #30b0c7;
+  }
+
+  .tone.push {
+    color: #34c759;
+  }
+
+  .tone.branch {
+    color: #af52de;
+  }
+
+  .tone.stash,
+  .tone.pop {
+    color: #ff9500;
   }
 
   .action:disabled {
@@ -277,6 +312,7 @@
 
   .action.right {
     padding: 0 6px;
+    border-left: none;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }

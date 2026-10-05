@@ -34,6 +34,8 @@
   import DragGhost from '../dnd/DragGhost.svelte';
   import ActionBar from './ActionBar.svelte';
   import BranchPicker from './BranchPicker.svelte';
+  import ProfileButton from './ProfileButton.svelte';
+  import { settingsStore } from '../stores/settings.svelte.ts';
   import BranchSwitcher from './BranchSwitcher.svelte';
   import BusyBar from './BusyBar.svelte';
   import CommandLogPanel from './CommandLogPanel.svelte';
@@ -204,6 +206,16 @@
       >
         <Icon name="sidebar-right" size={18} />
       </button>
+      <button
+        type="button"
+        class="tool"
+        title={vi.window.settingsTip}
+        aria-label={vi.window.settingsTip}
+        onclick={() => settingsStore.open()}
+      >
+        <Icon name="settings" size={17} />
+      </button>
+      <ProfileButton {store} />
       <button
         type="button"
         class="tool"
