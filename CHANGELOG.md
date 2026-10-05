@@ -23,6 +23,9 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Checkout khi còn thay đổi chưa commit: như GitKraken, Thaigit tự stash, chuyển nhánh rồi mang thay đổi sang nhánh mới — không còn báo lỗi đỏ; nếu thay đổi xung đột với nhánh mới thì bản gốc vẫn giữ trong stash
 - Rê chuột vào viên "+N" trên graph hiện ngay danh sách nhánh / tag bị gom
 - Đang xem một commit mà còn file chưa commit: đầu panel chi tiết nhắc "N file chưa commit" kèm nút Stage tất cả / Xem & commit
+- Diff tô màu cú pháp (từ khoá, chuỗi, comment, số) cho JS / TS, PHP, Swift, Python, Go, Rust, Java / Kotlin, C / C++, C#, CSS, JSON, YAML, shell, SQL, HTML…
+- Nút "Bỏ qua khoảng trắng" ở đầu diff (git diff -w) — khi bật chỉ stage / bỏ stage được cả file
+- Đầu diff gọn hơn: nút Sửa / Huỷ chỉ còn biểu tượng để tên file hiện đủ
 
 ## 1.1.1 — 2026-10-03
 

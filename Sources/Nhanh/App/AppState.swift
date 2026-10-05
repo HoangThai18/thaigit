@@ -15,6 +15,7 @@ enum Prefs {
     static let diffSplit = "diffSplit"
     static let diffContext = "diffContext"
     static let diffWrap = "diffWrap"
+    static let diffIgnoreWhitespace = "diffIgnoreWhitespace"
     static let showRemoteBranches = "showRemoteBranches"
     static let showTags = "showTags"
     static let lastCloneDirectory = "lastCloneDirectory"
@@ -53,6 +54,7 @@ enum Prefs {
     static var pullModeValue: PullMode { PullMode(rawValue: UserDefaults.standard.string(forKey: pullMode) ?? "") ?? .merge }
     static var fetchPruneValue: Bool { UserDefaults.standard.bool(forKey: fetchPrune) }
     static var autoFetchMinutesValue: Int { UserDefaults.standard.integer(forKey: autoFetchMinutes) }
+    static var diffIgnoreWhitespaceValue: Bool { UserDefaults.standard.bool(forKey: diffIgnoreWhitespace) }
     static var diffContextValue: Int { min(20, max(0, UserDefaults.standard.integer(forKey: diffContext))) }
     static var showRemoteBranchesValue: Bool { UserDefaults.standard.bool(forKey: showRemoteBranches) }
     static var showTagsValue: Bool { UserDefaults.standard.bool(forKey: showTags) }

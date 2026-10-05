@@ -89,6 +89,7 @@
 "Bỏ qua commit này" = "Skip This Commit";
 "Bỏ qua file này" = "Ignore This File";
 "Bỏ qua mọi file *.%@" = "Ignore All *.%@ Files";
+"Bỏ qua thay đổi chỉ về khoảng trắng / thụt lề (git diff -w)" = "Ignore whitespace / indentation-only changes (git diff -w)";
 "Bỏ qua thư mục %@/" = "Ignore Folder %@/";
 "Bỏ stage" = "Unstage";
 "Bỏ stage %@" = "Unstage %@";
@@ -976,6 +977,7 @@
 "apply patch" = "applying patches";
 "Đang %@ — hãy hoàn tất hoặc huỷ trước" = "%@ in progress — finish or abort it first";
 "Đang bisect" = "Bisecting";
+"Đang bỏ qua thay đổi khoảng trắng (chỉ stage được cả file) — bấm để hiện lại" = "Ignoring whitespace changes (only whole files can be staged) — click to show them";
 "Đang cherry-pick" = "Cherry-picking";
 "Đang chạy…" = "Running…";
 "Đang chỉ hiện nhánh này (solo)" = "Showing only this branch (solo)";

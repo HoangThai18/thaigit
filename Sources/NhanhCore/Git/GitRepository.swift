@@ -160,8 +160,10 @@ public struct GitRepository: Sendable {
         return GitParsers.parseNameStatus(output.stdout)
     }
 
-    public func diff(commit sha: String, parent: String?, file: FileChange, context: Int = 3) async throws -> FileDiff? {
+    public func diff(commit sha: String, parent: String?, file: FileChange, context: Int = 3,
+                     ignoreWhitespace: Bool = false) async throws -> FileDiff? {
         var args = ["diff-tree", "-p", "-M", "--no-color", "-U\(context)", "--src-prefix=a/", "--dst-prefix=b/", "--no-commit-id"]
+        if ignoreWhitespace { args.append("-w") }
         if let parent { args += [parent, sha] } else { args += ["--root", sha] }
         args += ["--"] + file.allPaths
         let output = try await runner.run(args, environment: Self.literalPathspecs)
@@ -172,8 +174,11 @@ public struct GitRepository: Sendable {
     /// nguyên "\r", file không phải UTF-8 bị đánh dấu `isValidUTF8 = false` nên không stage/huỷ từng dòng được.
     /// `--no-textconv`: patch phải dựng từ byte thật, và repo lạ có thể đặt `diff.<driver>.textconv` thành lệnh tuỳ ý
     /// (như `core.fsmonitor`) — chỉ xem diff không được chạy lệnh của repo.
-    public func workingDiff(_ change: FileChange, kind: WorkingDiffKind, context: Int = 3) async throws -> FileDiff? {
+    /// `ignoreWhitespace` (`-w`): chỉ để xem — patch dựng từ diff này không áp được, nên app tắt stage từng phần khi bật.
+    public func workingDiff(_ change: FileChange, kind: WorkingDiffKind, context: Int = 3,
+                            ignoreWhitespace: Bool = false) async throws -> FileDiff? {
         let common = ["--no-color", "--no-ext-diff", "--no-textconv", "-U\(context)", "--src-prefix=a/", "--dst-prefix=b/"]
+            + (ignoreWhitespace ? ["-w"] : [])
         let output: ProcessOutput
         switch kind {
         case .unstaged:
@@ -688,11 +693,11 @@ public struct GitRepository: Sendable {
         return files
     }
 
-    public func stashDiff(_ stash: Stash, file: FileChange) async throws -> FileDiff? {
+    public func stashDiff(_ stash: Stash, file: FileChange, ignoreWhitespace: Bool = false) async throws -> FileDiff? {
         if file.kind == .untracked, stash.parents.count >= 3 {
-            return try await diff(commit: stash.parents[2], parent: nil, file: file)
+            return try await diff(commit: stash.parents[2], parent: nil, file: file, ignoreWhitespace: ignoreWhitespace)
         }
-        return try await diff(commit: stash.sha, parent: stash.parents.first, file: file)
+        return try await diff(commit: stash.sha, parent: stash.parents.first, file: file, ignoreWhitespace: ignoreWhitespace)
     }
 
     // MARK: - Tag

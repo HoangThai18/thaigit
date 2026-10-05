@@ -141,3 +141,55 @@ struct DiffTests {
         #expect(file.resolved(with: [:]) == "<<<<<<< not a conflict\njust text\n")
     }
 }
+
+@Suite("Diff bỏ qua khoảng trắng (-w)")
+struct IgnoreWhitespaceDiffTests {
+    @Test func hidesWhitespaceOnlyChanges() async throws {
+        let t = try await TestRepo.make()
+        defer { t.cleanup() }
+        try t.write("a.js", "if (x) {\n  run();\n}\n")
+        try await t.commitAll("init")
+        try t.write("a.js", "if (x) {\n    run();\n}\nnew();\n")
+        let change = FileChange(path: "a.js", kind: .modified)
+
+        let full = try #require(try await t.repo.workingDiff(change, kind: .unstaged))
+        #expect(full.additions == 2 && full.deletions == 1)
+        let ignored = try #require(try await t.repo.workingDiff(change, kind: .unstaged, ignoreWhitespace: true))
+        #expect(ignored.additions == 1 && ignored.deletions == 0)
+
+        try await t.commitAll("sửa")
+        let head = try await t.repo.resolveCommit("HEAD")
+        let parent = try await t.repo.resolveCommit("HEAD~1")
+        let commitDiff = try #require(try await t.repo.diff(commit: head, parent: parent, file: change, ignoreWhitespace: true))
+        #expect(commitDiff.additions == 1 && commitDiff.deletions == 0)
+    }
+}
+
+@Suite("Tô màu cú pháp trong diff")
+struct SyntaxHighlighterTests {
+    private func kinds(_ line: String, _ path: String) -> [(String, SyntaxTokenKind)] {
+        let chars = Array(line)
+        let language = SyntaxLanguage.forPath(path)!
+        return SyntaxHighlighter.tokens(line, language: language).map { (String(chars[$0.range]), $0.kind) }
+    }
+
+    @Test func javascriptTokens() {
+        let tokens = kinds("const name = 'Thái'; // chào 42", "src/app.ts")
+        #expect(tokens.map(\.0) == ["const", "'Thái'", "// chào 42"])
+        #expect(tokens.map(\.1) == [.keyword, .string, .comment])
+    }
+
+    @Test func phpAndNumbersAndEscapes() {
+        let tokens = kinds(#"return $this->x + 10 . "a\"b"; /* ok */ $y"#, "a.php")
+        #expect(tokens.map(\.0) == ["return", "$this", "10", #""a\"b""#, "/* ok */"])
+        #expect(tokens.map(\.1) == [.keyword, .keyword, .number, .string, .comment])
+    }
+
+    @Test func unknownLanguagesAndHugeLinesAreLeftPlain() {
+        #expect(SyntaxLanguage.forPath("README") == nil)
+        #expect(SyntaxLanguage.forPath("Dockerfile") != nil)
+        let long = String(repeating: "a", count: SyntaxHighlighter.maxLineLength + 1)
+        #expect(SyntaxHighlighter.tokens(long, language: SyntaxLanguage.forPath("a.js")!).isEmpty)
+        #expect(kinds("x.return y", "a.js").isEmpty)
+    }
+}

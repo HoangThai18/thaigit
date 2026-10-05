@@ -7,11 +7,12 @@ struct DiffPane: View {
     @Bindable var model: RepoModel
     @AppStorage(Prefs.diffSplit) private var split = false
     @AppStorage(Prefs.diffWrap) private var wrap = true
+    @AppStorage(Prefs.diffIgnoreWhitespace) private var ignoreWhitespace = false
 
     var body: some View {
         VStack(spacing: 0) {
             if let file = model.openFile {
-                DiffHeader(model: model, file: file, split: $split, wrap: $wrap)
+                DiffHeader(model: model, file: file, split: $split, wrap: $wrap, ignoreWhitespace: $ignoreWhitespace)
                 Divider()
             }
             content
@@ -26,6 +27,10 @@ struct DiffPane: View {
             }
         }
         .animation(.snappy(duration: 0.18), value: model.selectedLineCount)
+        .onChange(of: ignoreWhitespace) {
+            model.clearLineSelection()
+            model.loadDiff()
+        }
     }
 
     @ViewBuilder
@@ -85,6 +90,7 @@ private struct DiffHeader: View {
     let file: OpenFile
     @Binding var split: Bool
     @Binding var wrap: Bool
+    @Binding var ignoreWhitespace: Bool
 
     private var sourceLabel: (String, Color) {
         switch file.source {
@@ -135,6 +141,7 @@ private struct DiffHeader: View {
                 }
             }
             // Tên + đường dẫn file được ưu tiên chỗ hơn các nút (đường dẫn không còn bị cắt còn "cd…ss").
+            .frame(minWidth: 180, alignment: .leading)
             .layoutPriority(1)
             Spacer(minLength: 8)
 
@@ -200,6 +207,14 @@ private struct DiffHeader: View {
                 .pickerStyle(.segmented)
                 .frame(width: 84)
 
+                Toggle(isOn: $ignoreWhitespace) {
+                    Image(systemName: "space")
+                }
+                .toggleStyle(.button)
+                .help(ignoreWhitespace
+                    ? String(localized: "Đang bỏ qua thay đổi khoảng trắng (chỉ stage được cả file) — bấm để hiện lại")
+                    : String(localized: "Bỏ qua thay đổi chỉ về khoảng trắng / thụt lề (git diff -w)"))
+
                 if !split {
                     Toggle(isOn: $wrap) {
                         Image(systemName: "text.word.spacing")
@@ -212,6 +227,7 @@ private struct DiffHeader: View {
             if model.canEditInApp(file) {
                 Button { model.beginEditing(file) } label: {
                     Label("Sửa", systemImage: "pencil")
+                        .labelStyle(.iconOnly)
                 }
                 .glassButtonStyle()
                 .help("Sửa file ngay trong app (UTF-8)")
@@ -221,6 +237,7 @@ private struct DiffHeader: View {
             case .unstaged:
                 Button(role: .destructive) { model.discard([file.change]) } label: {
                     Label("Huỷ", systemImage: "arrow.uturn.backward")
+                        .labelStyle(.iconOnly)
                 }
                 .glassButtonStyle()
                 .help("Huỷ mọi thay đổi chưa stage của file")
@@ -330,6 +347,7 @@ private struct DiffTextView: View {
             lines
                 .background { hunkShortcuts(reader) }
         }
+        .environment(\.syntaxLanguage, model.openFile.flatMap { SyntaxLanguage.forPath($0.change.path) })
         .onChange(of: model.openFile) { hunkCursor = -1 }
     }
 
@@ -428,7 +446,8 @@ private struct HunkHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            if model.canSelectLines || model.openFile?.source == .unstaged || model.openFile?.source == .staged {
+            if !Prefs.diffIgnoreWhitespaceValue,
+               model.canSelectLines || model.openFile?.source == .unstaged || model.openFile?.source == .staged {
                 actionButtons
             }
             Text(hunk.header)
@@ -501,8 +520,40 @@ private enum DiffColors {
     static let gutterDeletion = Color.red.opacity(0.2)
 }
 
-private func attributedText(_ line: DiffPresentation.Line) -> AttributedString {
+/// Ngôn ngữ của file đang xem diff — để tô màu cú pháp từng dòng (đặt ở DiffTextView).
+private struct SyntaxLanguageKey: EnvironmentKey {
+    static let defaultValue: SyntaxLanguage? = nil
+}
+
+extension EnvironmentValues {
+    fileprivate var syntaxLanguage: SyntaxLanguage? {
+        get { self[SyntaxLanguageKey.self] }
+        set { self[SyntaxLanguageKey.self] = newValue }
+    }
+}
+
+private enum SyntaxColors {
+    static let keyword = Color(nsColor: .systemPink)
+    static let string = Color(nsColor: .systemRed)
+    static let comment = Color(nsColor: .systemGray)
+    static let number = Color(nsColor: .systemPurple)
+}
+
+private func attributedText(_ line: DiffPresentation.Line, language: SyntaxLanguage? = nil) -> AttributedString {
     var text = AttributedString(line.text.isEmpty ? " " : line.text)
+    if let language {
+        let characters = text.characters
+        for token in SyntaxHighlighter.tokens(line.text, language: language) where token.range.upperBound <= characters.count {
+            let start = characters.index(characters.startIndex, offsetBy: token.range.lowerBound)
+            let end = characters.index(characters.startIndex, offsetBy: token.range.upperBound)
+            switch token.kind {
+            case .keyword: text[start..<end].foregroundColor = SyntaxColors.keyword
+            case .string: text[start..<end].foregroundColor = SyntaxColors.string
+            case .comment: text[start..<end].foregroundColor = SyntaxColors.comment
+            case .number: text[start..<end].foregroundColor = SyntaxColors.number
+            }
+        }
+    }
     if let range = line.highlight, !line.text.isEmpty, range.lowerBound < line.text.count {
         let characters = text.characters
         let start = characters.index(characters.startIndex, offsetBy: range.lowerBound)
@@ -515,6 +566,7 @@ private func attributedText(_ line: DiffPresentation.Line) -> AttributedString {
 }
 
 private struct UnifiedLineView: View {
+    @Environment(\.syntaxLanguage) private var language
     let line: DiffPresentation.Line
     let metrics: DiffMetrics
     let wrap: Bool
@@ -539,13 +591,13 @@ private struct UnifiedLineView: View {
                     .frame(width: 20)
                     .foregroundStyle(markerColor)
                 if wrap {
-                    Text(attributedText(line))
+                    Text(attributedText(line, language: language))
                         .foregroundStyle(Color.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.trailing, 10)
                 } else {
-                    Text(attributedText(line))
+                    Text(attributedText(line, language: language))
                         .foregroundStyle(Color.primary)
                         .fixedSize()
                     Spacer(minLength: 0)
@@ -597,6 +649,7 @@ private struct UnifiedLineView: View {
 }
 
 private struct SplitRowView: View {
+    @Environment(\.syntaxLanguage) private var language
     let row: DiffPresentation.SplitRow
     let numberWidth: CGFloat
     let halfWidth: CGFloat
@@ -625,7 +678,7 @@ private struct SplitRowView: View {
                 Text(line.kind == .addition ? "+" : (line.kind == .deletion ? "−" : ""))
                     .frame(width: 18)
                     .foregroundStyle(line.kind == .addition ? Color.green : Color.red)
-                Text(attributedText(line))
+                Text(attributedText(line, language: language))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }

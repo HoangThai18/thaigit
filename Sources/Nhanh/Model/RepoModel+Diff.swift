@@ -103,6 +103,7 @@ extension RepoModel {
         if !silently { diffState = .loading }
         let repo = repository
         let context = Prefs.diffContextValue
+        let ignoreWhitespace = Prefs.diffIgnoreWhitespaceValue
         var commitParent: String?
         if case .commit(let sha) = file.source {
             commitParent = commit(for: sha)?.parents.first ?? (commitDetails?.commit.id == sha ? commitDetails?.commit.parents.first : nil)
@@ -114,7 +115,7 @@ extension RepoModel {
         diffTask = Task {
             do {
                 let loaded = try await Self.loadDiffContent(repo: repo, file: file, context: context, commitParent: commitParent,
-                                                            stash: stash, conflictKind: conflictKind)
+                                                            stash: stash, conflictKind: conflictKind, ignoreWhitespace: ignoreWhitespace)
                 guard !Task.isCancelled, openFile == file else { return }
                 let state = Self.makeState(loaded)
                 if silently, case .text(let old) = diffState, case .text(let new) = state, old.diff == new.diff {
@@ -160,7 +161,9 @@ extension RepoModel {
     nonisolated static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "webp", "heic", "ico", "icns"]
 
     nonisolated static func loadDiffContent(repo: GitRepository, file: OpenFile, context: Int, commitParent: String?,
-                                            stash: Stash?, conflictKind: ConflictKind?) async throws -> LoadedDiff {
+                                            stash: Stash?, conflictKind: ConflictKind?,
+                                            ignoreWhitespace: Bool = false) async throws -> LoadedDiff {
+        let w = ignoreWhitespace
         let change = file.change
         let diff: FileDiff?
         switch file.source {
@@ -180,16 +183,17 @@ extension RepoModel {
             }
             return .conflictWithoutMarkers(entry)
         case .unstaged:
-            diff = try await repo.workingDiff(change, kind: change.kind == .untracked ? .untracked : .unstaged, context: context)
+            diff = try await repo.workingDiff(change, kind: change.kind == .untracked ? .untracked : .unstaged, context: context,
+                                              ignoreWhitespace: w)
         case .staged:
-            diff = try await repo.workingDiff(change, kind: .staged, context: context)
+            diff = try await repo.workingDiff(change, kind: .staged, context: context, ignoreWhitespace: w)
         case .commit(let sha):
-            diff = try await repo.diff(commit: sha, parent: commitParent, file: change, context: context)
+            diff = try await repo.diff(commit: sha, parent: commitParent, file: change, context: context, ignoreWhitespace: w)
         case .compare(let from, let to):
-            diff = try await repo.diff(commit: to, parent: from, file: change, context: context)
+            diff = try await repo.diff(commit: to, parent: from, file: change, context: context, ignoreWhitespace: w)
         case .stash:
             guard let stash else { return .message(String(localized: "Stash không còn tồn tại.")) }
-            diff = try await repo.stashDiff(stash, file: change)
+            diff = try await repo.stashDiff(stash, file: change, ignoreWhitespace: w)
         }
 
         guard let diff else {
@@ -319,6 +323,8 @@ extension RepoModel {
     // MARK: - Chọn dòng trong diff
 
     var canSelectLines: Bool {
+        // Diff bỏ qua khoảng trắng (-w) không dựng được patch áp vào index: chỉ stage / bỏ stage cả file.
+        guard !Prefs.diffIgnoreWhitespaceValue else { return false }
         guard case .text(let presentation) = diffState, let file = openFile else { return false }
         guard file.source == .unstaged || file.source == .staged else { return false }
         return presentation.diff.supportsPartialStaging
