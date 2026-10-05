@@ -68,6 +68,7 @@
 "Bấm vào tên người sửa để xem commit đó trên graph" = "Click an author to see that commit in the graph";
 "Bấm để chọn dòng (Shift+bấm để chọn liên tiếp), rồi Stage/Huỷ ở thanh bên dưới" = "Click to select lines (Shift-click for a range), then Stage/Discard in the bar below";
 "Bật Apple Intelligence trong Cài đặt hệ thống để dùng" = "Turn on Apple Intelligence in System Settings to use this";
+"Bật lại tự lưu cho repo này" = "Turn Back On for This Repo";
 "Bắt đầu" = "Start";
 "Bắt đầu %@" = "Start %@";
 "Bắt đầu %@ %@" = "Start %@ %@";
@@ -111,6 +112,7 @@
 "Chưa cài Git LFS — cài bằng brew install git-lfs rồi chạy git lfs install." = "Git LFS isn't installed — install it with brew install git-lfs, then run git lfs install.";
 "Chưa có commit nào" = "No commits yet";
 "Chưa có commit nào chạm tới file này" = "No commits have touched this file yet";
+"Chưa có mốc nào. Thaigit sẽ tự lưu khi file trong repo thay đổi." = "No snapshots yet. Thaigit saves one when files in this repo change.";
 "Chưa có nhánh %@ (cần ít nhất một commit)." = "Branch %@ doesn't exist yet (needs at least one commit).";
 "Chưa có nhánh %@/%@ trên máy — hãy fetch trước" = "Branch %@/%@ isn't on your Mac yet — fetch first";
 "Chưa có nhánh nào" = "No branches yet";
@@ -139,6 +141,7 @@
 "Chỉ fast-forward" = "Fast-forward only";
 "Chỉ fetch" = "Fetch Only";
 "Chỉ hiện nhánh này (solo)" = "Show Only This Branch (Solo)";
+"Chỉ là cảnh báo — Thaigit không chặn commit." = "Just a warning — Thaigit won’t block the commit.";
 "Chỉ nhánh hiện tại có file này. “Current” giữ file, “Incoming” xoá nó." = "Only the current branch has this file. “Current” keeps it, “Incoming” deletes it.";
 "Chỉ repo này" = "This repository only";
 "Chỉ token của tài khoản này bị xoá khỏi Keychain, các tài khoản khác giữ nguyên. Token vẫn còn hiệu lực trên GitHub tới khi bạn thu hồi." = "Only this account's token is removed from the Keychain; other accounts stay. The token stays valid on GitHub until you revoke it.";
@@ -175,6 +178,7 @@
 "Commit này đã được đảo ngược, không có gì để revert" = "This commit was already reversed — nothing to revert";
 "Commit rồi push lên remote (⌘⇧↩)" = "Commit, then push to the remote (⌘⇧↩)";
 "Cài đặt…" = "Settings…";
+"Các bản Thaigit tự lưu thư mục làm việc — quay lại khi có gì hỏng" = "Snapshots Thaigit saves of your working folder — go back when something breaks";
 "Các commit này đã có trên remote: rebase xong cần force push, người khác đang dùng nhánh sẽ bị lệch." = "These commits are already on the remote: after rebasing you'll need to force push, and others using the branch will be out of sync.";
 "Các commit riêng của %@ sẽ được viết lại lên trên %@. Tránh rebase nhánh đã push mà người khác đang dùng." = "The commits only on %@ will be rewritten on top of %@. Avoid rebasing a pushed branch others are using.";
 "Các tab đang mở sẽ được mở lại." = "Your open tabs will be reopened.";
@@ -212,6 +216,8 @@
 "Diff rất lớn" = "Very large diff";
 "Double-click để giữ bản %@" = "Double-click to keep the %@ version";
 "Dòng chưa commit" = "Uncommitted line";
+"Dòng thời gian" = "Timeline";
+"Dòng thời gian…" = "Timeline…";
 "Dùng bản Current" = "Use Current Version";
 "Dùng bản Incoming" = "Use Incoming Version";
 "Dùng của @%@…" = "Use @%@'s Identity…";
@@ -335,6 +341,7 @@
 "Hoàn tác commit" = "Undo Commit";
 "Hoàn tác huỷ thay đổi" = "Undo Discard";
 "Hoàn tác huỷ tất cả" = "Undo Discard All";
+"Hoàn tác khôi phục" = "Undo Restore";
 "Hoàn tác merge" = "Undo Merge";
 "Hoàn tác pull" = "Undo Pull";
 "Hoàn tác rebase" = "Undo Rebase";
@@ -370,10 +377,16 @@
 "Khoá" = "Key";
 "Khoá đã bị thu hồi" = "Key revoked";
 "Khác" = "Other";
+"Khác với bây giờ" = "Differences from now";
+"Khôi phục" = "Restore";
 "Khôi phục %@" = "Restore %@";
+"Khôi phục 1 file về mốc này?" = "Restore 1 file to this snapshot?";
+"Khôi phục file này" = "Restore This File";
 "Khôi phục nhánh %@" = "Restore Branch %@";
 "Khôi phục stash" = "Restore Stash";
 "Khôi phục tag" = "Restore Tag";
+"Khôi phục tất cả về mốc này" = "Restore Everything to This Snapshot";
+"Khôi phục từ dòng thời gian" = "Restore from Timeline";
 "Không" = "No";
 "Không checkout được vì có thay đổi chưa commit" = "Can't check out because of uncommitted changes";
 "Không chạy được %@: %@" = "Couldn't run %@: %@";
@@ -419,6 +432,7 @@
 "Không kết nối được tới remote — kiểm tra mạng rồi thử lại." = "Couldn't connect to the remote — check your network and try again.";
 "Không kết nối được — kiểm tra mạng rồi thử lại." = "Couldn't connect — check your network and try again.";
 "Không lưu được %@" = "Couldn't save %@";
+"Không lưu được mốc" = "Couldn’t save a snapshot";
 "Không merge được %@ vào %@. %@" = "Couldn't merge %@ into %@. %@";
 "Không phải file thường." = "Not a regular file.";
 "Không so sánh được" = "Couldn't compare";
@@ -448,6 +462,7 @@
 "Không được chứa khoảng trắng hoặc ký tự ~ ^ : ? * [ \\" = "Can't contain spaces or the characters ~ ^ : ? * [ \\";
 "Không được kết thúc bằng / . hoặc .lock" = "Can't end with / . or .lock";
 "Không đọc / ghi được file trên máy — kiểm tra quyền truy cập và dung lượng ổ đĩa." = "Couldn't read / write files on this Mac — check permissions and free disk space.";
+"Không đọc được dòng thời gian" = "Couldn’t read the timeline";
 "Không đọc được token của " = "Couldn't read the token of ";
 "Không đọc được trạng thái repository" = "Couldn't read the repository status";
 "Không ẩn được nhánh đang checkout" = "Can't hide the checked-out branch";
@@ -484,6 +499,8 @@
 "Lưu & đánh dấu đã giải quyết" = "Save & Mark Resolved";
 "Lưu file (⌘S)" = "Save File (⌘S)";
 "Lưu file đã giải quyết" = "Save Resolved File";
+"Lưu mốc ngay" = "Save a Snapshot Now";
+"Lưu thủ công" = "Manual";
 "Lưu tên & email Git" = "Save Git Name & Email";
 "Lưu vào thư mục" = "Save to folder";
 "Lấy PR #%lld" = "Fetch PR #%lld";
@@ -525,6 +542,7 @@
 "Mọi repo trên máy" = "All repositories on this Mac";
 "Mọi thay đổi (kể cả đã stage) sẽ bị bỏ, file chưa track được chuyển vào Thùng rác. Có thể bấm “Hoàn tác” ngay sau đó." = "All changes (including staged ones) will be dropped and untracked files moved to the Trash. You can click “Undo” right after.";
 "Mọi thay đổi chưa commit sẽ MẤT VĨNH VIỄN. Các commit sau %@ sẽ không còn trên nhánh (vẫn hoàn tác được ngay sau đó)." = "All uncommitted changes will be LOST FOREVER. Commits after %@ will no longer be on the branch (you can still undo right after).";
+"Mốc nằm trong thư mục .git của từng repo (ref ẩn theo worktree), không bao giờ được push. Tắt riêng cho một repo ở panel Dòng thời gian." = "Snapshots live in each repo’s .git folder (a hidden per-worktree ref) and are never pushed. Turn them off for a single repo in the Timeline panel.";
 "Mỗi 1 phút" = "Every minute";
 "Mỗi 15 phút" = "Every 15 minutes";
 "Mỗi 30 phút" = "Every 30 minutes";
@@ -594,6 +612,7 @@
 "Nhớ push %@, %@ và tag." = "Remember to push %@, %@ and the tag.";
 "Những gì bạn vừa gõ trong %@ sẽ mất." = "What you just typed in %@ will be lost.";
 "Nên giữ dòng tóm tắt dưới 72 ký tự" = "Keep the summary line under 72 characters";
+"Nên xem lại trước khi commit" = "Worth a look before you commit";
 "OAuth App chưa bật Device Flow" = "The OAuth App doesn't have Device Flow enabled";
 "Owner đã gán" = "Assigned owners";
 "Phím tắt: P pick · R reword · S squash · F fixup · D drop · kéo để đổi thứ tự" = "P pick · R reword · S squash · F fixup · D drop · drag to reorder";
@@ -701,6 +720,8 @@
 "Terminal trong app" = "In-App Terminal";
 "Thaigit %@ là phiên bản mới nhất." = "Thaigit %@ is the latest version.";
 "Thaigit %@ đã sẵn sàng" = "Thaigit %@ is ready";
+"Thaigit sẽ tự lưu thư mục làm việc khi file thay đổi để bạn quay lại được nếu code bị hỏng (Dòng thời gian, ở panel thay đổi). Mốc chỉ nằm trên máy, không bao giờ được push." = "Thaigit will save your working folder when files change so you can go back if your code breaks (Timeline, in the changes panel). Snapshots stay on this Mac and are never pushed.";
+"Thaigit tự lưu thư mục làm việc mỗi khi file thay đổi, kể cả file chưa commit. Chọn một mốc để xem khác gì so với bây giờ rồi khôi phục." = "Thaigit saves your working folder whenever files change, including uncommitted ones. Pick a snapshot to see how it differs from now, then restore.";
 "Thaigit đang chạy từ %@. Hãy chép Thaigit vào thư mục Applications rồi mở lại, hoặc tải bản %@ trên trang GitHub của Thaigit." = "Thaigit is running from %@. Copy Thaigit into the Applications folder and reopen it, or download version %@ from Thaigit's GitHub page.";
 "Thaigit: tự stash trước khi %@" = "Thaigit: auto-stash before %@";
 "Thao tác đã được huỷ." = "The operation was cancelled.";
@@ -737,6 +758,9 @@
 "Thông tin bản cập nhật không hợp lệ: %@." = "Invalid update information: %@.";
 "Thư mục %@ sẽ bị xoá. Nhánh %@ vẫn giữ nguyên. Worktree còn thay đổi chưa commit thì git sẽ từ chối." = "The folder %@ will be deleted. Branch %@ stays as is. Git will refuse if the worktree has uncommitted changes.";
 "Thư mục không còn — có thể dọn" = "The folder is gone — can be pruned";
+"Thư mục làm việc giống hệt mốc này." = "Your working folder matches this snapshot.";
+"Thư mục làm việc hiện tại được lưu thành một mốc trước khi ghi đè nên bạn hoàn tác được. File tạo sau mốc này được chuyển vào Thùng rác. Phần đã stage không đổi." = "Your current working folder is saved as a snapshot before anything is overwritten, so you can undo. Files created after this snapshot are moved to the Trash. Staged changes stay as they are.";
+"Thư mục làm việc đã giống mốc này." = "Your working folder already matches this snapshot.";
 "Thư mục này đã có — chọn chỗ khác." = "This folder already exists — choose another place.";
 "Thư mục “%@” đã tồn tại và không trống. Hãy đổi tên thư mục." = "The folder “%@” already exists and isn't empty. Choose another folder name.";
 "Thường gặp khi một bên là bản copy code (không clone từ bên kia). Lần đầu vẫn merge được: file có ở cả hai bên mà khác nội dung sẽ thành xung đột để bạn chọn bản giữ lại. Từ lần sau hai bên đã có commit chung nên merge bình thường." = "This usually happens when one side is a copy of the code (not cloned from the other). The first merge still works: files on both sides with different content become conflicts for you to resolve. After that, both sides share a commit and merge normally.";
@@ -764,6 +788,7 @@
 "Trong diff: đỏ là chỉ có ở “Từ”, xanh là chỉ có ở “Tới”. Giữ ⌘ và bấm 2 commit trên graph để so sánh hai commit bất kỳ." = "In the diff: red is only in “From”, green is only in “To”. Hold ⌘ and click 2 commits in the graph to compare any two commits.";
 "Trên github.com/%@" = "On github.com/%@";
 "Trước" = "Before";
+"Trước khi khôi phục" = "Before restore";
 "Tài khoản" = "Accounts";
 "Tài khoản GitHub" = "GitHub Accounts";
 "Tài khoản GitHub cho %@" = "GitHub Account for %@";
@@ -834,6 +859,7 @@
 "Tải về từ GitHub, GitLab, Bitbucket…" = "Download from GitHub, GitLab, Bitbucket…";
 "Tắt" = "Off";
 "Tắt thì graph chỉ hiện chữ viết tắt và app không gửi gì ra mạng để tìm ảnh." = "When off, the graph shows initials only and the app sends nothing over the network to find pictures.";
+"Tắt tự lưu cho repo này" = "Turn Off for This Repo";
 "Tới" = "To";
 "Tới HEAD" = "Go to HEAD";
 "Tới commit parent" = "Go to Parent Commit";
@@ -843,6 +869,9 @@
 "Từ %@" = "From %@";
 "Từ nhánh %@" = "From branch %@";
 "Từ: %@" = "From: %@";
+"Tự lưu" = "Automatic";
+"Tự lưu thư mục làm việc khi file thay đổi" = "Save the working folder automatically when files change";
+"Tự lưu đang tắt trong Cài đặt." = "Automatic snapshots are off in Settings.";
 "Tự xuống dòng khi dòng dài" = "Wrap long lines";
 "Tự động" = "Automatic";
 "Tự động fetch" = "Auto-fetch";
@@ -957,13 +986,16 @@
 "Đang rebase (%lld/%lld)" = "Rebasing (%lld/%lld)";
 "Đang revert" = "Reverting";
 "Đang so sánh…" = "Comparing…";
+"Đang so với bây giờ…" = "Comparing with now…";
 "Đang theo dõi" = "Tracked";
 "Đang tải bản %@…" = "Downloading version %@…";
 "Đang tải danh sách repo…" = "Loading repositories…";
 "Đang tải lịch sử…" = "Loading history…";
 "Đang tải…" = "Loading…";
+"Đang tắt tự lưu cho repo này." = "Automatic snapshots are off for this repo.";
 "Đang tự xuống dòng — bấm để giữ dòng dài trên một hàng (cuộn ngang)" = "Wrapping lines — click to keep long lines on one row (scroll horizontally)";
 "Đang apply patch (git am)" = "Applying patches (git am)";
+"Đang đọc dòng thời gian…" = "Reading the timeline…";
 "Đang đọc…" = "Reading…";
 "Đang ở %@ (detached HEAD)" = "On %@ (detached HEAD)";
 "Đang ở commit khác commit repo này ghi nhận" = "At a different commit than this repository recorded";
@@ -1007,6 +1039,7 @@
 "Đã kiểm tra lúc " = "Last checked ";
 "Đã kết thúc %@" = "Finished %@";
 "Đã lưu %@" = "Saved %@";
+"Đã lưu mốc" = "Snapshot saved";
 "Đã lưu tên & email cho Git" = "Git name & email saved";
 "Đã lấy lại thay đổi từ stash" = "Changes restored from the stash";
 "Đã lấy đủ nhánh và lịch sử từ remote" = "All branches and history fetched from the remote";
@@ -1051,12 +1084,14 @@
 "Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit." = "Something unexpected went wrong. Please try again; if it keeps happening, restart Thaigit.";
 "Đã apply stash “%@”" = "Applied stash “%@”";
 "Đã đăng nhập" = "Signed in";
+"Đã đưa thư mục làm việc về như trước khi khôi phục" = "Your working folder is back to how it was before the restore";
 "Đã đổi tên %@ → %@" = "Renamed %@ → %@";
 "Đã ẩn %@ khỏi graph" = "Hid %@ from the graph";
 "Đóng" = "Close";
 "Đóng các tab bên phải" = "Close Tabs to the Right";
 "Đóng các tab khác" = "Close Other Tabs";
 "Đóng cửa sổ" = "Close Window";
+"Đóng dòng thời gian" = "Close Timeline";
 "Đóng repository" = "Close Repository";
 "Đóng tab" = "Close Tab";
 "Đóng tab (⌘W)" = "Close Tab (⌘W)";
@@ -1119,40 +1154,3 @@
 "● %lld đã stage" = "● %lld staged";
 "✎ %lld file sửa" = "✎ %lld modified";
 "＋ %lld file mới" = "＋ %lld new";
-
-/* Dòng thời gian (snapshot tự động) và cờ rủi ro trước khi commit. */
-"Không đọc được dòng thời gian" = "Couldn’t read the timeline";
-"Đã lưu mốc" = "Snapshot saved";
-"Không lưu được mốc" = "Couldn’t save a snapshot";
-"Thư mục làm việc đã giống mốc này." = "Your working folder already matches this snapshot.";
-"Khôi phục 1 file về mốc này?" = "Restore 1 file to this snapshot?";
-"Thư mục làm việc hiện tại được lưu thành một mốc trước khi ghi đè nên bạn hoàn tác được. File tạo sau mốc này được chuyển vào Thùng rác. Phần đã stage không đổi." = "Your current working folder is saved as a snapshot before anything is overwritten, so you can undo. Files created after this snapshot are moved to the Trash. Staged changes stay as they are.";
-"Khôi phục" = "Restore";
-"Khôi phục từ dòng thời gian" = "Restore from Timeline";
-"Hoàn tác khôi phục" = "Undo Restore";
-"Đã đưa thư mục làm việc về như trước khi khôi phục" = "Your working folder is back to how it was before the restore";
-"Thaigit sẽ tự lưu thư mục làm việc khi file thay đổi để bạn quay lại được nếu code bị hỏng (Dòng thời gian, ở panel thay đổi). Mốc chỉ nằm trên máy, không bao giờ được push." = "Thaigit will save your working folder when files change so you can go back if your code breaks (Timeline, in the changes panel). Snapshots stay on this Mac and are never pushed.";
-"Tắt tự lưu cho repo này" = "Turn Off for This Repo";
-"Dòng thời gian…" = "Timeline…";
-"Nên xem lại trước khi commit" = "Worth a look before you commit";
-"Chỉ là cảnh báo — Thaigit không chặn commit." = "Just a warning — Thaigit won’t block the commit.";
-"Các bản Thaigit tự lưu thư mục làm việc — quay lại khi có gì hỏng" = "Snapshots Thaigit saves of your working folder — go back when something breaks";
-"Khôi phục tất cả về mốc này" = "Restore Everything to This Snapshot";
-"Bật lại tự lưu cho repo này" = "Turn Back On for This Repo";
-"Tự lưu" = "Automatic";
-"Trước khi khôi phục" = "Before restore";
-"Lưu thủ công" = "Manual";
-"Đang so với bây giờ…" = "Comparing with now…";
-"Lưu mốc ngay" = "Save a Snapshot Now";
-"Đóng dòng thời gian" = "Close Timeline";
-"Tự lưu đang tắt trong Cài đặt." = "Automatic snapshots are off in Settings.";
-"Đang tắt tự lưu cho repo này." = "Automatic snapshots are off for this repo.";
-"Thaigit tự lưu thư mục làm việc mỗi khi file thay đổi, kể cả file chưa commit. Chọn một mốc để xem khác gì so với bây giờ rồi khôi phục." = "Thaigit saves your working folder whenever files change, including uncommitted ones. Pick a snapshot to see how it differs from now, then restore.";
-"Đang đọc dòng thời gian…" = "Reading the timeline…";
-"Chưa có mốc nào. Thaigit sẽ tự lưu khi file trong repo thay đổi." = "No snapshots yet. Thaigit saves one when files in this repo change.";
-"Thư mục làm việc giống hệt mốc này." = "Your working folder matches this snapshot.";
-"Khác với bây giờ" = "Differences from now";
-"Khôi phục file này" = "Restore This File";
-"Dòng thời gian" = "Timeline";
-"Tự lưu thư mục làm việc khi file thay đổi" = "Save the working folder automatically when files change";
-"Mốc nằm trong thư mục .git của từng repo (ref ẩn theo worktree), không bao giờ được push. Tắt riêng cho một repo ở panel Dòng thời gian." = "Snapshots live in each repo’s .git folder (a hidden per-worktree ref) and are never pushed. Turn them off for a single repo in the Timeline panel.";

@@ -7,7 +7,7 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Dòng thời gian: Thaigit tự lưu thư mục làm việc mỗi khi file thay đổi (kể cả file chưa commit) để bạn quay lại được khi code bị hỏng — rất hợp khi code cùng AI (Cursor, Claude Code…). Mở bằng nút "Dòng thời gian" ở panel thay đổi hoặc ⌘P; chọn một mốc để xem khác gì so với bây giờ, khôi phục một file hoặc tất cả, luôn hỏi trước và có Hoàn tác
 - Mốc chỉ nằm trên máy (trong thư mục .git của repo), không bao giờ được push, không đụng tới phần đã stage, nhánh hay stash; mỗi worktree một dòng thời gian riêng. Mặc định giữ 7 ngày / 300 mốc, chỉnh ở Cài đặt → Git → Dòng thời gian; tắt riêng cho một repo ngay trong panel
 - Cảnh báo trước khi commit: panel thay đổi báo khi bạn (hoặc AI) xoá / bỏ qua test, đổi dependency, sửa CI / Docker, thêm file lớn hơn 1 MB, hoặc có file trông như chứa mật khẩu / khoá bí mật — chỉ hiện tên file, không chặn commit
-- Giao diện tiếng Anh: chọn ở Cài đặt → Chung → Ngôn ngữ / Language, Thaigit khởi động lại và mở lại các tab đang mở
+- Giao diện tiếng Anh: chọn ở Cài đặt → Chung → Ngôn ngữ / Language, Thaigit khởi động lại và mở lại các tab đang mở; đủ chuỗi cho mọi màn hình kể cả Dòng thời gian và cảnh báo trước khi commit, số nhiều ("1 file" / "5 files") dịch đúng
 - Duyệt thay đổi liên tục: stage, bỏ stage hay huỷ file đang xem thì Thaigit mở luôn file kế tiếp trong danh sách thay vì nhảy sang chỗ khác; nút ↑ / ↓ (kèm "2/5") ở đầu diff và ⇧⌥⌘↑ / ⇧⌥⌘↓ để chuyển file, ⌥⌘↑ / ⌥⌘↓ để nhảy giữa các hunk
 - Commit & Push một bước: nút mũi tên cạnh nút Commit hoặc ⌘⇧↩
 - Message commit đang gõ dở được giữ riêng cho từng repo — đóng app, đóng tab rồi mở lại vẫn còn
