@@ -143,10 +143,52 @@ pub struct DeviceCode {
 /// Phạm vi cần xin khi đăng nhập bằng device flow.
 pub fn scopes(provider: Provider) -> &'static str {
     match provider {
-        Provider::Github => "repo workflow read:org",
+        Provider::Github => "repo workflow read:org write:public_key",
         Provider::Gitlab => "api read_api read_user read_repository",
         // Bitbucket không có device flow.
         Provider::Bitbucket => "",
+    }
+}
+
+// MARK: - Khoá SSH
+
+/// Kết quả gửi khoá SSH công khai lên tài khoản.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SshKeyUpload {
+    Added,
+    AlreadyExists,
+    /// Token thiếu quyền thêm khoá (GitHub: `write:public_key`, GitLab: `api`) hoặc máy chủ không hỗ trợ: tự dán ở trang web.
+    MissingScope,
+}
+
+/// Thêm khoá SSH công khai vào tài khoản (`POST /user/keys` của GitHub và GitLab).
+pub async fn add_ssh_key(host: &str, provider: Provider, token: &str, title: &str, public_key: &str) -> Result<SshKeyUpload> {
+    if provider == Provider::Bitbucket {
+        return Ok(SshKeyUpload::MissingScope);
+    }
+    let client = http()?;
+    let url = format!("{}/user/keys", provider.api_base(host));
+    let body = serde_json::json!({ "title": title, "key": public_key });
+    let (status, value) = request(&client, reqwest::Method::POST, &url, token, Some(&body)).await?;
+    let text = value.to_string().to_lowercase();
+    match status {
+        200..=299 => Ok(SshKeyUpload::Added),
+        400 | 422 if text.contains("already") || text.contains("taken") => Ok(SshKeyUpload::AlreadyExists),
+        403 | 404 => Ok(SshKeyUpload::MissingScope),
+        _ => {
+            check_status(provider, host, status, &value)?;
+            Err(AppError::Io(format!("Máy chủ {host} không nhận khoá SSH ({status})")))
+        }
+    }
+}
+
+/// Trang thêm khoá SSH bằng tay trên máy chủ.
+pub fn ssh_keys_page(host: &str, provider: Provider) -> String {
+    match provider {
+        Provider::Github => format!("https://{host}/settings/ssh/new"),
+        Provider::Gitlab => format!("https://{host}/-/user_settings/ssh_keys"),
+        Provider::Bitbucket => "https://bitbucket.org/account/settings/ssh-keys/".to_string(),
     }
 }
 

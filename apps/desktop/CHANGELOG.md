@@ -2,6 +2,10 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## Chưa phát hành
+
+- Khoá SSH riêng của Thaigit (Cài đặt → Khoá SSH): tạo khoá Ed25519 hoặc nhập khoá có sẵn, khoá bí mật chỉ nằm trong Credential Manager của máy (như 1Password) — fetch / pull / push / clone repo SSH tự dùng khoá qua một ssh-agent tạm, không cần cấu hình thư mục .ssh; thêm khoá lên GitHub / GitLab một bước, nút kiểm tra kết nối
+
 ## 2.2.0 — 2026-10-05
 
 - Nhiều nhánh / tag cùng một commit: nhãn ưu tiên nhánh đang đứng rồi main / master / develop; rê chuột vào "+N" hiện danh sách nhánh bị gom, bấm để chọn nhánh (Checkout, Merge, Push…); nhấp đúp lên nhãn checkout đúng nhánh đó

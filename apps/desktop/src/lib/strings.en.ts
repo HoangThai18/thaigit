@@ -13,6 +13,7 @@ import { risk } from './strings/risk.en.ts';
 import { settings } from './strings/settings.en.ts';
 import { shell } from './strings/shell.en.ts';
 import { snapshots } from './strings/snapshots.en.ts';
+import { ssh } from './strings/ssh.en.ts';
 import { staging } from './strings/staging.en.ts';
 import { tabs } from './strings/tabs.en.ts';
 import { update } from './strings/update.en.ts';
@@ -37,4 +38,5 @@ export const en: Strings = {
   pullRequests,
   snapshots,
   risk,
+  ssh,
 };

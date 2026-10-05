@@ -144,6 +144,8 @@ pub struct Core {
     pub accounts: Arc<Accounts>,
     /// Credential helper trả lời `git credential` — có sau `credential::init`; chưa có thì lệnh mạng không dùng token của app.
     pub credential: std::sync::OnceLock<Arc<CredentialServer>>,
+    /// Khoá SSH riêng của Thaigit (khoá bí mật trong kho bí mật của hệ điều hành) — nạp vào ssh-agent tạm cho lệnh chạm remote SSH.
+    pub ssh_keys: Arc<crate::ssh_keys::SshKeys>,
     pub timing: CancelTiming,
     /// Giới hạn output của `git_exec`/`git_clone` (xem `MAX_EXEC_OUTPUT_BYTES`).
     pub exec_output_limit: u64,
@@ -207,7 +209,8 @@ pub const KEYCHAIN_SERVICE: &str = "Thaigit";
 impl Core {
     pub fn new(data_dir: PathBuf, events: Arc<dyn EventSink>, askpass_deny: Option<OsString>) -> Arc<Self> {
         let accounts = Accounts::load(&data_dir, Arc::new(crate::accounts::KeychainStore::new(KEYCHAIN_SERVICE)));
-        Self::with_accounts(data_dir, events, askpass_deny, accounts)
+        let ssh_keys = crate::ssh_keys::SshKeys::load(&data_dir, Arc::new(crate::accounts::KeychainStore::new(KEYCHAIN_SERVICE)));
+        Self::with_accounts(data_dir, events, askpass_deny, accounts, ssh_keys)
     }
 
     /// Như `new` nhưng dùng kho tài khoản cho sẵn (test).
@@ -216,6 +219,7 @@ impl Core {
         events: Arc<dyn EventSink>,
         askpass_deny: Option<OsString>,
         accounts: Arc<Accounts>,
+        ssh_keys: Arc<crate::ssh_keys::SshKeys>,
     ) -> Arc<Self> {
         let empty_hooks_dir = data_dir.join("empty-hooks");
         let _ = std::fs::create_dir_all(&empty_hooks_dir);
@@ -230,6 +234,7 @@ impl Core {
             askpass: std::sync::OnceLock::new(),
             accounts,
             credential: std::sync::OnceLock::new(),
+            ssh_keys,
             timing: CancelTiming::default(),
             exec_output_limit: MAX_EXEC_OUTPUT_BYTES,
             internal_output_limit: MAX_INTERNAL_OUTPUT_BYTES,
@@ -291,6 +296,7 @@ impl Core {
             askpass: std::sync::OnceLock::new(),
             accounts,
             credential: std::sync::OnceLock::new(),
+            ssh_keys: crate::ssh_keys::SshKeys::load(data_dir, Arc::new(crate::accounts::MemoryStore::default())),
             timing: CancelTiming {
                 soft_wait: Duration::from_millis(600),
                 group_grace: Duration::from_millis(200),
@@ -370,6 +376,26 @@ impl Core {
         let server = self.credential.get()?;
         let hosts = crate::credential::helper_hosts(urls, &self.accounts);
         (!hosts.is_empty()).then(|| server.session(hosts))
+    }
+
+    /// ssh-agent tạm cho một lệnh mạng chạm `urls`: chỉ dựng khi có remote SSH và có khoá SSH của Thaigit đang bật. Agent
+    /// lỗi (không tìm thấy ssh-agent…) thì lệnh chạy như thường với agent / khoá ~/.ssh của người dùng.
+    pub async fn ssh_agent_for(&self, urls: &[String], git: &GitInfo, spec: &mut ProcessSpec) -> Option<crate::ssh_keys::SshAgent> {
+        if !urls.iter().any(|url| crate::ssh_keys::is_ssh_url(url)) || !self.ssh_keys.has_keys() {
+            return None;
+        }
+        let dirs = self.locator.search_dirs();
+        let git_path = PathBuf::from(&git.path);
+        let agent = crate::ssh_keys::find_tool("ssh-agent", &git_path, &dirs)?;
+        let add = crate::ssh_keys::find_tool("ssh-add", &git_path, &dirs)?;
+        let keys = self.ssh_keys.clone();
+        let env = spec.env.clone();
+        let session = tokio::task::spawn_blocking(move || crate::ssh_keys::SshAgent::start(&agent, &add, &keys.private_keys(), &env))
+            .await
+            .ok()?
+            .ok()?;
+        session.apply(&mut spec.env);
+        Some(session)
     }
 
     /// Đăng ký op vào bảng (huỷ được theo `opId`, gắn nhãn cửa sổ).
@@ -643,13 +669,9 @@ impl Core {
             .flatten();
         // Lệnh mạng chạm remote HTTPS của host đã đăng nhập: git hỏi credential thì app trả token của tài khoản đúng owner.
         // Cả hồ sơ background (tự fetch) cũng dùng được — không bao giờ mở hộp thoại, chỉ trả token đã lưu.
-        let credential = if kind == ExecKind::Network {
-            let urls = self.remote_urls(&entry.id).await.unwrap_or_default();
-            self.credential_session(&urls)
-        } else {
-            None
-        };
-        let spec = self.build_spec_with(
+        let urls = if kind == ExecKind::Network { self.remote_urls(&entry.id).await.unwrap_or_default() } else { Vec::new() };
+        let credential = if kind == ExecKind::Network { self.credential_session(&urls) } else { None };
+        let mut spec = self.build_spec_with(
             &git,
             SpawnOptions {
                 cwd: &entry.root,
@@ -663,6 +685,8 @@ impl Core {
             askpass.as_ref(),
             credential.as_ref(),
         );
+        // Remote SSH + khoá SSH của Thaigit: agent tạm sống tới khi lệnh xong (drop = dừng agent, xoá socket).
+        let _ssh_agent = self.ssh_agent_for(&urls, &git, &mut spec).await;
 
         let cancel = CancelToken::new();
         let (_op, _op_guard) = self.ops.register(OpEntry {

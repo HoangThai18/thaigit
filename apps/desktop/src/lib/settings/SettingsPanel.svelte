@@ -26,6 +26,7 @@
   import { toasts } from '../stores/toasts.svelte.ts';
   import { accounts as defaultAccounts } from '../stores/accounts.svelte.ts';
   import AccountsSection from './AccountsSection.svelte';
+  import SshKeysSection from './SshKeysSection.svelte';
   import { LOCALES, locale as currentLocale, saveLocale, type Locale } from '../i18n/locale.ts';
   import { setNativeLocale } from '../ipc/os.ts';
 
@@ -361,6 +362,7 @@
           <div bind:this={accountsAnchor}>
             <AccountsSection />
           </div>
+          <SshKeysSection />
         {/if}
 
         <section>

@@ -165,6 +165,15 @@ export const Commands = {
   accountsSetIdentity: 'accounts_set_identity',
   accountsSetClientId: 'accounts_set_client_id',
   accountsRepositories: 'accounts_repositories',
+  // Khoá SSH riêng của Thaigit (khoá bí mật chỉ nằm trong Rust + kho bí mật của hệ điều hành).
+  sshKeysList: 'ssh_keys_list',
+  sshKeysGenerate: 'ssh_keys_generate',
+  sshKeysImport: 'ssh_keys_import',
+  sshKeysRename: 'ssh_keys_rename',
+  sshKeysRemove: 'ssh_keys_remove',
+  sshKeysSetEnabled: 'ssh_keys_set_enabled',
+  sshKeysUpload: 'ssh_keys_upload',
+  sshKeysTest: 'ssh_keys_test',
   // Pull Request (GitHub / Bitbucket) và Merge Request (GitLab).
   forgeListMergeRequests: 'forge_list_merge_requests',
   forgeCreateMergeRequest: 'forge_create_merge_request',
@@ -279,6 +288,34 @@ export interface AccountsView {
   ownerAssignments: Record<string, string>;
   /** host → Client ID của OAuth App (device flow); thiếu thì chỉ dán được token. */
   oauthClientIds: Record<string, string>;
+}
+
+/** Một khoá SSH của Thaigit — khoá bí mật không bao giờ qua IPC. */
+export interface SshKeyInfo {
+  id: string;
+  name: string;
+  /** Dòng khoá công khai "ssh-ed25519 AAAA… comment". */
+  publicKey: string;
+  /** "SHA256:…" như `ssh-keygen -l`. */
+  fingerprint: string;
+  keyType: string;
+  /** Khoá có passphrase: ssh-add hỏi passphrase qua hộp thoại của app mỗi lần dùng. */
+  encrypted: boolean;
+  createdAt: string;
+}
+
+export interface SshKeysView {
+  keys: SshKeyInfo[];
+  /** Dùng khoá của Thaigit cho remote SSH. */
+  enabled: boolean;
+}
+
+export type SshKeyUploadOutcome = 'added' | 'alreadyExists' | 'missingScope';
+
+export interface SshUploadResult {
+  outcome: SshKeyUploadOutcome;
+  /** Trang thêm khoá bằng tay trên máy chủ (khi token thiếu quyền). */
+  page: string;
 }
 
 export interface ForgeRepository {

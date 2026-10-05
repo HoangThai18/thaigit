@@ -263,12 +263,13 @@ impl Core {
         let args = vec!["--progress".to_string(), "--".to_string(), url.to_string(), dest.to_string_lossy().into_owned()];
         let askpass = self.askpass.get().map(|server| server.session(window, op_id, "git clone"));
         let credential = self.credential_session(std::slice::from_ref(&url.to_string()));
-        let spec = self.build_spec_with(
+        let mut spec = self.build_spec_with(
             &git,
             SpawnOptions { cwd: &base, sub: "clone", args: &args, stdin: None, profile: EnvProfile::Interactive, caller_env: BTreeMap::new(), restrictions: None },
             askpass.as_ref(),
             credential.as_ref(),
         );
+        let _ssh_agent = self.ssh_agent_for(std::slice::from_ref(&url.to_string()), &git, &mut spec).await;
         let cancel = CancelToken::new();
         let (_op, _guard) = self.register_op(OpEntry {
             id: op_id.to_string(),

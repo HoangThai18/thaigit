@@ -9,6 +9,7 @@ use tauri::{AppHandle, Runtime, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::accounts::{AccountsView, Provider};
+use crate::ssh_keys::SshKeysView;
 use crate::core::{Core, GitExecRequest};
 use crate::errors::{AppError, Result};
 use crate::forge::{self, DeviceCode, ForgeMergeRequest, ForgeRepository};
@@ -396,6 +397,126 @@ pub fn accounts_set_identity(core: CoreState<'_>, host: String, login: String, n
 pub fn accounts_set_client_id(core: CoreState<'_>, host: String, client_id: String) -> Result<AccountsView> {
     core.accounts.set_oauth_client_id(&host, &client_id)?;
     Ok(core.accounts.view())
+}
+
+// --- khoá SSH ------------------------------------------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn ssh_keys_list(core: CoreState<'_>) -> SshKeysView {
+    core.ssh_keys.view()
+}
+
+/// Tạo khoá Ed25519 mới (khoá bí mật vào kho bí mật của hệ điều hành).
+#[tauri::command]
+pub fn ssh_keys_generate(core: CoreState<'_>, name: String) -> Result<SshKeysView> {
+    let host = hostname_label();
+    core.ssh_keys.generate(&name, &format!("thaigit@{host}"))?;
+    Ok(core.ssh_keys.view())
+}
+
+/// Nhập khoá có sẵn: Rust tự mở hộp chọn file (webview không gửi đường dẫn), đọc khoá + file .pub đi kèm nếu có.
+#[tauri::command]
+pub async fn ssh_keys_import<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, core: CoreState<'_>) -> Result<Option<SshKeysView>> {
+    let mut dialog = app.dialog().file().set_parent(&window).set_title(crate::locale::current(&app).texts().pick_ssh_key);
+    if let Some(home) = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }) {
+        dialog = dialog.set_directory(std::path::PathBuf::from(home).join(".ssh"));
+    }
+    let picked = tokio::task::spawn_blocking(move || dialog.blocking_pick_file()).await.map_err(join_error)?;
+    let Some(picked) = picked else { return Ok(None) };
+    let path = picked.into_path().map_err(|e| AppError::Io(format!("Đường dẫn đã chọn không hợp lệ: {e}")))?;
+    let metadata = std::fs::metadata(&path).map_err(|e| AppError::Io(format!("Không đọc được file khoá: {e}")))?;
+    if metadata.len() > 32 * 1024 {
+        return Err(AppError::Policy("File này không phải khoá SSH bí mật — hãy chọn file khoá bí mật (vd. id_ed25519)".into()));
+    }
+    let private_key = std::fs::read_to_string(&path).map_err(|e| AppError::Io(format!("Không đọc được file khoá: {e}")))?;
+    let mut pub_path = path.clone().into_os_string();
+    pub_path.push(".pub");
+    let public = std::fs::read_to_string(std::path::PathBuf::from(pub_path)).ok();
+    let name = path.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "SSH".into());
+    core.ssh_keys.import(&name, &private_key, public.as_deref())?;
+    Ok(Some(core.ssh_keys.view()))
+}
+
+#[tauri::command]
+pub fn ssh_keys_rename(core: CoreState<'_>, id: String, name: String) -> Result<SshKeysView> {
+    core.ssh_keys.rename(&id, &name)
+}
+
+#[tauri::command]
+pub fn ssh_keys_remove(core: CoreState<'_>, id: String) -> Result<SshKeysView> {
+    core.ssh_keys.remove(&id)
+}
+
+#[tauri::command]
+pub fn ssh_keys_set_enabled(core: CoreState<'_>, enabled: bool) -> Result<SshKeysView> {
+    core.ssh_keys.set_enabled(enabled)
+}
+
+/// Gửi khoá công khai lên tài khoản `login` ở `host`. Thiếu quyền thì webview sao chép khoá + mở trang thêm khoá.
+#[tauri::command]
+pub async fn ssh_keys_upload(core: CoreState<'_>, id: String, host: String, login: String) -> Result<SshUploadResult> {
+    let key = core.ssh_keys.public_key(&id).ok_or_else(|| AppError::NotFound("Không tìm thấy khoá SSH này".into()))?;
+    let provider = core.accounts.provider_of(&host)?;
+    let page = forge::ssh_keys_page(&host, provider);
+    let Some(token) = core.accounts.token(&host, &login) else {
+        return Ok(SshUploadResult { outcome: forge::SshKeyUpload::MissingScope, page });
+    };
+    let outcome = forge::add_ssh_key(&host, provider, &token, &format!("Thaigit — {}", key.name), &key.public_key).await?;
+    Ok(SshUploadResult { outcome, page })
+}
+
+/// Kết quả gửi khoá + trang thêm khoá bằng tay (khi thiếu quyền).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SshUploadResult {
+    outcome: forge::SshKeyUpload,
+    page: String,
+}
+
+/// `ssh -T git@<host>` bằng đúng các khoá của Thaigit (agent tạm), không hỏi gì. Trả câu chào đã dịch.
+#[tauri::command]
+pub async fn ssh_keys_test(core: CoreState<'_>, host: String) -> Result<String> {
+    let host = host.trim().to_ascii_lowercase();
+    if !crate::accounts::valid_host(&host) {
+        return Err(AppError::Policy("Địa chỉ máy chủ không hợp lệ".into()));
+    }
+    let keys = core.ssh_keys.private_keys();
+    if keys.is_empty() {
+        return Err(AppError::Policy("Chưa có khoá SSH nào đang bật".into()));
+    }
+    let git = core.locator.current()?;
+    let dirs = core.locator.search_dirs();
+    let git_path = std::path::PathBuf::from(&git.path);
+    let tool = |name: &str| {
+        crate::ssh_keys::find_tool(name, &git_path, &dirs)
+            .ok_or_else(|| AppError::Io("Không chạy được ssh-agent nên chưa dùng được khoá SSH của Thaigit".into()))
+    };
+    let (agent, add, ssh) = (tool("ssh-agent")?, tool("ssh-add")?, tool("ssh")?);
+    let env: Vec<(std::ffi::OsString, std::ffi::OsString)> = std::env::vars_os().collect();
+    let output = tokio::task::spawn_blocking(move || -> Result<String> {
+        let session = crate::ssh_keys::SshAgent::start(&agent, &add, &keys, &env)?;
+        let mut command = std::process::Command::new(ssh);
+        command.args(["-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=15"]);
+        command.arg(format!("git@{host}"));
+        command.env("SSH_AUTH_SOCK", session.socket()).stdin(std::process::Stdio::null());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x0800_0000);
+        }
+        let output = command.output().map_err(|_| AppError::Io("Không chạy được ssh".into()))?;
+        let text = format!("{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        crate::ssh_keys::connection_message(&text, &host).map_err(AppError::Auth)
+    })
+    .await
+    .map_err(join_error)??;
+    Ok(output)
+}
+
+fn hostname_label() -> String {
+    let raw = std::env::var("COMPUTERNAME").or_else(|_| std::env::var("HOSTNAME")).unwrap_or_else(|_| "may".into());
+    let clean: String = raw.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').collect();
+    if clean.is_empty() { "may".into() } else { clean.to_ascii_lowercase() }
 }
 
 /// Repo mà tài khoản này truy cập được (dùng cho hộp Clone).

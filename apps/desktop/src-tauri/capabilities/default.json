@@ -60,6 +60,14 @@
     "allow-accounts-set-identity",
     "allow-accounts-set-client-id",
     "allow-accounts-repositories",
+    "allow-ssh-keys-list",
+    "allow-ssh-keys-generate",
+    "allow-ssh-keys-import",
+    "allow-ssh-keys-rename",
+    "allow-ssh-keys-remove",
+    "allow-ssh-keys-set-enabled",
+    "allow-ssh-keys-upload",
+    "allow-ssh-keys-test",
     "allow-forge-list-merge-requests",
     "allow-forge-create-merge-request"
   ]

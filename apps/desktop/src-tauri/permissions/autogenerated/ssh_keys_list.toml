@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ssh-keys-list"
+description = "Enables the ssh_keys_list command without any pre-configured scope."
+commands.allow = ["ssh_keys_list"]
+
+[[permission]]
+identifier = "deny-ssh-keys-list"
+description = "Denies the ssh_keys_list command without any pre-configured scope."
+commands.deny = ["ssh_keys_list"]

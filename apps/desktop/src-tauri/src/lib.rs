@@ -28,6 +28,7 @@ pub mod related;
 pub mod registry;
 pub mod repo_fs;
 pub mod safe_mode;
+pub mod ssh_keys;
 pub mod store;
 pub mod trust;
 pub mod typed;
@@ -186,6 +187,14 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::accounts_set_identity,
         commands::accounts_set_client_id,
         commands::accounts_repositories,
+        commands::ssh_keys_list,
+        commands::ssh_keys_generate,
+        commands::ssh_keys_import,
+        commands::ssh_keys_rename,
+        commands::ssh_keys_remove,
+        commands::ssh_keys_set_enabled,
+        commands::ssh_keys_upload,
+        commands::ssh_keys_test,
         commands::forge_list_merge_requests,
         commands::forge_create_merge_request,
     ])

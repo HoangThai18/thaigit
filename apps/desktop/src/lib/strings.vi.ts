@@ -23,6 +23,7 @@ import { risk } from './strings/risk.vi.ts';
 import { settings } from './strings/settings.vi.ts';
 import { shell } from './strings/shell.vi.ts';
 import { snapshots } from './strings/snapshots.vi.ts';
+import { ssh } from './strings/ssh.vi.ts';
 import { staging } from './strings/staging.vi.ts';
 import { tabs } from './strings/tabs.vi.ts';
 import type { Translation } from './strings/types.ts';
@@ -47,6 +48,7 @@ const viStrings = {
   pullRequests,
   snapshots,
   risk,
+  ssh,
 } as const;
 
 /** Hình dạng chung của mọi bản dịch (chữ là `string`, hàm giữ nguyên tham số). */

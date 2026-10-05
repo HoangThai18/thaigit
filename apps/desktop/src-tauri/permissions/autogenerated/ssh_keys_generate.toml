@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ssh-keys-generate"
+description = "Enables the ssh_keys_generate command without any pre-configured scope."
+commands.allow = ["ssh_keys_generate"]
+
+[[permission]]
+identifier = "deny-ssh-keys-generate"
+description = "Denies the ssh_keys_generate command without any pre-configured scope."
+commands.deny = ["ssh_keys_generate"]

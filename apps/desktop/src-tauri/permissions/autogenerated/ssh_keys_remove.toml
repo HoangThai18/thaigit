@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ssh-keys-remove"
+description = "Enables the ssh_keys_remove command without any pre-configured scope."
+commands.allow = ["ssh_keys_remove"]
+
+[[permission]]
+identifier = "deny-ssh-keys-remove"
+description = "Denies the ssh_keys_remove command without any pre-configured scope."
+commands.deny = ["ssh_keys_remove"]

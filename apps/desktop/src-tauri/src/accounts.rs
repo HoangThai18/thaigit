@@ -813,7 +813,7 @@ fn effective_client_ids(saved: &BTreeMap<String, String>) -> BTreeMap<String, St
     ids
 }
 
-fn now_rfc3339() -> String {
+pub(crate) fn now_rfc3339() -> String {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_default()
