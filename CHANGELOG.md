@@ -8,6 +8,7 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Danh sách file xung đột hiện số đoạn của từng file; chọn nhiều file (⌘-click) hoặc bấm “Giải quyết tất cả” để dùng bản Current / Incoming cho nhiều file một lần
 - Terminal ngay trong cửa sổ repo (nút Terminal trên thanh công cụ hoặc ⌃`): terminal thật như Terminal.app — có màu, chạy được vim, `git rebase -i`, ssh…, nhiều tab, kéo để đổi chiều cao
 - Menu chuột phải của commit đầy đủ hơn: sửa message, xoá commit, đưa commit lên / xuống, sao chép patch và sao chép link commit trên web — đều có Hoàn tác
+- Hết cảnh mỗi lần mở app sau khi cập nhật lại bị macOS hỏi quyền dùng mật khẩu đã lưu: sau bản này chỉ cần bấm “Luôn cho phép” một lần
 
 ## 1.3.0 — 2026-10-05
 

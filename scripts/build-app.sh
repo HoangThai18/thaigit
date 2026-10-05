@@ -54,7 +54,17 @@ for lproj in Resources/*.lproj; do
 done
 # Tab "Có gì mới" trong app đọc nhật ký thay đổi này.
 cp CHANGELOG.md "$APP/Contents/Resources/CHANGELOG.md"
-codesign --force --sign - --timestamp=none "$APP" >/dev/null
+# Ký bằng chứng chỉ cố định "Thaigit Code Signing" (tự ký, trong Keychain đăng nhập) để Keychain nhận mọi bản build /
+# bản cập nhật là cùng một app — ký tạm (ad-hoc) thì mỗi bản build mới đều bị hỏi lại quyền đọc token, khoá SSH.
+# Không có chứng chỉ thì ký tạm (chỉ nên dùng khi thử nghiệm); THAIGIT_SIGN_IDENTITY để chọn chứng chỉ khác.
+IDENTITY="${THAIGIT_SIGN_IDENTITY:-Thaigit Code Signing}"
+if security find-identity -p codesigning 2>/dev/null | grep -q "\"$IDENTITY\""; then
+  codesign --force --sign "$IDENTITY" --timestamp=none "$APP" >/dev/null
+  echo "✓ Đã ký bằng chứng chỉ \"$IDENTITY\""
+else
+  codesign --force --sign - --timestamp=none "$APP" >/dev/null
+  echo "⚠︎ Không có chứng chỉ \"$IDENTITY\" — ký tạm (Keychain sẽ hỏi lại quyền sau mỗi bản build)"
+fi
 echo "✓ Đã tạo $APP"
 
 if [ "$INSTALL" = 1 ]; then

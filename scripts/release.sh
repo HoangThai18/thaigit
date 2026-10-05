@@ -65,6 +65,11 @@ if ! xcode-select -p 2>/dev/null | grep -q "Xcode.app"; then
 fi
 
 ./scripts/build-app.sh
+# Bản phát hành phải ký bằng chứng chỉ cố định — ký tạm thì người dùng bị Keychain hỏi lại quyền sau mỗi lần cập nhật.
+if ! codesign -dr - build/Thaigit.app 2>&1 | grep -q "certificate leaf"; then
+  echo "✗ build/Thaigit.app chưa ký bằng chứng chỉ \"${THAIGIT_SIGN_IDENTITY:-Thaigit Code Signing}\" — dừng phát hành" >&2
+  exit 1
+fi
 
 OUT=build/release
 mkdir -p "$OUT"
