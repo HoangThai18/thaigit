@@ -4,6 +4,7 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 
 ## Chưa phát hành
 
+- Dòng “// WIP” trên graph có avatar của chính bạn, giống các commit khác; số file chưa commit nằm ngay cạnh tên nhánh đang ở (rê chuột vào xem chi tiết) thay vì nằm ở dòng WIP — đúng nhánh thì mới thấy số file của nhánh đó
 - Giải xung đột nhanh hơn: tick chọn từng dòng của mỗi bên, xem trước cả file kết quả và sửa tay trước khi lưu, nhảy giữa các đoạn xung đột bằng nút hoặc ⌥⌘↑ / ⌥⌘↓, chọn nhanh cho mọi đoạn còn lại
 - Danh sách file xung đột hiện số đoạn của từng file; chọn nhiều file (⌘-click) hoặc bấm “Giải quyết tất cả” để dùng bản Current / Incoming cho nhiều file một lần
 - Terminal ngay trong cửa sổ repo (nút Terminal trên thanh công cụ hoặc ⌃`): terminal thật như Terminal.app — có màu, chạy được vim, `git rebase -i`, ssh…, nhiều tab, kéo để đổi chiều cao

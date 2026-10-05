@@ -2,6 +2,12 @@ import { Commands, type OpenedRepo } from '@thaigit/contracts';
 import { call } from './invoke.ts';
 import type { GitInfo, OpenSource, PickedFolder, RecentRepo, RepoHealth } from './types.ts';
 
+/** Repo trên github.com: `owner` + `name` (Rust ghép thành URL, không nhận URL thô từ webview). */
+export interface GithubRepoRef {
+  readonly owner: string;
+  readonly name: string;
+}
+
 // --- chọn thư mục / mở repo (đường dẫn chỉ đến từ Rust: hộp thoại native, "Mở bằng", danh sách gần đây) ---------------
 
 /** Hộp thoại native chọn thư mục. `null` = người dùng bấm Huỷ. Dùng token trả về cho `openRepo` / `cloneRepo` / `initRepo`. */
@@ -43,10 +49,15 @@ export function removeStaleLock(repoId: string, path: string): Promise<void> {
 
 /**
  * Ảnh đại diện người commit dạng data URL (`null` = không có ảnh / không tải được). Rust tải và cache; webview
- * không tự gọi mạng được nên phải đi qua IPC.
+ * không tự gọi mạng được nên phải đi qua IPC. `github` là repo trên github.com của repo đang mở (thiếu thì bỏ
+ * qua nguồn API GitHub) — Rust tự dựng URL và tự chọn token.
  */
-export function avatarLookup(email: string): Promise<string | null> {
-  return call<string | null>(Commands.avatarLookup, { email });
+export function avatarLookup(email: string, github: GithubRepoRef | null): Promise<string | null> {
+  return call<string | null>(Commands.avatarLookup, {
+    email,
+    owner: github?.owner ?? null,
+    repo: github?.name ?? null,
+  });
 }
 
 // --- git (định vị) ------------------------------------------------------------------------------------------------------

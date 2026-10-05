@@ -32,6 +32,9 @@ export const settings: Translation<typeof source> = {
   pullRebase: 'Rebase',
   pullFastForward: 'Fast-forward only',
   fetchPrune: 'Remove deleted remote branches when fetching (--prune)',
+  showAvatars: 'Real author avatars on the graph',
+  showAvatarsTip:
+    'Off = the graph downloads no images and just draws initials (author names never leave this computer)',
   autoFetch: 'Auto-fetch every (minutes, 0 = off)',
 
   diff: 'Diff',

@@ -32,18 +32,8 @@
     wipEmail: string | null;
   }
 
-  let {
-    entries,
-    version,
-    headOid,
-    width,
-    left,
-    start,
-    end,
-    themeVersion,
-    avatars,
-    wipEmail,
-  }: Props = $props();
+  let { entries, version, headOid, width, left, start, end, themeVersion, avatars, wipEmail }: Props =
+    $props();
 
   const ROW = GraphStyle.rowHeight;
   /** Giới hạn cạnh canvas (px thiết bị) để an toàn trên WebKit. */
@@ -145,6 +135,9 @@
     if (!element) return;
     void version;
     void themeVersion;
+    // Ảnh đại diện tải xong giữa chừng: `version` của store tăng, canvas phải vẽ lại ngay (nếu không thì chấm đó
+    // chỉ có avatar sau khi cuộn hoặc đổi dữ liệu).
+    void avatars.version;
     const first = windowFirst;
     const last = Math.min(windowLast, entries.length);
     const ratio = dpr;

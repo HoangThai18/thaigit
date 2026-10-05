@@ -242,6 +242,14 @@
             />
             <span>{vi.settings.fetchPrune}</span>
           </label>
+          <label class="check" title={vi.settings.showAvatarsTip}>
+            <input
+              type="checkbox"
+              checked={value.showAvatars}
+              onchange={(event) => prefs.update({ showAvatars: event.currentTarget.checked })}
+            />
+            <span>{vi.settings.showAvatars}</span>
+          </label>
           <label class="row">
             <span>{vi.settings.autoFetch}</span>
             <input

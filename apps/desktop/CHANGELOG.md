@@ -4,6 +4,8 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## Chưa phát hành
 
+- Chấm trên graph hiện ảnh đại diện thật của người commit (tìm qua GitHub theo email rồi tới Gravatar, chỉ tải ảnh chứ không gửi mã nguồn đi đâu), kể cả chấm của dòng “// WIP” là của chính bạn; chưa có ảnh thì vẽ chữ viết tắt như cũ, và tắt hẳn được ở Cài đặt → “Ảnh đại diện thật trên graph”
+- Số file chưa commit nằm ngay cạnh tên nhánh đang ở (rê chuột vào xem chi tiết) thay vì nằm ở dòng “// WIP” — đúng nhánh thì mới thấy số file của nhánh đó
 - Giải xung đột nhanh hơn: tick chọn từng dòng của mỗi bên, xem trước cả file kết quả và sửa tay trước khi lưu, nhảy giữa các đoạn xung đột bằng nút hoặc Alt + ↑ / ↓, chọn nhanh cho mọi đoạn còn lại
 - Danh sách file xung đột hiện số đoạn của từng file; chọn nhiều file (Ctrl-click) hoặc bấm “Giải quyết tất cả” để dùng bản Current / Incoming cho nhiều file một lần
 - Terminal ngay trong cửa sổ repo (nút Terminal hoặc Ctrl+`): mở sẵn ở thư mục repo, nhiều tab, ẩn đi các lệnh vẫn chạy tiếp

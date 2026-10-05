@@ -9,6 +9,7 @@
   import { changedFileCount, isMergeCommit, isWorkingTreeCommit, shortSha } from '@thaigit/core';
   import { untrack } from 'svelte';
   import { checkout } from '../actions/branches.ts';
+  import { repoForgeTarget } from '../forge/target.ts';
   import { loadIdentity } from '../actions/identity.ts';
   import { commitMenu, labelsMenu } from '../actions/menus.ts';
   import { showBidi } from '../format/bidi.ts';
@@ -100,6 +101,12 @@
   const showError = $derived(store.hasLoaded && store.historyError !== null && store.entries.length === 0);
   const showEmpty = $derived(store.hasLoaded && store.historyError === null && store.entries.length === 0);
 
+  /** Repo trên GitHub của repo đang mở (từ remote `origin`): Rust dùng để tìm ảnh qua API commit. */
+  const githubTarget = $derived.by(() => {
+    const target = repoForgeTarget(store.remotes);
+    return target?.provider === 'github' ? { owner: target.owner, name: target.repo } : null;
+  });
+
   /** Email người đang commit: node dòng WIP vẽ avatar của chính người đó. */
   let wipEmail = $state<string | null>(null);
   $effect(() => {
@@ -112,8 +119,15 @@
     };
   });
 
+  // Repo GitHub của repo đang mở (để Rust tìm ảnh qua API commit). Ảnh đã tải giữ nguyên trong bộ nhớ.
+  $effect(() => {
+    avatars.setEnabled(prefs.value.showAvatars);
+    avatars.github = githubTarget;
+  });
+
   /** Tải ảnh đại diện cho các hàng đang thấy (kể cả hàng vừa cuộn tới): Rust cache sẵn nên lần sau không tải lại. */
   $effect(() => {
+    if (!avatars.enabled) return;
     const first = Math.max(0, rangeStart - OVERSCAN);
     const last = Math.min(store.entries.length, rangeEnd + OVERSCAN);
     for (let index = first; index < last; index++) {
@@ -345,7 +359,8 @@
             {@const primary = label.isDetachedHead
               ? undefined
               : (label.refs.find((ref) => ref.kind === 'localBranch') ?? label.refs[0])}
-            {@const badge = label.isCurrentBranch && pendingOnCurrent > 0 ? vi.graph.pillPending(pendingOnCurrent) : null}
+            {@const badge =
+              label.isCurrentBranch && pendingOnCurrent > 0 ? vi.graph.pillPending(pendingOnCurrent) : null}
             <span
               class="pill"
               class:current={label.isCurrentBranch}
@@ -434,7 +449,7 @@
     end={range.end}
     themeVersion={theme.version}
     {avatars}
-    wipEmail={wipEmail}
+    {wipEmail}
   />
 {/snippet}
 

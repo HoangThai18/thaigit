@@ -162,11 +162,12 @@ describe('layoutPills', () => {
     const current: RefLabel = { ...label('main'), isCurrentBranch: true };
     const plain = layoutPills([current, label('dev')], 400, measure);
     const withBadge = layoutPills([current, label('dev')], 400, measure, 5);
-    // Badge "✎ 5" dài 3 chữ: 5px khoảng cách + 18px.
-    expect((withBadge.pills[0]?.width ?? 0) - (plain.pills[0]?.width ?? 0)).toBe(PILL.badgeGap + 3 * 6);
+    // Badge "✎ 5" dài 3 chữ: gap 3px + 5px + đệm 8px + 18px chữ.
+    const badgeCost = PILL.iconGap + PILL.badgeGap + PILL.badgePadX * 2 + 3 * 6;
+    expect((withBadge.pills[0]?.width ?? 0) - (plain.pills[0]?.width ?? 0)).toBe(badgeCost);
     // Badge nằm trong viên đầu nên viên sau chỉ dịch sang phải, không đổi bề rộng.
     expect(withBadge.pills[1]?.width).toBe(plain.pills[1]?.width);
-    expect((withBadge.pills[1]?.x ?? 0) - (plain.pills[1]?.x ?? 0)).toBe(PILL.badgeGap + 3 * 6);
+    expect((withBadge.pills[1]?.x ?? 0) - (plain.pills[1]?.x ?? 0)).toBe(badgeCost);
   });
 
   it('chỉ có số file (không phải nhánh) thì không viên nào rộng thêm', () => {

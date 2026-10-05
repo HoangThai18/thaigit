@@ -53,6 +53,8 @@ export interface PrefsData {
   diffLayout: DiffLayout;
   /** Danh sách file thay đổi dạng cây thư mục (Path / Tree như GitKraken). */
   fileListTree: boolean;
+  /** Ảnh đại diện thật trên node graph. Tắt thì không tải ảnh nào (Swift: `AvatarStore.enabledKey`). */
+  showAvatars: boolean;
   /** Diff bỏ qua thay đổi chỉ về khoảng trắng (`--ignore-all-space`). */
   diffIgnoreWhitespace: boolean;
   /** Tự lưu snapshot thư mục làm việc khi file đổi (Dòng thời gian). */
@@ -112,6 +114,7 @@ export function defaultPrefs(): PrefsData {
     diffContext: 3,
     diffLayout: 'unified',
     fileListTree: false,
+    showAvatars: true,
     diffIgnoreWhitespace: false,
     snapshotsEnabled: true,
     snapshotKeepDays: snapshotSpec.defaults.keepDays,
@@ -182,6 +185,7 @@ export function sanitizePrefs(raw: unknown): PrefsData {
     diffContext: clamp(source.diffContext, 0, DIFF_CONTEXT_MAX, base.diffContext),
     diffLayout: source.diffLayout === 'split' ? 'split' : 'unified',
     fileListTree: bool(source.fileListTree, base.fileListTree),
+    showAvatars: bool(source.showAvatars, base.showAvatars),
     diffIgnoreWhitespace: bool(source.diffIgnoreWhitespace, base.diffIgnoreWhitespace),
     snapshotsEnabled: bool(source.snapshotsEnabled, base.snapshotsEnabled),
     snapshotKeepDays: clamp(

@@ -31,6 +31,7 @@ export {
   worktreeAdd,
 } from './gitHost.ts';
 export type { CloneOptions } from './gitHost.ts';
+export type { GithubRepoRef } from './host.ts';
 export {
   avatarLookup,
   forgetRecentRepo,

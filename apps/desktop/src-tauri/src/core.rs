@@ -157,6 +157,17 @@ pub struct Core {
     base_env: Option<EnvMap>,
 }
 
+impl Core {
+    /// Data URL ảnh đại diện của người commit (`repo` = repo GitHub của repo đang mở, nếu có). Rust tự chọn
+    /// token GitHub theo owner và tự dựng URL — webview chỉ đưa tên owner/repo. `None` khi không có ảnh.
+    pub async fn avatar(&self, email: &str, repo: Option<crate::avatars::GitHubRepo>) -> Option<String> {
+        let token = repo
+            .as_ref()
+            .and_then(|repo| self.accounts.resolve("github.com", Some(&repo.owner)).and_then(|resolved| resolved.token));
+        self.avatars.data_url(email, repo.as_ref(), token.as_deref()).await
+    }
+}
+
 /// Kết quả chạy một lệnh git nội bộ.
 pub struct GitOutput {
     pub exit: ExitInfo,

@@ -21,6 +21,7 @@ struct CommitGraphView: View {
                 headOID: model.headOID,
                 workingTreeSummary: workingTreeSummary,
                 pendingCount: model.status.changedFileCount,
+                showsPendingOnWipRow: model.currentBranch == nil,
                 committerEmail: model.committerIdentity?.email,
                 isHidden: model.openFile != nil
             )
@@ -106,6 +107,12 @@ private struct CommitTable: NSViewRepresentable {
     let isSearching: Bool
     let headOID: String?
     let workingTreeSummary: String
+    /// Số file chưa commit — badge "✎ N" trên viên nhánh đang checkout (0 = không có).
+    let pendingCount: Int
+    /// HEAD tách rời thì không có nhánh để gắn số file, dòng WIP tự in tóm tắt thay vì im lặng.
+    let showsPendingOnWipRow: Bool
+    /// Email người đang commit — node dòng WIP vẽ avatar của chính người đó.
+    let committerEmail: String?
     let isHidden: Bool
 
     func makeCoordinator() -> Coordinator {
@@ -179,6 +186,16 @@ private struct CommitTable: NSViewRepresentable {
         return scrollView
     }
 
+    /// Số file chưa commit đổi thì vẽ lại đúng hai hàng liên quan: dòng WIP (tóm tắt khi HEAD tách rời) và
+    /// hàng đang mang nhãn nhánh hiện tại (badge "✎ N").
+    private func reloadPendingRows(_ table: NSTableView, entries: [GraphEntry]) {
+        var rows = IndexSet()
+        if let first = entries.firstIndex(where: { $0.commit.isWorkingTree }) { rows.insert(first) }
+        if let current = entries.firstIndex(where: { $0.labels.contains(where: \.isCurrentBranch) }) { rows.insert(current) }
+        guard !rows.isEmpty else { return }
+        table.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integersIn: 0..<table.numberOfColumns))
+    }
+
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let coordinator = context.coordinator
         guard let table = coordinator.table else { return }
@@ -186,6 +203,15 @@ private struct CommitTable: NSViewRepresentable {
         coordinator.githubRepo = model.githubRepo
         coordinator.headOID = headOID
         coordinator.workingTreeSummary = workingTreeSummary
+        coordinator.pendingCount = pendingCount
+        coordinator.committerEmail = committerEmail
+        coordinator.showsPendingOnWipRow = showsPendingOnWipRow
+        // `user.email` đọc bất đồng bộ: lần vẽ đầu dòng WIP chưa có email nên chưa hỏi được ảnh. Đọc xong thì vẽ lại
+        // cột graph của các dòng đang hiện để node WIP có avatar.
+        if coordinator.lastCommitterEmail != committerEmail {
+            coordinator.lastCommitterEmail = committerEmail
+            coordinator.refreshAvatars()
+        }
 
         var needsReload = false
         if coordinator.version != version {
@@ -208,9 +234,11 @@ private struct CommitTable: NSViewRepresentable {
         }
         if coordinator.lastWorkingTreeSummary != workingTreeSummary {
             coordinator.lastWorkingTreeSummary = workingTreeSummary
-            if !needsReload, !entries.isEmpty, entries[0].commit.isWorkingTree {
-                table.reloadData(forRowIndexes: IndexSet(integer: 0), columnIndexes: IndexSet(integersIn: 0..<table.numberOfColumns))
-            }
+            reloadPendingRows(table, entries: entries)
+        }
+        if coordinator.lastPendingCount != pendingCount {
+            coordinator.lastPendingCount = pendingCount
+            reloadPendingRows(table, entries: entries)
         }
         if needsReload {
             coordinator.isUpdatingSelection = true
@@ -258,8 +286,13 @@ private struct CommitTable: NSViewRepresentable {
         var lastWorkingTreeSummary = ""
         /// Số file chưa commit (đổi theo status): badge ở viên nhánh đang checkout.
         var pendingCount = 0
+        var lastPendingCount = -1
         /// Email người đang commit — node dòng WIP vẽ avatar của chính người đó.
         var committerEmail: String?
+        /// HEAD tách rời: không có nhánh để gắn số file, dòng WIP tự in tóm tắt.
+        var showsPendingOnWipRow = false
+        /// Email commit lần trước đã vẽ — đổi thì vẽ lại cột graph (ảnh WIP phải hỏi lại store).
+        var lastCommitterEmail: String?
         var isUpdatingSelection = false
         var didInitialSizing = false
         /// Dòng người dùng vừa chọn nhưng chưa báo cho model (báo ở vòng lặp sau để tránh gọi lồng vào NSTableView).
@@ -309,7 +342,7 @@ private struct CommitTable: NSViewRepresentable {
         }
 
         /// Ảnh đại diện vừa tải xong: vẽ lại cột graph của các dòng đang hiện.
-        private func refreshAvatars() {
+        func refreshAvatars() {
             guard let table, let column = table.tableColumns.firstIndex(where: { $0.identifier == Column.graph }) else { return }
             let visible = table.rows(in: table.visibleRect)
             guard visible.length > 0 else { return }
@@ -477,7 +510,8 @@ private struct CommitTable: NSViewRepresentable {
                         .foregroundColor: NSColor.secondaryLabelColor,
                         .paragraphStyle: paragraph,
                     ])
-                    if !workingTreeSummary.isEmpty {
+                    // Có nhánh đang đứng thì số file đã nằm trên viên nhánh; chỉ HEAD tách rời mới in ở đây.
+                    if showsPendingOnWipRow, !workingTreeSummary.isEmpty {
                         text.append(NSAttributedString(string: "    " + workingTreeSummary, attributes: [
                             .font: Self.secondaryFont,
                             .foregroundColor: NSColor.tertiaryLabelColor,

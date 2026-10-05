@@ -31,6 +31,9 @@ export const settings = {
   pullRebase: 'Rebase',
   pullFastForward: 'Chỉ fast-forward',
   fetchPrune: 'Dọn nhánh remote đã bị xoá khi fetch (--prune)',
+  /** Node graph vẽ ảnh đại diện thật của người commit. */
+  showAvatars: 'Ảnh đại diện thật trên graph',
+  showAvatarsTip: 'Tắt thì graph không tải ảnh nào, chỉ vẽ chữ cái đầu (tên người commit không rời máy)',
   autoFetch: 'Tự fetch mỗi (phút, 0 = tắt)',
 
   diff: 'Diff',

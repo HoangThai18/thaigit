@@ -682,7 +682,7 @@ pub fn check_host(host: &str, provider: Option<Provider>) -> Result<(String, Pro
 }
 
 /// owner + repo từ webview: chữ, số, `-`, `_`, `.`, `/` và dài có hạn (đi qua `provider_for` để kiểm host).
-fn check_repo_path(owner: &str, repo: &str) -> Result<(String, String)> {
+pub(crate) fn check_repo_path(owner: &str, repo: &str) -> Result<(String, String)> {
     let clean = |value: &str, what: &str| -> Result<String> {
         let trimmed = value.trim().trim_matches('/').to_string();
         if trimmed.is_empty()

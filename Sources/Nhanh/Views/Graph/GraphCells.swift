@@ -274,6 +274,8 @@ final class RefsCellView: NSTableCellView {
     private static let iconSize: CGFloat = 10
     private static let badgeFont = NSFont.systemFont(ofSize: 10, weight: .bold)
     private static let badgeGap: CGFloat = 5
+    /// Đệm hai bên của badge (bề rộng viên đã tính sẵn phần này, DOM của app Tauri cũng vậy).
+    private static let badgePadX: CGFloat = 4
 
     private struct Pill {
         let index: Int
@@ -296,8 +298,9 @@ final class RefsCellView: NSTableCellView {
         return "✎ \(pendingCount)"
     }
 
+    /// Bề rộng badge gồm cả đệm hai bên — phải khớp `PILL.badgePadX` của app Tauri để hai bản nhìn giống nhau.
     private func badgeSize(_ text: String) -> CGFloat {
-        ceil(NSAttributedString(string: text, attributes: Self.badgeAttributes).size().width)
+        ceil(NSAttributedString(string: text, attributes: Self.badgeAttributes).size().width) + Self.badgePadX * 2
     }
 
     /// Vị trí các viên nhãn trong ô (dùng chung cho vẽ và xác định nhãn dưới con trỏ khi kéo-thả).
@@ -433,8 +436,8 @@ final class RefsCellView: NSTableCellView {
             NSAttributedString(string: label.text, attributes: attributes)
                 .draw(with: textRect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
             if let badge {
-                drawBadge(badge, in: CGRect(x: rect.maxX - 6 - badgeSize(badge), y: mid - 7,
-                                           width: badgeSize(badge), height: 14), alpha: alpha)
+                let size = badgeSize(badge)
+                drawBadge(badge, in: CGRect(x: rect.maxX - 6 - size, y: mid - 7, width: size, height: 14), alpha: alpha)
             }
         }
         if let more = layout.moreRect {
@@ -521,6 +524,7 @@ final class RefsCellView: NSTableCellView {
         let size = attributed.size()
         attributed.draw(at: CGPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2))
     }
+
 
     private func drawMore(count: Int, in rect: CGRect, alpha: CGFloat) {
         NSColor.secondaryLabelColor.withAlphaComponent(0.25 * alpha).setFill()

@@ -174,10 +174,17 @@ pub fn remove_stale_lock(core: CoreState<'_>, repo_id: String, path: String) -> 
 }
 
 /// Ảnh đại diện của người commit, dạng data URL để canvas graph vẽ được (webview không tự gọi mạng).
-/// `None` khi không có ảnh hoặc không tải được — giao diện vẽ chữ viết tắt, không cần báo lỗi.
+/// `owner` / `repo` là repo trên github.com của repo đang mở (thiếu thì bỏ qua nguồn API GitHub); Rust kiểm
+/// ký tự và tự dựng URL. `None` khi không có ảnh hoặc không tải được — giao diện vẽ chữ viết tắt, không cần báo lỗi.
 #[tauri::command]
-pub async fn avatar_lookup(core: CoreState<'_>, email: String) -> Result<Option<String>> {
-    Ok(core.avatars.data_url(&email, crate::avatars::AVATAR_SIZE).await)
+pub async fn avatar_lookup(
+    core: CoreState<'_>,
+    email: String,
+    owner: Option<String>,
+    repo: Option<String>,
+) -> Result<Option<String>> {
+    let target = crate::avatars::github_repo(owner.as_deref(), repo.as_deref());
+    Ok(core.avatar(&email, target).await)
 }
 
 // --- RepoFs -------------------------------------------------------------------------------------------------------------

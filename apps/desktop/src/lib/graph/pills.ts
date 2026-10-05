@@ -200,6 +200,8 @@ export const PILL = {
   minAvailable: 44,
   /** Khoảng cách giữa tên nhánh và badge số file chưa commit. */
   badgeGap: 5,
+  /** Đệm hai bên của badge (`.pill-badge` có `padding: 0 4px`) — phải tính vào bề rộng nếu không sẽ bóp tên nhánh. */
+  badgePadX: 4,
 } as const;
 
 export interface PillPlacement {
@@ -254,14 +256,15 @@ export function layoutPills(
   return layout;
 }
 
-/** Phần chừa thêm cho badge "✎ N" (khoảng cách + chữ) — chỉ viên của nhánh đang đứng. */
-function badgeExtra(
-  label: RefLabel,
-  pendingCount: number,
-  measure: (text: string) => number,
-): number {
+/**
+ * Phần chừa thêm cho badge "✎ N" — chỉ viên của nhánh đang đứng. Tính cả `gap` của flex trước badge và đệm hai bên
+ * của nó: thiếu hai thứ này thì tên nhánh bị cắt cụt ("m…") dù cột còn dư chỗ.
+ */
+function badgeExtra(label: RefLabel, pendingCount: number, measure: (text: string) => number): number {
   if (!label.isCurrentBranch || pendingCount <= 0) return 0;
-  return PILL.badgeGap + Math.ceil(measure(vi.graph.pillPending(pendingCount)));
+  return (
+    PILL.iconGap + PILL.badgeGap + PILL.badgePadX * 2 + Math.ceil(measure(vi.graph.pillPending(pendingCount)))
+  );
 }
 
 // MARK: - Màu

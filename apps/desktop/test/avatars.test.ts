@@ -41,17 +41,17 @@ describe('AvatarStore', () => {
     expect(asked).toEqual([]);
   });
 
-  it('lỗi của cổng tải không được ghi thành "không có ảnh": lần sau còn thử lại', async () => {
+  it('lỗi của cổng tải thì thử lại được, nhưng không hỏi vô hạn', async () => {
     let calls = 0;
     const store = new AvatarStore(async () => {
       calls += 1;
       throw new Error('mạng hỏng');
     });
-    store.ensure('a@b.c');
-    await settle();
-    store.ensure('a@b.c');
-    await settle();
-    expect(calls).toBe(2);
+    for (let i = 0; i < 6; i++) {
+      store.ensure('a@b.c');
+      await settle();
+    }
+    expect(calls).toBe(3);
   });
 
   it('không có ảnh thì `image` trả null, `version` không đổi', async () => {
@@ -60,5 +60,33 @@ describe('AvatarStore', () => {
     await settle();
     expect(store.image('a@b.c')).toBeNull();
     expect(store.version).toBe(0);
+  });
+
+  it('tắt ảnh đại diện thì không hỏi gì; bật lại thì hỏi như cũ', async () => {
+    let calls = 0;
+    const store = new AvatarStore(async () => {
+      calls += 1;
+      return null;
+    });
+    store.setEnabled(false);
+    store.ensure('a@b.c');
+    await settle();
+    expect(calls).toBe(0);
+    store.setEnabled(true);
+    store.ensure('a@b.c');
+    await settle();
+    expect(calls).toBe(1);
+  });
+
+  it('repo GitHub của repo đang mở được truyền xuống để tìm ảnh qua API commit', async () => {
+    const seen: [string, { owner: string; name: string } | null][] = [];
+    const store: AvatarStore = new AvatarStore(async (email, github) => {
+      seen.push([email, github]);
+      return null;
+    });
+    store.github = { owner: 'acme', name: 'app' };
+    store.ensure('a@b.c');
+    await settle();
+    expect(seen).toEqual([['a@b.c', { owner: 'acme', name: 'app' }]]);
   });
 });
