@@ -81,7 +81,7 @@ public enum RebaseError: LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .notOnCurrentBranch(let sha): return String(localized: "Commit \(sha.prefix(7)) không nằm trên nhánh hiện tại nên không rebase từ đó được.")
+        case .notOnCurrentBranch(let sha): return String(localized: "Commit \(String(sha.prefix(7))) không nằm trên nhánh hiện tại nên không rebase từ đó được.")
         }
     }
 }
