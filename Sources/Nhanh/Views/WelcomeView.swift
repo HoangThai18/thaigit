@@ -9,6 +9,7 @@ struct WelcomeView: View {
     var onClone: () -> Void
     var onInit: () -> Void
     @State private var isDropTargeted = false
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         HStack(spacing: 0) {
@@ -36,6 +37,16 @@ struct WelcomeView: View {
                                         systemImage: "arrow.down.circle.fill", tint: .green, shortcut: "⇧⌘O", action: onClone)
                     WelcomeActionButton(title: String(localized: "Tạo repository mới"), subtitle: String(localized: "Khởi tạo Git cho một thư mục"),
                                         systemImage: "plus.square.fill", tint: Brand.orange, shortcut: "⌥⌘N", action: onInit)
+                    WelcomeActionButton(title: String(localized: "Cài đặt"), subtitle: String(localized: "Giao diện, ngôn ngữ, Git, tự fetch…"),
+                                        systemImage: "gearshape.fill", tint: .gray, shortcut: "⌘,") {
+                        UserDefaults.standard.set(SettingsTab.general.rawValue, forKey: Prefs.settingsTab)
+                        openSettings()
+                    }
+                    WelcomeActionButton(title: String(localized: "Tài khoản GitHub / GitLab"), subtitle: String(localized: "Đăng nhập để clone, fetch, push không phải nhập lại"),
+                                        systemImage: "person.crop.circle.fill", tint: .purple, shortcut: "") {
+                        UserDefaults.standard.set(SettingsTab.account.rawValue, forKey: Prefs.settingsTab)
+                        openSettings()
+                    }
                 }
 
                 if let error {

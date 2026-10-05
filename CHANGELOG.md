@@ -33,6 +33,7 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Danh sách file thay đổi xem được dạng cây thư mục (nút cạnh "Stage tất cả", như Path / Tree của GitKraken): gập / mở thư mục, stage hoặc bỏ stage cả thư mục một lần bấm
 - Hàng nút trên thanh công cụ gọn và dễ nhìn hơn: nền sáng, mỗi thao tác một màu biểu tượng (Fetch xanh dương, Pull xanh ngọc, Push xanh lá, Branch tím, Stash / Pop cam), cả giao diện sáng lẫn tối
 - Nút Cài đặt và Profile ở góc phải thanh công cụ: avatar tên / email đang dùng để commit, bấm để đổi tên & email Git, chọn tài khoản GitHub / GitLab cho repo hoặc mở Cài đặt
+- Trang chủ có nút Cài đặt và Tài khoản GitHub / GitLab ngay dưới Mở / Clone / Tạo repository
 
 ## 1.1.1 — 2026-10-03
 

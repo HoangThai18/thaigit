@@ -281,6 +281,7 @@
 "Ghi đè" = "Overwrite";
 "Ghi đè %@/%@ bằng bản trên máy bạn (--force-with-lease: sẽ dừng nếu remote có commit mới mà bạn chưa fetch)." = "Overwrite %@/%@ with your local version (--force-with-lease: stops if the remote has new commits you haven't fetched).";
 "Ghi đè %@?" = "Overwrite %@?";
+"Giao diện, ngôn ngữ, Git, tự fetch…" = "Appearance, language, Git, auto fetch…";
 "Git Flow dừng giữa chừng" = "Git Flow stopped partway";
 "Git Flow: bắt đầu %@…" = "Git Flow: Start %@…";
 "Git Flow: khởi tạo…" = "Git Flow: Initialize…";
@@ -801,6 +802,7 @@
 "Trước khi khôi phục" = "Before restore";
 "Tài khoản" = "Accounts";
 "Tài khoản GitHub" = "GitHub Accounts";
+"Tài khoản GitHub / GitLab" = "GitHub / GitLab Accounts";
 "Tài khoản GitHub / GitLab cho repo này…" = "GitHub / GitLab Account for This Repo…";
 "Tài khoản GitHub cho %@" = "GitHub Account for %@";
 "Tài khoản GitHub cho repo này" = "GitHub Account for This Repository";
@@ -1127,6 +1129,7 @@
 "Đăng nhập lại" = "Sign In Again";
 "Đăng nhập lại @%@" = "Sign In Again as @%@";
 "Đăng nhập lại…" = "Sign In Again…";
+"Đăng nhập để clone, fetch, push không phải nhập lại" = "Sign in once to clone, fetch and push without retyping";
 "Đăng nhập để fetch / pull / push repo HTTPS trên github.com và chọn nhanh repo khi clone — không cần tự tạo token. Có thể thêm nhiều tài khoản (cá nhân, công ty…)." = "Sign in to fetch / pull / push HTTPS repositories on github.com and quickly pick repositories when cloning — no need to create a token yourself. You can add several accounts (personal, work…).";
 "Đường dẫn git" = "Git path";
 "Push commit của nhánh hiện tại lên remote (⇧⌘P)" = "Push the current branch's commits to the remote (⇧⌘P)";
