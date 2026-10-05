@@ -53,7 +53,7 @@
 	<key>ThaigitGitHubClientID</key>
 	<string>Ov23li9UeeQjJJwQqLqH</string>
 	<key>ThaigitGitLabClientID</key>
-	<string></string>
+	<string>506513c86541200954d6656725fab6cc78b0b458cae231f79a72e09c9b94f66d</string>
 	<key>ThaigitUpdateFeedURL</key>
 	<string>https://github.com/HoangThai18/thaigit/releases/latest/download/update.json</string>
 	<key>ThaigitUpdatePublicKey</key>
