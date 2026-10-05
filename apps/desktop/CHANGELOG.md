@@ -2,7 +2,7 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
-## Chưa phát hành
+## 2.2.0 — 2026-10-05
 
 - Nhiều nhánh / tag cùng một commit: nhãn ưu tiên nhánh đang đứng rồi main / master / develop; rê chuột vào "+N" hiện danh sách nhánh bị gom, bấm để chọn nhánh (Checkout, Merge, Push…); nhấp đúp lên nhãn checkout đúng nhánh đó
 - Checkout khi còn thay đổi chưa commit: Thaigit tự stash, chuyển nhánh rồi mang thay đổi sang (như GitKraken) — không còn báo lỗi; xung đột thì bản gốc vẫn giữ trong stash
