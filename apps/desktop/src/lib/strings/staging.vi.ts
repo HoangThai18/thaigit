@@ -67,6 +67,10 @@ export const staging = {
   layoutLabel: 'Bố cục diff',
   layoutUnified: 'Một cột',
   layoutSplit: 'Hai cột',
+  listAsTree: 'Xem dạng cây thư mục',
+  listAsPaths: 'Đang xem dạng cây — bấm để xem danh sách đường dẫn',
+  stageFolder: 'Stage cả thư mục',
+  unstageFolder: 'Bỏ stage cả thư mục',
   ignoreWhitespace: 'Bỏ qua khoảng trắng',
   ignoreWhitespaceTip:
     'Ẩn các thay đổi chỉ về khoảng trắng / thụt lề (git diff -w). Khi bật thì không stage / huỷ từng dòng được.',

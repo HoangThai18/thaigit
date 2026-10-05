@@ -19,8 +19,11 @@
   import { drag } from '../dnd/drag.svelte.ts';
   import { showBidi } from '../format/bidi.ts';
   import ChangeIcon from '../inspector/ChangeIcon.svelte';
+  import { prefs } from '../stores/prefs.svelte.ts';
+  import { vi } from '../strings.vi.ts';
   import Icon from '../ui/Icon.svelte';
   import VirtualList from '../ui/VirtualList.svelte';
+  import { fileTreeRows, type FileTreeRow } from './fileTree.ts';
 
   interface Props {
     files: readonly FileChange[];
@@ -41,6 +44,8 @@
     dragFrom?: 'unstaged' | 'staged';
     /** Danh sách này nhận file thả vào. */
     dropZone?: 'unstaged' | 'staged';
+    /** Dạng cây: nút trên hàng thư mục (Stage / Bỏ stage cả thư mục). */
+    folderAction?: { title: string; icon: IconName; run: (changes: readonly FileChange[]) => void } | null;
   }
 
   let {
@@ -55,7 +60,22 @@
     onmenu,
     dragFrom,
     dropZone,
+    folderAction = null,
   }: Props = $props();
+
+  /** Path / Tree như GitKraken (cài đặt chung cho mọi danh sách file). */
+  const tree = $derived(prefs.value.fileListTree);
+  let collapsed = $state<ReadonlySet<string>>(new Set());
+  const rows = $derived<readonly FileTreeRow[]>(
+    tree ? fileTreeRows(files, collapsed) : files.map((change) => ({ kind: 'file', change, depth: 0 })),
+  );
+
+  function toggleFolder(path: string): void {
+    const next = new Set(collapsed);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    collapsed = next;
+  }
 </script>
 
 <section class="changes" data-drop={dropZone ? `zone:${dropZone}` : undefined}>
@@ -63,6 +83,16 @@
     <span class="title">{title}</span>
     <span class="count">{files.length}</span>
     <span class="grow"></span>
+    <button
+      type="button"
+      class="header-action icon-only"
+      title={tree ? vi.staging.listAsPaths : vi.staging.listAsTree}
+      aria-label={tree ? vi.staging.listAsPaths : vi.staging.listAsTree}
+      aria-pressed={tree}
+      onclick={() => prefs.update({ fileListTree: !tree })}
+    >
+      <Icon name={tree ? 'list' : 'folder'} size={14} />
+    </button>
     {#if headerAction && files.length > 0}
       <button type="button" class="header-action" onclick={headerAction.run}>
         <Icon name={headerAction.icon} size={14} />
@@ -75,69 +105,115 @@
       <p class="empty">{emptyText}</p>
     {:else}
       <VirtualList
-        items={files}
+        items={rows}
         rowHeight={28}
         overscan={8}
-        key={(change) => `${change.kind}:${change.path}`}
+        key={(item) =>
+          item.kind === 'folder' ? `dir:${item.path}` : `${item.change.kind}:${item.change.path}`}
       >
-        {#snippet row(change: FileChange)}
-          <div
-            class="file"
-            class:selected={selectedPath === change.path}
-            role="button"
-            tabindex="0"
-            title={showBidi(change.oldPath ? `${change.oldPath} → ${change.path}` : change.path)}
-            onpointerdown={(event) => {
-              const from = dragFrom;
-              if (from)
-                drag.begin(event, () => ({
-                  kind: 'files',
-                  from,
-                  changes: [change],
-                  label: fileChangeName(change),
-                }));
-            }}
-            onclick={() => onopen?.(change)}
-            ondblclick={() => onprimary?.(change)}
-            oncontextmenu={(event) => onmenu?.(event, change)}
-            onkeydown={(event) => {
-              if (event.key === 'Enter') onopen?.(change);
-              else if (event.key === ' ') {
-                event.preventDefault();
-                onprimary?.(change);
-              }
-            }}
-          >
-            <ChangeIcon kind={change.kind} />
-            <span class="name"><bdi>{showBidi(fileChangeName(change))}</bdi></span>
-            {#if fileChangeDirectory(change) !== ''}
-              <span class="dir"><bdi>{showBidi(fileChangeDirectory(change))}</bdi></span>
-            {/if}
-            <span class="grow"></span>
-            <span class="actions">
-              {#each actions as action (action.title)}
-                <button
-                  type="button"
-                  class="row-action"
-                  class:destructive={action.destructive}
-                  title={action.title}
-                  aria-label={action.title}
-                  onclick={(event) => {
-                    event.stopPropagation();
-                    action.run(change);
-                  }}
-                  ondblclick={(event) => event.stopPropagation()}
-                >
-                  <Icon name={action.icon} size={14} />
-                </button>
-              {/each}
-            </span>
-          </div>
+        {#snippet row(item: FileTreeRow)}
+          {#if item.kind === 'folder'}
+            <div
+              class="file folder"
+              role="button"
+              tabindex="0"
+              aria-expanded={!collapsed.has(item.path)}
+              style:padding-left="{14 + item.depth * 14}px"
+              onclick={() => toggleFolder(item.path)}
+              onkeydown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  toggleFolder(item.path);
+                }
+              }}
+            >
+              <Icon name={collapsed.has(item.path) ? 'chevron-right' : 'chevron-down'} size={11} />
+              <Icon name="folder" size={14} />
+              <span class="name"><bdi>{showBidi(item.name)}</bdi></span>
+              <span class="dir">{item.count}</span>
+              <span class="grow"></span>
+              {#if folderAction}
+                {@const action = folderAction}
+                <span class="actions">
+                  <button
+                    type="button"
+                    class="row-action"
+                    title={action.title}
+                    aria-label={action.title}
+                    onclick={(event) => {
+                      event.stopPropagation();
+                      action.run(files.filter((change) => change.path.startsWith(`${item.path}/`)));
+                    }}
+                  >
+                    <Icon name={action.icon} size={14} />
+                  </button>
+                </span>
+              {/if}
+            </div>
+          {:else}
+            {@render fileRow(item.change, item.depth)}
+          {/if}
         {/snippet}
       </VirtualList>
     {/if}
   </div>
 </section>
+
+{#snippet fileRow(change: FileChange, depth: number)}
+  <div
+    class="file"
+    class:selected={selectedPath === change.path}
+    style:padding-left={tree ? `${28 + depth * 14}px` : undefined}
+    role="button"
+    tabindex="0"
+    title={showBidi(change.oldPath ? `${change.oldPath} → ${change.path}` : change.path)}
+    onpointerdown={(event) => {
+      const from = dragFrom;
+      if (from)
+        drag.begin(event, () => ({
+          kind: 'files',
+          from,
+          changes: [change],
+          label: fileChangeName(change),
+        }));
+    }}
+    onclick={() => onopen?.(change)}
+    ondblclick={() => onprimary?.(change)}
+    oncontextmenu={(event) => onmenu?.(event, change)}
+    onkeydown={(event) => {
+      if (event.key === 'Enter') onopen?.(change);
+      else if (event.key === ' ') {
+        event.preventDefault();
+        onprimary?.(change);
+      }
+    }}
+  >
+    <ChangeIcon kind={change.kind} />
+    <span class="name"><bdi>{showBidi(fileChangeName(change))}</bdi></span>
+    {#if !tree && fileChangeDirectory(change) !== ''}
+      <span class="dir"><bdi>{showBidi(fileChangeDirectory(change))}</bdi></span>
+    {/if}
+    <span class="grow"></span>
+    <span class="actions">
+      {#each actions as action (action.title)}
+        <button
+          type="button"
+          class="row-action"
+          class:destructive={action.destructive}
+          title={action.title}
+          aria-label={action.title}
+          onclick={(event) => {
+            event.stopPropagation();
+            action.run(change);
+          }}
+          ondblclick={(event) => event.stopPropagation()}
+        >
+          <Icon name={action.icon} size={14} />
+        </button>
+      {/each}
+    </span>
+  </div>
+{/snippet}
 
 <style>
   .changes {
@@ -185,6 +261,19 @@
     font: inherit;
     font-size: 12px;
     cursor: pointer;
+  }
+
+  .header-action.icon-only {
+    padding: 2px 5px;
+  }
+
+  .header-action[aria-pressed='true'] {
+    color: var(--accent);
+  }
+
+  .folder :global(svg) {
+    flex: none;
+    color: var(--text-secondary);
   }
 
   .header-action:hover {

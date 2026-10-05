@@ -82,6 +82,11 @@
       dragFrom="unstaged"
       dropZone="unstaged"
       headerAction={{ title: vi.staging.stageAll, icon: 'stage', run: () => void stageAll(store) }}
+      folderAction={{
+        title: vi.staging.stageFolder,
+        icon: 'stage',
+        run: (changes) => void stageFiles(store, changes),
+      }}
       actions={[
         {
           icon: 'discard',
@@ -106,6 +111,11 @@
       dragFrom="staged"
       dropZone="staged"
       headerAction={{ title: vi.staging.unstageAll, icon: 'unstage', run: () => void unstageAll(store) }}
+      folderAction={{
+        title: vi.staging.unstageFolder,
+        icon: 'unstage',
+        run: (changes) => void unstageFiles(store, changes),
+      }}
       actions={[
         {
           icon: 'unstage',

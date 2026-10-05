@@ -65,6 +65,10 @@ export const staging: Translation<typeof source> = {
   layoutLabel: 'Diff layout',
   layoutUnified: 'Unified',
   layoutSplit: 'Split',
+  listAsTree: 'Show as folder tree',
+  listAsPaths: 'Showing a folder tree — click to show a path list',
+  stageFolder: 'Stage whole folder',
+  unstageFolder: 'Unstage whole folder',
   ignoreWhitespace: 'Ignore whitespace',
   ignoreWhitespaceTip:
     'Hide changes that only touch whitespace / indentation (git diff -w). While on, you can’t stage or discard single lines.',

@@ -33,6 +33,12 @@ export const ICONS = {
   copy: [rect(9, 9, 11, 11, 2.2), d('M5.5 15V6.7A2.2 2.2 0 0 1 7.7 4.5H15')],
   search: [circle(10.8, 10.8, 6.3), d('M15.6 15.6l4.6 4.6')],
   filter: [d('M4 7.5h16M7 12h10M10 16.5h4')],
+  list: [
+    d('M8.5 7h11M8.5 12h11M8.5 17h11'),
+    circle(4.8, 7, 0.9, true),
+    circle(4.8, 12, 0.9, true),
+    circle(4.8, 17, 0.9, true),
+  ],
   folder: [d('M3.5 7.3A2 2 0 0 1 5.5 5.3h3.9l2.1 2.5h7a2 2 0 0 1 2 2v7.4a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z')],
   branch: [
     circle(6.5, 5.5, 2.3),
