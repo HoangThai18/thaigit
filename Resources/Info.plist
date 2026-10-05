@@ -4,11 +4,6 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>vi</string>
-	<key>CFBundleLocalizations</key>
-	<array>
-		<string>vi</string>
-		<string>en</string>
-	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Thaigit</string>
 	<key>CFBundleDocumentTypes</key>
@@ -34,14 +29,19 @@
 	<string>com.phanthai.thaigit</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>vi</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>Thaigit</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.1</string>
+	<string>1.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
+	<string>4</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.developer-tools</string>
 	<key>LSMinimumSystemVersion</key>
