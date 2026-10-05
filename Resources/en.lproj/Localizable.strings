@@ -887,6 +887,7 @@
 "Worktree đang bị khoá" = "The worktree is locked";
 "Xem nhánh" = "Show Branches";
 "Xem quyền của Thaigit" = "Review Thaigit's Permissions";
+"Xem thay đổi chưa commit (⌘0)" = "Show uncommitted changes (⌘0)";
 "Xem thay đổi so với %@" = "View Changes Compared with %@";
 "Xem toàn bộ mô tả" = "Show Full Description";
 "Xem đầy đủ" = "Show All";
@@ -1000,6 +1001,8 @@
 "Đang ở %@ (detached HEAD)" = "On %@ (detached HEAD)";
 "Đang ở commit khác commit repo này ghi nhận" = "At a different commit than this repository recorded";
 "Đang ở nhánh %@" = "On branch %@";
+"Đang ở nhánh %@ (chưa có trên remote) — bấm để chuyển nhánh" = "On branch %@ (not on the remote yet) — click to switch branches";
+"Đang ở nhánh %@, theo dõi %@ — bấm để chuyển nhánh" = "On branch %@, tracking %@ — click to switch branches";
 "Đoạn này có commit merge — Thaigit chưa hỗ trợ interactive rebase qua commit merge." = "This range contains a merge commit — Thaigit doesn't support interactive rebase across merge commits yet.";
 "Đánh dấu đã giải quyết" = "Mark Resolved";
 "Đây chính là repository đang mở — kéo nhánh thả lên nhánh để merge." = "This is the repository that's open — drag a branch onto another branch to merge.";

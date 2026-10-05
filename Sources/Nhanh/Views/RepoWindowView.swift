@@ -187,6 +187,10 @@ struct RepoActionBar: View {
 
             BranchSwitcher(model: model)
                 .fixedSize()
+            if !model.status.isClean {
+                WorkingTreeChip(model: model)
+                    .fixedSize()
+            }
 
             Spacer(minLength: 8)
 
@@ -325,7 +329,33 @@ struct BranchSwitcher: View {
             Label(model.headDescription.isEmpty ? "—" : model.headDescription, systemImage: "arrow.triangle.branch")
                 .labelStyle(.titleAndIcon)
         }
-        .help("Chuyển nhánh")
+        .help(branchHelp)
+    }
+
+    private var branchHelp: String {
+        guard let branch = model.currentBranch else { return String(localized: "Chuyển nhánh") }
+        if let upstream = model.currentBranchRef?.upstream {
+            return String(localized: "Đang ở nhánh \(branch), theo dõi \(upstream) — bấm để chuyển nhánh")
+        }
+        return String(localized: "Đang ở nhánh \(branch) (chưa có trên remote) — bấm để chuyển nhánh")
+    }
+}
+
+/// Số file chưa commit cạnh tên nhánh: luôn thấy còn gì chưa commit dù đang xem commit khác; bấm để về WIP (⌘0).
+struct WorkingTreeChip: View {
+    @Bindable var model: RepoModel
+
+    private var count: Int {
+        Set(model.status.staged.map(\.path) + model.status.unstaged.map(\.path) + model.status.conflicts.map(\.path)).count
+    }
+
+    var body: some View {
+        Button { model.selectWorkingTree() } label: {
+            Label(String(localized: "\(count) file chưa commit"), systemImage: model.status.conflicts.isEmpty ? "pencil.circle" : "exclamationmark.triangle.fill")
+                .labelStyle(.titleAndIcon)
+        }
+        .glassButtonStyle()
+        .help("Xem thay đổi chưa commit (⌘0)")
     }
 }
 

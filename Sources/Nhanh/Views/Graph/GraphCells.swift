@@ -3,7 +3,17 @@ import NhanhCore
 
 /// Ô vẽ graph: các đường làn, đường cong rẽ/nhập nhánh và node commit (ảnh đại diện tác giả, chưa có ảnh thì chữ cái đầu).
 final class GraphCellView: NSTableCellView {
-    var entry: GraphEntry? { didSet { needsDisplay = true } }
+    var entry: GraphEntry? {
+        didSet {
+            needsDisplay = true
+            // Cột Tác giả / Thời gian mặc định ẩn: rê chuột vào chấm (avatar) để biết ai commit, lúc nào.
+            if let commit = entry?.commit, !commit.isWorkingTree {
+                toolTip = "\(commit.authorName) <\(commit.authorEmail)>\n\(VietnameseDate.absolute(commit.authorDate))"
+            } else {
+                toolTip = nil
+            }
+        }
+    }
     var avatar: NSImage? { didSet { if avatar !== oldValue { needsDisplay = true } } }
     var isHead = false { didSet { needsDisplay = true } }
     var dimmed = false { didSet { needsDisplay = true } }
@@ -276,6 +286,11 @@ final class RefsCellView: NSTableCellView {
             x = rect.maxX + 4
         }
         return result
+    }
+
+    /// Điểm `point` (toạ độ của ô) nằm trên viên "+N" (các nhãn không đủ chỗ hiện).
+    func isOverflowHit(at point: CGPoint) -> Bool {
+        pillLayout().moreRect?.insetBy(dx: -3, dy: -4).contains(point) ?? false
     }
 
     /// Nhãn nằm dưới điểm `point` (toạ độ của ô).

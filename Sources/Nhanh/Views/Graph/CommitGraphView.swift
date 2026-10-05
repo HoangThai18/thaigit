@@ -157,6 +157,7 @@ private struct CommitTable: NSViewRepresentable {
         headerMenu.delegate = context.coordinator
         table.headerView?.menu = headerMenu
         table.onReturn = { [weak coordinator = context.coordinator] in coordinator?.activateSelectedRow() }
+        table.overflowMenu = { [weak coordinator = context.coordinator] row in coordinator?.overflowMenu(row: row) }
         // Kéo nhãn nhánh thả lên nhánh khác để merge/rebase/push (giống GitKraken).
         table.registerForDraggedTypes([.string])
         table.setDraggingSourceOperationMask([.move, .copy, .generic], forLocal: true)
@@ -476,7 +477,9 @@ private struct CommitTable: NSViewRepresentable {
                     cell.label.font = entry.commit.isMerge ? NSFont.systemFont(ofSize: 13, weight: .regular) : Self.messageFont
                     if entry.commit.isMerge { cell.label.textColor = dimmed ? .tertiaryLabelColor : .secondaryLabelColor }
                 }
-                cell.toolTip = entry.commit.isWorkingTree ? String(localized: "Thay đổi chưa commit — bấm để stage & commit") : entry.commit.subject
+                cell.toolTip = entry.commit.isWorkingTree
+                    ? String(localized: "Thay đổi chưa commit — bấm để stage & commit")
+                    : "\(entry.commit.subject)\n\(entry.commit.authorName) · \(VietnameseDate.absolute(entry.commit.authorDate))"
                 return cell
             case Column.author:
                 let cell = textCell(tableView, Column.author, font: Self.secondaryFont)
@@ -576,6 +579,23 @@ private struct CommitTable: NSViewRepresentable {
             } else if let remote = entry.labels.flatMap(\.remoteRefs).first {
                 model.checkout(remote)
             }
+        }
+
+        /// Menu của viên "+N": mọi nhánh / tag trên commit, mỗi cái một menu con (Checkout, Merge, Push…).
+        func overflowMenu(row: Int) -> NSMenu? {
+            guard entries.indices.contains(row) else { return nil }
+            let refs = entries[row].labels.filter { !$0.isDetachedHead }.flatMap(\.refs)
+            guard !refs.isEmpty else { return nil }
+            let menu = NSMenu()
+            menu.autoenablesItems = false
+            let header = NSMenuItem(title: String(localized: "\(refs.count) nhánh / tag trên commit này"), action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            menu.addItem(header)
+            let specs = refs.map { ref in
+                MenuItemSpec.submenu(ref.name, systemImage: model.icon(for: ref), items: model.menu(for: ref))
+            }
+            for item in Self.makeItems(specs) { menu.addItem(item) }
+            return menu
         }
 
         // MARK: Kéo-thả nhánh
@@ -710,11 +730,22 @@ private struct CommitTable: NSViewRepresentable {
 /// NSTableView chấp nhận phím Return để kích hoạt dòng đang chọn.
 final class CommitNSTableView: NSTableView {
     var onReturn: (() -> Void)?
+    /// Menu khi bấm viên "+N" ở cột nhãn của dòng `row` (chọn một trong các nhánh / tag đang bị gom lại).
+    var overflowMenu: ((Int) -> NSMenu?)?
     /// Vị trí bấm chuột gần nhất (toạ độ bảng) — để biết người dùng bắt đầu kéo từ nhãn nào.
     private(set) var lastMouseDownPoint: NSPoint?
 
     override func mouseDown(with event: NSEvent) {
-        lastMouseDownPoint = convert(event.locationInWindow, from: nil)
+        let point = convert(event.locationInWindow, from: nil)
+        lastMouseDownPoint = point
+        let row = self.row(at: point), column = self.column(at: point)
+        if event.clickCount == 1, row >= 0, column >= 0, tableColumns[column].identifier == Column.refs,
+           let cell = view(atColumn: column, row: row, makeIfNecessary: false) as? RefsCellView,
+           cell.isOverflowHit(at: cell.convert(point, from: self)), let menu = overflowMenu?(row) {
+            selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+            menu.popUp(positioning: nil, at: point, in: self)
+            return
+        }
         super.mouseDown(with: event)
     }
 

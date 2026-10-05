@@ -485,7 +485,9 @@ final class RepoModel {
                     labels.append(RefLabel(text: tag.name, isTag: true, refs: [tag]))
                 }
             }
-            labels.sort { rank($0) < rank($1) }
+            labels = labels.enumerated()
+                .sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }
+                .map(\.element)
             markPullRequests(in: &labels)
             if !labels.isEmpty { result[target] = labels }
         }
@@ -495,11 +497,14 @@ final class RepoModel {
         return result
     }
 
+    /// Thứ tự nhãn trên cùng một commit — nhãn đầu là nhãn hiện ra khi ô hẹp (còn lại gom vào "+N"): nhánh đang đứng,
+    /// rồi nhánh chính (main / master / develop), rồi nhánh local khác, nhánh remote, tag.
     private func rank(_ label: RefLabel) -> Int {
         if label.isDetachedHead || label.isCurrentBranch { return 0 }
-        if label.hasLocal { return 1 }
-        if label.isTag { return 3 }
-        return 2
+        if label.hasLocal, ["main", "master", "develop", "dev"].contains(label.text) { return 1 }
+        if label.hasLocal { return 2 }
+        if label.isTag { return 4 }
+        return 3
     }
 
     // MARK: - Theo dõi file
@@ -719,6 +724,10 @@ final class RepoModel {
     func toast(_ style: Toast.Style, _ title: String, message: String? = nil, actions: [ToastAction] = [], tag: String? = nil) {
         let toast = Toast(style: style, title: title, message: message, actions: actions, tag: tag)
         withAnimation(.snappy) {
+            // Cùng một thông báo (vd. bấm checkout hai lần liền) hoặc cùng tag: thay cái cũ thay vì xếp chồng.
+            toasts.removeAll { old in
+                (tag != nil && old.tag == tag) || (old.style == style && old.title == title && old.message == message)
+            }
             toasts.append(toast)
             if toasts.count > 4 { toasts.removeFirst(toasts.count - 4) }
         }

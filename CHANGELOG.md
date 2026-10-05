@@ -13,6 +13,10 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Message commit đang gõ dở được giữ riêng cho từng repo — đóng app, đóng tab rồi mở lại vẫn còn
 - Push bị từ chối vì remote có commit mới: nút "Pull rồi Push" làm cả hai trong một bước; menu Pull có thêm "Đồng bộ (pull rồi push)"
 - Câu chữ giao diện dùng đúng thuật ngữ git quen thuộc (detached HEAD, hard reset, upstream, shallow clone, annotated tag, message, parent…) thay cho các chữ dịch gượng như "HEAD tách rời", "Reset cứng", "lời nhắn"
+- Nhiều nhánh / tag cùng một commit: nhãn ưu tiên nhánh đang đứng rồi main / master / develop; bấm viên "+N" để chọn nhánh bị gom lại (Checkout, Merge, Push…)
+- Cạnh tên nhánh trên thanh công cụ luôn có số file chưa commit (bấm để về WIP), rê chuột vào tên nhánh để biết nhánh đang theo dõi trên remote
+- Rê chuột vào chấm avatar hoặc message trên graph để xem tên người commit và thời gian
+- Cùng một thông báo lỗi (vd. bấm checkout hai lần) chỉ hiện một lần
 
 ## 1.1.1 — 2026-10-03
 

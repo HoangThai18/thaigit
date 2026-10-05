@@ -562,5 +562,37 @@
 			<string>⚠︎ %lld conflicts</string>
 		</dict>
 	</dict>
+	<key>%lld nhánh / tag trên commit này</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld branch / tag on this commit</string>
+			<key>other</key>
+			<string>%lld branches / tags on this commit</string>
+		</dict>
+	</dict>
+	<key>%lld file chưa commit</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld uncommitted file</string>
+			<key>other</key>
+			<string>%lld uncommitted files</string>
+		</dict>
+	</dict>
 </dict>
 </plist>
