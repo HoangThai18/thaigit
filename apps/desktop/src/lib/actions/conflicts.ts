@@ -1,13 +1,7 @@
 // Giải xung đột (port phần Xung đột của RepoModel+Diff.swift): chọn cả file một phía, hoặc chọn từng đoạn rồi lưu — ghép theo
 // byte (BOM, kiểu xuống dòng, mọi byte ngoài khối xung đột giữ nguyên) và chỉ ghi khi file trên đĩa vẫn là bản đã mở.
 
-import {
-  fileChangeName,
-  resolveConflicts,
-  type ConflictChoices,
-  type ConflictEntry,
-  type ConflictFile,
-} from '@thaigit/core';
+import { fileChangeName, type ConflictEntry } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 
@@ -27,19 +21,36 @@ export function resolveWhole(store: RepoStore, entry: ConflictEntry, useOurs: bo
   );
 }
 
-/** Ghi file đã chọn xong mọi đoạn rồi đánh dấu đã giải quyết. */
+/** Dùng nguyên bản một phía cho nhiều file xung đột một lần. */
+export function resolveMany(
+  store: RepoStore,
+  entries: readonly ConflictEntry[],
+  useOurs: boolean,
+): Promise<void> {
+  if (entries.length === 0) return Promise.resolve();
+  if (entries.length === 1) return resolveWhole(store, entries[0] as ConflictEntry, useOurs);
+  return store.perform(
+    useOurs ? vi.branches.useCurrentRunning : vi.branches.useIncomingRunning,
+    async (git) => {
+      for (const entry of entries) await git.resolveConflict(entry.path, entry.kind, useOurs);
+    },
+    {
+      refresh: Scope.status,
+      onSuccess: () => store.notify('success', vi.branches.resolvedMany(entries.length)),
+    },
+  );
+}
+
+/**
+ * Ghi nội dung đã giải (`content`: ghép theo byte từ các lựa chọn, hoặc người dùng sửa tay) rồi đánh dấu đã giải quyết.
+ * Chỉ ghi khi file trên đĩa vẫn là bản đã mở (`sha256`).
+ */
 export function saveResolution(
   store: RepoStore,
   entry: ConflictEntry,
-  file: ConflictFile,
   sha256: string,
-  choices: ConflictChoices,
+  content: Uint8Array,
 ): Promise<void> {
-  const content = resolveConflicts(file, choices);
-  if (content === null) {
-    store.notify('warning', vi.branches.unresolvedBlocks);
-    return Promise.resolve();
-  }
   return store.perform(
     vi.branches.saveResolutionRunning,
     async (git) => {

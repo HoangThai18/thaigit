@@ -18,13 +18,22 @@ export { makePatch, selectionForWholeHunk } from './patch-builder.ts';
 export type {
   ByteRange,
   ConflictBlock,
+  ConflictChoice,
   ConflictChoices,
+  ConflictLinePick,
   ConflictFile,
   ConflictParseResult,
   ConflictResolution,
   ConflictSegment,
 } from './conflict-file.ts';
-export { conflictResolutions, parseConflictFile, resolveConflicts } from './conflict-file.ts';
+export {
+  conflictLineSets,
+  conflictResolutions,
+  parseConflictFile,
+  previewConflicts,
+  resolveConflicts,
+  toggleConflictLine,
+} from './conflict-file.ts';
 
 export type { InlineLine, TextRange } from './inline-diff.ts';
 export { changedRanges, hunkHighlights, inlineHighlights } from './inline-diff.ts';

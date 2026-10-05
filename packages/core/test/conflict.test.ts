@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type ConflictChoice,
   type ConflictFile,
   type ConflictResolution,
   conflictResolutions,
   parseConflictFile,
+  previewConflicts,
   resolveConflicts,
+  toggleConflictLine,
 } from '../src/diff/index.ts';
 import { latin1, showBytes, utf8 } from './helpers/git-cli.ts';
 
@@ -348,5 +351,63 @@ describe('hiệu năng (chặn hồi quy O(n²); ngưỡng rất rộng)', () =>
     const resolved = resolveConflicts(file, choices)!;
     expect(resolved.length).toBeLessThan(bytes.length);
     expect(performance.now() - start).toBeLessThan(2000);
+  });
+});
+
+describe('chọn từng dòng và xem trước (như GitKraken)', () => {
+  const text =
+    'top\n<<<<<<< HEAD\nA1\nA2\nA3\n=======\nB1\nB2\n>>>>>>> feat\nbottom\n<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> feat\nend';
+  const decode = (bytes: Uint8Array | null) => (bytes === null ? null : new TextDecoder().decode(bytes));
+
+  it('giữ thứ tự trong file (Current trước Incoming) dù tick theo thứ tự nào', () => {
+    const file = parse(text);
+    const first = file.blocks[0]!;
+    let pick = toggleConflictLine(undefined, first, 'theirs', 1);
+    pick = toggleConflictLine(pick, first, 'ours', 2);
+    pick = toggleConflictLine(pick, first, 'ours', 0);
+    expect([...pick.ours].sort()).toEqual([0, 2]);
+    expect([...pick.theirs]).toEqual([1]);
+
+    // Đoạn 2 chưa chọn: xem trước giữ dấu xung đột, chưa lưu được.
+    expect(decode(previewConflicts(file, new Map([[0, pick]])))).toBe(
+      'top\nA1\nA3\nB2\nbottom\n<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> feat\nend',
+    );
+    expect(resolveConflicts(file, new Map([[0, pick]]))).toBeNull();
+    const second = toggleConflictLine(
+      toggleConflictLine(undefined, file.blocks[1]!, 'ours', 0),
+      file.blocks[1]!,
+      'theirs',
+      0,
+    );
+    expect(
+      decode(
+        resolveConflicts(
+          file,
+          new Map([
+            [0, pick],
+            [1, second],
+          ]),
+        ),
+      ),
+    ).toBe('top\nA1\nA3\nB2\nbottom\nx\ny\nend');
+  });
+
+  it('bỏ một dòng khỏi "Giữ Current" và bỏ hết dòng = xoá cả đoạn', () => {
+    const file = parse(text);
+    const fromSide = toggleConflictLine('ours', file.blocks[0]!, 'ours', 1);
+    expect([...fromSide.ours].sort()).toEqual([0, 2]);
+    expect([...fromSide.theirs]).toEqual([]);
+    const empty = { kind: 'lines' as const, ours: new Set<number>(), theirs: new Set<number>() };
+    expect(
+      decode(
+        resolveConflicts(
+          file,
+          new Map<number, ConflictChoice>([
+            [0, empty],
+            [1, 'neither'],
+          ]),
+        ),
+      ),
+    ).toBe('top\nbottom\nend');
   });
 });

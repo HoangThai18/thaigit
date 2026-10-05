@@ -48,6 +48,9 @@ export interface ConflictBlock {
   readonly oursBytes: ByteRange;
   readonly baseBytes: ByteRange | null;
   readonly theirsBytes: ByteRange;
+  /** Byte của từng dòng mỗi phía (gồm xuống dòng) — để chọn từng dòng như GitKraken. */
+  readonly oursLineBytes: readonly ByteRange[];
+  readonly theirsLineBytes: readonly ByteRange[];
 }
 
 export type ConflictSegment =
@@ -70,7 +73,17 @@ export type ConflictParseResult =
   /** Không phải UTF-8 hợp lệ (CP1252, CP1258, UTF-16…): không giải trong app, chỉ mở bằng editor ngoài. */
   | { readonly ok: false; readonly reason: 'not-utf8' };
 
-export type ConflictChoices = ReadonlyMap<number, ConflictResolution>;
+/** Chọn từng dòng: các dòng Current đã tick rồi các dòng Incoming đã tick, giữ thứ tự trong file. */
+export interface ConflictLinePick {
+  readonly kind: 'lines';
+  readonly ours: ReadonlySet<number>;
+  readonly theirs: ReadonlySet<number>;
+}
+
+/** Lựa chọn cho một đoạn: cả phía hoặc từng dòng. */
+export type ConflictChoice = ConflictResolution | ConflictLinePick;
+
+export type ConflictChoices = ReadonlyMap<number, ConflictChoice>;
 
 const MARKER_LENGTH = 7;
 const LESS_THAN = 0x3c; // <
@@ -98,6 +111,15 @@ function lineTexts(bytes: Uint8Array, spans: readonly LineSpan[], from: number, 
     lines.push(decodeUtf8Lossy(bytes.subarray(span.start, span.contentEnd)));
   }
   return lines;
+}
+
+function lineRanges(spans: readonly LineSpan[], from: number, to: number): ByteRange[] {
+  const ranges: ByteRange[] = [];
+  for (let i = from; i < to; i++) {
+    const span = spans[i] as LineSpan;
+    ranges.push({ start: span.start, end: span.end });
+  }
+  return ranges;
 }
 
 /** Mốc byte đầu dòng `index`; `index` = số dòng thì là cuối file. */
@@ -188,6 +210,8 @@ export function parseConflictFile(bytes: Uint8Array): ConflictParseResult {
         start: offsetOf(spans, separator + 1, bytes.length),
         end: offsetOf(spans, closing, bytes.length),
       },
+      oursLineBytes: lineRanges(spans, index + 1, oursEnd),
+      theirsLineBytes: lineRanges(spans, separator + 1, closing),
     };
     blocks.push(block);
     segments.push({ kind: 'conflict', block });
@@ -221,7 +245,12 @@ function terminatorLength(bytes: Uint8Array, range: ByteRange): number {
   return range.end - 2 >= range.start && bytes[range.end - 2] === CR ? 2 : 1;
 }
 
-function rangesFor(block: ConflictBlock, choice: ConflictResolution): ByteRange[] {
+function rangesFor(block: ConflictBlock, choice: ConflictChoice): ByteRange[] {
+  if (typeof choice !== 'string') {
+    const pick = (lines: readonly ByteRange[], picked: ReadonlySet<number>): ByteRange[] =>
+      [...picked].sort((a, b) => a - b).flatMap((index) => (lines[index] ? [lines[index]] : []));
+    return [...pick(block.oursLineBytes, choice.ours), ...pick(block.theirsLineBytes, choice.theirs)];
+  }
   switch (choice) {
     case 'ours':
       return [block.oursBytes];
@@ -238,12 +267,56 @@ function rangesFor(block: ConflictBlock, choice: ConflictResolution): ByteRange[
   }
 }
 
+/** Dòng mỗi phía nằm trong kết quả của lựa chọn (để tô dòng đã chọn). */
+export function conflictLineSets(
+  choice: ConflictChoice | undefined,
+  block: ConflictBlock,
+): { ours: Set<number>; theirs: Set<number> } {
+  const all = (lines: readonly string[]) => new Set(lines.map((_, index) => index));
+  if (choice === undefined) return { ours: new Set(), theirs: new Set() };
+  if (typeof choice !== 'string') return { ours: new Set(choice.ours), theirs: new Set(choice.theirs) };
+  switch (choice) {
+    case 'ours':
+      return { ours: all(block.ours), theirs: new Set() };
+    case 'theirs':
+      return { ours: new Set(), theirs: all(block.theirs) };
+    case 'oursThenTheirs':
+    case 'theirsThenOurs':
+      return { ours: all(block.ours), theirs: all(block.theirs) };
+    default:
+      return { ours: new Set(), theirs: new Set() };
+  }
+}
+
+/** Tick / bỏ tick một dòng, bắt đầu từ lựa chọn hiện tại (chọn cả phía = đã tick mọi dòng phía đó). */
+export function toggleConflictLine(
+  current: ConflictChoice | undefined,
+  block: ConflictBlock,
+  side: 'ours' | 'theirs',
+  line: number,
+): ConflictLinePick {
+  const sets = conflictLineSets(current, block);
+  const target = sets[side];
+  if (target.has(line)) target.delete(line);
+  else target.add(line);
+  return { kind: 'lines', ours: sets.ours, theirs: sets.theirs };
+}
+
+/** Ghép theo các lựa chọn hiện có; đoạn chưa chọn giữ nguyên (gồm dấu xung đột) — để xem trước kết quả. */
+export function previewConflicts(file: ConflictFile, choices: ConflictChoices): Uint8Array {
+  return assemble(file, choices, true) as Uint8Array;
+}
+
 /**
  * Ghép lại nội dung file (byte) theo lựa chọn cho từng block; null nếu còn block chưa chọn.
  * Mọi byte ngoài vùng xung đột (kể cả BOM) chép nguyên văn. Nếu dòng >>>>>>> cuối file không có xuống dòng
  * thì kết quả cũng không có xuống dòng cuối (giữ trạng thái cuối file như bản gốc).
  */
 export function resolveConflicts(file: ConflictFile, choices: ConflictChoices): Uint8Array | null {
+  return assemble(file, choices, false);
+}
+
+function assemble(file: ConflictFile, choices: ConflictChoices, keepUnresolved: boolean): Uint8Array | null {
   const { bytes } = file;
   const parts: Uint8Array[] = [];
   if (file.hasBom) parts.push(bytes.subarray(0, UTF8_BOM_LENGTH));
@@ -254,7 +327,11 @@ export function resolveConflicts(file: ConflictFile, choices: ConflictChoices): 
     }
     const { block } = segment;
     const choice = choices.get(block.id);
-    if (choice === undefined) return null;
+    if (choice === undefined) {
+      if (!keepUnresolved) return null;
+      parts.push(bytes.subarray(block.region.start, block.region.end));
+      continue;
+    }
     const ranges = rangesFor(block, choice).filter((range) => range.end > range.start);
     const unterminatedTail = block.region.end === bytes.length && !file.endsWithNewline;
     ranges.forEach((range, position) => {

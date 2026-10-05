@@ -194,6 +194,34 @@ export const branches: Translation<typeof source> = {
   conflictBlocks: (count: number) => `${count} ${count === 1 ? 'conflict' : 'conflicts'}`,
   conflictLegend:
     '“Current” is the version on the current branch (HEAD), “Incoming” is the version being brought in.',
+  conflictLineHint:
+    'Click a line to pick just that line; double-click a side’s header to keep that whole side.',
+  prevConflict: 'Previous conflict (Alt + ↑)',
+  nextConflict: 'Next conflict (Alt + ↓)',
+  conflictPosition: (index: number, total: number) => `${index}/${total}`,
+  quickPick: 'Quick pick',
+  fillCurrent: 'All remaining conflicts: Keep Current',
+  fillIncoming: 'All remaining conflicts: Keep Incoming',
+  fillBoth: 'All remaining conflicts: Keep Both',
+  keepWholeSide: (side: string) => `Double-click to keep all of ${side}`,
+  outputLeft: (count: number) =>
+    count === 1 ? '1 conflict left to pick' : `${count} conflicts left to pick`,
+  editOutput: 'Edit',
+  editOutputTip: 'Edit the content that will be saved',
+  editingOutput: 'Editing the result by hand',
+  markersLeftTitle: 'The result still has conflict markers',
+  markersLeftMessage:
+    'The result still contains <<<<<<< / ======= / >>>>>>> lines. Saving it like this keeps the conflict markers in the file.',
+  saveAnyway: 'Save Anyway',
+  conflictCount: (count: number) => (count === 1 ? '1 conflict' : `${count} conflicts`),
+  resolveAll: 'Resolve all',
+  resolveSelected: (count: number) => (count === 1 ? 'Resolve 1 file' : `Resolve ${count} files`),
+  resolveAllTip: 'Take one side for several files at once — Ctrl-click to pick files',
+  useCurrentFor: (count: number) =>
+    count === 1 ? 'Use Current for 1 file' : `Use Current for ${count} files`,
+  useIncomingFor: (count: number) =>
+    count === 1 ? 'Use Incoming for 1 file' : `Use Incoming for ${count} files`,
+  resolvedMany: (count: number) => (count === 1 ? 'Resolved 1 file' : `Resolved ${count} files`),
   useAllCurrent: 'Use all Current',
   useAllIncoming: 'Use all Incoming',
   useCurrentRunning: 'Use Current version',

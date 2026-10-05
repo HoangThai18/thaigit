@@ -3,8 +3,15 @@
   nút Stage / Bỏ stage / Huỷ khi rê chuột, nhấp đúp để stage / bỏ stage nhanh; ô soạn commit ở dưới.
 -->
 <script lang="ts">
-  import { conflictAsChange, type FileChange } from '@thaigit/core';
-  import { resolveWhole } from '../actions/conflicts.ts';
+  import { untrack } from 'svelte';
+  import {
+    conflictAsChange,
+    conflictHasMarkers,
+    parseConflictFile,
+    type ConflictEntry,
+    type FileChange,
+  } from '@thaigit/core';
+  import { markResolved, resolveMany, resolveWhole } from '../actions/conflicts.ts';
   import { fileMenu } from '../actions/menus.ts';
   import { discardFiles, stageAll, stageFiles, unstageAll, unstageFiles } from '../actions/staging.ts';
   import { showBidi } from '../format/bidi.ts';
@@ -12,7 +19,7 @@
   import ChangeList from '../staging/ChangeList.svelte';
   import CommitComposer from '../staging/CommitComposer.svelte';
   import { vi } from '../strings.vi.ts';
-  import { menus } from '../stores/menus.svelte.ts';
+  import { menus, type MenuItem } from '../stores/menus.svelte.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
 
@@ -33,6 +40,98 @@
   function resolveFor(change: FileChange, useOurs: boolean): void {
     const entry = status.conflicts.find((candidate) => candidate.path === change.path);
     if (entry) void resolveWhole(store, entry, useOurs);
+  }
+
+  /** File xung đột đang chọn (Ctrl/⌘-click, Shift-click) để xử lý nhiều file một lần. */
+  let marked = $state.raw<ReadonlySet<string>>(new Set());
+  /** Số đoạn xung đột của từng file → chữ "2 đoạn" cạnh tên. */
+  let counts = $state.raw<ReadonlyMap<string, string>>(new Map());
+  const conflictKey = $derived(status.conflicts.map((entry) => `${entry.kind}:${entry.path}`).join('\n'));
+
+  $effect(() => {
+    void conflictKey;
+    const entries = status.conflicts.filter((entry) => conflictHasMarkers(entry.kind));
+    // `untrack`: đọc rồi ghi `marked` trong effect sẽ tự kích hoạt lại vô tận.
+    untrack(() => {
+      marked = new Set([...marked].filter((path) => status.conflicts.some((entry) => entry.path === path)));
+    });
+    let cancelled = false;
+    void (async () => {
+      const next = new Map<string, string>();
+      for (const entry of entries) {
+        try {
+          const bytes = await store.git.readWorkingFile(entry.path, 4_000_000);
+          if (bytes === null) continue;
+          const parsed = parseConflictFile(bytes);
+          if (parsed.ok && parsed.file.blocks.length > 0) {
+            next.set(entry.path, vi.branches.conflictCount(parsed.file.blocks.length));
+          }
+        } catch {
+          // Không đọc được (file lớn / bị khoá): chỉ không hiện số đoạn.
+        }
+      }
+      if (!cancelled) counts = next;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  const targets = $derived<readonly ConflictEntry[]>(
+    marked.size === 0 ? status.conflicts : status.conflicts.filter((entry) => marked.has(entry.path)),
+  );
+
+  function bulkItems(entries: readonly ConflictEntry[]): MenuItem[] {
+    const done = () => (marked = new Set());
+    return [
+      {
+        title: entries.length > 1 ? vi.branches.useCurrentFor(entries.length) : vi.branches.useAllCurrent,
+        run: () => void resolveMany(store, entries, true).then(done),
+      },
+      {
+        title: entries.length > 1 ? vi.branches.useIncomingFor(entries.length) : vi.branches.useAllIncoming,
+        run: () => void resolveMany(store, entries, false).then(done),
+      },
+      {
+        title: vi.branches.markResolved,
+        run: () =>
+          void markResolved(
+            store,
+            entries.map((entry) => entry.path),
+          ).then(done),
+      },
+    ];
+  }
+
+  function openConflictRow(change: FileChange, event?: MouseEvent): void {
+    if (event && (event.ctrlKey || event.metaKey)) {
+      const next = new Set(marked);
+      if (next.has(change.path)) next.delete(change.path);
+      else next.add(change.path);
+      marked = next;
+      return;
+    }
+    if (event?.shiftKey && marked.size > 0) {
+      const paths = status.conflicts.map((entry) => entry.path);
+      const anchor = paths.findIndex((path) => marked.has(path));
+      const index = paths.indexOf(change.path);
+      marked = new Set(paths.slice(Math.min(anchor, index), Math.max(anchor, index) + 1));
+      return;
+    }
+    marked = new Set();
+    store.diff.open(change, { kind: 'conflict' });
+  }
+
+  function conflictRowMenu(event: MouseEvent, change: FileChange): void {
+    const group =
+      marked.has(change.path) && marked.size > 1
+        ? targets
+        : status.conflicts.filter((entry) => entry.path === change.path);
+    menus.openAt(event, [
+      { title: vi.branches.openConflict, run: () => store.diff.open(change, { kind: 'conflict' }) },
+      { kind: 'separator' },
+      ...bulkItems(group),
+    ]);
   }
 </script>
 
@@ -69,7 +168,20 @@
           { icon: 'download', title: vi.branches.useAllIncoming, run: (change) => resolveFor(change, false) },
         ]}
         selectedPath={openConflict}
-        onopen={(change) => store.diff.open(change, { kind: 'conflict' })}
+        markedPaths={marked}
+        badges={counts}
+        headerAction={{
+          title: marked.size > 0 ? vi.branches.resolveSelected(marked.size) : vi.branches.resolveAll,
+          tip: vi.branches.resolveAllTip,
+          icon: 'check-circle',
+          run: (event) => {
+            const target = event.currentTarget;
+            if (target instanceof HTMLElement)
+              menus.openBelow(target, bulkItems(targets), { focusFirst: event.detail === 0 });
+          },
+        }}
+        onopen={openConflictRow}
+        onmenu={conflictRowMenu}
       />
     </div>
   {/if}

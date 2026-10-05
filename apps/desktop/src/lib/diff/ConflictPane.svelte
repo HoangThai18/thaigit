@@ -1,13 +1,19 @@
 <!--
-  Giải xung đột từng đoạn (port ConflictResolverView.swift): mỗi khối chọn Current / Incoming / cả hai (hoặc base, bỏ cả hai),
-  xem trước kết quả, rồi "Lưu & đánh dấu đã giải quyết". Xung đột không giải từng đoạn được (xoá ở một phía, không phải
-  UTF-8) thì chỉ có chọn cả file.
+  Giải xung đột như GitKraken (port ConflictResolverView.swift): mỗi khối chọn Current / Incoming / cả hai (hoặc base, bỏ
+  cả hai) hoặc tick từng dòng; khung Kết quả xem trước cả file và sửa tay được trước khi lưu; nút / phím Alt + ↑ / ↓ nhảy
+  giữa các đoạn. Xung đột không giải từng đoạn được (xoá ở một phía, không phải UTF-8) thì chỉ có chọn cả file.
 -->
 <script lang="ts">
   import {
+    conflictLineSets,
     fileChangeDirectory,
     fileChangeName,
+    parseConflictFile,
+    previewConflicts,
+    resolveConflicts,
+    toggleConflictLine,
     type ConflictBlock,
+    type ConflictChoice,
     type ConflictResolution,
   } from '@thaigit/core';
   import { markResolved, resolveWhole, saveResolution } from '../actions/conflicts.ts';
@@ -31,91 +37,161 @@
   const whole = $derived(view.kind === 'conflictWhole' ? view : null);
   const entry = $derived(conflict?.entry ?? whole?.entry ?? null);
 
-  let choices = $state.raw<ReadonlyMap<number, ConflictResolution>>(new Map());
+  let choices = $state.raw<ReadonlyMap<number, ConflictChoice>>(new Map());
   let expanded = $state.raw<ReadonlySet<number>>(new Set());
+  /** Đoạn đang đứng (nhảy trước / sau). */
+  let current = $state(0);
+  /** Nội dung khung Kết quả khi người dùng sửa tay (null: theo các lựa chọn). */
+  let edited = $state<string | null>(null);
+  let segmentsElement = $state<HTMLElement | null>(null);
   let choicesFor: unknown = null;
 
   // File mới (hoặc nạp lại sau khi đổi trên đĩa): bỏ các lựa chọn cũ.
   $effect.pre(() => {
-    const current = conflict?.file ?? null;
-    if (current === choicesFor) return;
-    choicesFor = current;
+    const opened = conflict?.file ?? null;
+    if (opened === choicesFor) return;
+    choicesFor = opened;
     choices = new Map();
     expanded = new Set();
+    current = 0;
+    edited = null;
   });
 
   const total = $derived(conflict?.file.blocks.length ?? 0);
   const chosen = $derived(choices.size);
+  const decoder = new TextDecoder();
+  const preview = $derived(conflict ? decoder.decode(previewConflicts(conflict.file, choices)) : '');
+  const canSave = $derived(conflict !== null && (edited !== null || chosen === total));
 
-  function choose(block: ConflictBlock, resolution: ConflictResolution | null): void {
+  function choose(block: ConflictBlock, choice: ConflictChoice | null): void {
     const next = new Map(choices);
-    if (resolution === null) next.delete(block.id);
-    else next.set(block.id, resolution);
+    if (choice === null) next.delete(block.id);
+    else next.set(block.id, choice);
     choices = next;
-  }
-
-  function result(block: ConflictBlock, resolution: ConflictResolution): readonly string[] {
-    switch (resolution) {
-      case 'ours':
-        return block.ours;
-      case 'theirs':
-        return block.theirs;
-      case 'oursThenTheirs':
-        return [...block.ours, ...block.theirs];
-      case 'theirsThenOurs':
-        return [...block.theirs, ...block.ours];
-      case 'base':
-        return block.base ?? [];
-      case 'neither':
-        return [];
+    edited = null;
+    current = block.id;
+    // Vừa chọn cả một phía: tự sang đoạn chưa chọn kế tiếp (như GitKraken).
+    if (choice !== null && typeof choice === 'string') {
+      const following = conflict?.file.blocks.find(
+        (candidate) => candidate.id > block.id && !next.has(candidate.id),
+      );
+      if (following) jumpTo(following.id);
     }
   }
 
+  function toggleLine(block: ConflictBlock, side: 'ours' | 'theirs', line: number): void {
+    choose(block, toggleConflictLine(choices.get(block.id), block, side, line));
+  }
+
+  function jumpTo(id: number): void {
+    current = Math.max(0, Math.min(id, total - 1));
+    queueMicrotask(() => {
+      segmentsElement
+        ?.querySelector(`[data-block="${current}"]`)
+        ?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  }
+
+  function fillRemaining(resolution: ConflictResolution): void {
+    if (!conflict) return;
+    const next = new Map(choices);
+    for (const block of conflict.file.blocks) if (!next.has(block.id)) next.set(block.id, resolution);
+    choices = next;
+    edited = null;
+  }
+
+  function isSide(choice: ConflictChoice | undefined, resolution: ConflictResolution): boolean {
+    return choice === resolution;
+  }
+
   function moreMenu(event: MouseEvent, block: ConflictBlock): void {
-    const current = choices.get(block.id);
+    const selected = choices.get(block.id);
     const items: MenuItem[] = [
       {
         title: vi.branches.keepBothIncomingFirst,
-        checked: current === 'theirsThenOurs',
+        checked: selected === 'theirsThenOurs',
         run: () => choose(block, 'theirsThenOurs'),
       },
     ];
     if (block.base !== null) {
       items.push({
         title: vi.branches.keepBase,
-        checked: current === 'base',
+        checked: selected === 'base',
         run: () => choose(block, 'base'),
       });
     }
     items.push({
       title: vi.branches.keepNeither,
-      checked: current === 'neither',
+      checked: selected === 'neither',
       run: () => choose(block, 'neither'),
     });
-    if (current !== undefined) {
+    if (selected !== undefined) {
       items.push({ kind: 'separator' }, { title: vi.branches.clearChoice, run: () => choose(block, null) });
     }
     const target = event.currentTarget;
     if (target instanceof HTMLElement) menus.openBelow(target, items, { focusFirst: event.detail === 0 });
   }
 
-  function save(): void {
-    if (!conflict || chosen < total) return;
-    void saveResolution(store, conflict.entry, conflict.file, conflict.sha256, choices);
+  function quickMenu(event: MouseEvent): void {
+    if (!entry) return;
+    const target = event.currentTarget;
+    const opened = entry;
+    const items: MenuItem[] = [
+      { title: vi.branches.useAllCurrent, run: () => void resolveWhole(store, opened, true) },
+      { title: vi.branches.useAllIncoming, run: () => void resolveWhole(store, opened, false) },
+    ];
+    if (conflict) {
+      items.push(
+        { kind: 'separator' },
+        { title: vi.branches.fillCurrent, run: () => fillRemaining('ours') },
+        { title: vi.branches.fillIncoming, run: () => fillRemaining('theirs') },
+        { title: vi.branches.fillBoth, run: () => fillRemaining('oursThenTheirs') },
+      );
+    }
+    if (target instanceof HTMLElement) menus.openBelow(target, items, { focusFirst: event.detail === 0 });
+  }
+
+  async function save(): Promise<void> {
+    if (!conflict || !canSave) return;
+    let content: Uint8Array | null;
+    if (edited !== null) {
+      const bytes = new TextEncoder().encode(edited);
+      const parsed = parseConflictFile(bytes);
+      if (parsed.ok && parsed.file.blocks.length > 0) {
+        const ok = await dialogs.confirm({
+          title: vi.branches.markersLeftTitle,
+          message: vi.branches.markersLeftMessage,
+          confirmTitle: vi.branches.saveAnyway,
+        });
+        if (!ok) return;
+      }
+      content = bytes;
+    } else {
+      content = resolveConflicts(conflict.file, choices);
+    }
+    if (content === null) return;
+    void saveResolution(store, conflict.entry, conflict.sha256, content);
   }
 
   function onwindowkeydown(event: KeyboardEvent): void {
     if (event.defaultPrevented || dialogs.current !== null || menus.current !== null) return;
-    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && conflict && chosen === total) {
+    const target = event.target;
+    const typing =
+      target instanceof HTMLElement &&
+      (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && canSave) {
       event.preventDefault();
-      save();
+      void save();
+    } else if (
+      event.altKey &&
+      !typing &&
+      conflict &&
+      (event.key === 'ArrowDown' || event.key === 'ArrowUp')
+    ) {
+      event.preventDefault();
+      jumpTo(current + (event.key === 'ArrowDown' ? 1 : -1));
     } else if (event.key === 'Escape') {
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
-      )
-        return;
+      if (typing) return;
       diff.close();
     }
   }
@@ -131,6 +207,40 @@
       {#each lines as line, index (index)}<div class="code-line">{line === '' ? ' ' : line}</div>{/each}
     </div>
   {/if}
+{/snippet}
+
+{#snippet side(block: ConflictBlock, which: 'ours' | 'theirs', picked: ReadonlySet<number>)}
+  {@const lines = which === 'ours' ? block.ours : block.theirs}
+  {@const title = which === 'ours' ? vi.branches.current : vi.branches.incoming}
+  <div class="side {which}" class:highlighted={picked.size > 0}>
+    <button
+      type="button"
+      class="side-title"
+      title={vi.branches.keepWholeSide(title)}
+      ondblclick={() => choose(block, which)}
+    >
+      {title}
+      <span class="side-label"><bdi>{which === 'ours' ? block.oursLabel : block.theirsLabel}</bdi></span>
+    </button>
+    {#if lines.length === 0}
+      <div class="code empty">{vi.branches.resultEmpty}</div>
+    {:else}
+      <div class="lines">
+        {#each lines as line, index (index)}
+          <button
+            type="button"
+            class="line"
+            class:on={picked.has(index)}
+            aria-pressed={picked.has(index)}
+            onclick={() => toggleLine(block, which, index)}
+          >
+            <span class="tick"><Icon name={picked.has(index) ? 'check' : 'stop'} size={10} /></span>
+            <span class="code-line">{line === '' ? ' ' : line}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
+  </div>
 {/snippet}
 
 {#if file}
@@ -156,19 +266,39 @@
           <strong
             >{conflict ? vi.branches.conflictBlocks(total) : vi.branches.conflictKinds[entry.kind]}</strong
           >
-          <span>{vi.branches.conflictLegend}</span>
+          <span>{vi.branches.conflictLegend} {conflict ? vi.branches.conflictLineHint : ''}</span>
         </div>
         <span class="grow"></span>
-        <button type="button" class="button" onclick={() => void resolveWhole(store, entry, true)}>
-          {vi.branches.useAllCurrent}
-        </button>
-        <button type="button" class="button" onclick={() => void resolveWhole(store, entry, false)}>
-          {vi.branches.useAllIncoming}
+        {#if conflict}
+          <span class="nav">
+            <button
+              type="button"
+              class="nav-button"
+              title={vi.branches.prevConflict}
+              aria-label={vi.branches.prevConflict}
+              disabled={current <= 0}
+              onclick={() => jumpTo(current - 1)}><Icon name="chevron-up" size={14} /></button
+            >
+            <span class="nav-count">{vi.branches.conflictPosition(Math.min(current + 1, total), total)}</span>
+            <button
+              type="button"
+              class="nav-button"
+              title={vi.branches.nextConflict}
+              aria-label={vi.branches.nextConflict}
+              disabled={current >= total - 1}
+              onclick={() => jumpTo(current + 1)}><Icon name="chevron-down" size={14} /></button
+            >
+          </span>
+        {/if}
+        <button type="button" class="button" aria-haspopup="menu" onclick={quickMenu}>
+          <Icon name="sparkles" size={14} />
+          <span>{vi.branches.quickPick}</span>
+          <Icon name="chevron-down" size={12} />
         </button>
       </div>
     {/if}
 
-    <div class="body">
+    <div class="body" class:split={conflict !== null}>
       {#if view.kind === 'loading' || view.kind === 'idle'}
         <p class="message">{vi.staging.loading}</p>
       {:else if view.kind === 'failed'}
@@ -189,7 +319,7 @@
           </button>
         </div>
       {:else if conflict}
-        <div class="segments">
+        <div class="segments" bind:this={segmentsElement}>
           {#each conflict.file.segments as segment, index (index)}
             {#if segment.kind === 'common'}
               {#if segment.lines.length <= 8 || expanded.has(index)}
@@ -210,7 +340,15 @@
             {:else}
               {@const block = segment.block}
               {@const choice = choices.get(block.id)}
-              <div class="block" class:done={choice !== undefined}>
+              {@const picked = conflictLineSets(choice, block)}
+              <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+              <div
+                class="block"
+                class:done={choice !== undefined}
+                class:current={block.id === current}
+                data-block={block.id}
+                onclick={() => (current = block.id)}
+              >
                 <div class="block-top">
                   <strong>{vi.branches.conflictNumber(block.id + 1, total)}</strong>
                   {#if choice !== undefined}
@@ -222,22 +360,22 @@
                   <button
                     type="button"
                     class="choice ours"
-                    class:on={choice === 'ours'}
-                    aria-pressed={choice === 'ours'}
+                    class:on={isSide(choice, 'ours')}
+                    aria-pressed={isSide(choice, 'ours')}
                     onclick={() => choose(block, 'ours')}>{vi.branches.keepCurrent}</button
                   >
                   <button
                     type="button"
                     class="choice theirs"
-                    class:on={choice === 'theirs'}
-                    aria-pressed={choice === 'theirs'}
+                    class:on={isSide(choice, 'theirs')}
+                    aria-pressed={isSide(choice, 'theirs')}
                     onclick={() => choose(block, 'theirs')}>{vi.branches.keepIncoming}</button
                   >
                   <button
                     type="button"
                     class="choice both"
-                    class:on={choice === 'oursThenTheirs'}
-                    aria-pressed={choice === 'oursThenTheirs'}
+                    class:on={isSide(choice, 'oursThenTheirs')}
+                    aria-pressed={isSide(choice, 'oursThenTheirs')}
                     onclick={() => choose(block, 'oursThenTheirs')}>{vi.branches.keepBoth}</button
                   >
                   <button
@@ -252,44 +390,37 @@
                   </button>
                 </div>
                 <div class="sides">
-                  <button
-                    type="button"
-                    class="side ours"
-                    class:highlighted={choice === 'ours' ||
-                      choice === 'oursThenTheirs' ||
-                      choice === 'theirsThenOurs'}
-                    onclick={() => choose(block, 'ours')}
-                  >
-                    <span class="side-title"
-                      >{vi.branches.current}
-                      <span class="side-label"><bdi>{block.oursLabel}</bdi></span></span
-                    >
-                    {@render code(block.ours, ' ')}
-                  </button>
-                  <button
-                    type="button"
-                    class="side theirs"
-                    class:highlighted={choice === 'theirs' ||
-                      choice === 'oursThenTheirs' ||
-                      choice === 'theirsThenOurs'}
-                    onclick={() => choose(block, 'theirs')}
-                  >
-                    <span class="side-title"
-                      >{vi.branches.incoming}
-                      <span class="side-label"><bdi>{block.theirsLabel}</bdi></span></span
-                    >
-                    {@render code(block.theirs, ' ')}
-                  </button>
+                  {@render side(block, 'ours', picked.ours)}
+                  {@render side(block, 'theirs', picked.theirs)}
                 </div>
-                {#if choice !== undefined}
-                  <div class="result">
-                    <span class="result-title">{vi.branches.result}</span>
-                    {@render code(result(block, choice), vi.branches.resultEmpty)}
-                  </div>
-                {/if}
               </div>
             {/if}
           {/each}
+        </div>
+        <div class="output">
+          <div class="output-top">
+            <strong>{vi.branches.result}</strong>
+            {#if edited === null && chosen < total}
+              <span class="left">{vi.branches.outputLeft(total - chosen)}</span>
+            {/if}
+            <span class="grow"></span>
+            <button
+              type="button"
+              class="button small"
+              class:on={edited !== null}
+              aria-pressed={edited !== null}
+              title={vi.branches.editOutputTip}
+              onclick={() => (edited = edited === null ? preview : null)}
+            >
+              <Icon name="pencil" size={12} />
+              <span>{vi.branches.editOutput}</span>
+            </button>
+          </div>
+          {#if edited !== null}
+            <textarea class="output-text" spellcheck="false" bind:value={edited}></textarea>
+          {:else}
+            <pre class="output-text">{preview}</pre>
+          {/if}
         </div>
       {/if}
     </div>
@@ -299,17 +430,27 @@
         <span class="progress" aria-hidden="true"
           ><span class="fill" style:width="{total === 0 ? 0 : (chosen / total) * 100}%"></span></span
         >
-        <span class="count">{vi.branches.chosenCount(chosen, total)}</span>
+        <span class="count"
+          >{edited !== null ? vi.branches.editingOutput : vi.branches.chosenCount(chosen, total)}</span
+        >
         <span class="grow"></span>
-        <button type="button" class="button" disabled={chosen === 0} onclick={() => (choices = new Map())}>
+        <button
+          type="button"
+          class="button"
+          disabled={chosen === 0 && edited === null}
+          onclick={() => {
+            choices = new Map();
+            edited = null;
+          }}
+        >
           {vi.branches.resetChoices}
         </button>
         <button
           type="button"
           class="button primary"
-          disabled={chosen < total}
+          disabled={!canSave}
           title="Ctrl/⌘ + Enter"
-          onclick={save}
+          onclick={() => void save()}
         >
           <Icon name="check-circle" size={14} />
           <span>{vi.branches.saveResolution}</span>
@@ -662,5 +803,169 @@
 
   .count {
     font-variant-numeric: tabular-nums;
+  }
+
+  .body.split {
+    display: grid;
+    grid-template-rows: minmax(160px, 1fr) minmax(120px, 34%);
+    overflow: hidden;
+  }
+
+  .body.split .segments {
+    overflow: auto;
+  }
+
+  .block.current {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  .nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+  }
+
+  .nav-button {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .nav-button:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .nav-count {
+    min-width: 34px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .side-title {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: default;
+  }
+
+  .lines {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 1px 4px;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: left;
+    white-space: pre;
+    cursor: pointer;
+  }
+
+  .line:hover {
+    background: var(--row-hover);
+  }
+
+  .tick {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 13px;
+    height: 13px;
+    border: 1px solid var(--field-border);
+    border-radius: 3px;
+    color: transparent;
+  }
+
+  .side.ours .line.on {
+    background: color-mix(in srgb, var(--brand-blue) 16%, transparent);
+  }
+
+  .side.theirs .line.on {
+    background: color-mix(in srgb, #8e5bd8 16%, transparent);
+  }
+
+  .side.ours .line.on .tick {
+    border-color: var(--brand-blue);
+    background: var(--brand-blue);
+    color: #fff;
+  }
+
+  .side.theirs .line.on .tick {
+    border-color: #8e5bd8;
+    background: #8e5bd8;
+    color: #fff;
+  }
+
+  .output {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-top: 1px solid var(--separator);
+    background: color-mix(in srgb, var(--success) 5%, var(--surface));
+  }
+
+  .output-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    font-size: 12.5px;
+  }
+
+  .left {
+    color: var(--warning);
+    font-size: 12px;
+  }
+
+  .button.small {
+    padding: 3px 9px;
+    font-size: 12px;
+  }
+
+  .button.on {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .output-text {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 8px 14px;
+    overflow: auto;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre;
+    resize: none;
+    outline: none;
   }
 </style>

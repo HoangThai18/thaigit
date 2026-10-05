@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { conflictAsChange, type Commit, type GitRef } from '@thaigit/core';
+import { conflictAsChange, resolveConflicts, type Commit, type GitRef } from '@thaigit/core';
 import { commit } from '../src/lib/actions/commit.ts';
 import { resolveWhole, saveResolution } from '../src/lib/actions/conflicts.ts';
 import { beginRenameBranch, deleteBranch } from '../src/lib/actions/branches.ts';
@@ -138,7 +138,12 @@ describe('merge và giải xung đột', () => {
     expect(view.file.blocks[0]?.ours).toEqual(['HAI (main)']);
     expect(view.file.blocks[0]?.theirs).toEqual(['HAI (feature)']);
 
-    await saveResolution(store, view.entry, view.file, view.sha256, new Map([[0, 'oursThenTheirs']]));
+    await saveResolution(
+      store,
+      view.entry,
+      view.sha256,
+      resolveConflicts(view.file, new Map([[0, 'oursThenTheirs']]))!,
+    );
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe('một\nHAI (main)\nHAI (feature)\nba\n');
     expect(store.status.conflicts).toHaveLength(0);
     // Đã giải xong: trình giải tự đóng.
@@ -159,7 +164,12 @@ describe('merge và giải xung đột', () => {
     const edited = readFileSync(join(test.root, 'a.txt'), 'utf8').replace('ba', 'BA');
     writeFileSync(join(test.root, 'a.txt'), edited);
 
-    await saveResolution(store, view.entry, view.file, view.sha256, new Map([[0, 'ours']]));
+    await saveResolution(
+      store,
+      view.entry,
+      view.sha256,
+      resolveConflicts(view.file, new Map([[0, 'ours']]))!,
+    );
     expect(lastToast(toasts)).toBe('File đã bị sửa bên ngoài — đã nạp lại, hãy chọn lại');
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe(edited);
     expect(store.status.conflicts).toHaveLength(1);

@@ -29,13 +29,17 @@
     files: readonly FileChange[];
     title: string;
     /** Nút ở tiêu đề (Stage tất cả / Bỏ stage tất cả). */
-    headerAction?: { title: string; icon: IconName; run: () => void } | null;
+    headerAction?: { title: string; icon: IconName; run: (event: MouseEvent) => void; tip?: string } | null;
     /** Nút hiện khi rê chuột vào hàng. */
     actions?: readonly RowAction[];
     /** Đường dẫn file đang mở diff (tô đậm hàng). */
     selectedPath?: string | null;
     emptyText?: string;
-    onopen?: (change: FileChange) => void;
+    onopen?: (change: FileChange, event?: MouseEvent) => void;
+    /** Đường dẫn đang được chọn để xử lý nhiều file một lần (tô nền). */
+    markedPaths?: ReadonlySet<string>;
+    /** Chữ phụ cạnh tên file (vd. "2 đoạn" xung đột). */
+    badges?: ReadonlyMap<string, string>;
     /** Nhấp đúp (stage / bỏ stage nhanh). */
     onprimary?: (change: FileChange) => void;
     /** Chuột phải vào hàng. */
@@ -61,6 +65,8 @@
     dragFrom,
     dropZone,
     folderAction = null,
+    markedPaths,
+    badges,
   }: Props = $props();
 
   /** Path / Tree như GitKraken (cài đặt chung cho mọi danh sách file). */
@@ -94,7 +100,7 @@
       <Icon name={tree ? 'list' : 'folder'} size={14} />
     </button>
     {#if headerAction && files.length > 0}
-      <button type="button" class="header-action" onclick={headerAction.run}>
+      <button type="button" class="header-action" title={headerAction.tip} onclick={headerAction.run}>
         <Icon name={headerAction.icon} size={14} />
         <span>{headerAction.title}</span>
       </button>
@@ -163,6 +169,7 @@
   <div
     class="file"
     class:selected={selectedPath === change.path}
+    class:marked={markedPaths?.has(change.path) ?? false}
     style:padding-left={tree ? `${28 + depth * 14}px` : undefined}
     role="button"
     tabindex="0"
@@ -177,7 +184,7 @@
           label: fileChangeName(change),
         }));
     }}
-    onclick={() => onopen?.(change)}
+    onclick={(event) => onopen?.(change, event)}
     ondblclick={() => onprimary?.(change)}
     oncontextmenu={(event) => onmenu?.(event, change)}
     onkeydown={(event) => {
@@ -192,6 +199,9 @@
     <span class="name"><bdi>{showBidi(fileChangeName(change))}</bdi></span>
     {#if !tree && fileChangeDirectory(change) !== ''}
       <span class="dir"><bdi>{showBidi(fileChangeDirectory(change))}</bdi></span>
+    {/if}
+    {#if badges?.has(change.path)}
+      <span class="badge">{badges.get(change.path)}</span>
     {/if}
     <span class="grow"></span>
     <span class="actions">
@@ -307,6 +317,19 @@
 
   .file:hover {
     background: var(--row-hover);
+  }
+
+  .file.marked {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+
+  .badge {
+    flex: none;
+    padding: 0 6px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--warning) 22%, transparent);
+    color: var(--text-secondary);
+    font-size: 11px;
   }
 
   .file.selected {
