@@ -97,6 +97,16 @@ export const shell: Translation<typeof source> = {
     wipTooltip: 'Uncommitted changes — click to view',
     ariaLabel: 'Commit history',
     pillMore: (count: number) => `+${count}`,
+    hideOnGraph: 'Hide on graph',
+    showOnGraph: 'Show on graph again',
+    solo: 'Show only this branch (solo)',
+    unsolo: 'Remove from solo',
+    showAll: 'Show all branches',
+    cannotHideCurrent: "The checked-out branch can't be hidden",
+    hidden: (name: string) => `Hid ${name} from the graph`,
+    hiddenSummary: (count: number) => `Hiding ${count} ${count === 1 ? 'branch' : 'branches'}`,
+    soloSummary: (count: number) =>
+      `Showing only ${count} ${count === 1 ? 'branch' : 'branches'} (and the checked-out branch)`,
     moreTitle: (count: number) =>
       `${count} ${count === 1 ? 'branch / tag' : 'branches / tags'} on this commit`,
     moreHint: 'Click to check out / merge…',

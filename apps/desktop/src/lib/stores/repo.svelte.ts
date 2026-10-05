@@ -16,13 +16,18 @@ import {
   headOid,
   isStatusClean,
   isWorkingTreeCommit,
+  keepingRefs,
+  NO_REF_FILTER,
   operationTitle,
   progressFraction,
+  refFilterActive,
   refName,
+  refVisible,
   stashDisplayMessage,
   type Commit,
   type CommitDetails,
   type GitRef,
+  type GraphRefFilter,
   type GraphRow,
   type HeadState,
   type HistoryGaps,
@@ -43,6 +48,7 @@ import { BlameStore } from '../history/blame.svelte.ts';
 import { FileHistoryStore } from '../history/fileHistory.svelte.ts';
 import { RiskStore } from '../risk/risks.svelte.ts';
 import { commitDrafts, type CommitDrafts } from '../staging/commitDrafts.ts';
+import { loadGraphFilter, saveGraphFilter } from '../graph/filterStorage.ts';
 import type { RepoPort } from '../platform/host.ts';
 import { vi } from '../strings.vi.ts';
 import { jsonEqual } from './equality.ts';
@@ -206,6 +212,8 @@ export class RepoStore {
   lastFetch = $state<number | null>(null);
   /** File đang mở ở vùng giữa (thay graph) và các dòng đang chọn để stage từng dòng. */
   readonly diff: DiffStore;
+  /** Nhánh ẩn / "chỉ hiện" (solo) trên graph, nhớ riêng cho từng repo (actions/graphFilter.ts). */
+  graphFilter = $state.raw<GraphRefFilter>(NO_REF_FILTER);
   /** Thao tác git gần nhất hoàn tác được (nút Undo trên thanh công cụ, như GitKraken) — lấy từ nút "Hoàn tác" của thông báo. */
   lastUndo = $state.raw<{ title: string; fingerprint: string; run: () => void } | null>(null);
   /** Thông báo có "Hoàn tác" vừa hiện, chưa làm mới xong: chốt dấu vân tay sau lần làm mới của thao tác. */
@@ -256,6 +264,7 @@ export class RepoStore {
     this.ownerId = `${port.info.repoId}#${++storeSerial}`;
     this.refreshErrorTag = `${REFRESH_ERROR_TAG}:${this.ownerId}`;
     this.commitLimit = this.prefs.value.commitLimit;
+    this.graphFilter = loadGraphFilter(port.info.root);
     this.drafts = options.drafts ?? commitDrafts;
     const saved = this.drafts.load(port.info.root);
     this.commitDraft.summary = saved.summary;
@@ -628,7 +637,15 @@ export class RepoStore {
       includeHead,
       includeRemotes: showRemoteBranches,
       includeTags: showTags,
+      filter: keepingRefs(this.graphFilter, new Set(this.refs.map((ref) => ref.fullName))),
     });
+  }
+
+  /** Đổi bộ lọc nhánh trên graph: lưu theo repo rồi nạp lại lịch sử. */
+  setGraphFilter(filter: GraphRefFilter): void {
+    this.graphFilter = filter;
+    saveGraphFilter(this.rootPath, filter);
+    this.requestRefresh(Scope.history);
   }
 
   /** Nạp lịch sử + xếp làn rồi dựng graph. `pending`: log đã chạy sẵn song song ở lần nạp đầu. */
@@ -745,7 +762,18 @@ export class RepoStore {
   }
 
   private labelsByCommit(): Map<string, RefLabel[]> {
-    return buildRefLabels(this.refs, this.status.head, {
+    // Nhánh đang ẩn (hoặc ngoài nhóm solo) không có nhãn; nhánh đang checkout và tag luôn hiện.
+    const current = this.currentBranch;
+    const filter = this.graphFilter;
+    const refs = refFilterActive(filter)
+      ? this.refs.filter(
+          (ref) =>
+            ref.kind === 'tag' ||
+            refVisible(filter, ref.fullName) ||
+            (ref.kind === 'localBranch' && refName(ref) === current),
+        )
+      : this.refs;
+    return buildRefLabels(refs, this.status.head, {
       showRemotes: this.prefs.value.showRemoteBranches,
       showTags: this.prefs.value.showTags,
       remoteNames: this.remotes.map((remote) => remote.name),

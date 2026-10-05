@@ -34,6 +34,7 @@ import {
 } from './branches.ts';
 import { cherryPick, discardAll, ignore, merge, rebaseCurrent, reset, revert } from './history.ts';
 import { lfsFileItems } from './lfs.ts';
+import { graphFilterItems } from './graphFilter.ts';
 import { pull, push, pushBranch } from './remote.ts';
 import { discardFiles, stageAll, stageFiles, unstageAll, unstageFiles } from './staging.ts';
 import { applyStash, beginStash, dropStash, popStash, quickStash } from './stash.ts';
@@ -299,6 +300,7 @@ export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
       });
       break;
   }
+  items.push({ kind: 'separator' }, ...graphFilterItems(store, ref));
   items.push({ kind: 'separator' });
   items.push({
     title: vi.branches.menuCopyName,

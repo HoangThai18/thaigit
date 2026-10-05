@@ -10,6 +10,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Nút Undo trên thanh công cụ: hoàn tác thao tác git gần nhất (commit, checkout, pull, huỷ thay đổi…), tự tắt khi repo đã đổi khác
 - Rê chuột vào cột graph để xem tên người commit và thời gian; dải "Nên xem lại trước khi commit" có nút ẩn; danh sách đang trống trong panel thay đổi thu nhỏ để danh sách kia hiện nhiều file hơn; cùng một thông báo không hiện lặp
 - Danh sách file thay đổi xem được dạng cây thư mục (nút cạnh "Stage tất cả", như Path / Tree của GitKraken): gập / mở thư mục, stage hoặc bỏ stage cả thư mục một lần bấm
+- Ẩn nhánh khỏi graph hoặc "Chỉ hiện nhánh này" (solo) từ menu chuột phải của nhánh — graph gọn lại khi repo có nhiều nhánh; dải báo phía trên graph có nút "Hiện tất cả nhánh"; nhớ riêng cho từng repo
 
 ## 2.1.0 — 2026-10-04
 

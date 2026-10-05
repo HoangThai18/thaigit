@@ -7,6 +7,7 @@
   import { operationCanContinue, operationCanSkip, operationTitle } from '@thaigit/core';
   import { abortOperation, continueOperation, skipOperation } from '../actions/history.ts';
   import { beginCreateBranch } from '../actions/branches.ts';
+  import { graphFilterSummary, showAllBranches } from '../actions/graphFilter.ts';
   import { startAutoFetch } from '../actions/autoFetch.ts';
   import { startAutoSnapshots } from '../snapshots/autoSnapshot.ts';
   import { completeHistory, fetch, pull, push } from '../actions/remote.ts';
@@ -59,6 +60,7 @@
   const centerCovered = $derived(store.diff.file !== null || store.blame.target !== null);
   let showLog = $state(false);
   let showBranchPicker = $state(false);
+  const filterSummary = $derived(graphFilterSummary(store));
   /** Số file chưa commit (một file vừa stage vừa sửa tiếp chỉ tính một lần) — chip cạnh tên nhánh. */
   const uncommittedCount = $derived(
     new Set([
@@ -239,6 +241,16 @@
               onclick={() => void completeHistory(store)}
             >
               {vi.remote.completeHistory}
+            </button>
+          </div>
+        {/if}
+        {#if filterSummary && store.diff.file === null}
+          <div class="banner info" role="status">
+            <span class="banner-icon"><Icon name="eye-off" size={18} /></span>
+            <span class="banner-text"><strong>{filterSummary}</strong></span>
+            <span class="grow"></span>
+            <button type="button" class="banner-button primary" onclick={() => showAllBranches(store)}>
+              {vi.graph.showAll}
             </button>
           </div>
         {/if}

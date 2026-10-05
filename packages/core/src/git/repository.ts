@@ -6,6 +6,7 @@
 // đường dẫn đi qua `--pathspec-from-file=- --pathspec-file-nul` hoặc đứng sau `--` cùng `GIT_LITERAL_PATHSPECS=1`;
 // không dùng cờ ngắn gắn liền giá trị. Tên nhánh/rev/remote không được bắt đầu bằng `-` (chống bị hiểu thành cờ).
 
+import { NO_REF_FILTER, refFilterRevisionArgs, type GraphRefFilter } from '../graph/refFilter.ts';
 import type { EnvProfile } from '@thaigit/contracts';
 import type { Exec, RepoFs, TypedGit } from '../ports/index.ts';
 import type { CommandLog } from '../support/command-log.ts';
@@ -101,6 +102,8 @@ export interface LogOptions {
   includeHead: boolean;
   includeRemotes?: boolean;
   includeTags?: boolean;
+  /** Ẩn / solo nhánh trên graph. */
+  filter?: GraphRefFilter;
 }
 
 /** Tuỳ chọn chung của lệnh mạng. */
@@ -277,11 +280,12 @@ export class GitRepository {
       `--format=${LOG_FORMAT}`,
       options.order === 'topo' ? '--topo-order' : '--date-order',
       `--max-count=${Math.max(1, Math.trunc(options.limit))}`,
-      '--branches',
+      ...refFilterRevisionArgs(options.filter ?? NO_REF_FILTER, {
+        includeHead: options.includeHead,
+        includeRemotes: options.includeRemotes ?? true,
+        includeTags: options.includeTags ?? true,
+      }),
     ];
-    if (options.includeRemotes ?? true) args.push('--remotes');
-    if (options.includeTags ?? true) args.push('--tags');
-    if (options.includeHead) args.push('HEAD');
     args.push('--');
     try {
       return (await this.runner.run('log', args)).stdout;
