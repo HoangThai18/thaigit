@@ -1892,6 +1892,203 @@ html[data-os='win'] [data-os='win'] .fit-badge {
   font-size: 15px;
 }
 
+.prose.wide {
+  max-width: 1000px;
+}
+
+.prose h3 {
+  margin: 28px 0 0;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+
+.prose .lead {
+  max-width: none;
+  margin: 18px 0 0;
+  font-size: 19px;
+  color: var(--text-soft);
+}
+
+.prose ol,
+.prose ul {
+  padding-left: 22px;
+}
+
+.prose li + li {
+  margin-top: 8px;
+}
+
+.prose .terminal,
+.prose .code-sample,
+.prose .guide-shot {
+  margin: 20px 0 0;
+}
+
+.code-sample {
+  overflow-x: auto;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--rim);
+  background: var(--term);
+  color: var(--text-soft);
+  font: 14px/1.6 var(--mono);
+}
+
+.guide-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+  border: 1px solid var(--rim);
+  box-shadow: var(--shadow-lg);
+}
+
+.guide-steps li::marker {
+  color: var(--orange-2);
+  font-weight: 700;
+}
+
+.guide-faq h3 {
+  color: var(--text);
+}
+
+.crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--text-3);
+}
+
+.crumbs li + li {
+  margin-top: 0;
+}
+
+.crumbs li + li::before {
+  content: '/';
+  margin-right: 6px;
+  color: var(--text-3);
+}
+
+.crumbs a {
+  color: var(--text-2);
+}
+
+.os-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--rim);
+  background: var(--tile);
+  font-size: 14px;
+}
+
+.platform-feature + .platform-feature {
+  margin-top: 36px;
+}
+
+.guide-grid,
+.prose .guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-grid li + li {
+  margin-top: 0;
+}
+
+.guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid var(--rim);
+  background: var(--tile);
+  color: var(--text-2);
+  transition:
+    border-color 0.2s var(--ease),
+    transform 0.2s var(--ease);
+}
+
+.guide-card:hover {
+  text-decoration: none;
+  border-color: rgb(75 155 240 / 0.5);
+  transform: translateY(-2px);
+}
+
+.guide-card strong {
+  color: var(--text);
+  font-size: 18px;
+}
+
+.guide-card span {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.guide-card small {
+  margin-top: auto;
+  color: var(--text-3);
+}
+
+.page-cta {
+  margin-top: 64px;
+}
+
+.page-cta img {
+  width: 72px;
+  height: 72px;
+}
+
+.related {
+  margin-top: 24px;
+}
+
+.section-more {
+  margin: 28px 0 0;
+  text-align: center;
+}
+
+.changelog-jump {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.changelog-jump a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--rim);
+  color: var(--text-2);
+}
+
+.changelog-entry h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.changelog-entry time {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
 /* Hiện dần khi cuộn tới: Effects gắn .pre-reveal cho phần dưới màn hình rồi gỡ khi cuộn tới (tắt khi giảm chuyển động). */
 [data-reveal] {
   transition:

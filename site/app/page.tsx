@@ -2,6 +2,7 @@ import { Compare } from '@/components/Compare';
 import { CopyCode } from '@/components/CopyCode';
 import { Effects } from '@/components/Effects';
 import { Faq } from '@/components/Faq';
+import Link from 'next/link';
 import { FeatureTabs } from '@/components/FeatureTabs';
 import {
   AppleIcon,
@@ -17,6 +18,7 @@ import { DownloadButton, ReleaseDetails } from '@/components/ReleaseInfo';
 import { Shot } from '@/components/Shot';
 import { formatDate, readChangelog } from '@/lib/changelog';
 import { FAQ, FEATURES, SMALL_FEATURES, type SmallFeature } from '@/lib/content';
+import { GUIDES } from '@/lib/guides';
 import { fetchMacRelease } from '@/lib/release';
 import { LINKS, SITE } from '@/lib/site';
 
@@ -347,8 +349,31 @@ export default async function HomePage() {
               );
             })}
           </div>
+          <p className="section-more">
+            <Link href="/nhat-ky/">Xem toàn bộ nhật ký thay đổi →</Link>
+          </p>
         </section>
       )}
+
+      {/* Hướng dẫn */}
+      <section id="huong-dan" className="section container">
+        <div className="section-head" data-reveal>
+          <span className="kicker">Hướng dẫn</span>
+          <h2>Học Git không còn khó</h2>
+          <p>Giải thích ngắn gọn bằng tiếng Việt, có lệnh git và cách làm bằng vài cú bấm.</p>
+        </div>
+        <ul className="guide-grid" data-reveal>
+          {GUIDES.map((guide) => (
+            <li key={guide.slug}>
+              <Link className="guide-card" href={`/huong-dan/${guide.slug}/`}>
+                <strong>{guide.short}</strong>
+                <span>{guide.description}</span>
+                <small>{guide.minutes} phút đọc</small>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {/* Hỏi đáp */}
       <section id="hoi-dap" className="section narrow container">

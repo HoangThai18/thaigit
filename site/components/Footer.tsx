@@ -17,6 +17,10 @@ export function Footer() {
           </div>
         </div>
         <nav className="footer-links" aria-label="Liên kết cuối trang">
+          <Link href="/mac/">Thaigit cho macOS</Link>
+          <Link href="/windows/">Thaigit cho Windows</Link>
+          <Link href="/huong-dan/">Hướng dẫn Git</Link>
+          <Link href="/nhat-ky/">Nhật ký thay đổi</Link>
           <Link href="/quyen-rieng-tu/">Quyền riêng tư</Link>
         </nav>
       </div>
