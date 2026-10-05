@@ -1,6 +1,6 @@
 /**
- * Đặc tả snapshot (dòng thời gian working tree) dùng chung với app Swift: hằng đọc từ `snapshot.json`, định dạng message của
- * commit snapshot và luật dọn mốc cũ. Ca kiểm thử chung: `snapshot.vectors.json`.
+ * Snapshot (working-tree timeline) spec shared with the Swift app: constants read from `snapshot.json`, the snapshot
+ * commit message format, and the pruning rules for old markers. Shared test cases: `snapshot.vectors.json`.
  */
 import spec from '../snapshot.json' with { type: 'json' };
 
@@ -9,9 +9,9 @@ export type SnapshotReason = (typeof SNAPSHOT_REASONS)[number];
 
 export interface SnapshotSpec {
   version: number;
-  /** Ref per-worktree; mỗi mốc là một mục reflog của nó. */
+  /** Per-worktree ref; each marker is one of its reflog entries. */
   ref: string;
-  /** Index tạm, tương đối git dir của worktree. */
+  /** Temporary index, relative to the worktree's git dir. */
   indexFile: string;
   messageHeader: string;
   reflogMessage: string;
@@ -30,11 +30,11 @@ export const snapshotSpec: SnapshotSpec = spec as SnapshotSpec;
 
 export interface SnapshotMeta {
   reason: SnapshotReason;
-  /** Số file khác HEAD lúc chụp; null khi thiếu hoặc không hợp lệ. */
+  /** Files differing from HEAD at capture time; null when missing or invalid. */
   files: number | null;
 }
 
-/** Env danh tính cố định cho `commit-tree` (chính sách chỉ nhận đúng các giá trị này). */
+/** Fixed identity env for `commit-tree` (the policy only accepts exactly these values). */
 export function snapshotIdentityEnv(): Record<string, string> {
   const { name, email } = snapshotSpec.identity;
   return {
@@ -49,7 +49,7 @@ export function formatSnapshotMessage(reason: SnapshotReason, files: number): st
   return `${snapshotSpec.messageHeader}\n\nreason: ${reason}\nfiles: ${files}\n`;
 }
 
-/** Message (%B) của commit snapshot → metadata; null nếu dòng đầu không đúng `messageHeader`. */
+/** Snapshot commit message (%B) → metadata; null when the first line is not `messageHeader`. */
 export function parseSnapshotMessage(message: string): SnapshotMeta | null {
   const lines = message.split('\n').map((line) => line.replace(/\r$/, ''));
   if (lines[0] !== snapshotSpec.messageHeader) return null;
@@ -70,9 +70,9 @@ export function parseSnapshotMessage(message: string): SnapshotMeta | null {
 }
 
 /**
- * Chỉ số mục reflog cần xoá (giảm dần — xoá từ cũ nhất để chỉ số các mục còn lại không đổi). `entries` có `index` = vị trí
- * trong reflog (0 = mới nhất) và `time` = giây. Mục 0 không bao giờ bị xoá; mục xoá khi `index >= keepCount` hoặc cũ hơn
- * `keepDays` ngày (mốc ở tương lai do lệch đồng hồ thì giữ).
+ * Reflog entries to delete (descending — delete oldest first so remaining indexes stay stable). `entries` pairs `index` =
+ * position in the reflog (0 = newest) with `time` in seconds. Entry 0 is never deleted; an entry goes when
+ * `index >= keepCount` or it is older than `keepDays` days (future timestamps from clock skew are kept).
  */
 export function selectExpiredSnapshots(
   entries: readonly { index: number; time: number }[],

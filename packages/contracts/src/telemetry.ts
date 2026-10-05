@@ -1,6 +1,6 @@
 /**
- * Thống kê ẩn danh (chỉ khi người dùng bật trong Cài đặt) và đếm lượt tải. `telemetryId` là UUID riêng, tách hẳn khỏi
- * `aiInstallId` (máy chủ băm hai ID bằng hai secret khác nhau nên không nối được).
+ * Anonymous analytics (only when enabled in Settings) and download counting. `telemetryId` is a separate UUID, kept
+ * distinct from `aiInstallId` (the server hashes the two with different secrets, so they cannot be linked).
  */
 import { UUID_V4_PATTERN, SEMVER_PATTERN } from './ai.ts';
 
@@ -11,7 +11,7 @@ export type TelemetryArch = (typeof TELEMETRY_ARCHS)[number];
 
 export const TELEMETRY_PING_PATH = '/v1/telemetry/ping';
 
-/** Toàn bộ dữ liệu một lần ping (≤ 1 lần/ngày/máy). Không có IP, tên máy, đường dẫn repo hay nội dung gì khác. */
+/** Everything one ping carries (≤ 1 per day per machine). No IP, machine name, repo path or any other content. */
 export interface TelemetryPing {
   telemetryId: string;
   platform: TelemetryPlatform;
@@ -35,6 +35,6 @@ export function parseTelemetryPing(body: unknown): TelemetryPing | null {
   };
 }
 
-/** `/download/:asset` — máy chủ ghi một lượt (không IP) rồi chuyển hướng tới file trên GitHub Releases. */
+/** `/download/:asset` — the server records a hit (no IP) then redirects to the file on GitHub Releases. */
 export const DOWNLOAD_ASSETS = ['mac', 'win'] as const;
 export type DownloadAsset = (typeof DOWNLOAD_ASSETS)[number];

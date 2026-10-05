@@ -1,18 +1,18 @@
 import policyJson from '../git-policy.json' with { type: 'json' };
 
-/** Loại thao tác: quyết định khoá theo repo (`write`/`network` độc quyền) và cách huỷ (chỉ `network`). */
+/** Operation kind: decides per-repo locking (`write`/`network` are exclusive) and how it can be cancelled (only `network`). */
 export type ExecKind = 'read' | 'write' | 'network';
 
-/** Hồ sơ môi trường: `background` (tự fetch) không bao giờ bật hộp thoại đăng nhập. */
+/** Environment profile: `background` (autofetch) never raises the sign-in dialog. */
 export type EnvProfile = 'interactive' | 'background';
 
 /**
- * Dạng chỉ-đọc của một subcommand `write`: khớp khi args BẮT ĐẦU bằng đúng dãy `args` và, trừ khi `rest`, không còn đối số nào
- * sau đó (`remote -v` là dạng chỉ-đọc, `remote -v update` thì không).
+ * Read-only shape of a `write` subcommand: matches when args START with exactly `args` and, unless `rest`, have nothing
+ * after it (`remote -v` is read-only, `remote -v update` is not).
  */
 export interface ReadForm {
   args: string[];
-  /** Cho phép thêm đối số tuỳ ý sau `args` (vd. `stash list --format=…`, `remote get-url origin`). */
+  /** Allow arbitrary trailing args after `args` (e.g. `stash list --format=…`, `remote get-url origin`). */
   rest?: boolean;
 }
 
@@ -22,10 +22,10 @@ export interface SubcommandRule {
   allowLong?: string[];
   allowSecond?: string[];
   typedSecond?: string[];
-  /** Loại riêng theo đối số đầu (`lfs fetch` → `network`); không có thì dùng `kind`. */
+  /** Kind overridden by the first arg (`lfs fetch` → `network`); falls back to `kind`. */
   secondKinds?: Record<string, ExecKind>;
   rejectSecond?: string[];
-  /** Đối số đầu thuộc danh sách này phải là đối số DUY NHẤT (`remote -v` ok, `remote -v add …` bị chặn). */
+  /** First args in this list must be the ONLY arg (`remote -v` ok, `remote -v add …` blocked). */
   aloneSecond?: string[];
   readForms?: ReadForm[];
   requireAny?: string[];
@@ -59,7 +59,7 @@ export interface GitPolicy {
 
 export const gitPolicy: GitPolicy = policyJson as GitPolicy;
 
-/** `args` khớp TOÀN BỘ hình dạng của một dạng chỉ-đọc (`readForms`) của `rule`? */
+/** Do `args` match any read-only shape (`readForms`) of `rule` in full? */
 export function matchesReadForm(rule: SubcommandRule, args: readonly string[]): boolean {
   return (rule.readForms ?? []).some(
     (form) =>
@@ -70,9 +70,11 @@ export function matchesReadForm(rule: SubcommandRule, args: readonly string[]): 
 }
 
 /**
- * Loại thao tác hiệu lực của một lệnh (nguồn sự thật cho khoá theo repo và quyền huỷ): loại của subcommand (hoặc của đối số
- * đầu, `secondKinds`), nhưng lệnh `write` mà args khớp một dạng chỉ-đọc (`stash list`, `remote -v`…) thì là `read`.
- * `undefined` = subcommand không có trong chính sách. Rust (`derived_kind`) phải cho kết quả giống hệt trên mọi ca `kinds` của `git-policy.vectors.json`.
+ * Effective kind of a command (the source of truth for per-repo locking and cancellation): the subcommand's kind, or the
+ * first arg's kind (`secondKinds`) — except a `write` command whose args match a read-only shape (`stash list`,
+ * `remote -v`…) is `read`. `undefined` means the subcommand is absent from the policy.
+ *
+ * Rust (`derived_kind`) must agree with this on every case of the `kinds` array in `git-policy.vectors.json`.
  */
 export function effectiveKind(
   sub: string,
@@ -100,20 +102,22 @@ export type PolicyViolation =
   | { code: 'env-rejected'; sub: string; detail: string };
 
 /**
- * Kiểm tra một lệnh git trước khi chạy. Bản tham chiếu (TS) — Rust (`policy.rs`) phải cho kết quả giống hệt
- * trên mọi ca trong `git-policy.vectors.json`. Quy tắc:
- *  1. `sub` phải có trong `subcommands` (không alias, không đường dẫn).
- *  2. `rejectSecond` / `allowSecond` / `typedSecond` xét đối số đầu tiên sau subcommand (rỗng nếu không có); `aloneSecond`
- *     bắt đối số đầu đó là đối số duy nhất.
- *  3. `config` chỉ được đọc: phải có một cờ trong `requireAny`, không có cờ ghi.
- *  4. Duyệt đối số tới `--` đầu tiên:
- *     - `--ten[=giá trị]`: bị chặn nếu `ten` (hoặc là tiền tố viết tắt ≥ 3 ký tự của) một mục `rejectLong` /
- *       `rejectExtraLong` — git chấp nhận tên dài viết tắt, `--upl=…` chính là `--upload-pack` — trừ khi nằm trong `allowLong`.
- *     - `-X` (đúng 2 ký tự): bị chặn nếu thuộc `rejectShort` ∪ `rejectExtraShort` mà không thuộc `allowShort`.
- *     - `-Xgiá-trị` / `-abc` (gắn liền / gộp): chỉ được khi khớp một mẫu `shortAttached` và chữ đầu không bị chặn.
- *  5. Lệnh có `urls`: mọi đối số không phải tuỳ chọn (kể cả sau `--`) không được mở đầu bằng `ext::`, `fd::`
- *     (không phân biệt hoa thường) hay dùng scheme `ext`/`fd`.
- *  6. `env` từ phía gọi chỉ gồm khoá trong `env.fromCaller` với giá trị cho phép (đường dẫn kiểm ở adapter).
+ * Validate a git command before running it. The TS side is the reference — Rust (`policy.rs`) must agree on every case
+ * in `git-policy.vectors.json`. Rules:
+ *  1. `sub` must exist in `subcommands` (no aliases, no paths).
+ *  2. `rejectSecond` / `allowSecond` / `typedSecond` inspect the first arg after the subcommand (empty when there is
+ *     none); `aloneSecond` additionally requires that arg to be the only one.
+ *  3. `config` is read-only: one of the flags in `requireAny` must be present and no write flag may be.
+ *  4. Walk args up to the first `--`:
+ *     - `--name[=value]`: rejected if `name` — or any abbreviation of it ≥ 3 chars — appears in `rejectLong` /
+ *       `rejectExtraLong` (git accepts long-name abbreviations, so `--upl=…` is `--upload-pack`), unless in `allowLong`.
+ *     - `-X` (exactly 2 chars): rejected if in `rejectShort` ∪ `rejectExtraShort` and not in `allowShort`.
+ *     - `-Xvalue` / `-abc` (attached / bundled): allowed only when matching a `shortAttached` pattern and the leading
+ *       char is not rejected.
+ *  5. Commands with `urls`: no non-option arg (including after `--`) may start with `ext::`, `fd::` (any case) or use
+ *     the `ext`/`fd` scheme.
+ *  6. Caller-supplied `env` may only carry keys listed in `env.fromCaller` with allowed values (path checks happen in
+ *     the adapter).
  */
 export function validateGitCommand(
   sub: string,
@@ -130,7 +134,7 @@ export function validateGitCommand(
     if (rule.typedSecond?.includes(second)) return { code: 'typed-only', sub, detail: `${sub} ${second}` };
     return { code: 'second-not-allowed', sub, detail: second };
   }
-  // `remote -v add …` / `remote -v update`: git nhận `-v` đứng trước subcommand nên chỉ xét đối số đầu là chưa đủ.
+  // `remote -v add …` / `remote -v update`: git accepts `-v` before the subcommand, so checking the first arg alone is not enough.
   if (rule.aloneSecond?.includes(second) && args.length > 1) {
     return { code: 'second-not-allowed', sub, detail: args.slice(0, 2).join(' ') };
   }
@@ -188,19 +192,19 @@ function isRejectedUrl(arg: string, policy: GitPolicy): boolean {
   return scheme !== undefined && policy.url.rejectSchemes.includes(scheme);
 }
 
-/** Đối số chèn trước subcommand (`-c k=v` …) và sau subcommand (`--no-ext-diff --no-textconv` cho lệnh sinh diff). */
+/** Args inserted before the subcommand (`-c k=v` …) and after it (`--no-ext-diff --no-textconv` for diff-producing commands). */
 export function buildGitArgv(sub: string, args: readonly string[], policy: GitPolicy = gitPolicy): string[] {
   const head = policy.globalConfig.flatMap((entry) => ['-c', entry]);
   const safety = policy.diffSafety.after.find(
     (path) => path[0] === sub && (path.length === 1 || path[1] === args[0]),
   );
   if (!safety) return [...head, sub, ...args];
-  // `stash show`: chèn sau "show"; các lệnh khác: ngay sau subcommand.
+  // `stash show`: insert after "show"; every other command: right after the subcommand.
   const consumed = safety.length - 1;
   return [...head, sub, ...args.slice(0, consumed), ...policy.diffSafety.args, ...args.slice(consumed)];
 }
 
-/** Môi trường chạy git từ môi trường gốc của tiến trình (port y nguyên GitEnvironment.swift + các biến bị bỏ). */
+/** Git environment derived from the process environment (a direct port of GitEnvironment.swift minus dropped vars). */
 export function buildGitEnv(
   base: Readonly<Record<string, string | undefined>>,
   options: {

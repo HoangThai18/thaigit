@@ -270,11 +270,9 @@ extension RepoModel {
                     },
                 ])
             } onError: { [weak self] error in
-                self?.handleCheckoutError(error) { [weak self] in
-                    self?.stashThen("Checkout \(ref.name)") { repo in
-                        try await repo.checkoutTracking(remoteBranch: ref.name, localName: localName)
-                    }
-                } ?? false
+                self?.handleCheckoutError(error, retry: CheckoutRetry(title: "Checkout \(ref.name)") { repo in
+                    try await repo.checkoutTracking(remoteBranch: ref.name, localName: localName)
+                }) ?? false
             }
         case .tag:
             checkoutDetached(ref.target, label: "tag \(ref.name)")
@@ -290,9 +288,9 @@ extension RepoModel {
                 ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.restoreHead(previous) },
             ])
         } onError: { [weak self] error in
-            self?.handleCheckoutError(error) { [weak self] in
-                self?.stashThen("Checkout \(name)") { repo in try await repo.switchTo(branch: name) }
-            } ?? false
+            self?.handleCheckoutError(error, retry: CheckoutRetry(title: "Checkout \(name)") { repo in
+                try await repo.switchTo(branch: name)
+            }) ?? false
         }
     }
 
@@ -311,9 +309,9 @@ extension RepoModel {
                     ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in self?.restoreHead(previous) },
                 ])
             } onError: { [weak self] error in
-                self?.handleCheckoutError(error) { [weak self] in
-                    self?.stashThen("Checkout \(label)") { repo in try await repo.switchDetached(sha) }
-                } ?? false
+                self?.handleCheckoutError(error, retry: CheckoutRetry(title: "Checkout \(label)") { repo in
+                    try await repo.switchDetached(sha)
+                }) ?? false
             }
         }
     }
@@ -330,44 +328,101 @@ extension RepoModel {
         }
     }
 
-    /// Thay đổi chưa commit chặn checkout: như GitKraken, tự cất (stash), checkout, rồi mang thay đổi sang — không hiện lỗi.
-    func handleCheckoutError(_ error: any Error, stashAndRetry: @escaping () -> Void) -> Bool {
+    /// Việc cần làm lại khi thay đổi chưa commit chặn checkout / tạo nhánh. `undo` dọn phần đã tạo (ví dụ nhánh mới)
+    /// khi phải quay lại chỗ cũ.
+    struct CheckoutRetry {
+        var title: String
+        var work: (GitRepository) async throws -> Void
+        var undo: ((GitRepository) async throws -> Void)? = nil
+    }
+
+    /// Thay đổi chưa commit chặn checkout: mang theo được (áp lại không xung đột) thì cứ chuyển, như GitKraken;
+    /// xung đột thì trả mọi thứ về chỗ cũ rồi bắt chọn commit hoặc cất vào stash.
+    func handleCheckoutError(_ error: any Error, retry: CheckoutRetry) -> Bool {
         guard let gitError = error as? GitError,
               gitError.contains("would be overwritten") || gitError.contains("Please commit your changes or stash them") else {
             return false
         }
-        stashAndRetry()
+        if gitError.contains("untracked working tree files") {
+            askToSaveWork(retry)
+        } else {
+            carryThen(retry)
+        }
         return true
     }
 
-    /// Auto-stash: cất thay đổi vào stash, chạy thao tác, rồi áp lại thay đổi lên chỗ mới. Thao tác lỗi thì trả thay đổi
-    /// về như cũ; áp lại bị xung đột thì giữ nguyên stash (không mất gì) và báo để người dùng giải quyết.
-    func stashThen(_ title: String, _ work: @escaping (GitRepository) async throws -> Void) {
-        var reapplied = false
-        perform(title) { repo in
-            try await repo.stashPush(message: String(localized: "Thaigit: tự stash trước khi \(title.lowercased())"), includeUntracked: true)
+    private func topStashSHA(_ repo: GitRepository) async throws -> String? {
+        try await repo.stashes().first?.sha
+    }
+
+    /// Cất thay đổi (file đã track), chạy thao tác rồi áp lại lên chỗ mới. Áp lại bị xung đột thì quay về HEAD cũ,
+    /// trả thay đổi như ban đầu và hỏi người dùng; thao tác lỗi thì cũng trả thay đổi về như cũ.
+    private func carryThen(_ retry: CheckoutRetry) {
+        var conflict = false
+        let previous = status.head
+        perform(retry.title) { [weak self] repo in
+            guard let self else { return }
+            let before = try await topStashSHA(repo)
+            try await repo.stashPush(message: String(localized: "Thaigit: tự stash trước khi \(retry.title.lowercased())"), includeUntracked: false)
+            let stashed = try await topStashSHA(repo) != before
             do {
-                try await work(repo)
+                try await retry.work(repo)
             } catch {
-                try? await repo.stashPop("stash@{0}")
+                if stashed { try? await repo.stashPop("stash@{0}") }
                 throw error
             }
+            guard stashed else { return }
             do {
                 try await repo.stashApply("stash@{0}")
                 try await repo.stashDrop("stash@{0}")
-                reapplied = true
             } catch {
-                // Xung đột khi áp lại: stash vẫn còn, file xung đột hiện ở panel thay đổi.
+                conflict = true
+                try await repo.reset(to: "HEAD", mode: .hard)
+                switch previous {
+                case .branch(let name, _): try await repo.switchTo(branch: name)
+                case .detached(let oid): try await repo.switchDetached(oid)
+                case .unknown: break
+                }
+                try await retry.undo?(repo)
+                try await repo.stashPop("stash@{0}")
             }
         } onSuccess: { [weak self] in
             guard let self else { return }
-            if reapplied {
-                toast(.success, String(localized: "\(title) xong — đã mang theo thay đổi chưa commit"))
+            if conflict {
+                askToSaveWork(retry)
             } else {
-                toast(.warning, String(localized: "\(title) xong, nhưng thay đổi chưa commit bị xung đột với nhánh mới"),
-                      message: String(localized: "Thay đổi gốc vẫn được giữ trong stash mới nhất — giải quyết xung đột hoặc pop lại sau."),
-                      actions: [ToastAction(title: String(localized: "Xem thay đổi")) { [weak self] in self?.selectWorkingTree() }])
+                toast(.success, String(localized: "\(retry.title) xong — đã mang theo thay đổi chưa commit"))
             }
+        }
+    }
+
+    /// Thay đổi vướng với nhánh đích nên không mang theo được: commit, hoặc cất vào stash (lưu nháp) rồi chuyển.
+    private func askToSaveWork(_ retry: CheckoutRetry) {
+        confirmation = Confirmation(
+            title: String(localized: "Thay đổi chưa commit đang vướng"),
+            message: String(localized: "Code bạn đang sửa xung đột với nhánh muốn chuyển sang nên không mang theo được. Hãy commit, hoặc cất vào stash (lưu nháp) rồi chuyển."),
+            confirmTitle: String(localized: "Cất vào stash rồi chuyển"),
+            action: { [weak self] in self?.stashThen(retry) },
+            secondaryTitle: String(localized: "Để mình commit"),
+            secondaryAction: { [weak self] in self?.selectWorkingTree() }
+        )
+    }
+
+    /// Cất mọi thay đổi (kể cả file mới) vào stash rồi chạy thao tác; không áp lại. Thao tác lỗi thì trả thay đổi về.
+    func stashThen(_ retry: CheckoutRetry) {
+        perform(retry.title) { [weak self] repo in
+            guard let self else { return }
+            let before = try await topStashSHA(repo)
+            try await repo.stashPush(message: String(localized: "Thaigit: tự stash trước khi \(retry.title.lowercased())"), includeUntracked: true)
+            let stashed = try await topStashSHA(repo) != before
+            do {
+                try await retry.work(repo)
+            } catch {
+                if stashed { try? await repo.stashPop("stash@{0}") }
+                throw error
+            }
+        } onSuccess: { [weak self] in
+            self?.toast(.success, String(localized: "\(retry.title) xong — thay đổi chưa commit đã được cất vào stash mới nhất"))
         }
     }
 
@@ -400,9 +455,11 @@ extension RepoModel {
                 },
             ])
         } onError: { [weak self] error in
-            self?.handleCheckoutError(error) { [weak self] in
-                self?.stashThen(String(localized: "Tạo nhánh \(name)")) { repo in try await repo.createBranch(name, at: startPoint, checkout: checkout) }
-            } ?? false
+            self?.handleCheckoutError(error, retry: CheckoutRetry(
+                title: String(localized: "Tạo nhánh \(name)"),
+                work: { repo in try await repo.createBranch(name, at: startPoint, checkout: checkout) },
+                undo: { repo in try await repo.deleteBranch(name, force: true) }
+            )) ?? false
         }
     }
 

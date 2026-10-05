@@ -282,36 +282,55 @@ describe('nhánh / stash từ thanh công cụ', () => {
     expect(store.currentBranchRef?.upstream).toBe('origin/tu-remote');
   });
 
-  it('thay đổi chặn đổi nhánh: tự stash, checkout rồi mang thay đổi theo; xung đột thì giữ stash', async () => {
-    const { test, store, toasts } = await openWithRemote();
+  it('đổi nhánh: không xung đột thì mang file theo; xung đột thì hỏi, cất vào stash rồi chuyển, không mang theo', async () => {
+    const { test, store, toasts, dialogs } = await openWithRemote();
     await test.write('a.txt', '1\n2\n3\n4\n5\n6\n7\n8\n');
     test.git('commit', '-q', '-am', 'Tám dòng');
     test.git('switch', '-q', '-c', 'khac');
     await test.write('a.txt', 'MỘT\n2\n3\n4\n5\n6\n7\n8\n');
     test.git('commit', '-q', '-am', 'Sửa dòng đầu trên nhánh khác');
     test.git('switch', '-q', 'main');
-    // Sửa dòng cuối: chặn checkout nhưng áp lại sạch.
     await test.write('a.txt', '1\n2\n3\n4\n5\n6\n7\nTÁM\n');
     await store.refreshAndWait(7);
 
-    await switchToBranch(store, 'khac');
-    await until(() => store.currentBranch === 'khac' && !store.isPerforming, 'tự stash rồi checkout');
-    expect(lastToast(toasts)).toBe('Checkout khac xong — đã mang theo thay đổi chưa commit');
+    await switchToBranch(store, 'khac', dialogs);
+    await until(() => store.currentBranch === 'khac' && !store.isPerforming, 'đổi nhánh không xung đột');
+    expect(dialogs.current).toBeNull();
+    expect(lastToast(toasts)).toBe(strings.branches.carriedChanges('Checkout khac'));
     expect(store.stashes).toHaveLength(0);
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe('MỘT\n2\n3\n4\n5\n6\n7\nTÁM\n');
 
-    // Sửa cùng dòng với nhánh kia: áp lại xung đột, stash vẫn còn.
     test.git('checkout', '-q', '--', 'a.txt');
     test.git('switch', '-q', 'main');
     await test.write('a.txt', 'one\n2\n3\n4\n5\n6\n7\n8\n');
     await store.refreshAndWait(7);
-    await switchToBranch(store, 'khac');
-    await until(() => store.currentBranch === 'khac' && !store.isPerforming, 'checkout có xung đột');
-    expect(lastToast(toasts)).toBe(
-      'Checkout khac xong, nhưng thay đổi chưa commit bị xung đột với nhánh mới',
-    );
+
+    const huy = switchToBranch(store, 'khac', dialogs);
+    await until(() => dialogs.current?.kind === 'confirm', 'hộp hỏi khi xung đột');
+    expect(store.currentBranch).toBe('main');
+    expect(store.stashes).toHaveLength(0);
+    expect(store.status.conflicts).toHaveLength(0);
+    expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe('one\n2\n3\n4\n5\n6\n7\n8\n');
+    expect(dialogs.current).toMatchObject({
+      title: strings.branches.dirtyTitle,
+      confirmTitle: strings.branches.dirtyStash,
+      secondaryTitle: strings.branches.dirtyCommit,
+    });
+    dialogs.answer('cancel');
+    await huy;
+    expect(store.currentBranch).toBe('main');
+    expect(store.stashes).toHaveLength(0);
+    expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe('one\n2\n3\n4\n5\n6\n7\n8\n');
+
+    const dongY = switchToBranch(store, 'khac', dialogs);
+    await until(() => dialogs.current?.kind === 'confirm', 'hộp hỏi lần hai');
+    dialogs.answer('confirm');
+    await dongY;
+    await until(() => store.currentBranch === 'khac' && !store.isPerforming, 'cất vào stash rồi chuyển');
     expect(store.stashes).toHaveLength(1);
-    expect(store.status.conflicts.map((entry) => entry.path)).toEqual(['a.txt']);
+    expect(store.status.conflicts).toHaveLength(0);
+    expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe('MỘT\n2\n3\n4\n5\n6\n7\n8\n');
+    expect(lastToast(toasts)).toBe(strings.branches.stashedAndDone('Checkout khac'));
   });
 
   it('stash nhanh và hoàn tác', async () => {

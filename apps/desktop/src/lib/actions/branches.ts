@@ -22,52 +22,99 @@ import { gitErrorContains, handleNetworkError } from './errors.ts';
 
 type Work = (git: GitRepository) => Promise<void>;
 
-/**
- * Thay đổi chưa commit chặn checkout: như GitKraken, tự cất (stash), checkout rồi mang thay đổi sang — không hiện lỗi.
- */
-export function handleCheckoutError(store: RepoStore, error: unknown, stashAndRetry: () => void): boolean {
+export interface CheckoutRetry {
+  title: string;
+  work: Work;
+  undo?: Work;
+}
+
+export function handleCheckoutError(
+  store: RepoStore,
+  error: unknown,
+  retry: CheckoutRetry,
+  dialogs?: DialogStore,
+): boolean {
   if (!gitErrorContains(error, 'would be overwritten', 'Please commit your changes or stash them'))
     return false;
-  stashAndRetry();
+  if (gitErrorContains(error, 'untracked working tree files')) void askToSaveWork(store, retry, dialogs);
+  else void carryThen(store, retry, dialogs);
   return true;
 }
 
-/**
- * Auto-stash: cất thay đổi vào stash, chạy `work`, rồi áp lại thay đổi lên chỗ mới. `work` lỗi thì trả thay đổi về như cũ;
- * áp lại bị xung đột thì giữ nguyên stash (không mất gì) và báo để người dùng giải quyết.
- */
-export function stashThen(store: RepoStore, title: string, work: Work): Promise<void> {
-  let reapplied = false;
-  return store.perform(
-    title,
+async function topStash(git: GitRepository): Promise<string | null> {
+  return (await git.stashes())[0]?.sha ?? null;
+}
+
+async function carryThen(store: RepoStore, retry: CheckoutRetry, dialogs?: DialogStore): Promise<void> {
+  let conflict = false;
+  await store.perform(
+    retry.title,
     async (git) => {
-      await git.stashPush(vi.branches.autoStashMessage(title), true);
+      const previous = store.status.head;
+      const before = await topStash(git);
+      await git.stashPush(vi.branches.autoStashMessage(retry.title), false);
+      const stashed = (await topStash(git)) !== before;
       try {
-        await work(git);
+        await retry.work(git);
       } catch (error) {
-        await git.stashPop('stash@{0}').catch(() => undefined);
+        if (stashed) await git.stashPop('stash@{0}').catch(() => undefined);
         throw error;
       }
+      if (!stashed) return;
       try {
         await git.stashApply('stash@{0}');
         await git.stashDrop('stash@{0}');
-        reapplied = true;
       } catch {
-        // Xung đột khi áp lại: stash vẫn còn, file xung đột hiện ở panel thay đổi.
+        conflict = true;
+        await git.reset('HEAD', 'hard');
+        if (previous.kind === 'branch') await git.switchTo(previous.name);
+        else if (previous.kind === 'detached') await git.switchDetached(previous.oid);
+        await retry.undo?.(git);
+        await git.stashPop('stash@{0}');
       }
     },
     {
       refresh: Scope.all,
       onSuccess: () => {
-        if (reapplied) {
-          store.notify('success', vi.branches.carriedChanges(title));
-          return;
-        }
-        store.notify('warning', vi.branches.carryConflict(title), {
-          message: vi.branches.carryConflictMessage,
-          actions: [{ title: vi.branches.showChanges, run: () => store.select({ kind: 'workingTree' }) }],
-        });
+        if (conflict) void askToSaveWork(store, retry, dialogs);
+        else store.notify('success', vi.branches.carriedChanges(retry.title));
       },
+    },
+  );
+}
+
+async function askToSaveWork(
+  store: RepoStore,
+  retry: CheckoutRetry,
+  dialogs: DialogStore | undefined,
+): Promise<void> {
+  const answer = await (dialogs ?? globalDialogs).ask({
+    title: vi.branches.dirtyTitle,
+    message: vi.branches.dirtyMessage,
+    confirmTitle: vi.branches.dirtyStash,
+    secondaryTitle: vi.branches.dirtyCommit,
+  });
+  if (answer === 'confirm') void stashThen(store, retry);
+  else if (answer === 'secondary') store.select({ kind: 'workingTree' });
+}
+
+export function stashThen(store: RepoStore, retry: CheckoutRetry): Promise<void> {
+  return store.perform(
+    retry.title,
+    async (git) => {
+      const before = await topStash(git);
+      await git.stashPush(vi.branches.autoStashMessage(retry.title), true);
+      const stashed = (await topStash(git)) !== before;
+      try {
+        await retry.work(git);
+      } catch (error) {
+        if (stashed) await git.stashPop('stash@{0}').catch(() => undefined);
+        throw error;
+      }
+    },
+    {
+      refresh: Scope.all,
+      onSuccess: () => store.notify('success', vi.branches.stashedAndDone(retry.title)),
     },
   );
 }
@@ -94,7 +141,7 @@ export function checkout(store: RepoStore, ref: GitRef, dialogs?: DialogStore): 
         store.notify('info', vi.branches.alreadyOn(name));
         return Promise.resolve();
       }
-      return switchToBranch(store, name);
+      return switchToBranch(store, name, dialogs);
     }
     case 'remoteBranch': {
       const remotes = store.remotes.map((remote) => remote.name);
@@ -116,11 +163,7 @@ export function checkout(store: RepoStore, ref: GitRef, dialogs?: DialogStore): 
             ],
           }),
         onError: (error) =>
-          handleCheckoutError(
-            store,
-            error,
-            () => void stashThen(store, vi.branches.checkoutTitle(remoteName), work),
-          ),
+          handleCheckoutError(store, error, { title: vi.branches.checkoutTitle(remoteName), work }, dialogs),
       });
     }
     case 'tag':
@@ -128,7 +171,7 @@ export function checkout(store: RepoStore, ref: GitRef, dialogs?: DialogStore): 
   }
 }
 
-export function switchToBranch(store: RepoStore, name: string): Promise<void> {
+export function switchToBranch(store: RepoStore, name: string, dialogs?: DialogStore): Promise<void> {
   const previous = store.status.head;
   const work: Work = (git) => git.switchTo(name);
   return store.perform(vi.branches.checkoutTitle(name), work, {
@@ -138,7 +181,7 @@ export function switchToBranch(store: RepoStore, name: string): Promise<void> {
         actions: [{ title: vi.staging.undo, run: () => void restoreHead(store, previous) }],
       }),
     onError: (error) =>
-      handleCheckoutError(store, error, () => void stashThen(store, vi.branches.checkoutTitle(name), work)),
+      handleCheckoutError(store, error, { title: vi.branches.checkoutTitle(name), work }, dialogs),
   });
 }
 
@@ -164,7 +207,7 @@ export async function checkoutDetached(
         actions: [{ title: vi.staging.undo, run: () => void restoreHead(store, previous) }],
       }),
     onError: (error) =>
-      handleCheckoutError(store, error, () => void stashThen(store, vi.branches.checkoutTitle(label), work)),
+      handleCheckoutError(store, error, { title: vi.branches.checkoutTitle(label), work }, dialogs),
   });
 }
 
@@ -206,7 +249,7 @@ export async function beginCreateBranch(
     },
   });
   if (!values) return;
-  await createBranch(store, textValue(values, 'name'), start.sha, flagValue(values, 'checkout'));
+  await createBranch(store, textValue(values, 'name'), start.sha, flagValue(values, 'checkout'), dialogs);
 }
 
 export function createBranch(
@@ -214,6 +257,7 @@ export function createBranch(
   name: string,
   startPoint: string,
   checkoutAfter: boolean,
+  dialogs?: DialogStore,
 ): Promise<void> {
   const previous = store.status.head;
   const work: Work = (git) => git.createBranch(name, startPoint, checkoutAfter);
@@ -242,7 +286,12 @@ export function createBranch(
       handleCheckoutError(
         store,
         error,
-        () => void stashThen(store, vi.branches.createTitleNamed(name), work),
+        {
+          title: vi.branches.createTitleNamed(name),
+          work,
+          undo: (git) => git.deleteBranch(name, true),
+        },
+        dialogs,
       ),
   });
 }

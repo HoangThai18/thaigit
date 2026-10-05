@@ -2,6 +2,11 @@
 
 Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
+## Chưa phát hành
+
+- Chuyển nhánh khi còn code chưa commit: không xung đột thì cứ chuyển và mang file theo; xung đột thì Thaigit trả mọi thứ về như cũ và hỏi bạn commit hoặc cất vào stash (lưu nháp) rồi mới chuyển, không còn tự mang file xung đột sang nhánh khác
+- Nhánh đang đứng nổi bật hơn trong sidebar: nền màu, chữ đậm màu nhấn
+
 ## 1.4.0 — 2026-10-05
 
 - Dòng “// WIP” trên graph có avatar của chính bạn, giống các commit khác; số file chưa commit nằm ngay cạnh tên nhánh đang ở (rê chuột vào xem chi tiết) thay vì nằm ở dòng WIP — đúng nhánh thì mới thấy số file của nhánh đó

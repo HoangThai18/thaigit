@@ -1,9 +1,10 @@
 /**
- * Hợp đồng AI giữa app và máy chủ Thaigit (`server/`, chuyển tiếp tới Hermes tự host). App chỉ gửi ngữ cảnh đã đóng gói
- * (diff đã lọc + quét bí mật, vài subject gần nhất); prompt nằm ở máy chủ nên chỉnh prompt không cần phát bản app.
+ * AI contract between the app and the Thaigit server (`server/`, which forwards to a self-hosted Hermes). The app
+ * only sends packaged context (a filtered, secret-scanned diff plus a few recent subjects); prompts live on the
+ * server, so tuning them needs no app release.
  *
- * Luồng: `POST /v1/ai/install` (chỉ sau khi người dùng đồng ý) → token; mọi request `/v1/ai/*` sau đó kèm 3 header
- * `AI_HEADERS`. Các route sinh chữ trả SSE: mỗi frame là `event: <type>` + `data: <JSON>` (xem `AiFrame`).
+ * Flow: `POST /v1/ai/install` (only after user consent) returns a token; every later `/v1/ai/*` request carries the
+ * three `AI_HEADERS`. Text routes reply with SSE: each frame is `event: <type>` + `data: <JSON>` (see `AiFrame`).
  */
 
 export const AI_HEADERS = {
@@ -15,7 +16,7 @@ export const AI_HEADERS = {
 export const AI_FEATURES = ['commit', 'explain', 'pr'] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
-/** Đường dẫn route sinh chữ của từng tính năng. */
+/** Text-generation route per feature. */
 export const AI_ROUTES: Record<AiFeature, string> = {
   commit: '/v1/ai/commit-message',
   explain: '/v1/ai/explain-commit',
@@ -47,7 +48,7 @@ export const AI_ERROR_STATUS: Record<AiErrorCode, number> = {
   internal: 500,
 };
 
-/** Body lỗi JSON (trước khi stream bắt đầu). `retryAfter` (giây) đi kèm `ai_busy` / `ip_rate_limited`. */
+/** JSON error body, sent before the stream starts. `retryAfter` (seconds) accompanies `ai_busy` / `ip_rate_limited`. */
 export interface AiErrorBody {
   error: { code: AiErrorCode; retryAfter?: number };
 }
@@ -57,7 +58,7 @@ export interface AiUsage {
   completionTokens: number;
 }
 
-/** Frame SSE. Luồng kết thúc bằng đúng một `done` hoặc `error`. */
+/** SSE frame. A stream ends with exactly one `done` or `error`. */
 export type AiFrame =
   | { type: 'queued'; position: number }
   | { type: 'delta'; text: string }
@@ -65,7 +66,7 @@ export type AiFrame =
   | { type: 'error'; code: AiErrorCode; retryAfter?: number };
 
 export const AI_LIMITS = {
-  /** Body request tối đa (byte). */
+  /** Maximum request body size, in bytes. */
   maxBodyBytes: 200_000,
   maxFiles: 400,
   maxSkipped: 2000,
@@ -76,7 +77,7 @@ export const AI_LIMITS = {
   maxCommits: 100,
   maxMessageLength: 10_000,
   maxBranchLength: 255,
-  /** Ngân sách mặc định khi chưa đọc được `/v1/ai/quota`. */
+  /** Fallback budget when `/v1/ai/quota` cannot be read. */
   defaultMaxInputTokens: 6000,
 } as const;
 
@@ -94,19 +95,19 @@ export const AI_SKIP_REASONS = [
 ] as const;
 export type AiSkipReason = (typeof AI_SKIP_REASONS)[number];
 
-/** Một file được gửi: `patch` là các hunk unified (đã bỏ header `diff --git`, đã bỏ đoạn nghi chứa bí mật). */
+/** A file sent to the model: `patch` holds unified hunks (without the `diff --git` header and with secret-looking spans removed). */
 export interface AiDiffFile {
   path: string;
   oldPath?: string;
   status: AiFileStatus;
   additions: number;
   deletions: number;
-  /** Đã rút gọn vì vượt ngân sách (chỉ gửi một phần hunk). */
+  /** Shortened to fit the budget (only part of the hunks is sent). */
   truncated: boolean;
   patch: string;
 }
 
-/** File không gửi nội dung, chỉ gửi tên + lý do + số dòng (để model biết có thay đổi). */
+/** File whose content is withheld: name, reason and line counts only, so the model still knows the file changed. */
 export interface AiSkippedFile {
   path: string;
   reason: AiSkipReason;
@@ -132,13 +133,13 @@ export interface AiCommitOptions {
 
 export interface CommitMessageRequest extends AiDiffContext {
   branch: string | null;
-  /** Subject của ≤ 10 commit gần nhất — để model học giọng văn của repo. */
+  /** Subjects of up to 10 recent commits, so the model can pick up the repo's writing style. */
   recentSubjects: string[];
   options: AiCommitOptions;
 }
 
 export interface ExplainCommitRequest extends AiDiffContext {
-  /** Message gốc của commit (subject + body). */
+  /** Original commit message (subject + body). */
   message: string;
   language: AiLanguage;
 }
@@ -146,7 +147,7 @@ export interface ExplainCommitRequest extends AiDiffContext {
 export interface PrDescriptionRequest extends AiDiffContext {
   base: string;
   head: string;
-  /** Subject các commit của nhánh (mới → cũ). */
+  /** Subjects of the branch's commits, newest first. */
   commits: string[];
   language: AiLanguage;
 }
@@ -167,16 +168,16 @@ export interface InstallResponse {
 
 export interface QuotaResponse {
   features: Record<AiFeature, { used: number; limit: number }>;
-  /** Thời điểm lượt dùng được làm mới (ISO 8601) — 0:00 giờ Việt Nam. */
+  /** When the next request becomes available (ISO 8601) — 00:00 Vietnam time. */
   resetAt: string;
   maxInputTokens: number;
 }
 
-/** `aiInstallId` / `telemetryId`: UUID v4 ngẫu nhiên do app tạo (aiInstallId chỉ sau khi người dùng đồng ý dùng AI). */
+/** `aiInstallId` / `telemetryId`: random UUID v4 generated by the app (`aiInstallId` only after the user opts into AI). */
 export const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const SEMVER_PATTERN = /^\d{1,4}\.\d{1,4}\.\d{1,6}(?:-[0-9A-Za-z.-]{1,40})?$/;
 
-// ── Kiểm tra dữ liệu (máy chủ dùng cho body, app dùng cho response) ─────────────────────────────────────────────────
+// Validation — the server checks request bodies, the app checks responses.
 
 type Result<T> = { ok: true; value: T } | { ok: false; reason: string };
 
@@ -294,7 +295,7 @@ export const AI_REQUEST_PARSERS: { [F in AiFeature]: (body: unknown) => Result<A
   pr: parsePrDescriptionRequest,
 };
 
-/** Đọc một frame SSE đã tách (`event` + `data`). Frame lạ / sai định dạng → `null` (bỏ qua). */
+/** Parse one already-split SSE frame (`event` + `data`). Unknown or malformed frames return `null` (ignored). */
 export function parseAiFrame(event: string, data: string): AiFrame | null {
   let payload: unknown;
   try {
@@ -329,7 +330,7 @@ export function parseAiFrame(event: string, data: string): AiFrame | null {
   }
 }
 
-/** Đọc body lỗi JSON; không đọc được → `null`. */
+/** Parse a JSON error body; `null` when unreadable. */
 export function parseAiErrorBody(body: unknown): AiErrorBody['error'] | null {
   if (!isRecord(body) || !isRecord(body.error)) return null;
   const { code, retryAfter } = body.error;

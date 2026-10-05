@@ -155,9 +155,11 @@ extension RepoModel {
         } onSuccess: { [weak self] in
             self?.toast(.success, String(localized: "Đã tạo \(config.prefix(kind))\(name) từ \(config.base(kind))"))
         } onError: { [weak self] error in
-            self?.handleCheckoutError(error) { [weak self] in
-                self?.stashThen(String(localized: "Bắt đầu \(kind.title) \(name)")) { repo in try await repo.startFlow(kind, name: name, config: config) }
-            } ?? false
+            self?.handleCheckoutError(error, retry: CheckoutRetry(
+                title: String(localized: "Bắt đầu \(kind.title) \(name)"),
+                work: { repo in try await repo.startFlow(kind, name: name, config: config) },
+                undo: { repo in try await repo.deleteBranch("\(config.prefix(kind))\(name)", force: true) }
+            )) ?? false
         }
     }
 

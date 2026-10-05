@@ -155,6 +155,7 @@
   <button
     type="button"
     class="sb-row"
+    class:current
     class:selected={selectedId === `ref:${ref.fullName}`}
     style:padding-left="{10 + depth * 14}px"
     title={showBidi(ref.upstream ? `${refName(ref)} → ${ref.upstream}` : refName(ref))}

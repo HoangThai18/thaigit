@@ -28,10 +28,12 @@ export const branches = {
   undoCheckout: 'Hoàn tác checkout',
   autoStashMessage: (title: string) => `Thaigit: tự stash trước khi ${title.toLowerCase()}`,
   carriedChanges: (title: string) => `${title} xong — đã mang theo thay đổi chưa commit`,
-  carryConflict: (title: string) => `${title} xong, nhưng thay đổi chưa commit bị xung đột với nhánh mới`,
-  carryConflictMessage:
-    'Thay đổi gốc vẫn được giữ trong stash mới nhất — giải quyết xung đột hoặc pop lại sau.',
-  showChanges: 'Xem thay đổi',
+  stashedAndDone: (title: string) => `${title} xong — thay đổi chưa commit đã được cất vào stash mới nhất`,
+  dirtyTitle: 'Thay đổi chưa commit đang vướng',
+  dirtyMessage:
+    'Code bạn đang sửa xung đột với nhánh muốn chuyển sang nên không mang theo được. Hãy commit, hoặc cất vào stash (lưu nháp) rồi chuyển.',
+  dirtyStash: 'Cất vào stash rồi chuyển',
+  dirtyCommit: 'Để mình commit',
 
   // Tạo nhánh
   createTitle: 'Tạo nhánh mới',

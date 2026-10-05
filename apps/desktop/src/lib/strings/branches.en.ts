@@ -26,11 +26,13 @@ export const branches: Translation<typeof source> = {
   undoCheckout: 'Undo checkout',
   autoStashMessage: (title: string) => `Thaigit: auto-stash before ${title.toLowerCase()}`,
   carriedChanges: (title: string) => `${title} done — your uncommitted changes came along`,
-  carryConflict: (title: string) =>
-    `${title} done, but your uncommitted changes conflict with the new branch`,
-  carryConflictMessage:
-    'The original changes are still kept in the latest stash — resolve the conflicts or pop it later.',
-  showChanges: 'Show Changes',
+  stashedAndDone: (title: string) =>
+    `${title} done — your uncommitted changes were saved to the latest stash`,
+  dirtyTitle: 'Uncommitted changes are in the way',
+  dirtyMessage:
+    'Your changes conflict with the branch you are switching to, so they cannot come along. Commit them, or stash them (save as a draft) and switch.',
+  dirtyStash: 'Stash and switch',
+  dirtyCommit: 'I’ll commit first',
 
   createTitle: 'New branch',
   createTitleNamed: (name: string) => `Create branch ${name}`,

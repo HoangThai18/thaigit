@@ -19,6 +19,11 @@
   background: var(--row-hover);
 }
 
+.sb-row.current {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
 .sb-row.selected {
   background: var(--row-selected-focus);
 }
@@ -39,7 +44,8 @@
 }
 
 .sb-title.current {
-  font-weight: 600;
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .sb-more {

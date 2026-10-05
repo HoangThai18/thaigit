@@ -512,7 +512,8 @@ private struct BranchRow: View {
                 .foregroundStyle(isCurrent ? Color.accentColor : .secondary)
                 .frame(width: 16)
             Text(title)
-                .fontWeight(isCurrent ? .semibold : .regular)
+                .fontWeight(isCurrent ? .bold : .regular)
+                .foregroundStyle(isCurrent ? Color.accentColor : .primary)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .opacity(isDimmed ? 0.45 : 1)
@@ -550,6 +551,14 @@ private struct BranchRow: View {
             }
         }
         .help(ref.upstream.map { "\(ref.name) → \($0)" } ?? ref.name)
+        .background {
+            if isCurrent {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.accentColor.opacity(0.16))
+                    .padding(.horizontal, -6)
+                    .padding(.vertical, -3)
+            }
+        }
         .onHover { hovering = $0 }
     }
 }

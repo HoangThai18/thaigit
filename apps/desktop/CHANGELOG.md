@@ -2,6 +2,11 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## Chưa phát hành
+
+- Chuyển nhánh khi còn code chưa commit: không xung đột thì cứ chuyển và mang file theo; xung đột thì Thaigit trả mọi thứ về như cũ và hỏi bạn commit hoặc cất vào stash (lưu nháp) rồi mới chuyển, không còn tự mang file xung đột sang nhánh khác
+- Nhánh đang đứng nổi bật hơn trong sidebar: nền màu, vạch bên trái, chữ đậm màu nhấn
+
 ## 2.4.0 — 2026-10-05
 
 - Chấm trên graph hiện ảnh đại diện thật của người commit (tìm qua GitHub theo email rồi tới Gravatar, chỉ tải ảnh chứ không gửi mã nguồn đi đâu), kể cả chấm của dòng “// WIP” là của chính bạn; chưa có ảnh thì vẽ chữ viết tắt như cũ, và tắt hẳn được ở Cài đặt → “Ảnh đại diện thật trên graph”
