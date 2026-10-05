@@ -1,38 +1,98 @@
 import NhanhCore
 import SwiftUI
 
-/// Giải quyết xung đột từng đoạn: chọn bản Current, Incoming hoặc cả hai — không cần mở editor.
+/// Giải quyết xung đột như GitKraken: mỗi đoạn chọn Current / Incoming / cả hai, hoặc tick từng dòng; khung Kết quả
+/// xem trước cả file (sửa tay được trước khi lưu); nút / phím nhảy giữa các đoạn.
 struct ConflictResolverView: View {
     @Bindable var model: RepoModel
     let file: ConflictFile
     let entry: ConflictEntry
-    @State private var choices: [Int: ConflictFile.Resolution] = [:]
+    @State private var choices: [Int: ConflictFile.Choice] = [:]
+    /// Đoạn đang đứng (để nhảy trước / sau).
+    @State private var current = 0
+    /// Nội dung khung Kết quả khi người dùng sửa tay (nil: kết quả theo các lựa chọn).
+    @State private var editedOutput: String?
+    @State private var confirmMarkers = false
 
     private var resolvedCount: Int { choices.count }
+    private var total: Int { file.conflictCount }
+    private var preview: String { String(decoding: file.previewData(choices: choices), as: UTF8.self) }
+    private var canSave: Bool { editedOutput != nil || resolvedCount == total }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(file.conflictCount) đoạn xung đột")
-                        .font(.headline)
-                    Text("“Current” là bản trên nhánh hiện tại (HEAD), “Incoming” là bản đang được đưa vào.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("Dùng toàn bộ Current") { model.resolveConflict(entry, useOurs: true) }
-                    .glassButtonStyle()
-                Button("Dùng toàn bộ Incoming") { model.resolveConflict(entry, useOurs: false) }
-                    .glassButtonStyle()
+            header
+            VSplitView {
+                blocks
+                    .frame(minHeight: 160)
+                OutputPane(text: editedOutput ?? preview, editing: Binding(
+                    get: { editedOutput != nil },
+                    set: { editedOutput = $0 ? (editedOutput ?? preview) : nil }
+                ), edited: Binding(get: { editedOutput ?? "" }, set: { editedOutput = $0 }), unresolved: total - resolvedCount)
+                    .frame(minHeight: 110, idealHeight: 200)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .glassSurface(in: RoundedRectangle(cornerRadius: 16), tint: Brand.orange.opacity(0.18))
-            .padding([.horizontal, .top], 10)
+            footer
+        }
+        .onChange(of: file) {
+            choices = [:]
+            editedOutput = nil
+            current = 0
+        }
+        .alert("Kết quả vẫn còn dấu xung đột", isPresented: $confirmMarkers) {
+            Button("Vẫn lưu") { save(force: true) }
+            Button("Huỷ", role: .cancel) {}
+        } message: {
+            Text("Trong khung Kết quả còn dòng <<<<<<< / ======= / >>>>>>>. Lưu như vậy thì file vẫn chứa dấu xung đột.")
+        }
+    }
 
+    private var header: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(total) đoạn xung đột")
+                    .font(.headline)
+                Text("“Current” là bản trên nhánh hiện tại (HEAD), “Incoming” là bản đang được đưa vào. Bấm vào từng dòng để chọn dòng đó.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer()
+            ControlGroup {
+                Button { jump(-1) } label: { Image(systemName: "chevron.up") }
+                    .help("Đoạn xung đột trước (⌥⌘↑)")
+                    .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                    .disabled(current <= 0)
+                Text("\(min(current + 1, total))/\(total)")
+                    .font(.callout.monospacedDigit())
+                    .padding(.horizontal, 6)
+                Button { jump(1) } label: { Image(systemName: "chevron.down") }
+                    .help("Đoạn xung đột sau (⌥⌘↓)")
+                    .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                    .disabled(current >= total - 1)
+            }
+            .fixedSize()
+            Menu {
+                Button("Dùng toàn bộ Current") { model.resolveConflict(entry, useOurs: true) }
+                Button("Dùng toàn bộ Incoming") { model.resolveConflict(entry, useOurs: false) }
+                Divider()
+                Button("Mọi đoạn chưa chọn: giữ Current") { fillRemaining(.ours) }
+                Button("Mọi đoạn chưa chọn: giữ Incoming") { fillRemaining(.theirs) }
+                Button("Mọi đoạn chưa chọn: giữ cả hai") { fillRemaining(.oursThenTheirs) }
+            } label: {
+                Label("Chọn nhanh", systemImage: "wand.and.stars")
+            }
+            .fixedSize()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .glassSurface(in: RoundedRectangle(cornerRadius: 16), tint: Brand.orange.opacity(0.18))
+        .padding([.horizontal, .top], 10)
+    }
+
+    private var blocks: some View {
+        ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
                     ForEach(Array(file.segments.enumerated()), id: \.offset) { _, segment in
@@ -40,39 +100,133 @@ struct ConflictResolverView: View {
                         case .common(let lines):
                             CommonSegment(lines: lines)
                         case .conflict(let block):
-                            ConflictBlockView(block: block, total: file.conflictCount, choice: $choices[block.id])
+                            ConflictBlockView(block: block, total: total, isCurrent: block.id == current,
+                                              choice: Binding(get: { choices[block.id] }, set: { select(block.id, $0) }))
+                                .id(block.id)
+                                .onTapGesture { current = block.id }
                         }
                     }
                 }
                 .padding(16)
             }
-
-            HStack(spacing: 12) {
-                ProgressView(value: Double(resolvedCount), total: Double(max(file.conflictCount, 1)))
-                    .frame(width: 120)
-                Text("Đã chọn \(resolvedCount)/\(file.conflictCount)")
-                    .font(.callout.monospacedDigit())
-                Spacer()
-                Button("Mở bằng trình soạn thảo") { model.openInEditor(path: entry.path) }
-                    .glassButtonStyle()
-                Button("Chọn lại") { choices = [:] }
-                    .glassButtonStyle()
-                    .disabled(choices.isEmpty)
-                Button {
-                    model.saveConflictResolution(entry, file: file, choices: choices)
-                } label: {
-                    Label("Lưu & đánh dấu đã giải quyết", systemImage: "checkmark.circle.fill")
-                }
-                .glassButtonStyle(prominent: true)
-                .disabled(resolvedCount < file.conflictCount)
-                .keyboardShortcut(.return, modifiers: .command)
+            .onChange(of: current) { _, target in
+                withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo(target, anchor: .top) }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .glassSurface(in: Capsule())
-            .padding(10)
         }
-        .onChange(of: file) { choices = [:] }
+    }
+
+    private var footer: some View {
+        HStack(spacing: 12) {
+            ProgressView(value: Double(resolvedCount), total: Double(max(total, 1)))
+                .frame(width: 120)
+            Text(editedOutput != nil ? String(localized: "Đang sửa tay kết quả") : String(localized: "Đã chọn \(resolvedCount)/\(total)"))
+                .font(.callout.monospacedDigit())
+            Spacer()
+            Button("Mở bằng trình soạn thảo") { model.openInEditor(path: entry.path) }
+                .glassButtonStyle()
+            Button("Chọn lại") {
+                choices = [:]
+                editedOutput = nil
+            }
+            .glassButtonStyle()
+            .disabled(choices.isEmpty && editedOutput == nil)
+            Button {
+                save(force: false)
+            } label: {
+                Label("Lưu & đánh dấu đã giải quyết", systemImage: "checkmark.circle.fill")
+            }
+            .glassButtonStyle(prominent: true)
+            .disabled(!canSave)
+            .keyboardShortcut(.return, modifiers: .command)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .glassSurface(in: Capsule())
+        .padding(10)
+    }
+
+    /// Chọn cho một đoạn rồi tự sang đoạn chưa chọn kế tiếp (như GitKraken) — chỉ khi vừa chọn cả phía.
+    private func select(_ id: Int, _ choice: ConflictFile.Choice?) {
+        choices[id] = choice
+        editedOutput = nil
+        current = id
+        if case .side = choice, let next = file.blocks.first(where: { $0.id > id && choices[$0.id] == nil }) {
+            current = next.id
+        }
+    }
+
+    private func jump(_ step: Int) {
+        current = min(max(current + step, 0), max(total - 1, 0))
+    }
+
+    private func fillRemaining(_ resolution: ConflictFile.Resolution) {
+        for block in file.blocks where choices[block.id] == nil {
+            choices[block.id] = .side(resolution)
+        }
+        editedOutput = nil
+    }
+
+    private func save(force: Bool) {
+        let data: Data?
+        if let editedOutput {
+            if !force, ConflictFile.parse(editedOutput).conflictCount > 0 {
+                confirmMarkers = true
+                return
+            }
+            data = Data(editedOutput.utf8)
+        } else {
+            data = file.resolvedData(choices: choices)
+        }
+        guard let data else { return }
+        model.saveConflictResolution(entry, file: file, content: data)
+    }
+}
+
+/// Khung Kết quả: cả file sau khi áp các lựa chọn (đoạn chưa chọn vẫn hiện dấu xung đột). Bật "Sửa" để sửa tay.
+private struct OutputPane: View {
+    let text: String
+    @Binding var editing: Bool
+    @Binding var edited: String
+    let unresolved: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text("Kết quả").font(.subheadline.weight(.semibold))
+                if unresolved > 0 && !editing {
+                    Text("còn \(unresolved) đoạn chưa chọn")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                Spacer()
+                Toggle(isOn: $editing) {
+                    Label("Sửa tay", systemImage: "pencil")
+                }
+                .toggleStyle(.button)
+                .controlSize(.small)
+                .help("Sửa trực tiếp nội dung sẽ được lưu")
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(Color.green.opacity(0.08))
+            if editing {
+                TextEditor(text: $edited)
+                    .font(.system(size: 12, design: .monospaced))
+                    .autocorrectionDisabled()
+                    .scrollContentBackground(.hidden)
+                    .padding(6)
+            } else {
+                ScrollView([.vertical, .horizontal]) {
+                    Text(text.replacingOccurrences(of: "\t", with: "    "))
+                        .font(.system(size: 12, design: .monospaced))
+                        .textSelection(.enabled)
+                        .fixedSize()
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
     }
 }
 
@@ -101,7 +255,10 @@ private struct CommonSegment: View {
 private struct ConflictBlockView: View {
     let block: ConflictFile.Block
     let total: Int
-    @Binding var choice: ConflictFile.Resolution?
+    let isCurrent: Bool
+    @Binding var choice: ConflictFile.Choice?
+
+    private var picked: (ours: Set<Int>, theirs: Set<Int>) { choice?.lineSets(block) ?? ([], []) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -114,15 +271,15 @@ private struct ConflictBlockView: View {
                         .foregroundStyle(.green)
                 }
                 Spacer()
-                ChoiceButton(title: String(localized: "Giữ Current"), isOn: choice == .ours, tint: .blue) { choice = .ours }
-                ChoiceButton(title: String(localized: "Giữ Incoming"), isOn: choice == .theirs, tint: .purple) { choice = .theirs }
-                ChoiceButton(title: String(localized: "Giữ cả hai"), isOn: choice == .oursThenTheirs, tint: .teal) { choice = .oursThenTheirs }
+                ChoiceButton(title: String(localized: "Giữ Current"), isOn: choice == .side(.ours), tint: .blue) { choice = .side(.ours) }
+                ChoiceButton(title: String(localized: "Giữ Incoming"), isOn: choice == .side(.theirs), tint: .purple) { choice = .side(.theirs) }
+                ChoiceButton(title: String(localized: "Giữ cả hai"), isOn: choice == .side(.oursThenTheirs), tint: .teal) { choice = .side(.oursThenTheirs) }
                 Menu {
-                    Button("Cả hai (Incoming trước)") { choice = .theirsThenOurs }
+                    Button("Cả hai (Incoming trước)") { choice = .side(.theirsThenOurs) }
                     if block.base != nil {
-                        Button("Bản gốc (base)") { choice = .base }
+                        Button("Bản gốc (base)") { choice = .side(.base) }
                     }
-                    Button("Bỏ cả hai") { choice = .neither }
+                    Button("Bỏ cả hai") { choice = .side(.neither) }
                     if choice != nil {
                         Divider()
                         Button("Bỏ chọn") { choice = nil }
@@ -134,39 +291,18 @@ private struct ConflictBlockView: View {
                 .fixedSize()
             }
             HStack(alignment: .top, spacing: 8) {
-                SideColumn(title: "Current", label: block.oursLabel, lines: block.ours, tint: .blue,
-                           highlighted: choice == .ours || choice == .oursThenTheirs || choice == .theirsThenOurs) {
-                    choice = .ours
-                }
-                SideColumn(title: "Incoming", label: block.theirsLabel, lines: block.theirs, tint: .purple,
-                           highlighted: choice == .theirs || choice == .oursThenTheirs || choice == .theirsThenOurs) {
-                    choice = .theirs
-                }
-            }
-            if let choice {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Kết quả").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    CodeLines(lines: result(for: choice), emptyText: String(localized: "(trống — đoạn này sẽ bị xoá)"))
-                        .padding(8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.green.opacity(0.08)))
-                }
+                SideColumn(title: "Current", label: block.oursLabel, lines: block.ours, tint: .blue, picked: picked.ours,
+                           onSelectAll: { choice = .side(.ours) },
+                           onToggle: { choice = .toggling(choice, ours: true, line: $0, block: block) })
+                SideColumn(title: "Incoming", label: block.theirsLabel, lines: block.theirs, tint: .purple, picked: picked.theirs,
+                           onSelectAll: { choice = .side(.theirs) },
+                           onToggle: { choice = .toggling(choice, ours: false, line: $0, block: block) })
             }
         }
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.03)))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(choice == nil ? Color.orange.opacity(0.6) : Color.green.opacity(0.5), lineWidth: 1.5))
-    }
-
-    private func result(for choice: ConflictFile.Resolution) -> [String] {
-        switch choice {
-        case .ours: return block.ours
-        case .theirs: return block.theirs
-        case .oursThenTheirs: return block.ours + block.theirs
-        case .theirsThenOurs: return block.theirs + block.ours
-        case .base: return block.base ?? []
-        case .neither: return []
-        }
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(isCurrent ? 0.06 : 0.03)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(choice == nil ? Color.orange.opacity(isCurrent ? 0.9 : 0.5) : Color.green.opacity(0.5),
+                                                           lineWidth: isCurrent ? 2.5 : 1.5))
     }
 }
 
@@ -190,13 +326,15 @@ private struct ChoiceButton: View {
     }
 }
 
+/// Một phía của đoạn xung đột: mỗi dòng có ô tick (bấm dòng để chọn / bỏ), nhấp đúp tiêu đề để giữ cả phía.
 private struct SideColumn: View {
     let title: String
     let label: String
     let lines: [String]
     let tint: Color
-    let highlighted: Bool
-    let onSelect: () -> Void
+    let picked: Set<Int>
+    let onSelectAll: () -> Void
+    let onToggle: (Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -208,16 +346,40 @@ private struct SideColumn: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .background(tint.opacity(0.12))
-            CodeLines(lines: lines, emptyText: String(localized: "(trống)"))
-                .padding(8)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2, perform: onSelectAll)
+            .help("Double-click để giữ cả bản \(title)")
+            if lines.isEmpty {
+                Text("(trống)")
+                    .font(.caption.italic())
+                    .foregroundStyle(.tertiary)
+                    .padding(8)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                        let on = picked.contains(index)
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Image(systemName: on ? "checkmark.square.fill" : "square")
+                                .font(.system(size: 11))
+                                .foregroundStyle(on ? tint : Color.secondary.opacity(0.6))
+                            Text(line.replacingOccurrences(of: "\t", with: "    "))
+                                .font(.system(size: 12, design: .monospaced))
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 1)
+                        .background(on ? tint.opacity(0.14) : Color.clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture { onToggle(index) }
+                    }
+                }
+                .padding(.vertical, 6)
+            }
         }
-        .background(RoundedRectangle(cornerRadius: 6).fill(tint.opacity(highlighted ? 0.1 : 0.03)))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(tint.opacity(highlighted ? 0.8 : 0.25), lineWidth: highlighted ? 2 : 1))
+        .background(RoundedRectangle(cornerRadius: 6).fill(tint.opacity(picked.isEmpty ? 0.03 : 0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(tint.opacity(picked.isEmpty ? 0.25 : 0.7), lineWidth: picked.isEmpty ? 1 : 1.5))
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2, perform: onSelect)
-        .help("Double-click để giữ bản \(title)")
     }
 }
 

@@ -284,6 +284,14 @@ private struct FileSection: View {
 
 private struct ConflictList: View {
     @Bindable var model: RepoModel
+    /// File đang chọn (⌘-click / ⇧-click) để xử lý nhiều file một lần.
+    @State private var selected: Set<String> = []
+    /// Số đoạn xung đột của từng file.
+    @State private var counts: [String: Int] = [:]
+
+    private var targets: [ConflictEntry] {
+        selected.isEmpty ? model.status.conflicts : model.status.conflicts.filter { selected.contains($0.path) }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -292,14 +300,28 @@ private struct ConflictList: View {
                 Text("Xung đột cần giải quyết (\(model.status.conflicts.count))")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
+                Menu {
+                    Section(selected.isEmpty ? String(localized: "Mọi file xung đột") : String(localized: "\(selected.count) file đã chọn")) {
+                        Button("Dùng bản Current") { model.resolveConflicts(targets, useOurs: true); selected = [] }
+                        Button("Dùng bản Incoming") { model.resolveConflicts(targets, useOurs: false); selected = [] }
+                        Button("Đánh dấu đã giải quyết") { model.markResolved(targets.map(\.path)); selected = [] }
+                    }
+                } label: {
+                    Text(selected.isEmpty ? String(localized: "Giải quyết tất cả") : String(localized: "Giải quyết \(selected.count) file"))
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .controlSize(.small)
+                .help("Dùng nguyên bản một bên cho nhiều file một lần — ⌘-click để chọn từng file")
             }
             ForEach(model.status.conflicts) { entry in
+                let isSelected = selected.contains(entry.path)
                 HStack(spacing: 6) {
                     ChangeIcon(kind: .conflicted)
                     VStack(alignment: .leading, spacing: 1) {
                         Text((entry.path as NSString).lastPathComponent)
                             .lineLimit(1)
-                        Text(entry.kind.description)
+                        Text(subtitle(entry))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -308,14 +330,21 @@ private struct ConflictList: View {
                         .controlSize(.small)
                 }
                 .padding(.vertical, 2)
+                .padding(.horizontal, 4)
+                .background(RoundedRectangle(cornerRadius: 6).fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear))
                 .contentShape(Rectangle())
-                .onTapGesture { model.openConflict(entry) }
+                .onTapGesture { click(entry) }
                 .contextMenu {
+                    let group = isSelected && selected.count > 1 ? targets : [entry]
                     Button("Mở trình giải quyết xung đột") { model.openConflict(entry) }
                     Divider()
-                    Button("Dùng toàn bộ bản Current") { model.resolveConflict(entry, useOurs: true) }
-                    Button("Dùng toàn bộ bản Incoming") { model.resolveConflict(entry, useOurs: false) }
-                    Button("Đánh dấu đã giải quyết") { model.markResolved([entry.path]) }
+                    Button(group.count > 1 ? String(localized: "Dùng bản Current cho \(group.count) file") : String(localized: "Dùng toàn bộ bản Current")) {
+                        model.resolveConflicts(group, useOurs: true)
+                    }
+                    Button(group.count > 1 ? String(localized: "Dùng bản Incoming cho \(group.count) file") : String(localized: "Dùng toàn bộ bản Incoming")) {
+                        model.resolveConflicts(group, useOurs: false)
+                    }
+                    Button("Đánh dấu đã giải quyết") { model.markResolved(group.map(\.path)) }
                     Divider()
                     Button("Mở bằng trình soạn thảo") { model.openInEditor(path: entry.path) }
                 }
@@ -325,6 +354,31 @@ private struct ConflictList: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(Color.orange.opacity(0.08))
+        .task(id: model.status.conflicts.map(\.path)) {
+            selected = selected.intersection(model.status.conflicts.map(\.path))
+            let root = model.repository.root
+            let paths = model.status.conflicts.filter(\.kind.hasMarkers).map(\.path)
+            counts = await Task.detached(priority: .utility) { RepoModel.conflictBlockCounts(root: root, paths: paths) }.value
+        }
+    }
+
+    private func subtitle(_ entry: ConflictEntry) -> String {
+        guard let count = counts[entry.path], count > 0 else { return entry.kind.description }
+        return entry.kind.description + " · " + String(localized: "\(count) đoạn")
+    }
+
+    /// Bấm thường: mở file. ⌘-click: thêm / bỏ khỏi lựa chọn. ⇧-click: chọn liền một dải.
+    private func click(_ entry: ConflictEntry) {
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) {
+            if selected.contains(entry.path) { selected.remove(entry.path) } else { selected.insert(entry.path) }
+        } else if flags.contains(.shift), let anchor = model.status.conflicts.firstIndex(where: { selected.contains($0.path) }),
+                  let index = model.status.conflicts.firstIndex(where: { $0.path == entry.path }) {
+            selected = Set(model.status.conflicts[min(anchor, index)...max(anchor, index)].map(\.path))
+        } else {
+            selected = []
+            model.openConflict(entry)
+        }
     }
 }
 

@@ -2,6 +2,11 @@
 
 Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
+## Chưa phát hành
+
+- Giải xung đột nhanh hơn: tick chọn từng dòng của mỗi bên, xem trước cả file kết quả và sửa tay trước khi lưu, nhảy giữa các đoạn xung đột bằng nút hoặc ⌥⌘↑ / ⌥⌘↓, chọn nhanh cho mọi đoạn còn lại
+- Danh sách file xung đột hiện số đoạn của từng file; chọn nhiều file (⌘-click) hoặc bấm “Giải quyết tất cả” để dùng bản Current / Incoming cho nhiều file một lần
+
 ## 1.3.0 — 2026-10-05
 
 - Khoá SSH ngay trong Thaigit (Cài đặt → SSH): tạo khoá mới hoặc nhập khoá có sẵn chỉ với vài cú bấm, khoá được cất an toàn trên máy — clone / fetch / push repo SSH không cần tự cấu hình gì thêm

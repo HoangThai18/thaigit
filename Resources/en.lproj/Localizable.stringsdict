@@ -594,5 +594,117 @@
 			<string>%lld uncommitted files</string>
 		</dict>
 	</dict>
+	<key>Đã giải quyết %lld file</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Resolved %lld file</string>
+			<key>other</key>
+			<string>Resolved %lld files</string>
+		</dict>
+	</dict>
+	<key>còn %lld đoạn chưa chọn</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld conflict left to pick</string>
+			<key>other</key>
+			<string>%lld conflicts left to pick</string>
+		</dict>
+	</dict>
+	<key>%lld file đã chọn</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld file selected</string>
+			<key>other</key>
+			<string>%lld files selected</string>
+		</dict>
+	</dict>
+	<key>Giải quyết %lld file</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Resolve %lld File</string>
+			<key>other</key>
+			<string>Resolve %lld Files</string>
+		</dict>
+	</dict>
+	<key>Dùng bản Current cho %lld file</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Use Current for %lld File</string>
+			<key>other</key>
+			<string>Use Current for %lld Files</string>
+		</dict>
+	</dict>
+	<key>Dùng bản Incoming cho %lld file</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Use Incoming for %lld File</string>
+			<key>other</key>
+			<string>Use Incoming for %lld Files</string>
+		</dict>
+	</dict>
+	<key>%lld đoạn</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld conflict</string>
+			<key>other</key>
+			<string>%lld conflicts</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

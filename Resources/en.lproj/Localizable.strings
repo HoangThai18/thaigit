@@ -80,6 +80,7 @@
 "Bắt đầu %@ mới từ %@" = "Start a new %@ from %@";
 "Bắt đầu %@…" = "Start %@…";
 "Bắt đầu rebase" = "Start Rebase";
+"Double-click để giữ cả bản %@" = "Double-click to keep all of %@";
 "Drop — bỏ commit" = "Drop — remove commit";
 "Bỏ chọn" = "Clear Choice";
 "Bỏ các thay đổi chưa lưu?" = "Discard unsaved changes?";
@@ -168,6 +169,7 @@
 "Chọn lại" = "Start Over";
 "Chọn một commit" = "Select a commit";
 "Chọn một thư mục có sẵn trên máy" = "Choose an existing folder on your Mac";
+"Chọn nhanh" = "Quick Pick";
 "Chọn nhánh…" = "Choose Branch…";
 "Chọn thư mục chứa Git repository" = "Choose the folder containing the Git repository";
 "Chọn thư mục sẽ chứa worktree" = "Choose the folder that will contain the worktree";
@@ -239,6 +241,7 @@
 "Dùng của @%@…" = "Use @%@'s Identity…";
 "Dùng khoá" = "Usage";
 "Dùng khoá của Thaigit cho remote SSH" = "Use Thaigit keys for SSH remotes";
+"Dùng nguyên bản một bên cho nhiều file một lần — ⌘-click để chọn từng file" = "Take one side for several files at once — ⌘-click to pick files";
 "Dùng token…" = "Use a Token…";
 "Dùng toàn bộ Current" = "Use All Current";
 "Dùng toàn bộ Incoming" = "Use All Incoming";
@@ -321,6 +324,7 @@
 "Giải quyết" = "Resolve";
 "Phản hồi của GitLab không đúng định dạng." = "GitLab's response wasn't in the expected format.";
 "Pick — giữ nguyên" = "Pick — keep as is";
+"Giải quyết tất cả" = "Resolve All";
 "Giữ Current" = "Keep Current";
 "Giữ Incoming" = "Keep Incoming";
 "Giữ cả hai" = "Keep Both";
@@ -336,6 +340,10 @@
 "Gồm cả file mới (chưa track)" = "Include new (untracked) files";
 "Squash — gộp, giữ message" = "Squash — combine, keep message";
 "Máy chủ" = "Server";
+"Mọi file xung đột" = "All conflicted files";
+"Mọi đoạn chưa chọn: giữ Current" = "All remaining conflicts: Keep Current";
+"Mọi đoạn chưa chọn: giữ Incoming" = "All remaining conflicts: Keep Incoming";
+"Mọi đoạn chưa chọn: giữ cả hai" = "All remaining conflicts: Keep Both";
 "Mở danh sách file chưa commit để stage, bỏ stage, huỷ và commit (⌘0)" = "Open the uncommitted files to stage, unstage, discard and commit (⌘0)";
 "Một cột (unified)" = "Unified";
 "Amend thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó" = "Amend the last commit with the staged changes and/or edit its message";
@@ -531,6 +539,7 @@
 "Kết nối GitLab để fetch / pull / push repo HTTPS trên gitlab.com hoặc máy chủ GitLab của công ty, và thêm khoá SSH lên GitLab một bước." = "Connect GitLab to fetch / pull / push HTTPS repositories on gitlab.com or your company's GitLab server, and add SSH keys to GitLab in one step.";
 "Kết nối Jira Cloud để xem issue giao cho bạn, tạo nhánh và gắn mã issue vào commit." = "Connect Jira Cloud to see issues assigned to you, create branches and add issue keys to commits.";
 "Kết quả" = "Result";
+"Kết quả vẫn còn dấu xung đột" = "The result still has conflict markers";
 "Kết thúc" = "Finish";
 "Kết thúc %@ %@" = "Finish %@ %@";
 "Kết thúc %@ %@ (Git Flow)…" = "Finish %@ %@ (Git Flow)…";
@@ -756,6 +765,8 @@
 "Sửa commit trước (amend)" = "Amend previous commit";
 "Sửa file ngay trong app (UTF-8)" = "Edit the file right in the app (UTF-8)";
 "Reword — sửa message" = "Reword — edit message";
+"Sửa tay" = "Edit";
+"Sửa trực tiếp nội dung sẽ được lưu" = "Edit the content that will be saved";
 "Sửa tên & email commit…" = "Edit Commit Name & Email…";
 "Tab cuối" = "Last Tab";
 "Tab mới" = "New Tab";
@@ -843,6 +854,7 @@
 "Trang chủ — mở, clone, tạo repository (⌘1)" = "Home — open, clone, create repositories (⌘1)";
 "Trang cài đặt" = "Installation Page";
 "Trong diff: đỏ là chỉ có ở “Từ”, xanh là chỉ có ở “Tới”. Giữ ⌘ và bấm 2 commit trên graph để so sánh hai commit bất kỳ." = "In the diff: red is only in “From”, green is only in “To”. Hold ⌘ and click 2 commits in the graph to compare any two commits.";
+"Trong khung Kết quả còn dòng <<<<<<< / ======= / >>>>>>>. Lưu như vậy thì file vẫn chứa dấu xung đột." = "The result still contains <<<<<<< / ======= / >>>>>>> lines. Saving it like this keeps the conflict markers in the file.";
 "Trên github.com/%@" = "On github.com/%@";
 "Trước" = "Before";
 "Trước khi khôi phục" = "Before restore";
@@ -952,6 +964,7 @@
 "Undo" = "Undo";
 "Thao tác" = "Action";
 "Vẫn hiển thị" = "Show Anyway";
+"Vẫn lưu" = "Save Anyway";
 "Vẫn merge" = "Merge Anyway";
 "Vẫn xoá" = "Delete Anyway";
 "WIP trên %@: %@" = "WIP on %@: %@";
@@ -1071,6 +1084,7 @@
 "Đang revert" = "Reverting";
 "Đang so sánh…" = "Comparing…";
 "Đang so với bây giờ…" = "Comparing with now…";
+"Đang sửa tay kết quả" = "Editing the result by hand";
 "Đang theo dõi" = "Tracked";
 "Đang tải bản %@…" = "Downloading version %@…";
 "Đang tải danh sách repo…" = "Loading repositories…";
@@ -1088,6 +1102,8 @@
 "Đang ở nhánh %@ (chưa có trên remote) — bấm để chuyển nhánh" = "On branch %@ (not on the remote yet) — click to switch branches";
 "Đang ở nhánh %@, theo dõi %@ — bấm để chuyển nhánh" = "On branch %@, tracking %@ — click to switch branches";
 "Đoạn này có commit merge — Thaigit chưa hỗ trợ interactive rebase qua commit merge." = "This range contains a merge commit — Thaigit doesn't support interactive rebase across merge commits yet.";
+"Đoạn xung đột sau (⌥⌘↓)" = "Next conflict (⌥⌘↓)";
+"Đoạn xung đột trước (⌥⌘↑)" = "Previous conflict (⌥⌘↑)";
 "Đánh dấu đã giải quyết" = "Mark Resolved";
 "Đây chính là repository đang mở — kéo nhánh thả lên nhánh để merge." = "This is the repository that's open — drag a branch onto another branch to merge.";
 "Đây là shallow clone nên còn thiếu các commit cũ." = "This is a shallow clone, so older commits are missing.";
@@ -1245,6 +1261,7 @@
 "“%@” vừa được sửa bên ngoài Thaigit nên chưa ghi đè. Hãy xem lại nội dung mới rồi giải tiếp." = "“%@” was just changed outside Thaigit, so it wasn't overwritten. Review the new content and continue resolving.";
 "“Bỏ stage file”" = "“Unstage File”";
 "“Current” là bản trên nhánh hiện tại (HEAD), “Incoming” là bản đang được đưa vào." = "“Current” is the version on the current branch (HEAD); “Incoming” is the version being brought in.";
+"“Current” là bản trên nhánh hiện tại (HEAD), “Incoming” là bản đang được đưa vào. Bấm vào từng dòng để chọn dòng đó." = "“Current” is the version on the current branch (HEAD), “Incoming” is the version being brought in. Click a line to pick just that line.";
 "“Stage file” / “Huỷ”" = "“Stage File” / “Discard”";
 "↑↓ chọn · ↩ checkout" = "↑↓ select · ↩ check out";
 "↑↓ chọn · ↩ chạy · Esc đóng" = "↑↓ select · ↩ run · Esc close";

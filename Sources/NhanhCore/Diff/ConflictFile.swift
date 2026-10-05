@@ -21,6 +21,9 @@ public struct ConflictFile: Sendable, Equatable {
         let oursBytes: Range<Int>
         let baseBytes: Range<Int>?
         let theirsBytes: Range<Int>
+        /// Byte của từng dòng mỗi phía (gồm xuống dòng) — để chọn từng dòng như GitKraken.
+        let oursLineBytes: [Range<Int>]
+        let theirsLineBytes: [Range<Int>]
     }
 
     public enum Segment: Sendable, Hashable {
@@ -35,6 +38,38 @@ public struct ConflictFile: Sendable, Equatable {
         case theirsThenOurs
         case base
         case neither
+    }
+
+    /// Lựa chọn cho một đoạn: cả phía (`Resolution`) hoặc từng dòng — các dòng Current đã chọn rồi các dòng Incoming đã
+    /// chọn, giữ thứ tự trong file. Chọn dòng mà không tick dòng nào = bỏ cả đoạn.
+    public enum Choice: Sendable, Hashable {
+        case side(Resolution)
+        case lines(ours: Set<Int>, theirs: Set<Int>)
+
+        /// Tick / bỏ tick một dòng, bắt đầu từ lựa chọn hiện tại (chọn cả phía thì coi như đã tick mọi dòng phía đó).
+        public static func toggling(_ current: Choice?, ours: Bool, line: Int, block: Block) -> Choice {
+            var (o, t) = current.map { $0.lineSets(block) } ?? ([], [])
+            if ours {
+                if o.contains(line) { o.remove(line) } else { o.insert(line) }
+            } else {
+                if t.contains(line) { t.remove(line) } else { t.insert(line) }
+            }
+            return .lines(ours: o, theirs: t)
+        }
+
+        /// Dòng mỗi phía nằm trong kết quả (để tô dòng đã chọn). `.base` / `.theirsThenOurs` không phải dòng của từng phía
+        /// theo thứ tự — vẫn trả các dòng được giữ.
+        public func lineSets(_ block: Block) -> (ours: Set<Int>, theirs: Set<Int>) {
+            let allOurs = Set(block.ours.indices)
+            let allTheirs = Set(block.theirs.indices)
+            switch self {
+            case .lines(let ours, let theirs): return (ours, theirs)
+            case .side(.ours): return (allOurs, [])
+            case .side(.theirs): return ([], allTheirs)
+            case .side(.oursThenTheirs), .side(.theirsThenOurs): return (allOurs, allTheirs)
+            case .side(.base), .side(.neither): return ([], [])
+            }
+        }
     }
 
     /// Kết quả đọc file xung đột từ byte trên đĩa.
@@ -110,6 +145,9 @@ public struct ConflictFile: Sendable, Equatable {
         func offset(_ index: Int) -> Int {
             index < spans.count ? spans[index].start : bytes.count
         }
+        func lineBytes(_ lines: Range<Int>) -> [Range<Int>] {
+            lines.map { spans[$0].start..<spans[$0].end }
+        }
 
         var segments: [Segment] = []
         var commonFrom = 0
@@ -161,7 +199,9 @@ public struct ConflictFile: Sendable, Equatable {
                 region: spans[index].start..<spans[closing].end,
                 oursBytes: offset(index + 1)..<offset(oursEnd),
                 baseBytes: baseMarker.map { offset($0 + 1)..<offset(separator) },
-                theirsBytes: offset(separator + 1)..<offset(closing)
+                theirsBytes: offset(separator + 1)..<offset(closing),
+                oursLineBytes: lineBytes((index + 1)..<oursEnd),
+                theirsLineBytes: lineBytes((separator + 1)..<closing)
             )
             segments.append(.conflict(block))
             blockID += 1
@@ -178,27 +218,52 @@ public struct ConflictFile: Sendable, Equatable {
     /// Ghép lại nội dung file (byte) theo lựa chọn cho từng block. Trả về nil nếu còn block chưa chọn.
     /// Nếu dòng >>>>>>> là dòng cuối file và không có xuống dòng thì kết quả cũng không có xuống dòng cuối.
     public func resolvedData(with choices: [Int: Resolution]) -> Data? {
+        resolvedData(choices: choices.mapValues { Choice.side($0) })
+    }
+
+    /// Như trên, với lựa chọn từng dòng.
+    public func resolvedData(choices: [Int: Choice]) -> Data? {
+        guard blocks.allSatisfy({ choices[$0.id] != nil }) else { return nil }
+        return previewData(choices: choices)
+    }
+
+    /// Nội dung file theo các lựa chọn hiện có; đoạn chưa chọn giữ nguyên dấu xung đột — để xem trước kết quả trong lúc
+    /// đang chọn.
+    public func previewData(choices: [Int: Choice]) -> Data {
         var output = Data()
         var cursor = 0
         for block in blocks {
-            guard let choice = choices[block.id] else { return nil }
             output.append(contentsOf: bytes[cursor..<block.region.lowerBound])
+            cursor = block.region.upperBound
+            guard let choice = choices[block.id] else {
+                output.append(contentsOf: bytes[block.region])
+                continue
+            }
             let ranges: [Range<Int>]
             switch choice {
-            case .ours: ranges = [block.oursBytes]
-            case .theirs: ranges = [block.theirsBytes]
-            case .oursThenTheirs: ranges = [block.oursBytes, block.theirsBytes]
-            case .theirsThenOurs: ranges = [block.theirsBytes, block.oursBytes]
-            case .base: ranges = block.baseBytes.map { [$0] } ?? []
-            case .neither: ranges = []
+            case .side(.ours): ranges = [block.oursBytes]
+            case .side(.theirs): ranges = [block.theirsBytes]
+            case .side(.oursThenTheirs): ranges = [block.oursBytes, block.theirsBytes]
+            case .side(.theirsThenOurs): ranges = [block.theirsBytes, block.oursBytes]
+            case .side(.base): ranges = block.baseBytes.map { [$0] } ?? []
+            case .side(.neither): ranges = []
+            case .lines(let ours, let theirs):
+                ranges = ours.sorted().compactMap { block.oursLineBytes.indices.contains($0) ? block.oursLineBytes[$0] : nil }
+                    + theirs.sorted().compactMap { block.theirsLineBytes.indices.contains($0) ? block.theirsLineBytes[$0] : nil }
             }
             let parts = ranges.filter { !$0.isEmpty }
             let unterminatedTail = block.region.upperBound == bytes.count && !endsWithNewline
             for (position, range) in parts.enumerated() {
-                let strip = unterminatedTail && position == parts.count - 1 ? terminatorLength(range) : 0
-                output.append(contentsOf: bytes[range.lowerBound..<(range.upperBound - strip)])
+                // Dòng cuối của một phía có thể thiếu xuống dòng khi không phải cuối file — thêm để dòng sau không dính vào.
+                var piece = Data(bytes[range])
+                if position < parts.count - 1 || !unterminatedTail, piece.last != UInt8(ascii: "\n") {
+                    piece.append(contentsOf: Array(lineEnding.utf8))
+                }
+                if unterminatedTail && position == parts.count - 1 {
+                    piece.removeLast(terminatorLength(range) > 0 ? terminatorLength(range) : 0)
+                }
+                output.append(piece)
             }
-            cursor = block.region.upperBound
         }
         output.append(contentsOf: bytes[cursor...])
         return output

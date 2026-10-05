@@ -425,12 +425,36 @@ extension RepoModel {
         }
     }
 
-    func saveConflictResolution(_ entry: ConflictEntry, file: ConflictFile, choices: [Int: ConflictFile.Resolution]) {
-        // Ghép theo byte: BOM, kiểu xuống dòng và mọi byte ngoài các khối xung đột giữ nguyên văn.
-        guard let content = file.resolvedData(with: choices) else {
-            toast(.warning, String(localized: "Còn xung đột chưa chọn cách giải quyết"))
-            return
+    /// Dùng nguyên bản một phía cho nhiều file xung đột một lần.
+    func resolveConflicts(_ entries: [ConflictEntry], useOurs: Bool) {
+        guard !entries.isEmpty else { return }
+        if entries.count == 1 { return resolveConflict(entries[0], useOurs: useOurs) }
+        perform(useOurs ? String(localized: "Dùng bản Current") : String(localized: "Dùng bản Incoming"), refresh: [.status]) { repo in
+            for entry in entries {
+                try await repo.resolveConflict(path: entry.path, kind: entry.kind, useOurs: useOurs)
+            }
+        } onSuccess: { [weak self] in
+            self?.toast(.success, String(localized: "Đã giải quyết \(entries.count) file"))
         }
+    }
+
+    /// Số đoạn xung đột trong từng file (đọc file trên đĩa, bỏ qua file lớn / không đọc được) — để hiện ngay trong danh sách.
+    nonisolated static func conflictBlockCounts(root: URL, paths: [String]) -> [String: Int] {
+        var counts: [String: Int] = [:]
+        for path in paths {
+            let url = root.appendingPathComponent(path)
+            guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int, size <= 4_000_000,
+                  let data = try? Data(contentsOf: url) else { continue }
+            switch ConflictFile.parse(data) {
+            case .parsed(let file): counts[path] = file.conflictCount
+            case .notUTF8(let count): counts[path] = count
+            }
+        }
+        return counts
+    }
+
+    /// Ghi nội dung đã giải (`content`: ghép theo byte từ các lựa chọn, hoặc người dùng sửa tay) rồi đánh dấu đã giải quyết.
+    func saveConflictResolution(_ entry: ConflictEntry, file: ConflictFile, content: Data) {
         perform(String(localized: "Lưu file đã giải quyết"), refresh: [.status]) { repo in
             // Chỉ ghi khi file trên đĩa vẫn là bản đã mở: sửa bên ngoài trong lúc giải thì không ghi đè mất.
             try repo.replaceWorkingFile(entry.path, data: content, expecting: Data(file.bytes))

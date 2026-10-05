@@ -127,6 +127,31 @@ struct DiffTests {
         #expect(resolved == "header\ntheirs\nours 1\nours 2\nmiddle\nadded by them\nfooter\n")
     }
 
+    @Test func resolvesPickedLinesAndPreviewsUnresolvedBlocks() throws {
+        let text = "top\n<<<<<<< HEAD\nA1\nA2\nA3\n=======\nB1\nB2\n>>>>>>> feat\nbottom\n<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> feat\nend"
+        let file = ConflictFile.parse(text)
+        let first = file.blocks[0]
+        // Tick dòng theo thứ tự bất kỳ: kết quả giữ thứ tự trong file, Current trước Incoming.
+        var choice = ConflictFile.Choice.toggling(nil, ours: false, line: 1, block: first)
+        choice = ConflictFile.Choice.toggling(choice, ours: true, line: 2, block: first)
+        choice = ConflictFile.Choice.toggling(choice, ours: true, line: 0, block: first)
+        #expect(choice == .lines(ours: [0, 2], theirs: [1]))
+
+        // Đoạn 2 chưa chọn: xem trước vẫn giữ dấu xung đột, chưa lưu được.
+        let preview = String(decoding: file.previewData(choices: [0: choice]), as: UTF8.self)
+        #expect(preview == "top\nA1\nA3\nB2\nbottom\n<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> feat\nend")
+        #expect(file.resolvedData(choices: [0: choice]) == nil)
+
+        // Đoạn cuối file không có xuống dòng: kết quả cũng không có.
+        let done = try #require(file.resolvedData(choices: [0: choice, 1: .lines(ours: [0], theirs: [0])]))
+        #expect(String(decoding: done, as: UTF8.self) == "top\nA1\nA3\nB2\nbottom\nx\ny\nend")
+        // Bắt đầu tick từ "Giữ Current" = bỏ một dòng khỏi cả phía.
+        let fromSide = ConflictFile.Choice.toggling(.side(.ours), ours: true, line: 1, block: first)
+        #expect(fromSide == .lines(ours: [0, 2], theirs: []))
+        let none = try #require(file.resolvedData(choices: [0: .lines(ours: [], theirs: []), 1: .side(.neither)]))
+        #expect(String(decoding: none, as: UTF8.self) == "top\nbottom\nend")
+    }
+
     @Test func preservesCRLFWhenResolving() throws {
         let text = "a\r\n<<<<<<< HEAD\r\nx\r\n=======\r\ny\r\n>>>>>>> b\r\nz"
         let file = ConflictFile.parse(text)
