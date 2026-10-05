@@ -22,7 +22,7 @@ struct BlameSheet: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer()
-                Text(rev.map { String(localized: "tại commit \($0.prefix(7))") } ?? String(localized: "bản đang sửa (gồm cả dòng chưa commit)"))
+                Text(rev.map { String(localized: "tại commit \(String($0.prefix(7)))") } ?? String(localized: "bản đang sửa (gồm cả dòng chưa commit)"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

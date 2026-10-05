@@ -213,7 +213,7 @@ final class RepoModel {
     var headDescription: String {
         switch status.head {
         case .branch(let name, _): return name
-        case .detached(let oid): return String(localized: "Detached HEAD @ \(oid.prefix(7))")
+        case .detached(let oid): return String(localized: "Detached HEAD @ \(String(oid.prefix(7)))")
         case .unknown: return ""
         }
     }
@@ -600,7 +600,7 @@ final class RepoModel {
         if rowIndex[sha] != nil {
             select(.commit(sha), reveal: true)
         } else {
-            toast(.info, String(localized: "Commit \(sha.prefix(7)) nằm ngoài \(commitLimit) commit đã tải"),
+            toast(.info, String(localized: "Commit \(String(sha.prefix(7))) nằm ngoài \(commitLimit) commit đã tải"),
                   actions: mayHaveMoreCommits ? [ToastAction(title: String(localized: "Tải thêm")) { [weak self] in self?.loadMoreHistory() }] : [])
         }
     }

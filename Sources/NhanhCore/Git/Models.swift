@@ -156,7 +156,7 @@ public struct Stash: Sendable, Hashable, Identifiable {
         guard parts.count == 2 else { return message }
         let rest = parts[1].trimmingCharacters(in: .whitespaces)
         if message.hasPrefix("WIP on ") {
-            let branch = parts[0].dropFirst("WIP on ".count)
+            let branch = String(parts[0].dropFirst("WIP on ".count))
             let words = rest.split(separator: " ", maxSplits: 1)
             let subject = words.count == 2 && words[0].count >= 7 && words[0].allSatisfy(\.isHexDigit) ? String(words[1]) : rest
             return String(localized: "WIP trên \(branch): \(subject)")

@@ -582,7 +582,7 @@ extension RepoModel {
     func revert(_ commit: Commit) {
         var message = String(localized: "Tạo một commit mới trên \(currentBranch ?? "HEAD") đảo ngược thay đổi của \(commit.shortSHA). Lịch sử cũ giữ nguyên.")
         if commit.isMerge, let firstParent = commit.parents.first {
-            message += String(localized: "\n\nĐây là merge commit: thay đổi được đảo ngược so với parent đầu tiên (\(firstParent.prefix(7))).")
+            message += String(localized: "\n\nĐây là merge commit: thay đổi được đảo ngược so với parent đầu tiên (\(String(firstParent.prefix(7)))).")
         }
         message += String(localized: "\n\n“Revert, chưa commit” chỉ stage thay đổi đảo ngược để bạn xem lại hoặc sửa trước khi tự commit.")
         confirmation = Confirmation(
