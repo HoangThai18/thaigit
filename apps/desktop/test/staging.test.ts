@@ -1,4 +1,4 @@
-// Stage / bỏ stage / huỷ theo file, hunk, dòng và commit / hoàn tác — chạy trên repo git thật (bộ chuyển Node của core).
+// Stage / unstage / discard by file, hunk, line, plus commit / undo — on a real git repo (core's Node adapter).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -44,14 +44,14 @@ async function openStore(
 
 const LINES = ['một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín', 'mười'];
 
-/** a.txt 10 dòng đã commit. */
+/** a.txt committed with 10 lines. */
 function setupTenLines(git: (...args: string[]) => string, root: string): void {
   writeFileSync(join(root, 'a.txt'), `${LINES.join('\n')}\n`);
   git('add', '.');
   git('commit', '-q', '-m', 'Khởi tạo');
 }
 
-/** Trả lời hộp xác nhận kế tiếp. */
+/** Answer the next confirmation dialog. */
 async function answerNext(dialogs: DialogStore, result: 'confirm' | 'cancel'): Promise<void> {
   await until(() => dialogs.current !== null, 'hộp xác nhận');
   dialogs.answer(result);
@@ -93,7 +93,7 @@ describe('stage theo dòng / hunk', () => {
     await until(() => store.diff.state.kind === 'text', 'diff chưa stage');
     expect(store.diff.supportsPartial).toBe(true);
     const hunk = store.diff.fileDiff!.hunks[0]!;
-    // Chọn cặp −hai / +HAI (bỏ qua −tám / +TÁM).
+    // Pick the −two / +HAI pair (skipping −tám / +TÁM).
     hunk.lines.forEach((line, index) => {
       const text = new TextDecoder().decode(line.text);
       if ((line.kind === 'deletion' && text === 'hai') || (line.kind === 'addition' && text === 'HAI')) {
@@ -112,7 +112,7 @@ describe('stage theo dòng / hunk', () => {
     expect(working).toContain('+TÁM');
     expect(working).not.toContain('HAI');
 
-    // Diff đang mở (chưa stage) tự nạp lại sau khi status đổi: còn mỗi thay đổi dòng 8.
+    // An open (unstaged) diff reloads itself after the status changes: only the line-8 change is left.
     await until(() => {
       const diff = store.diff.fileDiff;
       return diff !== null && diff.additions === 1 && diff.deletions === 1;
@@ -126,7 +126,7 @@ describe('stage theo dòng / hunk', () => {
     );
     await applyToSelection(store, 'unstage', { hunkId: 0 });
     expect(test.git('diff', '--cached', '--name-only')).toBe('');
-    // Hết gì đã stage: diff "đã stage" tự đóng.
+    // Nothing left staged: the "staged" diff closes itself.
     await until(() => store.diff.file === null, 'đóng diff đã stage');
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe(`${changed.join('\n')}\n`);
   });
@@ -140,7 +140,7 @@ describe('stage theo dòng / hunk', () => {
     await store.refreshAndWait(1);
     store.diff.open(store.status.unstaged[0]!, { kind: 'unstaged' });
     await until(() => store.diff.state.kind === 'text', 'diff');
-    // Ngữ cảnh 3 dòng: dòng 1 và dòng 10 nằm ở hai hunk khác nhau.
+    // 3 lines of context: line 1 and line 10 land in two different hunks.
     expect(store.diff.fileDiff!.hunks).toHaveLength(2);
 
     const dialogs = new DialogStore();
@@ -157,7 +157,7 @@ describe('stage theo dòng / hunk', () => {
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe(`${afterDiscard.join('\n')}\n`);
 
     lastAction(toasts, 'Hoàn tác')();
-    // `git apply` xoá rồi tạo lại file: đọc đúng lúc đó gặp ENOENT — coi như chưa xong, không phải lỗi.
+    // `git apply` deletes then recreates the file: reading it at that moment hits ENOENT — treat that as "not finished", not an error.
     const current = (): string | null => {
       try {
         return readFileSync(join(test.root, 'a.txt'), 'utf8');
@@ -216,14 +216,14 @@ describe('duyệt diff liên tục', () => {
     store.diff.step(-1);
     expect(store.diff.file?.change.path).toBe('c.txt');
 
-    // Stage c → mở d (đứng đúng chỗ c); stage d (cuối danh sách) → lùi về b.
+    // Stage c → open d (positioned right at c); stage d (last in the list) → step back to b.
     await stageFiles(store, [store.diff.file!.change]);
     expect(store.diff.file?.change.path).toBe('d.txt');
     expect(store.diff.file?.source.kind).toBe('unstaged');
     await stageFiles(store, [store.diff.file!.change]);
     expect(store.diff.file?.change.path).toBe('b.txt');
 
-    // Bên đã stage cũng vậy; danh sách trống thì quay về graph.
+    // Same for the staged list; with an empty list it returns to the graph.
     store.diff.open(store.status.staged[0]!, { kind: 'staged' });
     await unstageFiles(store, store.status.staged);
     expect(store.diff.file).toBeNull();
@@ -268,7 +268,7 @@ describe('commit', () => {
     expect(store.status.staged.map((change) => change.path)).toEqual(['a.txt']);
     expect(store.canUndoLast).toBe(false);
 
-    // Commit lại rồi sửa thêm file khác: Undo tắt, không đè việc mới.
+    // Commit, then edit another file: Undo turns off so it can't clobber the new work.
     store.commitDraft.summary = 'Sửa a lần nữa';
     await commit(store);
     expect(store.canUndoLast).toBe(true);

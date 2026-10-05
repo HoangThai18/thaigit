@@ -1,5 +1,5 @@
-// Port RepositoryTests.swift: git thật trong thư mục tạm, cấu hình cô lập. Bốn test staging theo dòng/hunk cần
-// PatchBuilder nằm ở `repository.staging.test.ts` (it.todo); phần diff/patch kiểm bằng byte thô thay vì parse.
+// Port of RepositoryTests.swift: real git in a temp directory with isolated config. The four per-line/per-hunk staging
+// tests that need PatchBuilder live in `repository.staging.test.ts` (it.todo); the diff/patch part is checked against// raw bytes instead of parsing.
 
 import { chmod, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -44,7 +44,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       const bytes = await t.repo.logBytes({ limit: 100, order: 'date', includeHead: false });
       expect(bytes).toHaveLength(0);
       expect(await t.repo.log({ limit: 100, order: 'date', includeHead: false })).toEqual([]);
-      // `HEAD` chưa trỏ tới commit nào: git báo lỗi, logBytes quy về lịch sử rỗng.
+      // `HEAD` does not point at a commit yet: git errors, logBytes falls back to empty history.
       expect(await t.repo.logBytes({ limit: 100, order: 'date', includeHead: true })).toHaveLength(0);
       const history = buildHistory(bytes, {
         limit: 100,
@@ -92,7 +92,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       expect(await t.repo.commitMessage(head)).toContain('Mô tả chi tiết');
       const patch = await t.repo.commitPatch(head);
       expect(patch).toMatch(/^From [0-9a-f]{40} /);
-      expect(patch).toContain('Subject: [PATCH] '); // tiêu đề có dấu được mã hoá kiểu email (git am tự giải)
+      expect(patch).toContain('Subject: [PATCH] '); // accents in the subject are email-encoded (git am decodes them)
       expect(patch).toContain('+xin chào');
       const files = await t.repo.changedFiles(head, null);
       expect(files.map((file) => file.path).sort()).toEqual(['a.txt', 'thư mục/b c.txt']);
@@ -100,7 +100,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       expect(diff).toContain('new file mode');
       expect(diff).toContain('+xin chào');
 
-      // Amend đổi message.
+      // Amend changes the message.
       await t.repo.commit('Commit đã sửa', { amend: true });
       const amended = await t.repo.log({ limit: 10, order: 'date', includeHead: true });
       expect(amended).toHaveLength(1);
@@ -153,7 +153,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       });
       expect(await t.read('f.txt')).toBe('1\n2\n3\n');
 
-      // Patch hỏng → GitError của `git apply`, không âm thầm bỏ qua.
+      // A broken patch → GitError from `git apply`, never silently ignored.
       const error = await t.repo
         .applyPatch(enc.encode('đây không phải patch\n'), { cached: true, reverse: false })
         .catch((e: unknown) => e);
@@ -182,7 +182,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       const staged = await t.repo.workingDiffBytes(change, 'staged', 0);
       await t.repo.applyPatch(staged, { cached: true, reverse: true, unidiffZero: true });
       expect(text(await t.repo.blob(':f.txt'))).toBe('1\n2\n3\n4\n5\n');
-      // Huỷ khỏi working tree bằng patch -U0 ngược.
+      // Discard from the working tree with a reversed -U0 patch.
       const unstaged = await t.repo.workingDiffBytes(change, 'unstaged', 0);
       await t.repo.applyPatch(unstaged, { cached: false, reverse: true, unidiffZero: true });
       expect(await t.read('f.txt')).toBe('1\n2\n3\n4\n5\n');
@@ -202,14 +202,14 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       await t.repo.restoreWorkingFiles(snapshot, ['a.txt']);
       expect(await t.read('a.txt')).toBe('đã sửa\n');
 
-      // Stash ghi lại commit lơ lửng → danh sách stash vẫn trống.
+      // Stash writes a dangling commit → the stash list stays empty.
       expect(await t.repo.stashes()).toEqual([]);
       const token = await t.repo.trashUntracked(['junk.txt']);
       expect(await t.exists('junk.txt')).toBe(false);
       await t.repo.restoreTrash(token);
       expect(await t.read('junk.txt')).toBe('rác\n');
 
-      // Không có thay đổi nào → không có snapshot.
+      // No changes at all → no snapshot.
       await t.repo.discard(['a.txt']);
       await t.repo.trashUntracked(['junk.txt']);
       expect(await t.repo.snapshotChanges()).toBeNull();
@@ -237,7 +237,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       const original = await t.repo.readWorkingFile('a.txt');
       if (original === null) throw new Error('file xung đột phải tồn tại');
       expect(text(original)).toContain('<<<<<<< HEAD\nmain\n=======\nfeature\n>>>>>>> feature/x\n');
-      // Giải quyết: giữ cả hai (ours rồi theirs), ghi theo byte có CAS rồi đánh dấu đã giải quyết.
+      // Resolution: keep both (ours then theirs), written byte-wise with a CAS, then marked resolved.
       await t.repo.writeWorkingFile(
         'a.txt',
         enc.encode('dòng 1\nmain\nfeature\ndòng 3\n'),
@@ -270,7 +270,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       await t.write('a.txt', 'ours\n');
       await t.commitAll('main');
 
-      // Rebase có xung đột rồi huỷ.
+      // Rebase conflicts, then abort.
       await expect(t.repo.rebase('other')).rejects.toBeInstanceOf(GitError);
       const operation = await t.repo.operationState();
       expect(operation?.kind).toBe('rebasing');
@@ -279,7 +279,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       expect(await t.repo.operationState()).toBeNull();
       expect(await t.read('a.txt')).toBe('ours\n');
 
-      // Merge rồi chọn toàn bộ bên kia.
+      // Merge, then take the other side wholesale.
       await expect(t.repo.merge('other')).rejects.toBeInstanceOf(GitError);
       await t.repo.resolveConflict('a.txt', 'bothModified', false);
       expect(await t.read('a.txt')).toBe('theirs\n');
@@ -311,7 +311,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       const trackedDiff = text(await t.repo.stashDiffBytes(stash, { path: 'a.txt', kind: 'modified' }));
       expect(trackedDiff).toContain('-1\n+2\n');
 
-      // Xoá rồi khôi phục stash.
+      // Delete a stash, then restore it.
       await t.repo.stashDrop(stash.selector);
       expect(await t.repo.stashes()).toEqual([]);
       await t.repo.stashStore(stash.sha, stash.message);
@@ -364,7 +364,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       expect(remotes.map((remote) => remote.name)).toEqual(['origin']);
       expect(remotes[0]?.fetchUrl).toBe(bare);
 
-      // Commit ở clone rồi push.
+      // Commit in the clone, then push.
       await clone.write('a.txt', '2\n');
       await clone.commitAll('từ clone');
       let status = await clone.repo.status();
@@ -379,7 +379,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       expect(rawGit(bare, ['show', 'main:a.txt'], config)).toBe('2\n');
       expect(progress.length).toBeGreaterThan(0);
 
-      // Người khác pull + commit + push; clone fetch rồi pull.
+      // Somebody else pulls, commits and pushes; the clone fetches and then pulls.
       other.git('pull', '--no-rebase', 'origin', 'main');
       await other.write('b.txt', 'b\n');
       await other.commitAll('từ người khác');
@@ -392,7 +392,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       expect([status.behind, status.ahead]).toEqual([0, 0]);
       expect(await clone.exists('b.txt')).toBe(true);
 
-      // Nhánh mới đẩy lên kèm upstream, rồi xoá trên remote.
+      // Push a new branch with an upstream, then delete it on the remote.
       await clone.repo.createBranch('tinh-nang', null, true);
       await clone.repo.push({
         remote: 'origin',
@@ -408,7 +408,7 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       await clone.repo.deleteRemoteBranch('origin', 'tinh-nang');
       expect((await clone.repo.refs()).some((ref) => refName(ref) === 'origin/tinh-nang')).toBe(false);
 
-      // Mọi lệnh đã được ghi vào nhật ký, không lệnh nào bị chính sách chặn nhầm.
+      // Every command reached the log and none was wrongly blocked by policy.
       expect(log.records.every((record) => record.exitCode !== -1)).toBe(true);
       expect(log.records.some((record) => record.args[0] === 'push')).toBe(true);
     }));
@@ -422,14 +422,14 @@ describe('Repository (git thật trong thư mục tạm)', () => {
 
   it.skipIf(IS_WINDOWS)('repoConfiguredFsmonitorCommandNeverRuns', () =>
     withTestRepo(async (t) => {
-      // Repo lạ đặt core.fsmonitor thành script: mở/làm mới repo (git status) không được chạy nó.
+      // An untrusted repo sets core.fsmonitor to a script: opening/refreshing the repo (git status) must not run it.
       const marker = join(t.root, 'fsmonitor-ran');
       const script = await writeExecutableScript(join(t.root, 'hook.sh'), `touch "${marker}"`);
       await chmod(script, 0o755);
       t.git('config', 'core.fsmonitor', script);
       await t.write('a.txt', 'xin chào\n');
 
-      // Đối chứng: git thật chạy thẳng KHÔNG có cờ của app thì script có chạy (nên test này có thể fail).
+      // Control: real git invoked WITHOUT the app's flags does run the script (so this test can fail).
       t.git('status', '--short');
       expect(await t.exists('fsmonitor-ran')).toBe(true);
       await t.repo.fs.trashUntracked(['fsmonitor-ran']);
@@ -466,7 +466,7 @@ describe('Repository: đường dẫn lạ và đầu vào xấu', () => {
       ]);
 
       if (!IS_WINDOWS) {
-        // Pathspec literal: "*.txt" chỉ là chính file tên "*.txt", không phải mọi file .txt.
+        // Literal pathspec: "*.txt" is the single file literally named "*.txt", not every .txt file.
         await t.repo.stage(['*.txt']);
         status = await t.repo.status();
         expect(status.staged.map((change) => change.path)).toContain('*.txt');
@@ -482,7 +482,7 @@ describe('Repository: đường dẫn lạ và đầu vào xấu', () => {
       );
       await t.repo.discard(['-bắt-đầu-bằng-gạch.txt']);
       expect(await t.read('-bắt-đầu-bằng-gạch.txt')).toBe('-bắt-đầu-bằng-gạch.txt\n');
-      // Đường dẫn chứa NUL bị từ chối ở biên (nếu lọt vào danh sách NUL sẽ thành thêm một pathspec).
+      // A path containing NUL is rejected at the boundary (if it slipped into the NUL list it would become an extra pathspec).
       await expect(t.repo.stage(['a.txt\0b.txt'])).rejects.toBeInstanceOf(RangeError);
       await expect(t.repo.stage([''])).rejects.toBeInstanceOf(RangeError);
     }));
@@ -631,7 +631,7 @@ describe('Repository: đường dẫn lạ và đầu vào xấu', () => {
       expect(sha).toMatch(/^[0-9a-f]{40,64}$/);
       expect(Array.from(await t.repo.blob(sha))).toEqual(Array.from(content));
       expect(rawGit(t.root, ['cat-file', '-t', sha], t.config).trim()).toBe('blob');
-      // Nội dung không đổi → cùng sha (không phụ thuộc working tree).
+      // Unchanged content → the same sha (independent of the working tree).
       expect(await t.repo.hashObject(content)).toBe(sha);
     }));
 

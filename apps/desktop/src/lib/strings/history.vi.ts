@@ -1,13 +1,13 @@
 /**
- * Chuỗi của Lịch sử file và Blame (ai sửa từng dòng). Truy cập qua `vi.history.*`.
+ * Strings for File history and Blame (who changed each line). Reached through `vi.history.*`.
  */
 export const history = {
-  // Menu chuột phải của file
+  // File context menu
   menuFileHistory: 'Lịch sử file',
   menuBlame: 'Blame — ai sửa từng dòng',
   menuBlameAtCommit: 'Blame tại commit này',
 
-  // Panel lịch sử file (bên phải)
+  // File history panel (right side)
   title: 'Lịch sử file',
   close: 'Đóng lịch sử file',
   loading: 'Đang đọc lịch sử…',
@@ -23,7 +23,7 @@ export const history = {
   blameHere: 'Blame tại commit này',
   blameCurrent: 'Blame bản hiện tại',
 
-  // Blame (vùng giữa)
+  // Blame (centre area)
   blameLabel: 'Blame',
   blameWorkingTree: 'Bản hiện tại (gồm thay đổi chưa commit)',
   blameAtCommit: (sha: string) => `Tại ${sha}`,

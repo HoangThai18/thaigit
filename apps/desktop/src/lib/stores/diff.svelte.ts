@@ -1,6 +1,6 @@
-// File đang mở ở vùng giữa (thay graph, như DiffPane của app Swift): nguồn diff, nội dung đã dựng sẵn để vẽ, và các dòng
-// người dùng đang chọn để stage / bỏ stage / huỷ từng dòng. Diff luôn lấy dạng BYTE rồi parse ở core — patch dựng lại từ
-// đó áp được đúng từng byte (CRLF, BOM, bảng mã khác UTF-8).
+// The file open in the centre pane (replacing the graph, like the Swift app's DiffPane): the diff source, the pre-computed
+// content to draw, and the lines the user selected to stage / unstage / discard individually. The diff is always fetched
+// as BYTES and parsed in the core — a patch rebuilt from it applies byte-exactly (CRLF, BOM, non-UTF-8 encodings).
 
 import {
   buildPresentation,
@@ -25,10 +25,10 @@ import { friendlyError } from '../errors/friendly.ts';
 export type DiffSource =
   | { readonly kind: 'unstaged' }
   | { readonly kind: 'staged' }
-  /** `label`: chữ nhận diện ở đầu diff thay cho "Commit <sha>" (diff của cả PR so với điểm tách khỏi nhánh đích, vd. `#12`). */
+  /** `label`: identifying text at the top of the diff instead of "Commit <sha>" (a whole-PR diff against the divergence point from the target branch, e.g. `#12`). */
   | { readonly kind: 'commit'; readonly sha: string; readonly parent: string | null; readonly label?: string }
   | { readonly kind: 'stash'; readonly sha: string }
-  /** File đang xung đột: mở trình giải xung đột thay vì diff. */
+  /** A conflicting file: open the conflict resolver instead of the diff. */
   | { readonly kind: 'conflict' };
 
 export interface OpenFile {
@@ -43,36 +43,36 @@ export type DiffState =
   | { readonly kind: 'binary' }
   | { readonly kind: 'tooLarge'; readonly diff: FileDiff }
   | { readonly kind: 'empty' }
-  /** `message`: câu thân thiện (errors/friendly.ts), không phải lỗi thô. */
+  /** `message`: a friendly sentence (errors/friendly.ts), not the raw error. */
   | { readonly kind: 'failed'; readonly message: string }
-  /** File xung đột có dấu <<<<<<< (giải từng đoạn được); `sha256` của byte đã đọc để ghi lại có kiểm tra. */
+  /** The file has <<<<<<< markers (resolvable per hunk); `sha256` of the bytes read, so writing back is verified. */
   | {
       readonly kind: 'conflict';
       readonly entry: ConflictEntry;
       readonly file: ConflictFile;
       readonly sha256: string;
     }
-  /** Xung đột không giải từng đoạn được (xoá ở một phía, không phải UTF-8, không thấy dấu): chỉ chọn cả file. */
+  /** A conflict that cannot be resolved per hunk (deleted on one side, not UTF-8, no markers found): only the whole file can be chosen. */
   | {
       readonly kind: 'conflictWhole';
       readonly entry: ConflictEntry;
       readonly reason: 'no-markers' | 'not-utf8';
     };
 
-/** Quá số dòng này thì hỏi trước khi vẽ (Swift: 20 000). */
+/** Above this line count, ask before drawing (Swift: 20 000). */
 export const LARGE_DIFF_LINES = 20_000;
 
 export type LineSelection = ReadonlyMap<number, ReadonlySet<number>>;
 
 const NO_SELECTION: LineSelection = new Map();
 
-/** Những gì kho diff cần từ kho repo (tách ra để test được không cần cả RepoStore). */
+/** What the diff store needs from the repo store (factored out so it can be tested without a whole RepoStore). */
 export interface DiffHost {
   readonly git: GitRepository;
   readonly status: WorkingTreeStatus;
   readonly stashes: readonly Stash[];
   diffContext(): number;
-  /** Bỏ qua thay đổi chỉ về khoảng trắng (chỉ để xem: tắt stage từng dòng). */
+  /** Ignore whitespace-only changes (view only: it disables per-line staging). */
   diffIgnoreWhitespace(): boolean;
   reportError(title: string, error: unknown): void;
 }
@@ -91,14 +91,14 @@ export function isWorkingTreeSource(source: DiffSource): boolean {
 export class DiffStore {
   file = $state.raw<OpenFile | null>(null);
   state = $state.raw<DiffState>({ kind: 'idle' });
-  /** id hunk → chỉ số dòng (trong `hunk.lines`) đang chọn. */
+  /** hunk id → selected line indices (within `hunk.lines`). */
   selection = $state.raw<LineSelection>(NO_SELECTION);
 
   private readonly host: DiffHost;
   private token = 0;
-  /** Byte diff lần nạp gần nhất: nạp lại ra đúng byte cũ thì giữ nguyên lựa chọn dòng. */
+  /** The diff bytes of the last load: reloading the exact same bytes keeps the line selection. */
   private lastBytes: Uint8Array | null = null;
-  /** Vị trí của file đang mở trong danh sách của nó: file biến mất (đã stage, đã huỷ…) thì mở file đứng ở chỗ này. */
+  /** Where the open file sits in its list: when it disappears (staged, discarded…) open whatever is at that position. */
   private position = 0;
 
   constructor(host: DiffHost) {
@@ -111,20 +111,20 @@ export class DiffStore {
     return count;
   }
 
-  /** Diff đang hiển thị (đã parse), nếu có. */
+  /** The displayed diff (parsed), if any. */
   get fileDiff(): FileDiff | null {
     return this.state.kind === 'text' ? this.state.presentation.diff : null;
   }
 
-  /** Danh sách chứa file đang mở (chưa stage / đã stage / xung đột) — `null` với diff của commit, stash. */
+  /** The list containing the open file (unstaged / staged / conflicts) — `null` for a commit or stash diff. */
   get siblings(): readonly FileChange[] | null {
     return this.file ? this.listFor(this.file.source) : null;
   }
 
-  /** Stage / bỏ stage / huỷ từng hunk hoặc dòng được không (file thường, không nhị phân, không phải chỉ đổi quyền). */
+  /** Whether per-hunk or per-line stage / unstage / discard is possible (an ordinary file: not binary, not a mode-only change). */
   get supportsPartial(): boolean {
     const diff = this.fileDiff;
-    // Diff đã bỏ khoảng trắng không khớp từng byte với file thật nên patch dựng từ nó không áp được.
+    // A whitespace-ignoring diff no longer matches the real file byte for byte, so a patch built from it cannot be applied.
     return diff !== null && !this.host.diffIgnoreWhitespace() && supportsPartialStaging(diff);
   }
 
@@ -147,8 +147,8 @@ export class DiffStore {
   }
 
   /**
-   * File kế (`step` = 1) / trước (−1) trong cùng danh sách với file đang mở (chưa stage, đã stage, xung đột). Hết danh sách thì
-   * đứng yên. Trả `false` khi không đổi được.
+   * The next (`step` = 1) / previous (−1) file within the same list as the open one (unstaged, staged, conflicts). Stays put at
+   * the end of the list. Returns `false` when nothing changed.
    */
   step(step: 1 | -1): boolean {
     const file = this.file;
@@ -171,7 +171,7 @@ export class DiffStore {
     this.lastBytes = null;
   }
 
-  /** Vẫn vẽ diff rất lớn (sau khi người dùng bấm "Vẫn hiển thị"). */
+  /** Still draw a very large diff (after the user pressed "Show anyway"). */
   showAnyway(): void {
     if (this.state.kind !== 'tooLarge') return;
     this.state = { kind: 'text', presentation: buildPresentation(this.state.diff) };
@@ -196,8 +196,8 @@ export class DiffStore {
   }
 
   /**
-   * Gọi sau khi status đổi: file đang mở (thay đổi chưa commit) vẫn còn thì nạp lại diff; không còn trong danh sách (đã stage
-   * hết, đã huỷ, đã commit) thì đóng.
+   * Call after the status changes: if the open file (an uncommitted change) is still there, reload its diff; if it is gone from
+   * the list (all staged, discarded, committed) close it.
    */
   statusDidChange(): void {
     const file = this.file;
@@ -207,8 +207,8 @@ export class DiffStore {
     const index = list.findIndex((change) => change.path === file.change.path);
     const current = list[index];
     if (!current) {
-      // File vừa stage / bỏ stage / huỷ / giải xong: mở file đứng ở đúng chỗ đó trong danh sách (như GitHub Desktop) để duyệt
-      // tiếp không phải bấm lại; danh sách đã trống thì đóng, quay về graph.
+      // The file was just staged / unstaged / discarded / resolved: open whatever sits at that spot in the list (like GitHub Desktop) so the
+      // review continues without another click; when the list is empty, close and return to the graph.
       const next = list[Math.min(this.position, list.length - 1)];
       if (next) this.open(next, file.source);
       else this.close();
@@ -216,7 +216,7 @@ export class DiffStore {
     }
     this.position = index;
     if (file.source.kind === 'conflict') {
-      // File xung đột có thể vừa đổi trên đĩa: nạp lại (nội dung y nguyên thì `loadConflict` giữ lựa chọn đang làm dở).
+      // The conflicting file may have just changed on disk: reload (when the content is unchanged, `loadConflict` keeps the work in progress).
       void this.load();
       return;
     }
@@ -226,7 +226,7 @@ export class DiffStore {
     void this.load();
   }
 
-  /** Danh sách chứa file của `source` (thay đổi chưa commit, xung đột); `null` với diff của commit / stash. */
+  /** The list containing `source`'s files (uncommitted changes, conflicts); `null` for a commit / stash diff. */
   private listFor(source: DiffSource): readonly FileChange[] | null {
     const status = this.host.status;
     switch (source.kind) {
@@ -246,7 +246,7 @@ export class DiffStore {
     return Math.max(0, index);
   }
 
-  /** Nạp lại diff của file đang mở. */
+  /** Reload the open file's diff. */
   async load(): Promise<void> {
     const file = this.file;
     if (!file) return;
@@ -293,7 +293,7 @@ export class DiffStore {
       }
       const unchanged = this.lastBytes !== null && equalBytes(this.lastBytes, bytes);
       this.lastBytes = bytes;
-      // Nạp lại ra đúng nội dung cũ (status đổi vì lý do khác): giữ nguyên, khỏi mất các lựa chọn đang làm dở.
+      // Reloaded to exactly the old content (the status changed for another reason): keep it, so the in-progress selection is not lost.
       if (unchanged && this.state.kind === 'conflict') return;
       const parsed = parseConflictFile(bytes);
       if (!parsed.ok) {

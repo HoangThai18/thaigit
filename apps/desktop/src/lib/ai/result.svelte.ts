@@ -1,5 +1,5 @@
-// Hộp kết quả AI dạng markdown (giải thích commit, mô tả Pull Request): một hộp tại một thời điểm, chữ hiện dần, Dừng /
-// Tạo lại / Sao chép. Lỗi hiện ngay trong hộp bằng câu thân thiện.
+// Markdown result box for the AI features (commit explanation, PR description): one box at a time, text
+// streams in, with Stop / Regenerate / Copy. Errors show inside the box as a friendly sentence.
 
 import type { AiFeature, AiRequestByFeature } from '@thaigit/contracts';
 import { finalizeMarkdown, stripThinking } from '@thaigit/core';
@@ -13,7 +13,7 @@ export type ResultPhase = 'preparing' | 'queued' | 'writing' | 'done' | 'error';
 export interface ResultJob<F extends AiFeature = AiFeature> {
   title: string;
   feature: F;
-  /** Dựng ngữ cảnh (đọc git); `null` = không có gì để gửi (`emptyText`). */
+  /** Build the context (reads git); `null` = nothing to send (`emptyText`). */
   prepare: () => Promise<Prepared<AiRequestByFeature[F]> | null>;
   emptyText: string;
 }

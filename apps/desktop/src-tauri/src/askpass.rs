@@ -1,15 +1,17 @@
-//! Askpass — hai chế độ:
-//!  - TỪ CHỐI (hồ sơ `background`, tự fetch: không bao giờ bật cửa sổ đăng nhập): `main()` kiểm `--askpass-deny` TRƯỚC khi dựng
-//!    Tauri và thoát mã 1, không in gì.
-//!  - TƯƠNG TÁC (hồ sơ `interactive`: fetch / pull / push / clone do người dùng bấm): hỏi trong app (xem phần dưới).
+//! Askpass — two modes:
+//!  - DENY (the `background` profile, autofetch: never opens a sign-in window): `main()` checks `--askpass-deny` BEFORE
+//!    building Tauri and exits 1 without printing anything.
+//!  - INTERACTIVE (the `interactive` profile: fetch / pull / push / clone the user started): ask inside the app (see
+//!    below).
 //!
-//! Lựa chọn thiết kế: git/ssh chạy `GIT_ASKPASS`/`SSH_ASKPASS` như MỘT đường dẫn chương trình (không qua shell, không tách
-//! đối số), nên `<exe> --askpass-deny` không đặt thẳng vào env được.
-//!  - macOS/Linux: ghi một script `#!/bin/sh` nhỏ vào thư mục dữ liệu (`askpass-deny.sh`) rồi `exec <exe> --askpass-deny`;
-//!    script được ghi lại mỗi lần khởi động nếu nội dung đổi (app chuyển chỗ/cập nhật).
-//!  - Windows: `GIT_ASKPASS` trỏ thẳng vào `<exe>`; git gọi `<exe> "<prompt>"` nên argv[1] là câu hỏi, không phải cờ —
-//!    vì vậy chính sách đặt thêm biến `THAIGIT_ASKPASS_DENY=1` (`policy::ASKPASS_DENY_ENV`) và `main()` coi biến đó cũng là
-//!    lời gọi từ chối.
+//! Design choice: git/ssh run `GIT_ASKPASS`/`SSH_ASKPASS` as a SINGLE program path (no shell, no argument splitting),
+//! so `<exe> --askpass-deny` cannot be placed in the environment directly.
+//!  - macOS/Linux: write a small `#!/bin/sh` script into the data directory (`askpass-deny.sh`) that then does
+//!    `exec <exe> --askpass-deny`; the script is rewritten on every start when its content changes (the app moved or
+//!    was updated).
+//!  - Windows: `GIT_ASKPASS` points straight at `<exe>`; git calls `<exe> "<prompt>"`, so argv[1] is the question and not
+//!    a flag — therefore the policy also sets `THAIGIT_ASKPASS_DENY=1` (`policy::ASKPASS_DENY_ENV`), and `main()` treats
+//!    that variable as a deny call too.
 
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -28,28 +30,29 @@ use crate::policy::ASKPASS_DENY_ENV;
 
 pub const DENY_FLAG: &str = "--askpass-deny";
 
-/// Tiến trình này đang được git/ssh gọi làm askpass từ chối? (argv[1] là cờ, hoặc biến đánh dấu của hồ sơ background.)
+/// Is this process being called by git/ssh as the deny askpass? (argv[1] is the flag, or the marker variable of the background profile.)
 pub fn is_deny_invocation(args: &[OsString], marker: Option<OsString>) -> bool {
     args.get(1).is_some_and(|arg| arg == DENY_FLAG) || marker.is_some_and(|value| value == "1")
 }
 
-/// Điểm vào sớm của `main()`: trả `true` nếu phải thoát ngay (mã 1, không in gì).
+/// Early entry point of `main()`: `true` when it must exit immediately (code 1, printing nothing).
 pub fn should_exit_early() -> bool {
     let args: Vec<OsString> = std::env::args_os().collect();
     is_deny_invocation(&args, std::env::var_os(ASKPASS_DENY_ENV))
 }
 
-// --- Askpass tương tác (hồ sơ `interactive`) ------------------------------------------------------------------------------
+// --- Interactive askpass (the `interactive` profile) ---------------------------------------------------------------------
 //
-// git/ssh cần tên đăng nhập / mật khẩu / passphrase mà không có credential helper nào trả lời → chạy `GIT_ASKPASS`/`SSH_ASKPASS`
-// = chính exe của app (Unix: qua script bọc `askpass.sh`). Tiến trình đó (`run_client`) kết nối 127.0.0.1:<cổng> của app, gửi
-// token RIÊNG của lệnh đang chạy + câu hỏi; app phát `askpass-request` tới ĐÚNG cửa sổ sở hữu lệnh, chờ `askpass_reply`, gửi câu
-// trả lời về cho tiến trình askpass in ra stdout. Token chỉ nằm trong env của tiến trình git đó và hết hạn khi lệnh xong; không
-// bao giờ log câu hỏi / câu trả lời.
+// git/ssh needs a username / password / passphrase that no credential helper can answer → run `GIT_ASKPASS`/`SSH_ASKPASS`
+// = the app's own executable (on Unix, via the `askpass.sh` wrapper). That process (`run_client`) connects to the app's
+// 127.0.0.1:<port>, sends the PER-COMMAND token plus the question; the app emits `askpass-request` to the window that OWNS
+// the command, waits for `askpass_reply`, and sends the answer back for the askpass process to print to stdout. The
+// token only exists in that git process's environment and expires when the command ends; questions and answers are never
+// logged.
 
-/// Cờ của script bọc (Unix): `<exe> --askpass "<câu hỏi>"`.
+/// Wrapper script flag (Unix): `<exe> --askpass "<question>"`.
 pub const CLIENT_FLAG: &str = "--askpass";
-/// Windows: `GIT_ASKPASS` trỏ thẳng vào exe (git gọi `<exe> "<câu hỏi>"`), biến này đánh dấu lời gọi askpass.
+/// Windows: `GIT_ASKPASS` points straight at the exe (git calls `<exe> "<question>"`); this variable marks an askpass call.
 pub const CLIENT_ENV: &str = "THAIGIT_ASKPASS";
 pub const PORT_ENV: &str = "THAIGIT_ASKPASS_PORT";
 pub const TOKEN_ENV: &str = "THAIGIT_ASKPASS_TOKEN";
@@ -58,10 +61,10 @@ const MAX_LINE_BYTES: usize = 16 * 1024;
 const MAX_PROMPT_CHARS: usize = 4096;
 const MAX_ANSWER_BYTES: usize = 8 * 1024;
 const READ_TIMEOUT: Duration = Duration::from_secs(5);
-/// Người dùng có chừng này thời gian để trả lời; quá hạn thì coi như Huỷ (git nhận lỗi, không treo mãi).
+/// How long the user has to answer; on timeout this counts as Cancel (git sees an error instead of hanging forever).
 const ANSWER_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
-/// Khớp `AskpassRequestEvent` ở TS.
+/// Matches `AskpassRequestEvent` in TS.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AskpassRequestEvent {
@@ -73,14 +76,14 @@ pub struct AskpassRequestEvent {
     pub prompt: String,
 }
 
-/// Khớp `AskpassClosedEvent` ở TS: câu hỏi hết hiệu lực (lệnh đã xong / bị huỷ / quá hạn) — đóng hộp thoại.
+/// Matches `AskpassClosedEvent` in TS: the question expired (command finished / was cancelled / timed out) — close the dialog.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AskpassClosedEvent {
     pub request_id: String,
 }
 
-/// Đẩy sự kiện tới cửa sổ (Tauri `emit_to`) — tách ra để test không cần cửa sổ.
+/// Push an event to a window (Tauri `emit_to`) — factored out so tests need no window.
 pub trait AskpassEvents: Send + Sync {
     fn request(&self, window: &str, event: &AskpassRequestEvent);
     fn closed(&self, window: &str, request_id: &str);
@@ -129,14 +132,14 @@ pub struct AskpassServer {
     events: Arc<dyn AskpassEvents>,
 }
 
-/// Askpass của MỘT lệnh git: env cho tiến trình git; hết phạm vi (lệnh xong) thì token hết hạn và câu hỏi đang chờ bị huỷ.
+/// Askpass for ONE git command: env for the git process; once out of scope (the command ended) the token expires and a pending question is cancelled.
 pub struct AskpassSession {
     server: Arc<AskpassServer>,
     token: String,
 }
 
 impl AskpassSession {
-    /// Biến môi trường thêm vào tiến trình git (ngoài `GIT_ASKPASS`/`SSH_ASKPASS` do chính sách đặt).
+    /// Extra environment for the git process (beyond the `GIT_ASKPASS`/`SSH_ASKPASS` the policy sets).
     pub fn env(&self) -> Vec<(String, String)> {
         let mut env = vec![(PORT_ENV.to_string(), self.server.port.to_string()), (TOKEN_ENV.to_string(), self.token.clone())];
         if cfg!(windows) {
@@ -156,7 +159,7 @@ impl Drop for AskpassSession {
         let closed: Vec<(String, String)> = {
             let mut pending = self.server.pending.lock().unwrap_or_else(|p| p.into_inner());
             let ids: Vec<String> = pending.iter().filter(|(_, request)| request.token == self.token).map(|(id, _)| id.clone()).collect();
-            // Bỏ sender → tiến trình askpass nhận "huỷ".
+            // Drop the sender → the askpass process receives "cancelled".
             ids.into_iter().filter_map(|id| pending.remove(&id).map(|request| (request.window, id))).collect()
         };
         for (window, id) in closed {
@@ -169,7 +172,7 @@ fn random_token() -> String {
     format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple())
 }
 
-/// Phân loại câu hỏi của git/ssh + lấy host để hộp thoại ghi rõ "đăng nhập vào đâu".
+/// Classify a git/ssh question and extract the host, so the dialog can name where the user is signing in.
 pub fn classify(prompt: &str) -> (&'static str, Option<String>) {
     let lower = prompt.to_lowercase();
     let kind = if lower.starts_with("username") {
@@ -192,13 +195,13 @@ pub fn classify(prompt: &str) -> (&'static str, Option<String>) {
     (kind, quoted.or_else(ssh))
 }
 
-/// Câu hỏi hiển thị được: không rỗng quá dài, không có ký tự điều khiển (trừ xuống dòng / tab — câu hỏi khoá host của ssh nhiều dòng).
+/// A question safe to display: not over-long, no control characters (except newline / tab — ssh's host-key prompt is multi-line).
 fn valid_prompt(prompt: &str) -> bool {
     prompt.chars().count() <= MAX_PROMPT_CHARS && !prompt.chars().any(|c| c.is_control() && c != '\n' && c != '\t' && c != '\r')
 }
 
 impl AskpassServer {
-    /// Mở listener 127.0.0.1:<cổng ngẫu nhiên> và vòng nhận kết nối.
+    /// Open a 127.0.0.1:<random port> listener and the accept loop.
     pub fn start(program: OsString, events: Arc<dyn AskpassEvents>) -> std::io::Result<Arc<Self>> {
         let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         listener.set_nonblocking(true)?;
@@ -222,7 +225,7 @@ impl AskpassServer {
         self.port
     }
 
-    /// Phiên askpass cho một lệnh git của cửa sổ `window`.
+    /// The askpass session of one git command of window `window`.
     pub fn session(self: &Arc<Self>, window: &str, op_id: &str, operation: &str) -> AskpassSession {
         let token = random_token();
         self.sessions.lock().unwrap_or_else(|p| p.into_inner()).insert(
@@ -273,7 +276,7 @@ impl AskpassServer {
         self.events.request(&window, &event);
         match tokio::time::timeout(ANSWER_TIMEOUT, receiver).await {
             Ok(Ok(answer)) => answer,
-            // Phiên đã đóng (lệnh xong / bị huỷ): Drop của phiên đã báo `askpass-closed`.
+            // Session already closed (the command finished / was cancelled): the Drop already emitted `askpass-closed`.
             Ok(Err(_)) => None,
             Err(_) => {
                 if self.pending.lock().unwrap_or_else(|p| p.into_inner()).remove(&event.request_id).is_some() {
@@ -284,7 +287,7 @@ impl AskpassServer {
         }
     }
 
-    /// Câu trả lời từ webview: chỉ cửa sổ đã nhận câu hỏi mới trả lời được; `None` = Huỷ.
+    /// The answer from the webview: only the window that received the question may answer; `None` = Cancel.
     pub fn reply(&self, window: &str, request_id: &str, answer: Option<String>) -> Result<()> {
         if answer.as_ref().is_some_and(|a| a.len() > MAX_ANSWER_BYTES || a.contains(['\n', '\r', '\0'])) {
             return Err(AppError::policy("Câu trả lời không hợp lệ"));
@@ -299,7 +302,7 @@ impl AskpassServer {
     }
 }
 
-/// Khởi tạo lúc `setup` (sau `app.manage(core)`): script bọc (Unix), listener 127.0.0.1, gắn vào `Core`.
+/// Set up during `setup` (after `app.manage(core)`): the wrapper script (Unix), the 127.0.0.1 listener, attached to `Core`.
 pub fn init<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     let Some(core) = app.try_state::<Arc<crate::core::Core>>() else { return Ok(()) };
     let Some(program) = std::env::current_exe().ok().and_then(|exe| prepare_client_program(&core.data_dir, &exe)) else {
@@ -311,8 +314,8 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     Ok(())
 }
 
-/// `askpass_reply`: webview (cửa sổ `window`) trả lời yêu cầu `request_id`; `answer = None` = người dùng huỷ.
-/// `request_id` không tồn tại / không thuộc `window` → lỗi (không đoán).
+/// `askpass_reply`: the webview (window `window`) answers request `request_id`; `answer = None` = the user cancelled.
+/// An unknown `request_id` / one belonging to another window → error (never guess).
 pub fn reply<R: Runtime>(app: &AppHandle<R>, window: &str, request_id: &str, answer: Option<String>) -> Result<()> {
     let server = app.try_state::<Arc<crate::core::Core>>().and_then(|core| core.askpass.get().cloned());
     match server {
@@ -321,14 +324,14 @@ pub fn reply<R: Runtime>(app: &AppHandle<R>, window: &str, request_id: &str, ans
     }
 }
 
-// --- Tiến trình askpass (git/ssh gọi) ---------------------------------------------------------------------------------
+// --- The askpass process (called by git/ssh) ---------------------------------------------------------------------------
 
-/// Tiến trình này đang được git/ssh gọi làm askpass tương tác?
+/// Is this process being called by git/ssh as the interactive askpass?
 pub fn is_client_invocation(args: &[OsString], marker: Option<OsString>) -> bool {
     args.get(1).is_some_and(|arg| arg == CLIENT_FLAG) || marker.is_some_and(|value| value == "1")
 }
 
-/// Điểm vào sớm của `main()`: `Some(mã thoát)` nếu tiến trình này là askpass tương tác (đã trả lời xong).
+/// Early entry point of `main()`: `Some(exit code)` when this process is the interactive askpass (already answered).
 pub fn client_exit_code() -> Option<i32> {
     let args: Vec<OsString> = std::env::args_os().collect();
     if !is_client_invocation(&args, std::env::var_os(CLIENT_ENV)) {
@@ -349,7 +352,7 @@ pub fn client_exit_code() -> Option<i32> {
     }
 }
 
-/// Hỏi app qua 127.0.0.1; `None` = huỷ / lỗi.
+/// Ask the app over 127.0.0.1; `None` = cancelled / error.
 pub fn ask_server(port: u16, token: &str, prompt: &str) -> Option<String> {
     let mut stream = TcpStream::connect_timeout(&SocketAddr::from((Ipv4Addr::LOCALHOST, port)), Duration::from_secs(3)).ok()?;
     stream.set_read_timeout(Some(ANSWER_TIMEOUT + Duration::from_secs(30))).ok()?;
@@ -361,13 +364,13 @@ pub fn ask_server(port: u16, token: &str, prompt: &str) -> Option<String> {
     serde_json::from_str::<ClientResponse>(line.trim_end()).ok()?.answer
 }
 
-/// Nội dung script bọc askpass tương tác (Unix).
+/// Content of the Unix interactive askpass wrapper script.
 pub fn client_script(exe: &Path) -> String {
     let quoted = format!("'{}'", exe.to_string_lossy().replace('\'', r"'\''"));
     format!("#!/bin/sh\n# Thaigit: hỏi tên đăng nhập / mật khẩu / passphrase trong app cho GIT_ASKPASS/SSH_ASKPASS.\nexec {quoted} {CLIENT_FLAG} \"$@\"\n")
 }
 
-/// Chương trình cho `<askpass>`: Unix = script bọc trong thư mục dữ liệu; Windows = chính exe của app.
+/// The program for `<askpass>`: on Unix the wrapper script in the data directory; on Windows the app's own exe.
 pub fn prepare_client_program(data_dir: &Path, exe: &Path) -> Option<OsString> {
     write_program(data_dir, "askpass.sh", &client_script(exe), exe)
 }
@@ -393,7 +396,7 @@ fn write_program(data_dir: &Path, name: &str, script: &str, exe: &Path) -> Optio
     }
 }
 
-/// Nội dung script bọc (Unix).
+/// Content of the wrapper script (Unix).
 pub fn wrapper_script(exe: &Path) -> String {
     let quoted = format!("'{}'", exe.to_string_lossy().replace('\'', r"'\''"));
     format!(
@@ -401,7 +404,7 @@ pub fn wrapper_script(exe: &Path) -> String {
     )
 }
 
-/// Chương trình cho `<askpass-deny>`: Unix = script bọc trong thư mục dữ liệu; Windows = chính exe của app.
+/// The program for `<askpass-deny>`: on Unix the wrapper script in the data directory; on Windows the app's own exe.
 pub fn prepare_deny_program(data_dir: &Path, exe: &Path) -> Option<OsString> {
     write_program(data_dir, "askpass-deny.sh", &wrapper_script(exe), exe)
 }
@@ -418,7 +421,7 @@ mod tests {
     fn recognises_both_the_flag_and_the_environment_marker() {
         assert!(is_deny_invocation(&args(&["thaigit", "--askpass-deny"]), None));
         assert!(is_deny_invocation(&args(&["thaigit", "--askpass-deny", "Username for 'https://x': "]), None));
-        // Windows: git chạy `<exe> "<prompt>"`
+        // Windows: git runs `<exe> "<prompt>"`
         assert!(is_deny_invocation(&args(&["thaigit.exe", "Username for 'https://github.com': "]), Some("1".into())));
         assert!(!is_deny_invocation(&args(&["thaigit"]), None));
         assert!(!is_deny_invocation(&args(&["thaigit", "/path/to/repo"]), None));
@@ -451,7 +454,7 @@ mod tests {
         assert_eq!(classify(host_key).0, "other");
     }
 
-    /// Ghi lại sự kiện thay cho Tauri.
+    /// Records the event instead of going through Tauri.
     #[derive(Default)]
     struct Recorder {
         requests: Mutex<Vec<(String, AskpassRequestEvent)>>,
@@ -503,13 +506,13 @@ mod tests {
         assert_eq!(event.host.as_deref(), Some("github.com"));
         assert_eq!(event.prompt, "Password for 'https://thai@github.com':");
 
-        // Cửa sổ khác / id lạ không trả lời được; câu trả lời có xuống dòng bị từ chối.
+        // Another window / an unknown id cannot answer; an answer containing a newline is rejected.
         assert_eq!(server.reply("other", &event.request_id, Some("x".into())).unwrap_err().code(), "not-found");
         assert_eq!(server.reply("main", "khong-co", Some("x".into())).unwrap_err().code(), "not-found");
         assert_eq!(server.reply("main", &event.request_id, Some("a\nb".into())).unwrap_err().code(), "policy");
         server.reply("main", &event.request_id, Some("mật-khẩu bí mật".into())).unwrap();
         assert_eq!(client.join().unwrap().as_deref(), Some("mật-khẩu bí mật"));
-        // Đã trả lời rồi thì id hết hiệu lực.
+        // Once answered, the id is no longer valid.
         assert!(server.reply("main", &event.request_id, None).is_err());
         drop(session);
     }
@@ -523,7 +526,7 @@ mod tests {
         assert_eq!(ask_server(server.port(), &token, "\u{1b}[31mPassword: "), None);
         assert!(recorder.requests.lock().unwrap().is_empty());
 
-        // Huỷ từ hộp thoại → git nhận "không có câu trả lời".
+        // Cancelled from the dialog → git receives "no answer".
         let port = server.port();
         let client = std::thread::spawn(move || ask_server(port, &token, "Username for 'https://github.com': "));
         let event = wait_for("câu hỏi", || recorder.requests.lock().unwrap().first().map(|(_, e)| e.clone()));
@@ -587,7 +590,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(20));
             prepare_deny_program(dir.path(), &exe).unwrap();
             assert_eq!(std::fs::metadata(&path).unwrap().modified().unwrap(), before, "nội dung không đổi thì không ghi lại");
-            // exe đổi chỗ → script được ghi lại
+            // the exe moved → the script is rewritten
             let moved = dir.path().join("moved");
             std::fs::copy(&exe, &moved).unwrap();
             prepare_deny_program(dir.path(), &moved).unwrap();
@@ -604,7 +607,7 @@ mod tests {
             assert_eq!(output.status.code(), Some(1));
             assert!(output.stdout.is_empty() && output.stderr.is_empty(), "không in gì");
             assert!(std::fs::read_to_string(&marker).unwrap().contains("--askpass-deny"), "script gọi lại exe với cờ từ chối");
-            // exe biến mất → vẫn từ chối (mã ≠ 0), không treo
+            // the exe disappeared → still deny (non-zero exit), never hang
             std::fs::remove_file(&exe).unwrap();
             let output = Command::new(&wrapper).arg("x").stdin(Stdio::null()).output().unwrap();
             assert_eq!(output.status.code(), Some(1));

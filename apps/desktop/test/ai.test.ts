@@ -1,5 +1,6 @@
-// AI phía app: chưa đồng ý thì không gửi gì; đăng ký lười; token hỏng → đăng ký lại; mã lỗi → câu thân thiện; viết commit
-// stream vào ô soạn trên repo git thật (máy chủ giả).
+// The app side of AI: nothing is sent before consent; registration is lazy; a broken token re-registers;
+// an error code becomes a friendly sentence; writing a commit streams into the composer on a real git repo
+// (against a fake server).
 import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';

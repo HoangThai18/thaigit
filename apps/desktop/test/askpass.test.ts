@@ -1,5 +1,6 @@
-// Hỏi đăng nhập trong app với "Rust" giả: hộp thoại theo loại câu hỏi, trả lời giữ nguyên, Huỷ = null, câu hỏi hết hiệu lực
-// thì đóng hộp thoại mà không trả lời, nhiều câu hỏi thì lần lượt.
+// In-app askpass against a fake "Rust": the dialog varies by question kind, answers pass through
+// untouched, Cancel = null, an expired question closes the dialog without answering, and several
+// questions queue up one after another.
 import { describe, expect, it } from 'vitest';
 import type { AskpassClosedEvent, AskpassRequestEvent } from '@thaigit/contracts';
 import { AskpassStore, type AskpassPort } from '../src/lib/stores/askpass.svelte.ts';

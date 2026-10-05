@@ -1,5 +1,6 @@
-// Mở repository trên Node: `git rev-parse` tính gốc/git dir/common dir rồi chuẩn hoá bằng realpath (git trả `C:/…` trên
-// Windows, `/private/tmp` thay vì `/tmp` trên macOS), dựng `GitRepository` với bộ chuyển Node.
+// Opens a repository on Node: `git rev-parse` for the root, git dir and common dir, then normalised through realpath
+// (git reports `C:/…` on Windows and `/private/tmp` instead of `/tmp` on macOS), and builds a `GitRepository` with the
+// Node adapters.
 
 import { realpath, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -16,14 +17,14 @@ export interface OpenRepositoryOptions extends NodeGitConfig {
   log?: CommandLog;
 }
 
-/** Ba đường dẫn của một repo, đã realpath. */
+/** The three paths of a repository, already realpath-ed. */
 export interface RepositoryLocation {
   root: string;
   gitDir: string;
   commonDir: string;
 }
 
-/** Tìm repo chứa thư mục `path`. Ném `RepositoryError` nếu không phải repo hoặc là bare repo. */
+/** Find the repository containing `path`. Throws `RepositoryError` when it is not a repo or is bare. */
 export async function locateRepository(
   path: string,
   options: OpenRepositoryOptions = {},
@@ -60,7 +61,7 @@ export async function locateRepository(
   ) {
     throw new RepositoryError('notARepository', path);
   }
-  // `--git-common-dir` có thể là đường dẫn tương đối so với thư mục đang chạy.
+  // `--git-common-dir` may be relative to the current working directory.
   const [root, gitDir, commonDir] = await Promise.all([
     realpath(toplevel),
     realpath(absoluteGitDir),
@@ -69,7 +70,7 @@ export async function locateRepository(
   return { root, gitDir, commonDir };
 }
 
-/** Mở repository tại `path` với đầy đủ bộ chuyển Node (`Exec`, `RepoFs`, lệnh có kiểu). */
+/** Open the repository at `path` with the full set of Node adapters (`Exec`, `RepoFs`, typed commands). */
 export async function openRepository(
   path: string,
   options: OpenRepositoryOptions = {},
@@ -86,7 +87,7 @@ export async function openRepository(
   });
 }
 
-/** Bộ chuyển `GitHost` (version/init/clone) cùng cấu hình git với `openRepository`. */
+/** `GitHost` adapter (version/init/clone) alongside the git config used by `openRepository`. */
 export function createGitHost(options: NodeGitConfig = {}): NodeGitHost {
   return new NodeGitHost(options);
 }

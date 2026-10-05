@@ -24,7 +24,7 @@ extension RebaseAction: Identifiable {
         }
     }
 
-    /// Phím tắt khi đang chọn một dòng (như GitKraken).
+    /// The shortcuts while a row is selected (like GitKraken).
     var shortcut: Character {
         switch self {
         case .pick: return "p"
@@ -36,8 +36,8 @@ extension RebaseAction: Identifiable {
     }
 }
 
-/// Interactive rebase như GitKraken: các commit sau `base` (mới ở trên, cũ ở dưới — như graph); mỗi commit chọn
-/// pick / reword / squash / fixup / drop, kéo để đổi thứ tự, phím P R S F D cho dòng đang chọn.
+/// Interactive rebase like GitKraken: the commits after `base` (newest on top, oldest below — like the graph); each commit
+/// picks pick / reword / squash / fixup / drop, drag to reorder, and P R S F D apply to the selected row.
 struct InteractiveRebaseSheet: View {
     @Bindable var model: RepoModel
     let base: String
@@ -45,7 +45,7 @@ struct InteractiveRebaseSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var original: [Commit] = []
-    /// Kế hoạch theo thứ tự git áp dụng (cũ → mới); danh sách hiển thị đảo ngược.
+    /// The plan in the order git applies it (old → new); the displayed list is reversed.
     @State private var steps: [RebaseStep] = []
     @State private var selection: String?
     @State private var isLoading = true
@@ -130,7 +130,7 @@ struct InteractiveRebaseSheet: View {
         )
     }
 
-    /// Kéo thả trên danh sách đảo ngược (mới → cũ) rồi đổi lại thứ tự git áp dụng.
+    /// Drag and drop happens on the reversed list (new → old), then the git order is restored.
     private func move(from source: IndexSet, to destination: Int) {
         var shown = Array(steps.reversed())
         shown.move(fromOffsets: source, toOffset: destination)
@@ -206,7 +206,7 @@ private struct RebaseStepRow: View {
         }
         .padding(.vertical, 3)
         .onChange(of: step.action) {
-            // Sửa lời: điền sẵn lời cũ (đầy đủ cả phần thân) để sửa tiếp.
+            // Reword: prefill the old message (including the body) so editing can continue from there.
             guard step.action == .reword, step.message == nil else { return }
             let sha = step.commit.id
             Task {

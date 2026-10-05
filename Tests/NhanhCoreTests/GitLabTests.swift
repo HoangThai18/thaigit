@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import NhanhCore
 
-/// HTTP giả cho GitLab: trả lời theo đường dẫn, ghi lại request — không gọi mạng thật.
+/// A fake HTTP layer for GitLab: answers by path and records requests — the real network is never touched.
 private final class FakeGitLab: @unchecked Sendable {
     private let lock = NSLock()
     private(set) var requests: [URLRequest] = []
@@ -59,7 +59,7 @@ struct GitLabTests {
         ]
         let code = try await api(fake).requestDeviceCode(host: "gitlab.com", clientID: "cid")
         #expect(code.userCode == "ABCD-1234")
-        // Trang xác nhận trỏ sang host lạ thì dùng trang mặc định của chính host.
+        // A confirmation page pointing at an odd host falls back to that host's own default page.
         #expect(code.verificationURL.host == "gitlab.com")
         #expect(fake.form(0)["scope"] == GitLabAPI.scopes)
 

@@ -1,11 +1,11 @@
 import Foundation
 
 extension GitLabAPI {
-    /// Tối đa số trang thành viên (mỗi trang 100 người) khi lấy danh sách người có thể gán.
+    /// Max number of member pages (100 people each) fetched when listing assignable people.
     static let maxMemberPages = 3
 
-    /// Merge Request đang mở của project, mới cập nhật trước (`GET /api/v4/projects/:id/merge_requests?state=opened`).
-    /// Đọc một trang 100 MR — đủ cho sidebar. Token chỉ đi tới `https://<host của project>`.
+    /// The project's open Merge Requests, most recently updated first (`GET /api/v4/projects/:id/merge_requests?state=opened`).
+    /// Only one page of 100 MRs is read — enough for the sidebar. The token only ever goes to `https://<the project's host>`.
     public func openMergeRequests(in project: GitLabProjectRef, token: String) async throws -> [ForgeRequest] {
         let path = "/api/v4/projects/\(project.encodedPath)/merge_requests?state=opened&order_by=updated_at&sort=desc&per_page=100"
         let (data, response) = try await send(Self.apiRequest(host: project.host, path: path, token: token))
@@ -20,8 +20,8 @@ extension GitLabAPI {
         return result
     }
 
-    /// Thành viên đang hoạt động của project, kể cả thành viên thừa hưởng từ nhóm (`GET …/members/all`) — những người có thể
-    /// được gán xử lý / nhờ review.
+    /// The project's active members, including ones inherited from groups (`GET …/members/all`) — the people who can
+    /// be assigned / asked to review.
     public func projectMembers(of project: GitLabProjectRef, token: String) async throws -> [ForgePerson] {
         var result: [ForgePerson] = []
         var seen = Set<Int>()
@@ -43,8 +43,8 @@ extension GitLabAPI {
         return result
     }
 
-    /// Đặt lại người được gán và người review của MR (`PUT /api/v4/projects/:id/merge_requests/:iid`). `nil` là giữ nguyên;
-    /// danh sách rỗng là bỏ hết (GitLab nhận `[0]` cho việc đó).
+    /// Replace the MR's assignees and reviewers (`PUT /api/v4/projects/:id/merge_requests/:iid`). `nil` means leave unchanged;
+    /// an empty list removes them all (GitLab accepts `[0]` for that).
     public func setPeople(iid: Int, assigneeIDs: [Int]?, reviewerIDs: [Int]?, in project: GitLabProjectRef, token: String) async throws {
         var request = Self.apiRequest(host: project.host, path: "/api/v4/projects/\(project.encodedPath)/merge_requests/\(iid)", token: token)
         request.httpMethod = "PUT"

@@ -1,6 +1,6 @@
 import type { CommandError } from '@thaigit/contracts';
 
-/** Lỗi chuẩn hoá từ Rust (`invoke` reject với `{ code, message }`). */
+/** Error shape normalised from Rust (`invoke` rejects with `{ code, message }`). */
 export class CommandFailure extends Error {
   readonly code: CommandError['code'];
 
@@ -35,7 +35,7 @@ function isCommandError(value: unknown): value is CommandError {
   );
 }
 
-/** Mọi thứ `invoke` có thể ném → `CommandFailure` (lỗi không nhận ra thành `internal`). */
+/** Anything `invoke` may throw → `CommandFailure` (unrecognised errors become `internal`). */
 export function toCommandFailure(error: unknown): CommandFailure {
   if (error instanceof CommandFailure) return error;
   if (isCommandError(error)) return new CommandFailure(error.code, error.message);

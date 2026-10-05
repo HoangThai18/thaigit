@@ -1,6 +1,6 @@
 /**
- * Thông báo nổi (toast), port `Toast`/`RepoModel.toast` của app Swift: tối đa 4 cái, lỗi/cảnh báo ở lại tới khi đóng,
- * còn lại tự ẩn sau 4 giây (9 giây nếu có nút hành động). Một kho dùng chung cho cả màn hình chính lẫn cửa sổ repo.
+ * Toast notifications, a port of the Swift app's `Toast`/`RepoModel.toast`: at most 4, errors and warnings stay until dismissed,
+ * the rest auto-hide after 4 seconds (9 when they carry an action button). One store shared by both the main screen and repo windows.
  */
 
 import { friendlyError } from '../errors/friendly.ts';
@@ -18,11 +18,11 @@ export interface Toast {
   readonly title: string;
   readonly message: string | null;
   readonly actions: readonly ToastAction[];
-  /** Nhóm để gỡ cùng lúc khi không còn đúng; push cùng `tag` sẽ thay cái cũ (khỏi chồng lỗi lặp). */
+  /** A group to remove together when it is no longer accurate; pushing the same `tag` replaces the old one (no duplicate error toasts). */
   readonly tag: string | null;
   /**
-   * Chủ sở hữu (vd. một repo đang mở): nút hành động của toast gọi vào đối tượng đó nên khi nó biến mất thì toast cũng phải gỡ
-   * theo (`dismissOwner`), không để lại thông báo bấm được mà tác động lên thứ không còn nữa.
+   * An owner (e.g. an open repo): a toast's action button calls into that object, so when it disappears the toast must go too
+   * (`dismissOwner`) — never leave a clickable notification acting on something that no longer exists.
    */
   readonly owner: string | null;
 }
@@ -36,15 +36,15 @@ export interface ToastOptions {
 
 export const MAX_TOASTS = 4;
 
-/** `null` = không tự ẩn. */
+/** `null` = never auto-hide. */
 export function toastLifetimeMs(toast: Pick<Toast, 'style' | 'actions'>): number | null {
   if (toast.style === 'error' || toast.style === 'warning') return null;
   return toast.actions.length === 0 ? 4000 : 9000;
 }
 
 /**
- * Nội dung lỗi để hiện: LUÔN là câu thân thiện (errors/friendly.ts) — không bao giờ là stderr / message gốc / stack trace.
- * Lỗi gốc chỉ ghi ra console khi chạy dev.
+ * The error content to display: ALWAYS a friendly sentence (errors/friendly.ts) — never stderr / a raw message / a stack trace.
+ * The original error only goes to the console in dev builds.
  */
 export function describeError(error: unknown): string {
   if (import.meta.env?.DEV) console.warn('[Thaigit]', error);
@@ -66,7 +66,7 @@ export class ToastStore {
       tag: options.tag ?? null,
       owner: options.owner ?? null,
     };
-    // Cùng tag, hoặc y hệt một thông báo đang hiện (vd. bấm checkout hai lần liền): thay cái cũ thay vì xếp chồng.
+    // The same tag, or exactly the same notification already on screen (e.g. clicking checkout twice in a row): replace it instead of stacking.
     let next = this.items.filter(
       (item) =>
         !(toast.tag !== null && item.tag === toast.tag) &&
@@ -101,10 +101,10 @@ export class ToastStore {
     return this.push('warning', title, options);
   }
 
-  /** Toast lỗi: `error` (nếu có) được chuyển thành câu thân thiện — không bao giờ hiện lỗi thô. */
+  /** An error toast: `error` (if any) is turned into a friendly sentence — a raw error is never shown. */
   error(title: string, error?: unknown, options: ToastOptions = {}): number {
     const friendly = error === undefined ? options.message : describeError(error);
-    // Tiêu đề đã nói đúng điều đó thì khỏi lặp lại ở dòng mô tả.
+    // The title already says exactly that, so do not repeat it in the description.
     const message = friendly === title ? null : friendly;
     return this.push('error', title, { ...options, message });
   }
@@ -117,7 +117,7 @@ export class ToastStore {
     this.replace(this.items.filter((item) => item.tag !== tag));
   }
 
-  /** Gỡ mọi toast của một chủ sở hữu (vd. khi đóng repo). */
+  /** Remove every toast of one owner (e.g. when closing a repo). */
   dismissOwner(owner: string): void {
     this.replace(this.items.filter((item) => item.owner !== owner));
   }
@@ -130,7 +130,7 @@ export class ToastStore {
     return this.items.some((item) => item.tag === tag);
   }
 
-  /** Cập nhật danh sách và dọn bộ hẹn giờ của các toast không còn. */
+  /** Update the list and clear the timers of toasts that are gone. */
   private replace(next: readonly Toast[]): void {
     const alive = new Set(next.map((item) => item.id));
     for (const [id, timer] of this.timers) {

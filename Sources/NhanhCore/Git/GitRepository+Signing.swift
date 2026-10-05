@@ -1,6 +1,6 @@
 import Foundation
 
-/// Kiểu chữ ký commit của git (`gpg.format`).
+/// The commit signing format git uses (`gpg.format`).
 public enum SignatureFormat: String, Sendable, CaseIterable {
     case openpgp
     case ssh
@@ -15,20 +15,20 @@ public enum SignatureFormat: String, Sendable, CaseIterable {
     }
 }
 
-/// Kết quả xác minh chữ ký (`%G?` của git log).
+/// The result of verifying a signature (git log's `%G?`).
 public enum SignatureVerification: Sendable, Equatable {
-    /// Chữ ký đúng; `trusted` false khi khoá chưa được tin cậy (U).
+    /// The signature is good; `trusted` false when the key isn't trusted yet (U).
     case good(signer: String, key: String, trusted: Bool)
     case bad(signer: String, key: String)
-    /// Chữ ký đúng nhưng đã hết hạn / khoá hết hạn / khoá bị thu hồi.
+    /// The signature is good but expired / the key expired / the key was revoked.
     case expired(signer: String, key: String)
     case revoked(signer: String, key: String)
-    /// Không kiểm được: thiếu khoá công khai, chưa cấu hình allowedSignersFile (SSH), không có chương trình gpg…
+    /// Couldn't be checked: the public key is missing, allowedSignersFile isn't configured (SSH), there's no gpg program…
     case cannotCheck(key: String)
     case unsigned
 }
 
-/// Cấu hình ký commit đang có hiệu lực trong repo (local > global).
+/// The commit signing config currently in effect in the repo (local > global).
 public struct CommitSigningConfig: Sendable, Equatable {
     public var signCommits: Bool
     public var signTags: Bool
@@ -43,22 +43,22 @@ public struct CommitSigningConfig: Sendable, Equatable {
     }
 }
 
-/// Khoá bí mật GPG trên máy (`gpg --list-secret-keys`).
+/// GPG secret keys on the machine (`gpg --list-secret-keys`).
 public struct GPGSecretKey: Sendable, Equatable, Identifiable {
     public let id: String
     public let userID: String
 }
 
 extension GitRepository {
-    /// Chương trình kiểm chữ ký cố định — không dùng `gpg.program` / `gpg.ssh.program` do repo tự đặt (repo lạ có thể
-    /// trỏ chúng tới lệnh tuỳ ý).
+    /// The verification program is hardcoded — `gpg.program` / `gpg.ssh.program` set by the repo are not used (an
+    /// untrusted repo could point them at an arbitrary command).
     static let trustedSignaturePrograms = [
         "-c", "gpg.program=gpg",
         "-c", "gpg.ssh.program=ssh-keygen",
         "-c", "gpg.x509.program=gpgsm",
     ]
 
-    /// Commit có chữ ký không, kiểu gì — đọc header `gpgsig` của object, không chạy chương trình ngoài.
+    /// Whether a commit has a signature and of what kind — read from the object's `gpgsig` header, no external program runs.
     public func signatureFormat(of sha: String) async -> SignatureFormat? {
         guard let raw = try? await runner.output(["cat-file", "commit", sha]) else { return nil }
         return Self.signatureFormat(inCommitObject: raw)
@@ -75,7 +75,7 @@ extension GitRepository {
         return nil
     }
 
-    /// Xác minh chữ ký (chạy gpg / ssh-keygen / gpgsm cố định). Chỉ gọi khi người dùng bấm "Xác minh".
+    /// Verify a signature (runs the hardcoded gpg / ssh-keygen / gpgsm). Only called when the user presses "Verify".
     public func verifySignature(of sha: String) async -> SignatureVerification {
         let args = Self.trustedSignaturePrograms + ["show", "-s", "--format=%G?%x1f%GS%x1f%GK", sha]
         guard let output = try? await runner.output(args) else { return .cannotCheck(key: "") }
@@ -109,8 +109,8 @@ extension GitRepository {
                                    key: await key)
     }
 
-    /// Ghi cấu hình ký vào repo này (`global` false) hoặc mọi repo (`global` true). Tắt thì chỉ đặt commit.gpgsign /
-    /// tag.gpgsign = false, giữ nguyên khoá.
+    /// Write the signing config into this repo (`global` false) or into every repo (`global` true). Turning it off only sets
+    /// commit.gpgsign / tag.gpgsign = false and leaves the keys alone.
     public func configureSigning(_ config: CommitSigningConfig, global: Bool) async throws {
         try await setConfig("commit.gpgsign", config.signCommits ? "true" : "false", global: global)
         try await setConfig("tag.gpgsign", config.signTags ? "true" : "false", global: global)
@@ -121,14 +121,14 @@ extension GitRepository {
         }
     }
 
-    /// Khoá SSH công khai trong ~/.ssh (để chọn làm khoá ký).
+    /// SSH public keys in ~/.ssh (offered as signing keys).
     public static func sshPublicKeys(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> [URL] {
         let directory = home.appendingPathComponent(".ssh")
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
         return names.filter { $0.hasSuffix(".pub") }.sorted().map { directory.appendingPathComponent($0) }
     }
 
-    /// Khoá bí mật GPG trên máy (rỗng nếu chưa cài gpg).
+    /// GPG secret keys on the machine (empty when gpg isn't installed).
     public func gpgSecretKeys() async -> [GPGSecretKey] {
         let environment = runner.environmentStore.snapshot().0.variables
         guard let output = try? await ProcessRunner.run(executable: URL(fileURLWithPath: "/usr/bin/env"),

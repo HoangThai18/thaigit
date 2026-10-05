@@ -1,4 +1,4 @@
-/** Số phiên bản dạng "1.2.3" (bỏ tiền tố "v"), so sánh theo từng phần số: 1.10 > 1.9, 1.1 == 1.1.0. */
+/** Version string in "1.2.3" form (leading "v" stripped), compared part by part: 1.10 > 1.9, 1.1 == 1.1.0. */
 export class AppVersion {
   readonly text: string;
   private readonly parts: number[];
@@ -18,7 +18,7 @@ export class AppVersion {
       if (!/^\d{1,9}$/.test(piece)) return null;
       values.push(Number(piece));
     }
-    // Bỏ số 0 ở cuối để 1.1 và 1.1.0 bằng nhau.
+    // Drop trailing zeros so 1.1 and 1.1.0 compare equal.
     while (values.length > 1 && values[values.length - 1] === 0) values.pop();
     return new AppVersion(trimmed, values);
   }

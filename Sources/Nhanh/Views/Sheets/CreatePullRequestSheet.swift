@@ -1,11 +1,11 @@
 import NhanhCore
 import SwiftUI
 
-/// Tạo Pull Request trên GitHub (remote GitLab: Merge Request) như GitKraken: chọn nhánh đích, tiêu đề và mô tả điền sẵn từ
-/// các commit của nhánh, nhánh chưa push thì push trước rồi mới tạo.
+/// Creating a Pull Request on GitHub (on a GitLab remote: a Merge Request) like GitKraken: pick the target branch, with the
+/// title and description prefilled from the branch's commits; an unpushed branch is pushed first, then created.
 struct CreatePullRequestSheet: View {
     @Bindable var model: RepoModel
-    /// Nhánh local (hoặc tên nhánh trên remote GitHub) chứa thay đổi.
+    /// The local branch (or the branch name on the GitHub remote) holding the changes.
     let head: String
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openSettings) private var openSettings
@@ -31,14 +31,14 @@ struct CreatePullRequestSheet: View {
     private var headBranch: String { model.pullRequestHeadBranch(head) }
     private var push: PushRequest? { model.pendingPush(forPullRequestHead: head) }
 
-    /// Nhánh đích có thể chọn: các nhánh của remote GitHub, trừ chính nhánh của PR.
+    /// The selectable target branches: the GitHub remote's branches, minus the PR's own branch.
     private var baseChoices: [String] {
         model.remoteBranches
             .filter { $0.remoteName == remote && $0.shortBranchName != "HEAD" && $0.shortBranchName != headBranch }
             .map(\.shortBranchName)
     }
 
-    /// Commit sẽ có trong PR: local nếu có nhánh local tên `head`, không thì nhánh trên remote.
+    /// The commits the PR will contain: the local branch when a local branch named `head` exists, otherwise the remote branch.
     private var headRevision: String {
         model.localBranches.contains { $0.name == head } ? head : "\(remote)/\(headBranch)"
     }
@@ -192,11 +192,11 @@ struct CreatePullRequestSheet: View {
         .font(.caption)
     }
 
-    // MARK: - Dữ liệu
+    // MARK: - Data
 
     private func loadDefaultBranch() async {
         let choices = baseChoices
-        // Đoán trước bằng nhánh hay dùng, rồi hỏi GitHub nhánh mặc định thật.
+        // Guess with the usual branches first, then ask GitHub for the real default.
         if base.isEmpty {
             base = ["main", "master", "develop"].first(where: choices.contains) ?? choices.first ?? ""
         }
@@ -224,7 +224,7 @@ struct CreatePullRequestSheet: View {
         guard !Task.isCancelled else { return }
         commits = list
         guard !didPrefill, !list.isEmpty else { return }
-        // Một commit: mô tả là phần thân lời commit (bỏ dòng tiêu đề).
+        // A single commit: the description is that commit's body (title line removed).
         var singleBody = ""
         if list.count == 1, let message = try? await model.repository.commitMessage(list[0].id) {
             singleBody = message.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).dropFirst().joined()
@@ -233,7 +233,7 @@ struct CreatePullRequestSheet: View {
         prefill(singleBody: singleBody)
     }
 
-    /// Điền tiêu đề / mô tả một lần: một commit thì lấy lời commit đó, nhiều commit thì tên nhánh dễ đọc + danh sách commit.
+    /// Fill the title / description in one go: a single commit uses its message, several commits use a readable branch name plus the commit list.
     private func prefill(singleBody: String) {
         guard !didPrefill, !commits.isEmpty else { return }
         didPrefill = true

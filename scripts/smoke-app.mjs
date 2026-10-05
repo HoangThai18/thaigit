@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-// Kiểm thử khói bản build (CI): mở app thật với THAIGIT_SMOKE_EXIT=1 — app tự thoát mã 0 khi giao diện dựng xong và gọi
-// `app_ready` (xem src-tauri/src/safe_mode.rs). Không thoát trong thời hạn / thoát mã khác → lỗi.
+// Smoke-tests a build in CI: launches the real app with THAIGIT_SMOKE_EXIT=1 — the app exits 0 on its own once the UI is
+// built and it has emitted `app_ready` (see src-tauri/src/safe_mode.rs). No exit within the timeout / any other exit code
+// is a failure.
+//   node scripts/smoke-app.mjs apps/desktop/src-tauri/target/debug/thaigit
+//   node scripts/smoke-app.mjs apps/desktop/src-tauri/target/debug/thaigit
 //   node scripts/smoke-app.mjs apps/desktop/src-tauri/target/debug/thaigit
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';

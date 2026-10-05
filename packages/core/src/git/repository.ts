@@ -1,10 +1,12 @@
-// Repository Git và mọi thao tác Thaigit dùng (port GitRepository.swift). Mỗi hàm chạy một hoặc vài lệnh `git` qua
-// `Exec`; mọi I/O file qua `RepoFs`. KHÔNG parse diff/patch ở đây (module `diff/`): hàm diff trả byte thô, dòng staging
-// nhận patch dạng byte. `exec` (main thread) và parse (worker) tách nhau: ví dụ `logBytes()` trả byte, `parseLog()` thuần.
+// The Git repository and every operation Thaigit performs on it (port of GitRepository.swift). Each method runs one or
+// a few `git` commands through `Exec`; all file I/O goes through `RepoFs`. Diff/patch parsing does NOT happen here
+// (see the `diff/` module): diff methods return raw bytes and the staging code consumes byte patches. `exec` (main
+// thread) and parsing (worker) are separated: e.g. `logBytes()` returns bytes and `parseLog()` is pure.
 //
-// Quy ước an toàn cho validator (git-policy.json): chuỗi tự do (message…) đi qua stdin (`-F -`) hoặc dạng `--opt=giá trị`;
-// đường dẫn đi qua `--pathspec-from-file=- --pathspec-file-nul` hoặc đứng sau `--` cùng `GIT_LITERAL_PATHSPECS=1`;
-// không dùng cờ ngắn gắn liền giá trị. Tên nhánh/rev/remote không được bắt đầu bằng `-` (chống bị hiểu thành cờ).
+// Validator safety conventions (git-policy.json): free-form strings (a commit message…) travel via stdin (`-F -`) or as
+// `--opt=value`; paths travel via `--pathspec-from-file=- --pathspec-file-nul` or after `--` together with
+// `GIT_LITERAL_PATHSPECS=1`; short flags never carry a value. Branch/rev/remote names must not start with `-` (so they
+// cannot be mistaken for options).
 
 import { NO_REF_FILTER, refFilterRevisionArgs, type GraphRefFilter } from '../graph/refFilter.ts';
 import type { EnvProfile } from '@thaigit/contracts';
@@ -57,10 +59,10 @@ import { AdapterError, GitError, GitRunner } from './runner.ts';
 
 export type RepositoryErrorKind = 'notARepository' | 'bareRepository' | 'invalidName';
 
-/** Lỗi mở repository / tham số không hợp lệ (thông báo tiếng Việt như bản Swift). */
+/** Failure to open a repository or an invalid argument (Vietnamese message, like the Swift version). */
 export class RepositoryError extends Error {
   readonly kind: RepositoryErrorKind;
-  /** Đường dẫn (notARepository/bareRepository) hoặc tên bị từ chối (invalidName). */
+  /** The path (notARepository/bareRepository) or the rejected name (invalidName). */
   readonly subject: string;
 
   constructor(kind: RepositoryErrorKind, subject: string) {
@@ -85,66 +87,66 @@ function repositoryErrorMessage(kind: RepositoryErrorKind, subject: string): str
 export interface GitRepositoryOptions {
   exec: Exec;
   fs: RepoFs;
-  /** Gốc working tree. Đã chuẩn hoá (realpath) bởi bộ mở repo. */
+  /** Working-tree root, already normalised (realpath) by the repo opener. */
   root: string;
   gitDir: string;
   commonDir: string;
-  /** Nhật ký lệnh (đã che credential khi ghi). */
+  /** Command log (credentials redacted on write). */
   log?: CommandLog;
-  /** Lệnh có kiểu (config set, remote add/set-url). Thiếu → các hàm đó báo lỗi rõ ràng. */
+  /** Typed commands (config set, remote add/set-url). Without it those methods report a clear error. */
   typed?: TypedGit;
 }
 
 export interface LogOptions {
   limit: number;
   order: LogOrder;
-  /** Thêm `HEAD` (cần khi HEAD detached hoặc nhánh hiện tại chưa trong `--branches`). */
+  /** Add `HEAD` (needed when HEAD is detached or the current branch is not in `--branches`). */
   includeHead: boolean;
   includeRemotes?: boolean;
   includeTags?: boolean;
-  /** Ẩn / solo nhánh trên graph. */
+  /** Hide branches on the graph, or restrict it to one. */
   filter?: GraphRefFilter;
 }
 
-/** Tuỳ chọn chung của lệnh mạng. */
+/** Options shared by network commands. */
 export interface NetworkOptions {
   onProgress?: (line: string) => void;
-  /** Huỷ theo bậc (chỉ lệnh `network`). */
+  /** Staged cancellation (only `network` commands). */
   signal?: AbortSignal;
-  /** `background` cho tự fetch: không bao giờ bật hộp thoại đăng nhập. */
+  /** `background` for autofetch: never opens a sign-in dialog. */
   profile?: EnvProfile;
 }
 
 export interface FetchOptions extends NetworkOptions {
-  /** Mặc định (null/undefined) = `--all`. */
+  /** Default (null/undefined) = `--all`. */
   remote?: string | null;
   prune?: boolean;
 }
 
 /**
- * Repo thiếu lịch sử / nhánh của remote: clone nông (`--depth`) hoặc remote chỉ fetch vài nhánh (`--single-branch`, refspec
- * sửa tay). Khi đó nhánh như `main` trên remote không bao giờ về máy, kể cả khi bấm Fetch.
+ * Repos with missing history or remote branches: shallow clones (`--depth`), or remotes that fetch only a few branches
+ * (`--single-branch`, hand-edited refspecs). A remote branch like `main` then never reaches the machine, not even on Fetch.
  */
 export interface HistoryGaps {
-  /** Clone nông: thiếu commit cũ (`git rev-parse --is-shallow-repository`). */
+  /** Shallow clone: older commits are missing (`git rev-parse --is-shallow-repository`). */
   shallow: boolean;
-  /** Remote có refspec fetch nhưng không cái nào lấy `refs/heads/*`. */
+  /** The remote has fetch refspecs but none of them fetches `refs/heads/*`. */
   narrowRemotes: string[];
 }
 
-/** Refspec fetch có lấy mọi nhánh của remote không (`[+]refs/heads/*:…`; bỏ qua refspec loại trừ `^…`). */
+/** Do the fetch refspecs cover every branch of the remote (`[+]refs/heads/*:…`; exclude refspecs `^…` are ignored)? */
 export function tracksAllBranches(refspecs: readonly string[]): boolean {
   return refspecs.some((spec) => spec.replace(/^\+/, '').split(':', 1)[0] === 'refs/heads/*');
 }
 
-/** Output `git config -z --get-regexp '^remote\..+\.fetch$'` ("khoá\ngiá trị\0"…) → refspec theo tên remote. */
+/** `git config -z --get-regexp '^remote\..+\.fetch$'` output ("key\nvalue\0"…) → refspecs keyed by remote name. */
 export function parseFetchRefspecs(output: string): Map<string, string[]> {
   const byRemote = new Map<string, string[]>();
   for (const entry of output.split('\0')) {
     const newline = entry.indexOf('\n');
     if (newline < 0) continue;
     const key = entry.slice(0, newline);
-    // Tên section/biến git viết thường; tên remote (subsection) giữ nguyên hoa thường và có thể chứa dấu chấm.
+    // Git writes section and variable names in lowercase; the remote name (subsection) keeps its case and may contain dots.
     if (!key.toLowerCase().startsWith('remote.') || !key.toLowerCase().endsWith('.fetch')) continue;
     const name = key.slice('remote.'.length, -'.fetch'.length);
     if (name === '') continue;
@@ -168,12 +170,12 @@ export interface CommitOptions {
 }
 
 export interface ApplyPatchOptions {
-  /** Áp vào index thay vì working tree. */
+  /** Apply to the index instead of the working tree. */
   cached: boolean;
   reverse: boolean;
   /**
-   * Cho phép patch không có dòng ngữ cảnh (`-U0`): git từ chối chúng nếu thiếu `--unidiff-zero`. Chỉ bật khi patch
-   * sinh ra với `-U0` (git không kiểm được vị trí bằng ngữ cảnh nên dựa hoàn toàn vào số dòng của hunk).
+   * Allow a patch with no context lines (`-U0`): git rejects those without `--unidiff-zero`. Enable only for patches
+   * generated with `-U0` (git cannot verify positions from context, so it relies entirely on the hunk's line numbers).
    */
   unidiffZero?: boolean;
 }
@@ -182,7 +184,7 @@ const LITERAL_PATHSPECS = { GIT_LITERAL_PATHSPECS: '1' } as const;
 const NO_OPTIONAL_LOCKS = { GIT_OPTIONAL_LOCKS: '0' } as const;
 const DIFF_ENV = { ...LITERAL_PATHSPECS, ...NO_OPTIONAL_LOCKS } as const;
 
-/** Subcommand điều khiển từng thao tác dở dang (`<sub> --abort|--continue|--skip`); bisect có luật riêng. */
+/** Subcommand driving each in-progress operation (`<sub> --abort|--continue|--skip`); bisect has its own rules. */
 const OPERATION_SUBCOMMAND = {
   merging: 'merge',
   rebasing: 'rebase',
@@ -191,13 +193,13 @@ const OPERATION_SUBCOMMAND = {
   applyingPatches: 'am',
 } as const;
 
-/** Tên ref/remote/rev đưa vào argv: không rỗng, không bắt đầu bằng `-` (khỏi bị hiểu là cờ), không NUL/xuống dòng. */
+/** Ref/remote/rev name placed in argv: non-empty, not starting with `-` (so it is not read as an option), no NUL or newline. */
 function assertArgument(value: string): void {
   if (value === '' || value.startsWith('-') || /[\0\r\n]/.test(value))
     throw new RepositoryError('invalidName', value);
 }
 
-/** Phần tử ghép vào refspec: phải là tên nhánh/tag hợp lệ (ký tự `:` hay `+` sẽ đổi nghĩa refspec). */
+/** Piece spliced into a refspec: it must be a valid branch/tag name (a `:` or `+` would change the refspec's meaning). */
 function assertRefspecName(value: string, branch: boolean): void {
   if (!isValidRefName(value, branch)) throw new RepositoryError('invalidName', value);
 }
@@ -238,7 +240,7 @@ export class GitRepository {
     return osBasename(this.root);
   }
 
-  // MARK: - Đọc dữ liệu
+  // MARK: - Reading data
 
   async refs(): Promise<GitRef[]> {
     const out = await this.runner.run('for-each-ref', [
@@ -271,8 +273,8 @@ export class GitRepository {
   }
 
   /**
-   * Output thô của `git log -z` (để parse + xếp làn trong worker bằng `buildHistory`). Repo chưa có commit → byte rỗng.
-   * Lịch sử gồm mọi nhánh local, (tuỳ chọn) remote/tag và HEAD.
+   * Raw `git log -z` output (for parsing + lane layout in a worker via `buildHistory`). A repo with no commits → empty
+   * bytes. History covers every local branch, optionally remotes/tags, and HEAD.
    */
   async logBytes(options: LogOptions): Promise<Uint8Array> {
     const args = [
@@ -295,7 +297,7 @@ export class GitRepository {
         (error.contains('does not have any commits') ||
           error.contains('bad default revision') ||
           error.contains('unknown revision') ||
-          // `HEAD` là revision tường minh duy nhất trong lệnh: repo chưa có commit thì git báo "bad revision 'HEAD'".
+          // `HEAD` is the only literal revision in the command: a repo with no commits makes git report "bad revision 'HEAD'".
           error.contains('bad revision'))
       ) {
         return new Uint8Array(0);
@@ -304,7 +306,7 @@ export class GitRepository {
     }
   }
 
-  /** `logBytes` + `parseLog` trên cùng luồng (tiện cho test/repo nhỏ; app dùng worker). */
+  /** `logBytes` + `parseLog` on one thread (convenient for tests and small repos; the app uses a worker). */
   async log(options: LogOptions): Promise<Commit[]> {
     return parseLog(await this.logBytes(options));
   }
@@ -314,7 +316,7 @@ export class GitRepository {
     return this.runner.text('show', ['-s', '--format=%B', sha, '--']);
   }
 
-  /** Commit dạng patch email (như `git format-patch -1 --stdout`) — áp lại được bằng `git am`. */
+  /** Commit as an email patch (like `git format-patch -1 --stdout`) — reapplicable with `git am`. */
   async commitPatch(sha: string): Promise<string> {
     assertArgument(sha);
     return this.runner.text('show', [
@@ -328,7 +330,7 @@ export class GitRepository {
     ]);
   }
 
-  /** File thay đổi trong commit (so với cha đầu tiên; commit gốc so với cây rỗng). */
+  /** Files changed in a commit (against its first parent; a root commit against the empty tree). */
   async changedFiles(sha: string, parent: string | null): Promise<FileChange[]> {
     assertArgument(sha);
     if (parent !== null) assertArgument(parent);
@@ -343,7 +345,7 @@ export class GitRepository {
     return parseNameStatus((await this.runner.run('diff-tree', args)).stdout);
   }
 
-  /** Message + file thay đổi của một commit. */
+  /** Message plus changed files of one commit. */
   async commitDetails(commit: Commit): Promise<CommitDetails> {
     const [message, files] = await Promise.all([
       this.commitMessage(commit.id),
@@ -353,8 +355,8 @@ export class GitRepository {
   }
 
   /**
-   * Diff một file của commit (unified, BYTE thô — đưa cho `diff/` để parse). `ignoreWhitespace`: bỏ thay đổi chỉ về khoảng
-   * trắng (`--ignore-all-space`, như "Ignore whitespace" của GitKraken).
+   * Unified diff of one file in a commit (raw BYTES — hand them to `diff/` for parsing). `ignoreWhitespace`: drop
+   * whitespace-only changes (`--ignore-all-space`, GitKraken's "Ignore whitespace").
    */
   async commitDiffBytes(
     sha: string,
@@ -383,8 +385,9 @@ export class GitRepository {
   }
 
   /**
-   * Diff một file trong working tree/index (byte thô). `untracked` so với /dev/null (git trả mã 1 khi có khác biệt).
-   * `ignoreWhitespace`: diff chỉ để XEM — patch dựng từ nó không áp lại được (không stage từng dòng khi bật).
+   * Diff of one file in the working tree / index (raw bytes). `untracked` compares against /dev/null (git exits 1 when they
+   * differ). `ignoreWhitespace`: the diff is for VIEWING only — a patch built from it cannot be reapplied (per-line
+   * staging is unavailable while it is on).
    */
   async workingDiffBytes(
     change: FileChange,
@@ -418,14 +421,14 @@ export class GitRepository {
     }
   }
 
-  /** Toàn bộ thay đổi đã stage (byte thô) — ngữ cảnh cho AI viết commit message. */
+  /** Every staged change (raw bytes) — context for AI commit messages. */
   async stagedDiffBytes(context = 3): Promise<Uint8Array> {
     assertContext(context);
     const args = ['--cached', '-M', '--no-color', `-U${context}`, '--src-prefix=a/', '--dst-prefix=b/'];
     return (await this.runner.run('diff', args, { env: DIFF_ENV })).stdout;
   }
 
-  /** Toàn bộ diff của một commit so với cha đầu tiên (commit gốc so với cây rỗng). */
+  /** Full diff of a commit against its first parent (a root commit against the empty tree). */
   async commitPatchBytes(sha: string, parent: string | null, context = 3): Promise<Uint8Array> {
     assertArgument(sha);
     if (parent !== null) assertArgument(parent);
@@ -443,7 +446,7 @@ export class GitRepository {
     return (await this.runner.run('diff-tree', args)).stdout;
   }
 
-  /** Diff của nhánh `head` so với điểm rẽ khỏi `base` (`base...head`) — ngữ cảnh mô tả Pull Request. */
+  /** Diff of branch `head` against its divergence point from `base` (`base...head`) — context for a pull request description. */
   async branchDiffBytes(base: string, head: string, context = 3): Promise<Uint8Array> {
     assertArgument(base);
     assertArgument(head);
@@ -460,7 +463,7 @@ export class GitRepository {
     return (await this.runner.run('diff', args, { env: DIFF_ENV })).stdout;
   }
 
-  /** Subject của các commit gần nhất trên `rev` (mới → cũ); repo chưa có commit → []. */
+  /** Subjects of recent commits on `rev` (newest first); a repo with no commits → []. */
   async recentSubjects(limit = 10, rev = 'HEAD', excludeRev: string | null = null): Promise<string[]> {
     assertArgument(rev);
     if (excludeRev !== null) assertArgument(excludeRev);
@@ -486,18 +489,18 @@ export class GitRepository {
     }
   }
 
-  /** Nội dung blob, ví dụ "HEAD:path", ":path" (index), "<sha>:path". */
+  /** Blob content, e.g. "HEAD:path", ":path" (index), "<sha>:path". */
   async blob(spec: string): Promise<Uint8Array> {
     assertArgument(spec);
     return (await this.runner.run('cat-file', ['blob', spec])).stdout;
   }
 
-  /** Byte của file trong working tree (null nếu không có). Đi qua `RepoFs` nên bị giới hạn trong repo. */
+  /** Bytes of a file in the working tree (null when absent). Goes through `RepoFs`, so it is confined to the repo. */
   async workingFileBytes(path: string, maxBytes?: number): Promise<Uint8Array | null> {
     return this.fs.readWorktreeFile(path, maxBytes);
   }
 
-  /** Các commit đụng tới `path` (mới → cũ), theo dấu qua các lần đổi tên; mỗi mục kèm file đó ở commit đó. */
+  /** Commits touching `path` (newest first), following renames; each entry carries that file at that commit. */
   async fileHistory(path: string, limit = 300): Promise<FileHistoryEntry[]> {
     assertNoNul(path);
     const out = await this.runner.run(
@@ -517,8 +520,9 @@ export class GitRepository {
   }
 
   /**
-   * Blame `path` tại `rev` (null: bản trong working tree, kể cả dòng chưa commit). `-M`: dòng chuyển chỗ trong file vẫn tính
-   * về commit gốc (không dùng `-C`: cờ ngắn này bị chính sách chặn). `--no-textconv` do chính sách chạy git tự chèn.
+   * Blame `path` at `rev` (null: the working-tree version, including uncommitted lines). `-M`: lines moved within a file still
+   * count towards their original commit (`-C` is deliberately not used: the policy rejects that short flag).
+   * `--no-textconv` is inserted by the policy when running git.
    */
   async blame(path: string, rev: string | null = null): Promise<Blame> {
     assertNoNul(path);
@@ -537,8 +541,8 @@ export class GitRepository {
   }
 
   /**
-   * Commit tổ tiên chung gần nhất của `a` và `b` (điểm tách của một nhánh khỏi nhánh đích — mốc để xem "Files changed" của
-   * Pull Request). `null` khi hai bên không có lịch sử chung (git thoát mã 1).
+   * Nearest common ancestor commit of `a` and `b` (where a branch diverged from its target — the marker for a pull
+   * request's "Files changed"). Null when the two share no history (git exits 1).
    */
   async mergeBase(a: string, b: string): Promise<string | null> {
     assertArgument(a);
@@ -547,7 +551,7 @@ export class GitRepository {
     return out.code === 0 ? decodeUtf8(out.stdout).trim() || null : null;
   }
 
-  /** Giá trị cấu hình (null nếu chưa đặt). Mã thoát 1 của `git config --get` = chưa đặt; lỗi khác vẫn ném. */
+  /** Config value (null when unset). Exit code 1 from `git config --get` means unset; other errors still throw. */
   async config(key: string): Promise<string | null> {
     assertArgument(key);
     const out = await this.runner.run('config', ['--get', key], { acceptExitCodes: [0, 1] });
@@ -556,12 +560,12 @@ export class GitRepository {
     return value === '' ? null : value;
   }
 
-  /** Đặt cấu hình (chỉ khoá trong allowlist của chính sách; kiểm ở bộ chuyển có kiểu). */
+  /** Set a config value (only keys in the policy's allowlist; enforced by the typed adapter). */
   async setConfig(key: string, value: string, scope: 'local' | 'global'): Promise<void> {
     await this.requireTyped().configSet(key, value, scope);
   }
 
-  /** Hỏi git xem tên nhánh/tag có hợp lệ không (nguồn sự thật). Tên bắt đầu bằng `-` luôn bị từ chối. */
+  /** Ask git whether a branch/tag name is valid (the source of truth). Names starting with `-` are always rejected. */
   async isValidRefName(name: string, branch: boolean): Promise<boolean> {
     if (name === '' || name.startsWith('-') || /[\0\r\n]/.test(name)) return false;
     try {
@@ -573,9 +577,9 @@ export class GitRepository {
     }
   }
 
-  // MARK: - Trạng thái thao tác dở dang
+  // MARK: - In-progress operations
 
-  /** merge/rebase/cherry-pick/revert/am/bisect đang dở, đọc từ file trong git dir qua `RepoFs.readGitFile`. */
+  /** Unfinished merge/rebase/cherry-pick/revert/am/bisect, read from files in the git dir through `RepoFs.readGitFile`. */
   async operationState(): Promise<RepoOperation | null> {
     const read = (name: string) => this.fs.readGitFile(name);
     const [rebaseMerge, amApplying, rebaseApply, mergeHead, cherryPickHead, revertHead, bisectLog] =
@@ -612,7 +616,7 @@ export class GitRepository {
     return null;
   }
 
-  /** Message gợi ý khi đang merge (MERGE_MSG/SQUASH_MSG), đã bỏ các dòng chú thích `#`. */
+  /** Suggested message while merging (MERGE_MSG/SQUASH_MSG), with the `#` comment lines removed. */
   async pendingCommitMessage(): Promise<string | null> {
     for (const name of ['MERGE_MSG', 'SQUASH_MSG']) {
       const bytes = await this.fs.readGitFile(name);
@@ -658,12 +662,12 @@ export class GitRepository {
   }
 
   async unstageAll(headExists: boolean): Promise<void> {
-    // Reset có pathspec để không xoá trạng thái merge đang dở.
+    // Reset carries a pathspec so it does not clear an in-progress merge.
     if (headExists) await this.runner.run('reset', ['-q', 'HEAD', '--', '.']);
     else await this.runner.run('rm', ['--cached', '-r', '-q', '--', '.']);
   }
 
-  /** Bỏ thay đổi chưa stage của file đã track (khôi phục từ index). */
+  /** Discard the unstaged changes of a tracked file (restored from the index). */
   async discard(paths: readonly string[]): Promise<void> {
     if (paths.length === 0) return;
     await this.runner.run('restore', ['--worktree', '--pathspec-from-file=-', '--pathspec-file-nul'], {
@@ -672,7 +676,7 @@ export class GitRepository {
     });
   }
 
-  /** Dời file chưa track vào thùng rác của app (`<commonDir>/thaigit/trash/…`). Trả token để `restoreTrash`. */
+  /** Move an untracked file into the app's trash (`<commonDir>/thaigit/trash/…`) and return a token for `restoreTrash`. */
   async trashUntracked(paths: readonly string[]): Promise<string> {
     return this.fs.trashUntracked(paths);
   }
@@ -682,15 +686,15 @@ export class GitRepository {
   }
 
   /**
-   * Ảnh chụp toàn bộ thay đổi đã track (index + worktree) thành một commit stash lơ lửng, không đụng tới working tree —
-   * dùng để "Hoàn tác" sau khi huỷ thay đổi. Không có thay đổi → null.
+   * Snapshot every tracked change (index + working tree) as a dangling stash commit without touching the working tree —
+   * used to offer "Undo" after a discard. No changes → null.
    */
   async snapshotChanges(): Promise<string | null> {
     const sha = (await this.runner.text('stash', ['create'])).trim();
     return sha === '' ? null : sha;
   }
 
-  /** Khôi phục nội dung working tree của các file từ một commit (không đổi index). */
+  /** Restore the working-tree content of files from a commit (the index is untouched). */
   async restoreWorkingFiles(rev: string, paths: readonly string[]): Promise<void> {
     if (paths.length === 0) return;
     assertArgument(rev);
@@ -704,12 +708,12 @@ export class GitRepository {
     );
   }
 
-  /** Lưu byte vào kho object (`hash-object -w --stdin`), trả SHA — ví dụ chụp lại nội dung file trước khi huỷ. */
+  /** Write bytes into the object store (`hash-object -w --stdin`) and return the SHA — e.g. to capture a file's content before discarding it. */
   async hashObject(content: Uint8Array): Promise<string> {
     return (await this.runner.text('hash-object', ['-w', '--stdin'], { stdin: content })).trim();
   }
 
-  /** Áp patch (byte, từ `diff/patch-builder`) vào index (`cached`) hoặc working tree; `reverse` để unstage/huỷ; `unidiffZero` cho patch `-U0`. */
+  /** Apply a byte patch (from `diff/patch-builder`) to the index (`cached`) or the working tree; `reverse` for unstage/discard; `unidiffZero` for `-U0` patches. */
   async applyPatch(patch: Uint8Array, options: ApplyPatchOptions): Promise<void> {
     const args = ['--whitespace=nowarn', '--recount'];
     if (options.unidiffZero) args.push('--unidiff-zero');
@@ -737,18 +741,18 @@ export class GitRepository {
     await this.runner.run('commit', args, { stdin: encodeUtf8(message) });
   }
 
-  /** Đưa nhánh hiện tại về `rev` giữ nguyên thay đổi (dùng để hoàn tác commit). */
+  /** Move the current branch to `rev`, keeping changes (used to undo a commit). */
   async softReset(rev: string): Promise<void> {
     assertArgument(rev);
     await this.runner.run('reset', ['--soft', rev]);
   }
 
-  /** Xoá commit đầu tiên của nhánh (nhánh trở lại trạng thái chưa có commit), giữ index. */
+  /** Drop the branch's first commit (the branch returns to the no-commits state); the index is kept. */
   async undoInitialCommit(): Promise<void> {
     await this.runner.run('update-ref', ['-d', 'HEAD']);
   }
 
-  // MARK: - Nhánh
+  // MARK: - Branches
 
   async switchTo(branch: string): Promise<void> {
     assertArgument(branch);
@@ -768,7 +772,7 @@ export class GitRepository {
     else await this.runner.run('branch', [name, ...start]);
   }
 
-  /** Tạo nhánh local theo dõi nhánh remote rồi checkout. */
+  /** Create a local branch tracking a remote branch, then check it out. */
   async checkoutTracking(remoteBranch: string, localName: string): Promise<void> {
     assertArgument(remoteBranch);
     assertArgument(localName);
@@ -797,14 +801,14 @@ export class GitRepository {
     await this.runner.run('branch', ['--unset-upstream', branch]);
   }
 
-  /** Đặt ref về một object cụ thể (dùng để khôi phục nhánh/tag đã xoá). */
+  /** Point a ref at a specific object (used to restore a deleted branch/tag). */
   async updateRef(fullName: string, object: string): Promise<void> {
     assertArgument(fullName);
     assertArgument(object);
     await this.runner.run('update-ref', [fullName, object]);
   }
 
-  /** Fast-forward nhánh không phải nhánh hiện tại tới upstream của nó. */
+  /** Fast-forward a branch that is not the current one to its upstream. */
   async fastForward(branch: string, upstream: string): Promise<void> {
     assertRefspecName(branch, true);
     assertArgument(upstream);
@@ -824,7 +828,7 @@ export class GitRepository {
     await this.runner.run('merge', args);
   }
 
-  /** Rebase nhánh `branch` (mặc định nhánh hiện tại) lên `ref`. Có `branch` thì git tự checkout nhánh đó trước. */
+  /** Rebase branch `branch` (default: current) onto `ref`. With `branch`, git checks that branch out first. */
   async rebase(onto: string, branch: string | null = null): Promise<void> {
     assertArgument(onto);
     if (branch !== null) assertArgument(branch);
@@ -832,8 +836,8 @@ export class GitRepository {
   }
 
   /**
-   * Các commit sẽ được viết lại khi rebase tương tác từ sau `base` tới HEAD, cũ trước mới sau. `null` khi `base` không nằm trong
-   * lịch sử của HEAD (không rebase từ đó được).
+   * Commits an interactive rebase from `base` to HEAD would rewrite, oldest first. Null when `base` is not in HEAD's
+   * history (nothing can be rebased onto it).
    */
   async rebaseCommits(base: string): Promise<Commit[] | null> {
     assertArgument(base);
@@ -853,8 +857,9 @@ export class GitRepository {
   }
 
   /**
-   * Rebase tương tác nhánh hiện tại lên `onto` (sha đầy đủ) theo kế hoạch (cũ → mới). Thay đổi chưa commit được tự cất rồi trả
-   * lại. Git dừng giữa chừng (xung đột…) → `GitError` như rebase thường (Tiếp tục / Bỏ qua / Huỷ).
+   * Interactive rebase of the current branch onto `onto` (full sha) following the plan (oldest → newest). Uncommitted
+   * changes are auto-stashed and re-applied. Git stopping part-way (a conflict…) raises `GitError`, like a normal rebase
+   * (Continue / Skip / Abort).
    */
   async interactiveRebase(onto: string, steps: readonly RebaseStep[]): Promise<InteractiveRebaseResult> {
     assertArgument(onto);
@@ -881,8 +886,8 @@ export class GitRepository {
   }
 
   /**
-   * Tạo commit đảo ngược `sha`. `commit: false` (`--no-commit`) chỉ stage thay đổi đảo ngược để xem lại / sửa: git để lại
-   * REVERT_HEAD nên repo ở trạng thái "Đang revert" tới khi commit (hoặc `abort`).
+   * Create a commit reverting `sha`. `commit: false` (`--no-commit`) only stages the revert for review or editing: git
+   * leaves REVERT_HEAD behind, so the repo stays in the "Reverting" state until the commit (or an `abort`).
    */
   async revert(sha: string, mainline: number | null = null, commit = true): Promise<void> {
     assertArgument(sha);
@@ -905,7 +910,7 @@ export class GitRepository {
     await this.runner.run('reset', ['-q', `--${mode}`, rev]);
   }
 
-  /** Hoàn tác merge/rebase vừa xong mà vẫn giữ thay đổi local chưa commit. */
+  /** Undo a just-finished merge/rebase while keeping uncommitted local changes. */
   async resetKeepingLocalChanges(rev: string): Promise<void> {
     assertArgument(rev);
     await this.runner.run('reset', ['-q', '--merge', rev]);
@@ -926,9 +931,9 @@ export class GitRepository {
     await this.runner.run(OPERATION_SUBCOMMAND[operation.kind], ['--skip']);
   }
 
-  // MARK: - Xung đột
+  // MARK: - Conflicts
 
-  /** Giải quyết xung đột bằng toàn bộ phiên bản của một bên. */
+  /** Resolve a conflict by taking one side wholesale. */
   async resolveConflict(path: string, kind: ConflictKind, useOurs: boolean): Promise<void> {
     assertNoNul(path);
     const sideMissing = useOurs
@@ -948,17 +953,17 @@ export class GitRepository {
     await this.stage(paths);
   }
 
-  /** Byte của file đang xung đột trong working tree (null nếu không có). */
+  /** Bytes of the conflicted file in the working tree (null when absent). */
   async readWorkingFile(path: string, maxBytes?: number): Promise<Uint8Array | null> {
     return this.fs.readWorktreeFile(path, maxBytes);
   }
 
-  /** Ghi file working tree (so sánh-và-ghi bằng SHA-256 của nội dung đã đọc; `null` = file phải chưa tồn tại). */
+  /** Write a working-tree file (compare-and-set against the SHA-256 of the content that was read; `null` = the file must not exist). */
   async writeWorkingFile(path: string, bytes: Uint8Array, expectedSha256: string | null): Promise<void> {
     await this.fs.writeWorktreeFile(path, bytes, expectedSha256);
   }
 
-  // MARK: - Remote
+  // MARK: - Remotes
 
   async fetch(options: FetchOptions = {}): Promise<void> {
     const args = ['--progress'];
@@ -972,16 +977,16 @@ export class GitRepository {
     await this.runner.run('fetch', args, networkRunOptions(options));
   }
 
-  /** Xem `HistoryGaps`. Chỉ đọc (rev-parse + config), rẻ — gọi lại mỗi lần refs đổi được. */
+  /** See `HistoryGaps`. Read-only (rev-parse + config) and cheap, so it is re-read whenever refs change. */
   async historyGaps(): Promise<HistoryGaps> {
     const [shallow, refspecs, remotes] = await Promise.all([
-      // git quá cũ không hiểu cờ này thì in lại nguyên chữ → không phải "true" → coi như đủ lịch sử.
+      // A git too old to know this flag echoes the flag back verbatim → not "true" → treat history as complete.
       this.runner.text('rev-parse', ['--is-shallow-repository']).then((out) => out.trim() === 'true'),
       this.runner
         .text('config', ['-z', '--get-regexp', '^remote\\..+\\.fetch$'])
         .then(parseFetchRefspecs)
         .catch((error: unknown) => {
-          // Không có khoá nào khớp: git thoát mã 1.
+          // No matching key: git exits 1.
           if (error instanceof GitError) return new Map<string, string[]>();
           throw error;
         }),
@@ -996,15 +1001,15 @@ export class GitRepository {
     return { shallow, narrowRemotes };
   }
 
-  /** Cho `remote` theo dõi mọi nhánh: THÊM `+refs/heads/*:refs/remotes/<remote>/*`, giữ refspec cũ (`remote set-branches --add`). */
+  /** Make `remote` track every branch: ADD `+refs/heads/*:refs/remotes/<remote>/*`, keeping the old refspec (`remote set-branches --add`). */
   async trackAllBranches(remote: string): Promise<void> {
     assertArgument(remote);
     await this.runner.run('remote', ['set-branches', '--add', remote, '*']);
   }
 
   /**
-   * Fetch một refspec cụ thể (vd. `+refs/pull/42/head:refs/remotes/origin/pr/42` khi checkout Pull Request). Refspec
-   * được kiểm là chuỗi không trắng / không bắt đầu bằng `-` trước khi đưa vào lệnh git.
+   * Fetch one specific refspec (e.g. `+refs/pull/42/head:refs/remotes/origin/pr/42` when checking out a pull request). The
+   * refspec is checked for non-whitespace and no leading `-` before going into the git command.
    */
   async fetchRefspec(
     remote: string,
@@ -1017,18 +1022,18 @@ export class GitRepository {
     await this.runner.run('fetch', ['--progress', remote, ...refspecs], networkRunOptions(options));
   }
 
-  /** Lấy phần lịch sử còn thiếu của clone nông từ `remote` (`fetch --unshallow`). */
+  /** Fetch the missing history of a shallow clone from `remote` (`fetch --unshallow`). */
   async unshallow(remote: string, options: NetworkOptions = {}): Promise<void> {
     assertArgument(remote);
     await this.runner.run('fetch', ['--progress', '--unshallow', remote], networkRunOptions(options));
   }
 
   /**
-   * Pull = `fetch` (mạng, huỷ được) rồi tích hợp bằng `merge`/`rebase` (ghi, KHÔNG huỷ — giết git giữa lúc ghi để lại
-   * `index.lock` mồ côi hay rebase dở). Nhánh hiện tại phải có upstream.
+   * Pull = `fetch` (network, cancellable) then integrate with `merge`/`rebase` (a write, NOT cancellable — killing git
+   * mid-write leaves an orphaned `index.lock` or a half-done rebase). The current branch must have an upstream.
    */
   async pull(mode: PullMode, options: NetworkOptions = {}): Promise<void> {
-    // Chưa có upstream thì ném luôn lỗi của git ("no upstream configured for branch …") thay vì fetch vô ích.
+    // With no upstream, throw git's own error ("no upstream configured for branch …") rather than fetching pointlessly.
     const upstream = (await this.runner.text('rev-parse', ['--symbolic-full-name', '@{upstream}'])).trim();
     await this.runner.run('fetch', ['--progress'], networkRunOptions(options));
     switch (mode) {
@@ -1039,7 +1044,7 @@ export class GitRepository {
         await this.runner.run('merge', ['--ff-only', upstream]);
         break;
       case 'rebase':
-        // `--fork-point` như `git pull --rebase`: bỏ qua commit local mà upstream đã viết lại.
+        // `--fork-point` as in `git pull --rebase`: skip local commits that upstream already rewrote.
         await this.runner.run('rebase', ['--fork-point', upstream]);
         break;
     }
@@ -1056,7 +1061,7 @@ export class GitRepository {
     await this.runner.run('push', args, networkRunOptions(options));
   }
 
-  /** Đẩy một commit bất kỳ lên nhánh trên remote (dùng để khôi phục nhánh remote vừa xoá). */
+  /** Push an arbitrary commit to a branch on the remote (used to restore a just-deleted remote branch). */
   async pushCommit(sha: string, remote: string, branch: string, options: NetworkOptions = {}): Promise<void> {
     assertArgument(remote);
     if (!/^[0-9a-fA-F]{4,64}$/.test(sha)) throw new RepositoryError('invalidName', sha);
@@ -1095,7 +1100,7 @@ export class GitRepository {
     await this.runner.run('push', [remote, '--delete', `refs/tags/${tag}`], networkRunOptions(options));
   }
 
-  /** Thêm remote (lệnh có kiểu: URL do bộ chuyển kiểm). */
+  /** Add a remote (typed command: the adapter validates the URL). */
   async addRemote(name: string, url: string): Promise<void> {
     assertArgument(name);
     await this.requireTyped().remoteAdd(name, url);
@@ -1111,21 +1116,21 @@ export class GitRepository {
     await this.runner.run('remote', ['remove', name]);
   }
 
-  /** Đổi tên remote: git đổi luôn nhánh remote (`refs/remotes/<cũ>/…`) và upstream của các nhánh local đang theo dõi. */
+  /** Rename a remote: git also renames the remote branches (`refs/remotes/<old>/…`) and the upstreams of local branches tracking them. */
   async renameRemote(oldName: string, newName: string): Promise<void> {
     assertArgument(oldName);
     if (!isValidRemoteName(newName)) throw new RepositoryError('invalidName', newName);
     await this.runner.run('remote', ['rename', oldName, newName]);
   }
 
-  // MARK: - Worktree, submodule
+  // MARK: - Worktrees, submodules
 
   async worktrees(): Promise<Worktree[]> {
     const out = await this.runner.run('worktree', ['list', '--porcelain', '-z']);
     return parseWorktrees(out.stdout);
   }
 
-  /** Thêm worktree (lệnh có kiểu: thư mục đích do hộp thoại native chọn). Trả đường dẫn worktree mới. */
+  /** Add a worktree (typed command: the destination folder comes from a native dialog). Returns the new worktree path. */
   async addWorktree(
     destToken: string,
     name: string,
@@ -1138,20 +1143,20 @@ export class GitRepository {
     return this.requireTyped().worktreeAdd(destToken, name, branch, createBranch, start);
   }
 
-  /** Gỡ worktree (`force`: kể cả khi còn thay đổi chưa commit — thay đổi đó mất). */
+  /** Remove a worktree (`force`: even with uncommitted changes — which are then lost). */
   async removeWorktree(path: string, force: boolean): Promise<void> {
     assertArgument(path);
     await this.runner.run('worktree', ['remove', ...(force ? ['--force'] : []), path]);
   }
 
-  /** Dọn thông tin của worktree đã bị xoá thư mục. */
+  /** Prune bookkeeping of worktrees whose directory is gone. */
   async pruneWorktrees(): Promise<void> {
     await this.runner.run('worktree', ['prune']);
   }
 
-  /** Các submodule; repo không có `.gitmodules` thì trả rỗng mà không chạy git. */
+  /** Submodules; a repo without `.gitmodules` returns empty without running git. */
   async submodules(): Promise<Submodule[]> {
-    // File quá lớn so với giới hạn đọc vẫn là có `.gitmodules` → cứ hỏi git.
+    // A file too large for the read limit still counts as `.gitmodules` → go ahead and ask git.
     const exists = await this.fs.readWorktreeFile('.gitmodules', 1024 * 1024).then(
       (bytes) => bytes !== null,
       () => true,
@@ -1161,7 +1166,7 @@ export class GitRepository {
     return parseSubmoduleStatus(out.stdout);
   }
 
-  /** `submodule update --init --recursive` cho `paths` (null = tất cả). */
+  /** `submodule update --init --recursive` for `paths` (null = all). */
   async updateSubmodules(paths: readonly string[] | null): Promise<void> {
     const args = ['update', '--init', '--recursive'];
     if (paths !== null) {
@@ -1171,14 +1176,14 @@ export class GitRepository {
     await this.runner.run('submodule', args, { env: LITERAL_PATHSPECS });
   }
 
-  /** Chép lại URL submodule từ `.gitmodules` vào cấu hình (sau khi remote của submodule đổi địa chỉ). */
+  /** Copy submodule URLs from `.gitmodules` back into config (after a submodule's remote changed address). */
   async syncSubmodules(): Promise<void> {
     await this.runner.run('submodule', ['sync', '--recursive']);
   }
 
   // MARK: - Git LFS
 
-  /** Phiên bản git-lfs (`git-lfs/3.4.1 (…)` → `3.4.1`); null = máy chưa cài Git LFS. */
+  /** git-lfs version (`git-lfs/3.4.1 (…)` → `3.4.1`); null = Git LFS is not installed. */
   async lfsVersion(): Promise<string | null> {
     try {
       const out = await this.runner.run('lfs', ['version']);
@@ -1189,13 +1194,13 @@ export class GitRepository {
     }
   }
 
-  /** Mẫu LFS trong `.gitattributes` ở gốc repo — đọc file, không cần git-lfs. */
+  /** LFS patterns from the repo root's `.gitattributes` — reads the file, no git-lfs needed. */
   async lfsPatterns(): Promise<LfsPattern[]> {
     const bytes = await this.fs.readWorktreeFile('.gitattributes', 1024 * 1024).catch(() => null);
     return bytes === null ? [] : parseLfsPatterns(decodeUtf8(bytes));
   }
 
-  /** Thêm mẫu vào `.gitattributes` (`git lfs track`); file đổi chưa được stage. */
+  /** Add a pattern to `.gitattributes` (`git lfs track`); a changed file is not staged yet. */
   async lfsTrack(pattern: string): Promise<void> {
     assertNoNul(pattern);
     await this.runner.run('lfs', ['track', '--', pattern]);
@@ -1206,19 +1211,19 @@ export class GitRepository {
     await this.runner.run('lfs', ['untrack', '--', pattern]);
   }
 
-  /** Tải file LFS của nhánh hiện tại về bộ nhớ đệm (`pull`: và thay con trỏ trong working tree bằng file thật). */
+  /** Download the current branch's LFS files into the cache (`pull`: also replaces the pointer in the working tree with the real file). */
   async lfsFetch(pull: boolean, options: NetworkOptions = {}): Promise<void> {
     await this.runner.run('lfs', [pull ? 'pull' : 'fetch'], networkRunOptions(options));
   }
 
-  /** Đẩy file LFS của `branch` lên `remote` — chạy trước `git push` vì hook pre-push của git-lfs có thể không chạy. */
+  /** Upload branch `branch`'s LFS files to `remote` — runs before `git push` because git-lfs's pre-push hook may not run. */
   async lfsPush(remote: string, branch: string, options: NetworkOptions = {}): Promise<void> {
     assertArgument(remote);
     assertArgument(branch);
     await this.runner.run('lfs', ['push', remote, branch], networkRunOptions(options));
   }
 
-  /** Xoá bản LFS cũ trong bộ nhớ đệm cục bộ (chỉ bản đã có trên remote và không còn được commit gần đây dùng). */
+  /** Prune old LFS copies from the local cache (only those present on the remote and no longer used by a recent commit). */
   async lfsPrune(): Promise<void> {
     await this.runner.run('lfs', ['prune']);
   }
@@ -1250,14 +1255,14 @@ export class GitRepository {
     await this.runner.run('stash', ['drop', selector]);
   }
 
-  /** Đưa lại một commit stash vào danh sách stash (hoàn tác "xoá stash"). */
+  /** Put a stash commit back into the stash list (undoing "delete stash"). */
   async stashStore(sha: string, message: string): Promise<void> {
     assertArgument(sha);
     assertNoNul(message);
     await this.runner.run('stash', ['store', `--message=${message}`, sha]);
   }
 
-  /** File trong stash: thay đổi đã track (so với HEAD lúc stash) + file chưa track (cha thứ 3). */
+  /** Files in a stash: tracked changes (against the HEAD at stash time) plus untracked files (third parent). */
   async stashFiles(stash: Stash): Promise<FileChange[]> {
     const files = await this.changedFiles(stash.sha, stash.parents[0] ?? null);
     const untrackedParent = stash.parents[2];
@@ -1266,7 +1271,7 @@ export class GitRepository {
     return [...files, ...untracked.map((file) => fileChange(file.path, 'untracked'))];
   }
 
-  /** Diff một file của stash (byte thô). File chưa track nằm ở cha thứ 3 của commit stash. */
+  /** Diff of one file in a stash (raw bytes). An untracked file lives in the stash commit's third parent. */
   async stashDiffBytes(
     stash: Stash,
     file: FileChange,
@@ -1279,7 +1284,7 @@ export class GitRepository {
     return this.commitDiffBytes(stash.sha, stash.parents[0] ?? null, file, context, ignoreWhitespace);
   }
 
-  // MARK: - Tag
+  // MARK: - Tags
 
   async createTag(name: string, rev: string, message: string | null): Promise<void> {
     assertArgument(name);
@@ -1297,7 +1302,7 @@ export class GitRepository {
     await this.runner.run('tag', ['-d', name]);
   }
 
-  // MARK: - Nội bộ
+  // MARK: - Internals
 
   private requireTyped(): TypedGit {
     if (!this.typed)

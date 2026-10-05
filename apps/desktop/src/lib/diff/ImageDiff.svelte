@@ -39,7 +39,7 @@
     let cancelled = false;
     let made: Shown[] = [];
     sides = null;
-    // Chỉ nạp lại khi đổi file (status làm mới liên tục không được làm ảnh nháy).
+    // Reload only when the file changes (a status that refreshes constantly must not make the image flicker).
     const context = untrack(() => ({ headOid: store.headOid, stashes: store.stashes }));
     void loadImagePair(store.git, current.source, current.change, context).then((pair) => {
       if (cancelled) return;

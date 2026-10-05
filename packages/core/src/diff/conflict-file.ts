@@ -1,10 +1,10 @@
-// File có dấu xung đột (<<<<<<< ======= >>>>>>>), tách thành các đoạn chung và đoạn xung đột — THEO BYTE.
+// Splits a conflicted file (<<<<<<< ======= >>>>>>>) into common and conflict segments — BYTE-ORIENTED.
 //
-// Quy tắc an toàn (khác bản Swift có chủ đích):
-//  - Chỉ giải trong app khi toàn bộ file là UTF-8 hợp lệ; ngược lại trả `not-utf8` để UI chỉ cho "Mở bằng editor"
-//    và không có đường nào ghi lại file qua giải mã.
-//  - BOM UTF-8 và kiểu xuống dòng của TỪNG dòng được giữ nguyên (file lẫn CRLF/LF vẫn đúng từng byte).
-//  - Khi lưu, chỉ thay phần byte nằm trong vùng khối xung đột; mọi byte ngoài vùng đó chép nguyên văn.
+// Safety rules (deliberately stricter than the Swift version):
+//  - Resolve in-app only when the whole file is valid UTF-8; otherwise return `not-utf8` so the UI can only offer
+//    "Open in editor", and there is no path that rewrites the file through a decode.
+//  - A UTF-8 BOM and each line's own terminator style are preserved (mixed CRLF/LF files stay byte-exact).
+//  - Saving replaces only the bytes inside conflict regions; every other byte is copied verbatim.
 
 import {
   UTF8_BOM_LENGTH,
@@ -27,7 +27,7 @@ export const conflictResolutions: readonly ConflictResolution[] = [
   'neither',
 ];
 
-/** Khoảng byte [start, end) trong file gốc. */
+/** Byte range [start, end) in the original file. */
 export interface ByteRange {
   readonly start: number;
   readonly end: number;
@@ -38,17 +38,17 @@ export interface ConflictBlock {
   readonly oursLabel: string;
   readonly theirsLabel: string;
   readonly baseLabel: string | null;
-  /** Các dòng để hiển thị (không gồm ký tự xuống dòng). */
+  /** Lines to display (without their terminator). */
   readonly ours: readonly string[];
   readonly base: readonly string[] | null;
   readonly theirs: readonly string[];
-  /** Từ đầu dòng <<<<<<< đến hết dòng >>>>>>> (gồm xuống dòng): vùng duy nhất bị thay khi lưu. */
+  /** From the <<<<<<< line start through the end of the >>>>>>> line (terminator included): the only region replaced on save. */
   readonly region: ByteRange;
-  /** Byte nguyên văn của từng phía (gồm ký tự xuống dòng của từng dòng). */
+  /** Verbatim bytes of each side (including each line's terminator). */
   readonly oursBytes: ByteRange;
   readonly baseBytes: ByteRange | null;
   readonly theirsBytes: ByteRange;
-  /** Byte của từng dòng mỗi phía (gồm xuống dòng) — để chọn từng dòng như GitKraken. */
+  /** Bytes of each line on each side (terminator included) — used for per-line selection, like GitKraken. */
   readonly oursLineBytes: readonly ByteRange[];
   readonly theirsLineBytes: readonly ByteRange[];
 }
@@ -58,11 +58,11 @@ export type ConflictSegment =
   | { readonly kind: 'conflict'; readonly block: ConflictBlock };
 
 export interface ConflictFile {
-  /** Nội dung gốc (giữ tham chiếu, không sửa) — nguồn để ghép lại khi lưu. */
+  /** Original content (kept by reference, never mutated) — the source for reassembling on save. */
   readonly bytes: Uint8Array;
   readonly hasBom: boolean;
   readonly segments: readonly ConflictSegment[];
-  /** Các khối xung đột theo thứ tự (cùng đối tượng với trong `segments`). */
+  /** Conflict blocks in order (same objects as in `segments`). */
   readonly blocks: readonly ConflictBlock[];
   readonly lineEnding: LineEnding;
   readonly endsWithNewline: boolean;
@@ -70,17 +70,17 @@ export interface ConflictFile {
 
 export type ConflictParseResult =
   | { readonly ok: true; readonly file: ConflictFile }
-  /** Không phải UTF-8 hợp lệ (CP1252, CP1258, UTF-16…): không giải trong app, chỉ mở bằng editor ngoài. */
+  /** Not valid UTF-8 (CP1252, CP1258, UTF-16…): never resolved in-app, only opened in an external editor. */
   | { readonly ok: false; readonly reason: 'not-utf8' };
 
-/** Chọn từng dòng: các dòng Current đã tick rồi các dòng Incoming đã tick, giữ thứ tự trong file. */
+/** Per-line selection: ticked Current lines first, then ticked Incoming lines, keeping file order. */
 export interface ConflictLinePick {
   readonly kind: 'lines';
   readonly ours: ReadonlySet<number>;
   readonly theirs: ReadonlySet<number>;
 }
 
-/** Lựa chọn cho một đoạn: cả phía hoặc từng dòng. */
+/** A segment's selection: one whole side, or individual lines. */
 export type ConflictChoice = ConflictResolution | ConflictLinePick;
 
 export type ConflictChoices = ReadonlyMap<number, ConflictChoice>;
@@ -92,7 +92,7 @@ const EQUALS = 0x3d; // =
 const GREATER_THAN = 0x3e; // >
 const SPACE = 0x20;
 
-/** Đúng 7 ký tự `code`, rồi hết dòng hoặc một dấu cách + nhãn. Trả nhãn, hoặc null nếu không phải dấu. */
+/** Exactly 7 `code` chars, then end of line or a space plus a label. Returns the label, or null when it is not a marker. */
 function matchMarker(bytes: Uint8Array, span: LineSpan, code: number): string | null {
   const length = span.contentEnd - span.start;
   if (length < MARKER_LENGTH) return null;
@@ -122,7 +122,7 @@ function lineRanges(spans: readonly LineSpan[], from: number, to: number): ByteR
   return ranges;
 }
 
-/** Mốc byte đầu dòng `index`; `index` = số dòng thì là cuối file. */
+/** Byte offset of line `index`; an `index` equal to the line count is end of file. */
 function offsetOf(spans: readonly LineSpan[], index: number, endOfFile: number): number {
   return spans[index]?.start ?? endOfFile;
 }
@@ -135,7 +135,7 @@ export function parseConflictFile(bytes: Uint8Array): ConflictParseResult {
   const segments: ConflictSegment[] = [];
   const blocks: ConflictBlock[] = [];
 
-  let commonFrom = 0; // dòng đầu của đoạn chung đang gom
+  let commonFrom = 0; // start of the common segment being gathered
   let index = 0;
   while (index < spans.length) {
     const startSpan = spans[index] as LineSpan;
@@ -145,7 +145,7 @@ export function parseConflictFile(bytes: Uint8Array): ConflictParseResult {
       continue;
     }
 
-    // Tìm cấu trúc block hoàn chỉnh; nếu không đủ thì coi dòng <<<<<<< như văn bản thường.
+    // Require a complete block structure; otherwise treat the <<<<<<< line as ordinary text.
     let stage = 0; // 0: ours, 1: base, 2: theirs
     let baseMarker = -1;
     let baseLabel: string | null = null;
@@ -169,7 +169,7 @@ export function parseConflictFile(bytes: Uint8Array): ConflictParseResult {
           closing = cursor;
           break;
         }
-        // Gặp <<<<<<< khác trước khi đóng: khối này không hoàn chỉnh.
+        // Another <<<<<<< before the close: this block is incomplete.
         if (matchMarker(bytes, current, LESS_THAN) !== null) break;
       }
     }
@@ -239,7 +239,7 @@ export function parseConflictFile(bytes: Uint8Array): ConflictParseResult {
   };
 }
 
-/** Độ dài ký tự xuống dòng ở cuối `range` ("\n" = 1, "\r\n" = 2, không có = 0). */
+/** Length in bytes of the line terminator at the end of `range` ("\n" = 1, "\r\n" = 2, none = 0). */
 function terminatorLength(bytes: Uint8Array, range: ByteRange): number {
   if (range.end <= range.start || bytes[range.end - 1] !== LF) return 0;
   return range.end - 2 >= range.start && bytes[range.end - 2] === CR ? 2 : 1;
@@ -267,7 +267,7 @@ function rangesFor(block: ConflictBlock, choice: ConflictChoice): ByteRange[] {
   }
 }
 
-/** Dòng mỗi phía nằm trong kết quả của lựa chọn (để tô dòng đã chọn). */
+/** Line on each side present in a selection (used to highlight chosen lines). */
 export function conflictLineSets(
   choice: ConflictChoice | undefined,
   block: ConflictBlock,
@@ -288,7 +288,7 @@ export function conflictLineSets(
   }
 }
 
-/** Tick / bỏ tick một dòng, bắt đầu từ lựa chọn hiện tại (chọn cả phía = đã tick mọi dòng phía đó). */
+/** Toggle a line, starting from the current selection (selecting a whole side counts as ticking all its lines). */
 export function toggleConflictLine(
   current: ConflictChoice | undefined,
   block: ConflictBlock,
@@ -302,15 +302,15 @@ export function toggleConflictLine(
   return { kind: 'lines', ours: sets.ours, theirs: sets.theirs };
 }
 
-/** Ghép theo các lựa chọn hiện có; đoạn chưa chọn giữ nguyên (gồm dấu xung đột) — để xem trước kết quả. */
+/** Merge according to the existing selections; unselected segments stay as-is (conflict markers included) — a preview before saving. */
 export function previewConflicts(file: ConflictFile, choices: ConflictChoices): Uint8Array {
   return assemble(file, choices, true) as Uint8Array;
 }
 
 /**
- * Ghép lại nội dung file (byte) theo lựa chọn cho từng block; null nếu còn block chưa chọn.
- * Mọi byte ngoài vùng xung đột (kể cả BOM) chép nguyên văn. Nếu dòng >>>>>>> cuối file không có xuống dòng
- * thì kết quả cũng không có xuống dòng cuối (giữ trạng thái cuối file như bản gốc).
+ * Reassemble the file content (bytes) from the per-block selections; null while any block is still unselected.
+ * Every byte outside a conflict region (the BOM included) is copied verbatim. If the final >>>>>>> line has no
+ * terminator, the result has no trailing terminator either (preserving the original end-of-file state).
  */
 export function resolveConflicts(file: ConflictFile, choices: ConflictChoices): Uint8Array | null {
   return assemble(file, choices, false);

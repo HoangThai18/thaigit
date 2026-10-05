@@ -1,4 +1,4 @@
-// Rebase tương tác: kiểm kế hoạch (thuần), luật soạn todo của bộ chuyển Node (cùng luật với rebase.rs) và chạy thật trên git.
+// Interactive rebase: plan validation (pure), the Node adapter's todo-composition rules (same as rebase.rs), and a real run against git.
 import { describe, expect, it } from 'vitest';
 import { GitError, rebasePlanProblem, type Commit, type RebaseStep } from '../src/git/index.ts';
 import { buildRebaseTodo, sequenceEditor, validateRebasePlan } from '../src/node/rebase-todo.ts';
@@ -76,7 +76,7 @@ describe('soạn todo (bộ chuyển Node, cùng luật với rebase.rs)', () =>
   });
 });
 
-/** gốc → một → hai → ba (mỗi commit một file). Trả sha của gốc và ba commit sau. */
+/** root → one → two → three (one file per commit). Returns the root sha plus the three later commit shas. */
 async function linear(t: TestRepo): Promise<{ base: string; shas: string[] }> {
   await t.write('gốc.txt', 'gốc\n');
   await t.commitAll('gốc');

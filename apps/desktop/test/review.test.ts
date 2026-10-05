@@ -81,11 +81,11 @@ describe('pullRequestReview', () => {
         expect(pullRequestReview(pr({ sourceBranch: bad }), 'github', 'acme', 'origin')).toBeNull();
       }
     }
-    // Nhánh nguồn rỗng (máy chủ không cho biết): coi như PR từ fork, lấy qua ref của PR.
+    // Empty source branch (the host doesn't tell us): treat it as a forked PR and fetch via the PR ref.
     expect(pullRequestReview(pr({ sourceBranch: '' }), 'github', 'acme', 'origin')?.headRef).toBe(
       'refs/remotes/origin/pr/42',
     );
-    // Nhánh nguồn lạ của PR từ fork không đi vào refspec nên không chặn.
+    // A forked PR's odd source branch name never reaches the refspec, so it isn't rejected.
     expect(
       pullRequestReview(
         pr({ number: '7', headOwner: 'someone', sourceBranch: 'a:b' }),
@@ -114,9 +114,9 @@ const TARGET: RepoForgeTarget = {
 };
 
 /**
- * origin (bare, cục bộ) có: main (base → main.txt, đi tiếp SAU khi `feat` tách ra), feat (base → sửa base.txt + thêm feat.txt),
- * và `refs/pull/7/head` (PR từ fork) trỏ vào đầu feat. Bản sao chỉ có main; ref remote-tracking của main và feat bị xoá để
- * kiểm review thật sự fetch về.
+ * origin (bare, local) has: main (base → main.txt, moved on AFTER `feat` branched), feat (base → edits base.txt +
+ * adds feat.txt), and `refs/pull/7/head` (a forked PR) pointing at the tip of feat. The clone only has main;
+ * the remote-tracking refs of main and feat are deleted so the review genuinely has to fetch them.
  */
 async function openStore() {
   const bare = await mkdtemp(join(tmpdir(), 'thaigit-review-bare-'));
@@ -176,7 +176,7 @@ describe('openReview (git thật, remote cục bộ)', () => {
       'modified:base.txt',
       'added:feat.txt',
     ]);
-    // Refs mới fetch về hiện ra ở sidebar / graph.
+    // Newly fetched refs show up in the sidebar / graph.
     await until(() => store.findRef('refs/remotes/origin/feat') !== undefined, 'refs làm mới sau fetch');
   });
 
@@ -222,7 +222,7 @@ describe('openReview (git thật, remote cục bộ)', () => {
       store.timeline.close();
       store.fileHistory.close();
     }
-    // Ngược lại: mở review thì Lịch sử file đóng.
+    // Conversely: opening the review closes File history.
     store.fileHistory.open('base.txt');
     await openReview(store, pr({}), TARGET);
     expect(store.fileHistory.isOpen).toBe(false);
@@ -238,7 +238,7 @@ describe('openReview (git thật, remote cục bộ)', () => {
     const shown = toasts.items.map((item) => `${item.title} ${item.message ?? ''}`).join('\n');
     expect(shown).not.toMatch(/fatal|couldn't find remote ref|refspec/i);
 
-    // Thử lại với PR hợp lệ thì lành lại.
+    // Retrying with a valid PR heals it.
     await openReview(store, pr({}), TARGET);
     expect(store.review.phase).toBe('ready');
   });
@@ -261,20 +261,20 @@ describe('openReview (git thật, remote cục bộ)', () => {
     const { store } = await openStore();
     const review = store.review;
     const an = { username: 'an', name: '', id: null };
-    expect(review.beginPeople()).toBeNull(); // chưa xem PR nào
+    expect(review.beginPeople()).toBeNull(); // no PR open
 
     const first = review.begin(pr({ number: '1' }), 'github');
     review.finish(first, { head: 'x', from: 'y', files: [] });
     const token = review.beginPeople();
     expect(token).not.toBeNull();
     expect(review.peoplePhase).toBe('loading');
-    expect(review.beginPeople()).toBeNull(); // đang nạp: không nạp chồng
+    expect(review.beginPeople()).toBeNull(); // already loading: never stacked
     review.finishPeople(token!, [an]);
     expect(review.peoplePhase).toBe('ready');
     expect(review.candidates).toEqual([an]);
-    expect(review.beginPeople()).toBeNull(); // đã nạp: dùng lại
+    expect(review.beginPeople()).toBeNull(); // already loaded: reused
 
-    // Tải lại đúng PR đó: giữ danh sách; sang PR khác: quên.
+    // Reloading the same PR keeps the list; switching PRs forgets it.
     review.begin(pr({ number: '1' }), 'github');
     expect(review.peoplePhase).toBe('ready');
     const other = review.begin(pr({ number: '2' }), 'github');
@@ -282,7 +282,7 @@ describe('openReview (git thật, remote cục bộ)', () => {
     expect(review.peoplePhase).toBe('idle');
     expect(review.candidates).toEqual([]);
 
-    // Kết quả nạp của PR cũ về muộn thì bị bỏ; nạp lỗi thì cho thử lại.
+    // A late load result from the old PR is discarded; a failed load offers a retry.
     const stale = review.beginPeople()!;
     review.begin(pr({ number: '3' }), 'github');
     review.finishPeople(stale, [an]);
@@ -292,7 +292,7 @@ describe('openReview (git thật, remote cục bộ)', () => {
     expect(review.peoplePhase).toBe('failed');
     expect(review.beginPeople()).not.toBeNull();
 
-    // Lưu: không gửi chồng; kết quả chỉ nhận khi vẫn đang xem đúng PR đó.
+    // On save: never submitted twice; the result is only accepted while the same PR is still on screen.
     expect(review.beginSaving()).toBe(true);
     expect(review.beginSaving()).toBe(false);
     review.finishSaving(pr({ number: '9', reviewers: [an] }));

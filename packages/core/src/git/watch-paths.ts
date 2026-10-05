@@ -1,5 +1,6 @@
-// Phân loại thay đổi bên trong thư mục .git (port RepoWatcher.classifyGitPath). Bản THAM CHIẾU: watcher của app chạy ở
-// Rust (phase 2) và dùng cùng bảng luật này; bản TS giữ lại để test bảng luật và làm vector đối chiếu cho `cargo test`.
+// Classifies changes inside the .git directory (port of RepoWatcher.classifyGitPath). REFERENCE version: the app's
+// watcher runs in Rust (phase 2) and uses the same rule table; the TS version stays to test the table and to serve as
+// a cross-check vector for `cargo test`.
 
 import { snapshotSpec, type RepoChangeKind } from '@thaigit/contracts';
 
@@ -16,15 +17,15 @@ const IGNORED_PREFIXES = [
   'ORIG_HEAD.lock',
 ];
 
-/** Thư mục ref snapshot per-worktree của app (`refs/worktree/thaigit/`). */
+/** The app's per-worktree snapshot ref directory (`refs/worktree/thaigit/`). */
 const SNAPSHOT_REF_DIR = snapshotSpec.ref.slice(0, snapshotSpec.ref.lastIndexOf('/') + 1);
 
-/** `relative` là đường dẫn tương đối trong thư mục git (dùng `/`). Trả `[]` nếu không đáng làm mới UI. */
+/** `relative` is a path relative to the git directory (using `/`). Returns `[]` when the UI need not refresh. */
 export function classifyGitPath(relative: string): RepoChangeKind[] {
   if (relative === '') return [];
   if (IGNORED_PREFIXES.some((prefix) => relative.startsWith(prefix))) return [];
   if (relative.endsWith('.lock')) return [];
-  // Snapshot của app (kể cả của worktree khác thấy qua common dir) không phải thay đổi của người dùng.
+  // App snapshots (including those of other worktrees visible through the common dir) are not user changes.
   if (relative.startsWith(SNAPSHOT_REF_DIR) || relative.includes(`/${SNAPSHOT_REF_DIR}`)) return [];
   if (relative === 'index') return ['workingTree'];
   if (

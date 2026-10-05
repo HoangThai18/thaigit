@@ -1,5 +1,5 @@
 /**
- * Chuỗi của Git LFS (sidebar, menu file, hộp thoại). Truy cập qua `vi.lfs.*`.
+ * Strings for Git LFS (sidebar, file menu, dialogs). Reached through `vi.lfs.*`.
  */
 export const lfs = {
   // Sidebar
@@ -19,7 +19,7 @@ export const lfs = {
   trackExtension: (extension: string) => `Track mọi file .${extension} bằng LFS`,
   trackFile: 'Track riêng file này bằng LFS',
 
-  // Hộp thoại
+  // Dialog
   trackTitle: 'Track bằng Git LFS',
   trackMessage:
     'File khớp mẫu sẽ được lưu trên máy chủ LFS, trong repo chỉ còn con trỏ nhỏ. Mẫu được ghi vào .gitattributes — nhớ commit file này. File đã commit trước đó không tự chuyển sang LFS.',
@@ -28,7 +28,7 @@ export const lfs = {
   patternInvalid: 'Mẫu không được bắt đầu bằng - hay chứa xuống dòng',
   trackConfirm: 'Track',
 
-  // Chạy
+  // Run
   trackRunning: (pattern: string) => `Track ${pattern} bằng LFS`,
   tracked: (pattern: string) => `Đã track ${pattern} bằng LFS — nhớ commit .gitattributes`,
   untrackRunning: (pattern: string) => `Bỏ track ${pattern}`,

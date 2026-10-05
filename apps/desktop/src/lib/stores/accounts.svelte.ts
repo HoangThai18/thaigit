@@ -1,5 +1,6 @@
-// Tài khoản git (GitHub / GitLab / Bitbucket): danh sách đăng nhập, đăng nhập bằng mã, gán owner cho repo. Mọi thao tác
-// đi qua Rust; token không bao giờ vào webview. Store giữ `AccountsView` mà Rust trả về (nguồn sự thật duy nhất).
+// Git accounts (GitHub / GitLab / Bitbucket): the signed-in list, device-flow sign-in, assigning an owner to a repo.
+// Every operation goes through Rust; a token never reaches the webview. The store holds the `AccountsView` Rust returns
+// (the single source of truth).
 
 import {
   KNOWN_FORGE_HOSTS,
@@ -24,12 +25,12 @@ import { vi } from '../strings.vi.ts';
 
 const EMPTY: AccountsView = { accounts: [], defaults: {}, ownerAssignments: {}, oauthClientIds: {} };
 
-/** Máy chủ chính thức của provider — hộp thoại đăng nhập mặc định là GitHub. */
+/** The provider's canonical host — the sign-in dialog defaults to GitHub. */
 export function hostOfProvider(provider: ForgeProvider): string {
   return KNOWN_FORGE_HOSTS[provider];
 }
 
-/** Câu thân thiện cho lỗi khi gọi máy chủ (chỉ theo mã lỗi của Rust, không hiện message gốc). */
+/** A friendly sentence for a host call error (based only on Rust's error code, never the raw message). */
 export function forgeErrorText(error: unknown): string {
   const text = vi.accounts.errors;
   const code = (error as { code?: unknown } | null)?.code;
@@ -42,7 +43,7 @@ export function forgeErrorText(error: unknown): string {
   return vi.errors.friendly.unexpected;
 }
 
-/** `host/owner` → login (khoá trong `ownerAssignments` của Rust). */
+/** `host/owner` → login (the key in Rust's `ownerAssignments`). */
 export function ownerKey(host: string, owner: string): string {
   return `${host.toLowerCase()}/${owner.toLowerCase()}`;
 }
@@ -76,7 +77,7 @@ export const defaultAccountsPort: AccountsPort = {
 export class AccountsStore {
   view = $state.raw<AccountsView>(EMPTY);
   loading = $state(false);
-  /** Đăng nhập bằng mã đang chờ: mã người dùng nhập + device code (bí mật tạm, hết hạn cùng mã). */
+  /** The pending device-flow sign-in: the code the user types plus the device code (a temporary secret that expires with it). */
   login = $state<{
     host: string;
     provider: ForgeProvider | null;
@@ -84,7 +85,7 @@ export class AccountsStore {
     verificationUri: string;
     deviceCode: string;
   } | null>(null);
-  /** Thông báo lỗi thân thiện (không hiện message gốc của Rust). */
+  /** A friendly error message (never Rust's raw message). */
   error = $state<string | null>(null);
   busy = $state(false);
 
@@ -106,7 +107,7 @@ export class AccountsStore {
     return this.view.defaults[host.toLowerCase()] ?? null;
   }
 
-  /** Tài khoản app chọn cho owner này (khớp quy tắc `resolve` của Rust: gán tay → trùng login → tổ chức → mặc định). */
+  /** The account the app picked for this owner (matching Rust's `resolve` rule: manual assignment → matching login → organisation → default). */
   loginForOwner(host: string, owner: string): string | null {
     const key = ownerKey(host, owner);
     const assigned = this.view.ownerAssignments[key];
@@ -129,7 +130,7 @@ export class AccountsStore {
     return this.view.oauthClientIds[host.toLowerCase()] ?? '';
   }
 
-  /** Host nào có ít nhất một tài khoản (dùng cho hộp thoại PR: repo nào đọc được PR). */
+  /** Which hosts have at least one account (for the PR dialog: which repos' PRs can be read). */
   hostsWithAccounts(): string[] {
     return [...new Set(this.view.accounts.map((account) => account.host))];
   }
@@ -170,8 +171,8 @@ export class AccountsStore {
   }
 
   /**
-   * Người dùng chọn repo trong danh sách của tài khoản `login`: gán owner cho tài khoản đó nếu app đang chọn tài khoản khác,
-   * để clone / fetch / push sau này dùng đúng token.
+   * The user picks a repo from account `login`'s list: assign the owner to that account when the app is using a different
+   * one, so a later clone / fetch / push uses the right token.
    */
   async ensureOwnerUses(host: string, owner: string, login: string): Promise<void> {
     if (this.loginForOwner(host, owner)?.toLowerCase() === login.toLowerCase()) return;
@@ -191,8 +192,8 @@ export class AccountsStore {
   }
 
   /**
-   * Bắt đầu đăng nhập bằng mã (OAuth device flow): hiện mã cho người dùng nhập ở trang của máy chủ, rồi hỏi Rust theo nhịp
-   * `interval` của máy chủ cho tới khi xong / lỗi / huỷ. `onDone(login)` khi tài khoản đã được lưu. Lỗi → `error`.
+   * Start a device-flow (OAuth) sign-in: show the code for the user to enter on the host's page, then poll Rust at the host's
+   * `interval` until it succeeds / fails / is cancelled. `onDone(login)` once the account is stored. An error → `error`.
    */
   async startLogin(
     host: string,
@@ -238,7 +239,7 @@ export class AccountsStore {
     return true;
   }
 
-  /** Đóng hộp thoại đăng nhập: ngừng hỏi, mã cũ không dùng được nữa. */
+  /** Close the sign-in dialog: stop polling, and the old code can no longer be used. */
   cancelLogin(): void {
     this.#serial += 1;
     if (this.#poller !== null) this.#timers.clearTimeout(this.#poller);
@@ -247,7 +248,7 @@ export class AccountsStore {
     this.login = null;
   }
 
-  /** Chạy một lệnh: bật `busy`, đổi `error` khi hỏng, luôn tắt `busy`. */
+  /** Run one command: set `busy`, set `error` on failure, always clear `busy`. */
   async #run<T>(action: () => Promise<T>): Promise<T | null> {
     this.busy = true;
     this.error = null;
@@ -262,7 +263,7 @@ export class AccountsStore {
   }
 }
 
-/** Hẹn giờ của store (test thay bằng đồng hồ giả). */
+/** The store's timers (tests substitute a fake clock). */
 export interface Timers {
   setTimeout(run: () => void, ms: number): ReturnType<typeof setTimeout>;
   clearTimeout(handle: ReturnType<typeof setTimeout>): void;

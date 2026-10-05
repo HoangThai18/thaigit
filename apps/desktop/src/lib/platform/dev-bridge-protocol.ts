@@ -1,13 +1,14 @@
 /**
- * Giao thức của cầu nối DEV (xem `dev/bridge-plugin.ts`): dùng chung cho phía server (Vite plugin) và phía trình duyệt.
- * Chỉ `dev-bridge-client.ts` (nạp bằng `import()` khi `import.meta.env.DEV`) được import file này, nên bản build không chứa nó.
+ * Wire protocol of the DEV bridge (see `dev/bridge-plugin.ts`), shared by the server side (the Vite
+ * plugin) and the browser side. Only `dev-bridge-client.ts` (loaded through `import()` when
+ * `import.meta.env.DEV`) imports this file, so builds never contain it.
  */
 import type { EnvProfile, ExecKind, OpenedRepo, RepoChangeKind } from '@thaigit/contracts';
 import type { RecentRepo } from '../ipc/types.ts';
 
 export const BRIDGE_PATH = '/__thaigit_dev';
 export const TOKEN_HEADER = 'x-thaigit-token';
-/** `<meta name="thaigit-dev-bridge" content="TOKEN" data-auto-open="1">` — chỉ do plugin chèn khi chạy dev. */
+/** `<meta name="thaigit-dev-bridge" content="TOKEN" data-auto-open="1">` — only injected by the plugin while running dev. */
 export const BRIDGE_META = 'thaigit-dev-bridge';
 export const DEV_REPO_ID = 'dev-repo';
 
@@ -27,9 +28,9 @@ export interface BridgeInfo {
 }
 
 export interface BridgeChanges {
-  /** Số thứ tự sự kiện mới nhất; gửi lại làm `after` ở lần hỏi kế tiếp. */
+  /** Sequence number of the newest event; send it back as `after` on the next poll. */
   seq: number;
-  /** Rỗng = hết thời gian chờ (hỏi tiếp). */
+  /** Empty = the wait timed out (poll again). */
   kinds: RepoChangeKind[];
 }
 
@@ -47,7 +48,7 @@ export interface ExecFrame {
 
 const HEADER_BYTES = 13;
 
-/** Thân phản hồi của `/exec`: `[i32 mã thoát][u8 huỷ][u32 độ dài stderr][u32 độ dài stdout][stderr][stdout]` (little-endian). */
+/** `/exec` response body: `[i32 exit code][u8 cancelled][u32 stderr length][u32 stdout length][stderr][stdout]` (little-endian). */
 export function encodeExecFrame(frame: ExecFrame): Uint8Array {
   const out = new Uint8Array(HEADER_BYTES + frame.stderr.length + frame.stdout.length);
   const view = new DataView(out.buffer);

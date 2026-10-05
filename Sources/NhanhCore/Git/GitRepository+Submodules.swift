@@ -1,12 +1,12 @@
 import Foundation
 
-/// Một submodule (`git submodule status`).
+/// A submodule (`git submodule status`).
 public struct Submodule: Sendable, Equatable, Identifiable {
     public enum State: Sendable, Equatable {
-        /// Chưa init / chưa clone về.
+        /// Not initialised / not cloned yet.
         case uninitialized
         case upToDate
-        /// Đang ở commit khác với commit repo cha ghi nhận.
+        /// Checked out at a different commit than the parent repo records.
         case modified
         case conflicted
     }
@@ -17,11 +17,11 @@ public struct Submodule: Sendable, Equatable, Identifiable {
     public var id: String { path }
 }
 
-/// Một worktree (`git worktree list --porcelain`).
+/// A worktree (`git worktree list --porcelain`).
 public struct Worktree: Sendable, Equatable, Identifiable {
     public let path: String
     public let head: String?
-    /// Tên nhánh (không có refs/heads/), nil khi HEAD tách rời.
+    /// The branch name (without refs/heads/), nil when HEAD is detached.
     public let branch: String?
     public let isMain: Bool
     public let isBare: Bool
@@ -34,7 +34,7 @@ extension GitRepository {
     // MARK: - Submodule
 
     public func submodules() async throws -> [Submodule] {
-        // Không có .gitmodules thì không có submodule: khỏi chạy lệnh.
+        // No .gitmodules means no submodules: don't run the command at all.
         guard FileManager.default.fileExists(atPath: root.appendingPathComponent(".gitmodules").path) else { return [] }
         return Self.parseSubmoduleStatus(try await runner.output(["submodule", "status"]))
     }
@@ -52,14 +52,14 @@ extension GitRepository {
             let rest = line.dropFirst().split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
             guard rest.count == 2 else { return nil }
             var path = String(rest[1])
-            // Đuôi " (mô tả)" của git describe.
+            // git describe's " (description)" suffix.
             if path.hasSuffix(")"), let open = path.range(of: " (", options: .backwards) { path = String(path[..<open.lowerBound]) }
             return Submodule(path: path, sha: String(rest[0]), state: state)
         }
     }
 
-    /// Init (nếu cần) và đưa submodule về đúng commit repo cha ghi nhận. `paths` rỗng: mọi submodule.
-    /// Chặn giao thức `ext::` (chạy lệnh tuỳ ý từ URL trong .gitmodules).
+    /// Initialise (if needed) and bring submodules to exactly the commit the parent repo records. An empty `paths` means all submodules.
+    /// The `ext::` protocol is blocked (it would run an arbitrary command from a URL in .gitmodules).
     public func updateSubmodules(_ paths: [String] = [], onProgress: (@Sendable (String) -> Void)? = nil) async throws {
         let urls = await submoduleURLs()
         try await runner.run(["-c", "protocol.ext.allow=never", "submodule", "update", "--init", "--progress", "--"] + paths,
@@ -100,7 +100,7 @@ extension GitRepository {
         return result
     }
 
-    /// Tạo worktree ở `path`: checkout nhánh có sẵn `branch`, hoặc tạo nhánh mới `branch` từ `startPoint`.
+    /// Create a worktree at `path`: check out the existing branch `branch`, or create a new branch `branch` from `startPoint`.
     public func addWorktree(path: String, branch: String, createBranch: Bool, startPoint: String? = nil) async throws {
         var args = ["worktree", "add"]
         if createBranch { args += ["-b", branch, "--", path] + (startPoint.map { [$0] } ?? []) } else { args += ["--", path, branch] }

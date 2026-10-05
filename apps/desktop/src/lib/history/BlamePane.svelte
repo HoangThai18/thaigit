@@ -40,7 +40,7 @@
   const longest = $derived(
     lines.reduce((max, line) => Math.max(max, line.text.length + countTabs(line.text) * (TAB_WIDTH - 1)), 0),
   );
-  /** Độ đậm của dải màu theo độ mới của commit (0 = cũ nhất, 1 = mới nhất). */
+  /** Colour-strip intensity from how recent the commit is (0 = oldest, 1 = newest). */
   const recency = $derived.by<ReadonlyMap<string, number>>(() => {
     const commits = [...(result?.commits.values() ?? [])].filter((commit) => !isUncommittedBlame(commit.sha));
     commits.sort((a, b) => a.authorDate - b.authorDate);

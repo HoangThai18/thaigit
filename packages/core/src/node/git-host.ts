@@ -1,5 +1,5 @@
-// Bộ chuyển `GitHost` cho Node: thao tác git chưa gắn với repo nào (version, init, clone có tiến trình).
-// `init`/`clone` là lệnh có kiểu: không qua validator của `Exec`, tự kiểm đầu vào.
+// Node adapter for `GitHost`: git operations not tied to a repository (version, init, clone with progress).
+// `init`/`clone` are typed commands: they skip the `Exec` validator and check their own input.
 
 import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -14,15 +14,15 @@ import { assertSafeRemoteUrl } from './typed-git.ts';
 export class NodeGitHost implements GitHost {
   constructor(private readonly config: NodeGitConfig = {}) {}
 
-  /** Ví dụ "git version 2.54.0". */
+  /** e.g. "git version 2.54.0". */
   async version(): Promise<string> {
     const result = await this.run('version', [], tmpdir());
     return decodeUtf8(result.stdout).trim();
   }
 
-  /** `git init` (nhánh mặc định `main` nếu người dùng chưa đặt `init.defaultBranch`); tạo thư mục nếu chưa có. */
+  /** `git init` (default branch `main` unless the user set `init.defaultBranch`); creates the directory when missing. */
   async init(destination: string): Promise<void> {
-    // Đường dẫn tuyệt đối: không bao giờ bị hiểu thành cờ.
+    // Absolute path: can never be mistaken for an option.
     const directory = resolve(destination);
     await mkdir(directory, { recursive: true });
     const configured = await this.run(

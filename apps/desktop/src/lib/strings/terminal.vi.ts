@@ -1,4 +1,4 @@
-/** Terminal trong cửa sổ repo (dưới graph / diff). */
+/** The terminal inside the repo window (below the graph / diff). */
 export const terminal = {
   button: 'Terminal',
   buttonTip: 'Mở / ẩn terminal ở thư mục repo (Ctrl+`)',

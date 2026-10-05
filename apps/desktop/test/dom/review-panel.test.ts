@@ -1,5 +1,6 @@
-// ReviewPanel dựng bằng Svelte thật trên RepoStore + repo git thật: chữ từ máy chủ chỉ là text, GitLab gọi là Merge Request,
-// bấm file mở đúng diff, các trạng thái đang tải / lỗi có lối thử lại.
+// ReviewPanel built with real Svelte on RepoStore + a real git repo: host-supplied text is only ever text,
+// GitLab calls them Merge Requests, clicking a file opens the right diff, and the loading / error states
+// offer a retry.
 import { flushSync, mount, tick, unmount } from 'svelte';
 import type { ForgeMergeRequest } from '@thaigit/contracts';
 import { afterEach, describe, expect, it } from 'vitest';

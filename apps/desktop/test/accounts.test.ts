@@ -1,5 +1,6 @@
-// Tài khoản git và Pull Request: đọc host / owner từ remote, chọn tài khoản theo owner, đăng nhập bằng mã (hỏi theo nhịp
-// `interval`, huỷ được), câu lỗi thân thiện, cách checkout PR theo từng loại máy chủ và nhánh dùng khi tạo PR.
+// Git accounts and Pull Requests: read host / owner from a remote, pick the account by owner, device-code
+// sign-in (polled at `interval`, cancellable), friendly error messages, how a PR is checked out per host
+// kind, and the branch used when creating a PR.
 import type { AccountsView, ForgeAccount, ForgeMergeRequest } from '@thaigit/contracts';
 import { describe, expect, it, vi as spy } from 'vitest';
 import { branchesOnRemote, defaultBase, pushedName } from '../src/lib/forge/createPullRequest.svelte.ts';
@@ -50,7 +51,7 @@ function port(overrides: Partial<AccountsPort> = {}): AccountsPort {
   };
 }
 
-/** Đồng hồ giả: giữ hàm hẹn giờ, test tự gọi `tick()`. */
+/** Fake clock: keeps the scheduled callbacks so tests drive `tick()` themselves. */
 function manualTimers(): Timers & { tick(): Promise<void>; pending(): number; delays: number[] } {
   let queue: (() => void)[] = [];
   const delays: number[] = [];
@@ -68,7 +69,7 @@ function manualTimers(): Timers & { tick(): Promise<void>; pending(): number; de
       const runs = queue;
       queue = [];
       for (const run of runs) run();
-      // Chờ các promise của lần hỏi chạy xong.
+      // Let that round's promises settle.
       for (let i = 0; i < 10; i += 1) await Promise.resolve();
     },
     pending: () => queue.length,
@@ -151,7 +152,7 @@ describe('AccountsStore', () => {
     expect(store.loginForOwner('github.com', 'BOB')).toBe('bob');
     expect(store.loginForOwner('github.com', 'acme')).toBe('bob');
     expect(store.loginForOwner('github.com', 'someone')).toBe('alice');
-    // Gán cho tài khoản đã gỡ thì bỏ qua.
+    // Assigning to an already removed account is ignored.
     expect(store.loginForOwner('github.com', 'gone')).toBe('alice');
     expect(store.loginForOwner('gitlab.com', 'acme')).toBeNull();
   });

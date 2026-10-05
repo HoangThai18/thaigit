@@ -1,6 +1,7 @@
-// Rào chắn bảo mật (phase 4, "Security Considerations"): chuỗi từ repo (message, tác giả, tên nhánh/file) chỉ được render dạng text.
-// ESLint chỉ chặn `{@html …}` (svelte/no-at-html-tags) nên rào chắn chính vẫn là test này: cấm cả `{@html …}` lẫn các API chèn
-// HTML thô trong mã giao diện.
+// Security guard (phase 4, "Security Considerations"): strings coming from the repo (message, author,
+// branch / file names) may only be rendered as text. ESLint only blocks `{@html …}`
+// (svelte/no-at-html-tags), so this test is the real guard: it bans both `{@html …}` and the APIs that
+// inject raw HTML into UI code.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +17,7 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/** Bỏ chú thích để câu chữ "không dùng {@html}" trong chú thích không bị tính. */
+/** Strip comments so the phrase "don't use {@html}" inside a comment isn't counted. */
 function stripComments(text: string): string {
   return text
     .replace(/<!--[\s\S]*?-->/g, '')

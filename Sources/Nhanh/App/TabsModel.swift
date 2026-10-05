@@ -2,8 +2,8 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Một tab trong cửa sổ (như GitKraken): Trang chủ (luôn ở đầu, không đóng được), tab mới để chọn repository,
-/// một repository, hoặc "Có gì mới".
+/// A tab in a window (like GitKraken): Home (always first, can't be closed), a new tab for choosing a repository, a
+/// repository, or "What's New".
 @Observable
 final class AppTab: Identifiable {
     enum Kind: Equatable {
@@ -15,10 +15,10 @@ final class AppTab: Identifiable {
 
     let id = UUID()
     var kind: Kind
-    /// Repo đã mở xong (nil khi đang tải hoặc tab không phải repo).
+    /// The finished open repo (nil while loading, or when the tab isn't a repo).
     var model: RepoModel?
     var isLoading = false
-    /// Lỗi mở repo lần trước — hiện trên màn hình chọn repository của tab này.
+    /// The error from the last attempt to open a repo — shown on this tab's repository picker screen.
     var loadError: String?
     @ObservationIgnored var loadTask: Task<Void, Never>?
 
@@ -50,7 +50,7 @@ final class AppTab: Identifiable {
     }
 }
 
-/// Các tab của một cửa sổ. Cửa sổ đầu tiên khi mở app khôi phục các repo đang mở lần trước và ghi nhớ lại.
+/// The tabs of one window. The first window at launch restores the previously open repos and remembers them again.
 @Observable
 final class TabsModel {
     private(set) var tabs: [AppTab]
@@ -60,24 +60,24 @@ final class TabsModel {
     private static let savedTabsKey = "openTabs"
     private static let savedSelectionKey = "openTabsSelected"
     private static var didRestore = false
-    /// Số cửa sổ Thaigit đang mở (menu mở repo khi không cửa sổ nào đang dùng).
+    /// How many Thaigit windows are open (the menu opens a repo when no window is in use).
     static var liveWindows = 0
     private static var isAutomation: Bool { ProcessInfo.processInfo.environment["NHANH_SNAPSHOT_DIR"] != nil }
 
-    /// Không có tác dụng phụ: SwiftUI có thể tạo nhiều lần rồi chỉ giữ bản đầu (`@State`).
+    /// No side effects: SwiftUI may create this several times and keep only the first (`@State`).
     init() {
         let home = AppTab(kind: .home)
         tabs = [home]
         selectedID = home.id
     }
 
-    /// Tab Trang chủ luôn ở vị trí đầu.
+    /// The Home tab always sits first.
     var home: AppTab { tabs[0] }
 
     var selected: AppTab { tabs.first { $0.id == selectedID } ?? tabs[0] }
     var selectedIndex: Int { tabs.firstIndex { $0.id == selectedID } ?? 0 }
 
-    /// Cửa sổ đầu tiên của lần chạy này mở lại các repo của lần trước (như GitKraken).
+    /// The first window of this launch reopens the previous session's repos (like GitKraken).
     func restoreIfFirstWindow() {
         guard !Self.didRestore else { return }
         Self.didRestore = true
@@ -93,10 +93,10 @@ final class TabsModel {
         restored.forEach(load)
     }
 
-    // MARK: - Mở / đóng
+    // MARK: - Open / close
 
-    /// Mở repository: đã mở ở tab khác thì chuyển sang tab đó; đang ở tab mới (trống) thì mở ngay tại đây; còn lại mở
-    /// tab mới — từ Trang chủ thì thêm vào cuối, từ tab repo thì ngay bên phải tab đó.
+    /// Open a repository: already open in another tab → switch to that tab; from the empty "new tab" → open it right there;
+    /// otherwise open a new tab — from Home it's appended at the end, from a repo tab it's inserted right of that tab.
     func open(path: String) {
         let path = URL(fileURLWithPath: path).standardizedFileURL.path
         if let existing = tabs.first(where: { $0.repositoryPath == path }) {
@@ -133,7 +133,7 @@ final class TabsModel {
         }
     }
 
-    /// Đóng tab (Trang chủ không đóng được); đóng tab đang chọn thì chọn tab bên phải, hết thì tab bên trái.
+    /// Close a tab (Home can't be closed); closing the selected tab selects the one to its right, or the left one when there is none.
     func close(_ id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }), tabs[index].kind != .home else { return }
         let tab = tabs.remove(at: index)
@@ -152,7 +152,7 @@ final class TabsModel {
         for tab in tabs[(index + 1)...] { close(tab.id) }
     }
 
-    /// Đóng repo nhưng giữ tab: quay về màn hình chọn repository.
+    /// Close the repo but keep the tab: return to the repository picker screen.
     func closeRepository(in tab: AppTab) {
         tab.loadTask?.cancel()
         tab.model?.stop()
@@ -162,7 +162,7 @@ final class TabsModel {
         save()
     }
 
-    // MARK: - Chọn / sắp xếp
+    // MARK: - Selection / reordering
 
     func select(_ id: UUID) {
         guard tabs.contains(where: { $0.id == id }), selectedID != id else { return }
@@ -170,7 +170,7 @@ final class TabsModel {
         save()
     }
 
-    /// ⌘1…⌘8 chọn tab theo thứ tự, ⌘9 luôn là tab cuối (như Chrome).
+    /// ⌘1…⌘8 select a tab by position, ⌘9 is always the last tab (like Chrome).
     func select(number: Int) {
         let index = number == 9 ? tabs.count - 1 : number - 1
         guard tabs.indices.contains(index) else { return }
@@ -183,7 +183,7 @@ final class TabsModel {
         select(tabs[index].id)
     }
 
-    /// Kéo tab thả lên tab khác: tab được kéo chiếm chỗ của tab kia (như Chrome).
+    /// Drag a tab onto another: the dragged tab takes the other's place (like Chrome).
     func move(_ id: UUID, onto target: UUID) {
         guard id != target, let from = tabs.firstIndex(where: { $0.id == id }),
               let to = tabs.firstIndex(where: { $0.id == target }), from > 0, to > 0 else { return }
@@ -192,7 +192,7 @@ final class TabsModel {
         save()
     }
 
-    // MARK: - Tải repo
+    // MARK: - Loading a repo
 
     private func load(_ tab: AppTab) {
         guard case .repository(let path) = tab.kind else { return }
@@ -203,7 +203,7 @@ final class TabsModel {
             do {
                 let model = try await RepoModel.open(path: path, appState: AppState.shared)
                 guard !Task.isCancelled, tab.kind == .repository(path) else { return }
-                // Mở thư mục con của repo đã có tab: chuyển sang tab đó.
+                // Opening a subfolder of a repo that already has a tab: switch to that tab.
                 if let existing = tabs.first(where: { $0 !== tab && $0.repositoryPath == model.rootPath }) {
                     let wasSelected = selectedID == tab.id
                     close(tab.id)

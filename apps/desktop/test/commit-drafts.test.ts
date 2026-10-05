@@ -1,4 +1,4 @@
-// Bản nháp commit theo repo (localStorage) và bộ lọc của hộp "Chuyển nhánh".
+// Per-repo commit drafts (localStorage) and the "Switch branch" box's filter.
 import { describe, expect, it } from 'vitest';
 import { DRAFTS_KEY, DRAFTS_MAX, CommitDrafts } from '../src/lib/staging/commitDrafts.ts';
 import { defaultChoice, filterBranches } from '../src/lib/shell/branchPicker.ts';
@@ -22,7 +22,7 @@ describe('bản nháp commit', () => {
     const drafts = new CommitDrafts(storage);
     drafts.save('/repo/a', { summary: 'Sửa lỗi', body: 'Chi tiết' });
     drafts.save('/repo/b', { summary: 'Khác', body: '' });
-    // Chưa ghi xuống kho nhưng đọc lại vẫn thấy bản đang chờ.
+    // Not flushed to storage yet, but reading it back still sees the pending value.
     expect(drafts.load('/repo/a')).toEqual({ summary: 'Sửa lỗi', body: 'Chi tiết' });
     drafts.flush();
 

@@ -1,7 +1,7 @@
 import NhanhCore
 import SwiftUI
 
-/// Biểu tượng loại thay đổi (thêm/sửa/xoá/đổi tên…).
+/// A change-kind icon (added / modified / deleted / renamed…).
 struct ChangeIcon: View {
     let kind: ChangeKind
 
@@ -52,14 +52,14 @@ struct ChangeIcon: View {
     }
 }
 
-/// Một dòng file: biểu tượng, tên file, thư mục, nút nhanh khi rê chuột.
+/// A file row: icon, file name, directory, and quick buttons shown on hover.
 struct FileRow: View {
     let change: FileChange
     var quickActionTitle: String?
     var quickActionSymbol: String?
     var quickActionTint: Color = .accentColor
     var quickAction: (() -> Void)?
-    /// Dạng cây: thư mục đã có ở hàng cha nên không lặp lại.
+    /// Tree layout: the folder already appears on the parent row, so it isn't repeated.
     var showDirectory = true
     @State private var hovering = false
 
@@ -94,16 +94,16 @@ struct FileRow: View {
     }
 }
 
-/// Ảnh đại diện của tác giả (GitHub / Gravatar theo `email`); chưa có ảnh thì vòng tròn chữ cái đầu.
+/// The author's avatar (GitHub / Gravatar by `email`); without an image a circle with the initials.
 struct AvatarView: View {
     let name: String
     var email: String?
-    /// Repo GitHub giúp tìm ảnh qua API commit.
+    /// The GitHub repo helps find the image via the commits API.
     var repo: GitHubRepoRef?
     var size: CGFloat = 28
 
     var body: some View {
-        // Đọc `version` để vẽ lại khi ảnh tải xong.
+        // Read `version` so the view repaints once the image is downloaded.
         let _ = AvatarStore.shared.version
         if let email, let image = AvatarStore.shared.image(email: email, repo: repo) {
             Image(nsImage: image)

@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `branches.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `branche.vi.ts` (same keys, same parameters). */
 import type { branches as source } from './branches.vi.ts';
 import type { Translation } from './types.ts';
 

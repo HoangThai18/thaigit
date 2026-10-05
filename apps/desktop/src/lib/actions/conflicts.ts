@@ -1,5 +1,5 @@
-// Giải xung đột (port phần Xung đột của RepoModel+Diff.swift): chọn cả file một phía, hoặc chọn từng đoạn rồi lưu — ghép theo
-// byte (BOM, kiểu xuống dòng, mọi byte ngoài khối xung đột giữ nguyên) và chỉ ghi khi file trên đĩa vẫn là bản đã mở.
+// Conflict resolution (a port of the Conflicts part of RepoModel+Diff.swift): take one whole side of a file, or pick per hunk
+// and save — merged byte-wise (BOM, line terminators and every byte outside the conflict blocks are preserved) and written only while the file on disk is still the version that was opened.
 
 import { fileChangeName, type ConflictEntry } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
@@ -9,7 +9,7 @@ function nameOf(path: string): string {
   return fileChangeName({ path });
 }
 
-/** Dùng toàn bộ bản Current (ours) hoặc Incoming (theirs) của file. */
+/** Take the whole Current (ours) or Incoming (theirs) version of the file. */
 export function resolveWhole(store: RepoStore, entry: ConflictEntry, useOurs: boolean): Promise<void> {
   return store.perform(
     useOurs ? vi.branches.useCurrentRunning : vi.branches.useIncomingRunning,
@@ -21,7 +21,7 @@ export function resolveWhole(store: RepoStore, entry: ConflictEntry, useOurs: bo
   );
 }
 
-/** Dùng nguyên bản một phía cho nhiều file xung đột một lần. */
+/** Take one side verbatim for several conflicting files at once. */
 export function resolveMany(
   store: RepoStore,
   entries: readonly ConflictEntry[],
@@ -42,8 +42,8 @@ export function resolveMany(
 }
 
 /**
- * Ghi nội dung đã giải (`content`: ghép theo byte từ các lựa chọn, hoặc người dùng sửa tay) rồi đánh dấu đã giải quyết.
- * Chỉ ghi khi file trên đĩa vẫn là bản đã mở (`sha256`).
+ * Write the resolved content (`content`: merged byte-wise from the selections, or edited by hand) and mark it resolved.
+ * Written only while the file on disk is still the version that was opened (`sha256`).
  */
 export function saveResolution(
   store: RepoStore,
@@ -62,7 +62,7 @@ export function saveResolution(
       onSuccess: () => store.notify('success', vi.branches.conflictResolved(nameOf(entry.path))),
       onError: (error) => {
         if ((error as { code?: unknown } | null)?.code !== 'conflict') return false;
-        // File đã đổi trên đĩa: nạp lại cho người dùng thấy nội dung mới (lựa chọn cũ không còn khớp).
+        // The file changed on disk: reload so the user sees the new content (the old selections no longer match).
         store.showError(vi.branches.changedOnDisk, error);
         void store.diff.load();
         return true;

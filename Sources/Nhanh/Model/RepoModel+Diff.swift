@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Kết quả tải diff ở luồng nền (chỉ chứa dữ liệu Sendable; ảnh được tạo trên main).
+/// The result of loading a diff on a background task (Sendable data only; images are created on main).
 nonisolated enum LoadedDiff: Sendable {
     case text(DiffPresentation)
     case binary(FileDiff?, before: Data?, after: Data?, isImage: Bool)
@@ -23,7 +23,7 @@ enum HunkAction {
 }
 
 extension RepoModel {
-    // MARK: - Mở / đóng file
+    // MARK: - Open / close a file
 
     func openDiff(_ change: FileChange, source: DiffSource) {
         let file = OpenFile(source: source, change: change)
@@ -37,7 +37,7 @@ extension RepoModel {
         loadDiff()
     }
 
-    /// Danh sách chứa file của `source` (chưa stage / đã stage / xung đột); `nil` với diff của commit, stash.
+    /// The list containing the file for `source` (unstaged / staged / conflicted); `nil` for a commit's or a stash's diff.
     func siblingFiles(of source: DiffSource) -> [FileChange]? {
         switch source {
         case .unstaged: return status.unstaged
@@ -47,14 +47,14 @@ extension RepoModel {
         }
     }
 
-    /// Vị trí (từ 1) và tổng số file trong danh sách của file đang mở — cho nút ↑ / ↓ "2/5" ở đầu diff.
+    /// The position (from 1) and total count of files in the open file's list — for the ↑ / ↓ "2/5" button above the diff.
     var openFilePlace: (index: Int, total: Int)? {
         guard let file = openFile, let files = siblingFiles(of: file.source),
               let index = files.firstIndex(where: { $0.path == file.change.path }) else { return nil }
         return (index + 1, files.count)
     }
 
-    /// Mở file kế (`step` = 1) / trước (−1) trong cùng danh sách với file đang mở; hết danh sách thì đứng yên.
+    /// Open the next (`step` = 1) / previous (−1) file in the same list as the open one; at either end nothing happens.
     func stepOpenFile(_ step: Int) {
         guard let file = openFile, let files = siblingFiles(of: file.source),
               let index = files.firstIndex(where: { $0.path == file.change.path }),
@@ -62,8 +62,8 @@ extension RepoModel {
         openDiff(files[index + step], source: file.source)
     }
 
-    /// File đang mở vừa rời danh sách của nó (đã stage / bỏ stage / huỷ / giải xong): mở file đứng ở đúng chỗ đó để duyệt
-    /// tiếp không phải bấm lại. Danh sách đã trống thì trả `false`.
+    /// The open file just left its list (staged / unstaged / discarded / resolved): open whatever now sits at that spot so
+    /// reviewing continues without another click. Returns `false` when the list is now empty.
     private func openNeighbour(in source: DiffSource) -> Bool {
         guard let files = siblingFiles(of: source), !files.isEmpty else { return false }
         openDiff(files[min(openFilePosition, files.count - 1)], source: source)
@@ -175,7 +175,7 @@ extension RepoModel {
                 case .parsed(let parsed) where parsed.conflictCount > 0:
                     return .conflict(parsed, entry)
                 case .notUTF8(let conflictCount) where conflictCount > 0:
-                    // Không giải từng đoạn: ghi lại qua chuỗi sẽ làm hỏng ký tự không phải ASCII.
+                    // Don't decode hunk by hunk: writing it back through a string would corrupt every non-ASCII character.
                     return .conflictNotUTF8(entry)
                 default:
                     break
@@ -250,7 +250,7 @@ extension RepoModel {
         }
     }
 
-    /// Gọi sau mỗi lần trạng thái working tree thay đổi.
+    /// Called after every working tree status change.
     func statusDidChange() {
         let unstagedPaths = Set(status.unstaged.map(\.path))
         let stagedPaths = Set(status.staged.map(\.path))
@@ -301,7 +301,7 @@ extension RepoModel {
             }
         }
 
-        // Đang merge / revert (kể cả "Revert, chưa commit"): gợi ý sẵn message từ MERGE_MSG.
+        // Mid merge / revert (including "Revert, don't commit"): prefill the suggestion from MERGE_MSG.
         if operation == .merging || operation == .reverting {
             if commitSummary.isEmpty, commitBody.isEmpty, let message = repository.pendingCommitMessage() {
                 let parts = message.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
@@ -310,8 +310,8 @@ extension RepoModel {
                 prefilledCommitMessage = (commitSummary, commitBody)
             }
         } else if let prefilled = prefilledCommitMessage {
-            // Thao tác đã xong / đã huỷ ngoài ô commit ("Tiếp tục", "Hoàn tác", terminal): bỏ message gợi ý còn sót
-            // nếu người dùng chưa sửa.
+            // The operation finished / was cancelled outside the commit box ("Continue", "Undo", the terminal): drop a leftover
+            // suggestion the user hasn't edited.
             prefilledCommitMessage = nil
             if operation == nil, commitSummary == prefilled.summary, commitBody == prefilled.body {
                 commitSummary = ""
@@ -320,17 +320,17 @@ extension RepoModel {
         }
     }
 
-    // MARK: - Chọn dòng trong diff
+    // MARK: - Selecting lines in a diff
 
     var canSelectLines: Bool {
-        // Diff bỏ qua khoảng trắng (-w) không dựng được patch áp vào index: chỉ stage / bỏ stage cả file.
+        // A diff ignoring whitespace (-w) can't produce a patch that applies to the index: only whole-file stage / unstage.
         guard !Prefs.diffIgnoreWhitespaceValue else { return false }
         guard case .text(let presentation) = diffState, let file = openFile else { return false }
         guard file.source == .unstaged || file.source == .staged else { return false }
         return presentation.diff.supportsPartialStaging
     }
 
-    /// Diff đang mở có byte không phải UTF-8 (Latin-1, CP1258…): chỉ stage/bỏ stage/huỷ được cả file.
+    /// The open diff has non-UTF-8 bytes (Latin-1, CP1258…): only whole-file stage / unstage / discard.
     var openDiffIsNotUTF8: Bool {
         guard case .text(let presentation) = diffState else { return false }
         return !presentation.diff.isValidUTF8
@@ -358,7 +358,7 @@ extension RepoModel {
         lineSelection = [:]
     }
 
-    // MARK: - Stage / unstage / huỷ theo hunk hoặc dòng
+    // MARK: - Stage / unstage / discard by hunk or line
 
     func apply(_ action: HunkAction, hunk: DiffPresentation.Hunk) {
         let changeLines = Set(hunk.lines.filter { $0.kind == .addition || $0.kind == .deletion }.map(\.index))
@@ -389,7 +389,7 @@ extension RepoModel {
             return
         }
         let path = file.change.path
-        // Diff tải với 0 dòng ngữ cảnh (Cài đặt): hunk không có dòng ngữ cảnh nào, git apply cần --unidiff-zero.
+        // The diff was loaded with 0 context lines (Settings): the hunk has no context at all, so git apply needs --unidiff-zero.
         let unidiffZero = presentation.diff.hunks.allSatisfy { hunk in !hunk.lines.contains { $0.kind == .context } }
         var snapshot: String?
         perform(title, refresh: [.status]) { repo in
@@ -415,7 +415,7 @@ extension RepoModel {
         }
     }
 
-    // MARK: - Xung đột
+    // MARK: - Conflicts
 
     func resolveConflict(_ entry: ConflictEntry, useOurs: Bool) {
         perform(useOurs ? String(localized: "Dùng bản Current") : String(localized: "Dùng bản Incoming"), refresh: [.status]) { repo in
@@ -425,7 +425,7 @@ extension RepoModel {
         }
     }
 
-    /// Dùng nguyên bản một phía cho nhiều file xung đột một lần.
+    /// Use one whole side for several conflicting files at once.
     func resolveConflicts(_ entries: [ConflictEntry], useOurs: Bool) {
         guard !entries.isEmpty else { return }
         if entries.count == 1 { return resolveConflict(entries[0], useOurs: useOurs) }
@@ -438,7 +438,7 @@ extension RepoModel {
         }
     }
 
-    /// Số đoạn xung đột trong từng file (đọc file trên đĩa, bỏ qua file lớn / không đọc được) — để hiện ngay trong danh sách.
+    /// The number of conflict hunks per file (read from disk, large / unreadable files skipped) — so the list can show it immediately.
     nonisolated static func conflictBlockCounts(root: URL, paths: [String]) -> [String: Int] {
         var counts: [String: Int] = [:]
         for path in paths {
@@ -453,16 +453,16 @@ extension RepoModel {
         return counts
     }
 
-    /// Ghi nội dung đã giải (`content`: ghép theo byte từ các lựa chọn, hoặc người dùng sửa tay) rồi đánh dấu đã giải quyết.
+    /// Write the resolved content (`content`: assembled byte-wise from the choices, or hand-edited) and mark it resolved.
     func saveConflictResolution(_ entry: ConflictEntry, file: ConflictFile, content: Data) {
         perform(String(localized: "Lưu file đã giải quyết"), refresh: [.status]) { repo in
-            // Chỉ ghi khi file trên đĩa vẫn là bản đã mở: sửa bên ngoài trong lúc giải thì không ghi đè mất.
+            // Only write while the file on disk is still the version that was opened: an outside edit during resolution is never overwritten away.
             try repo.replaceWorkingFile(entry.path, data: content, expecting: Data(file.bytes))
             try await repo.markResolved(paths: [entry.path])
         } onSuccess: { [weak self] in
             self?.toast(.success, String(localized: "Đã giải quyết \((entry.path as NSString).lastPathComponent)"))
         } onError: { [weak self] error in
-            // File đã đổi trên đĩa: nạp lại để người dùng thấy nội dung mới (lựa chọn cũ không còn khớp).
+            // The file changed on disk: reload it so the user sees the new content (the old choices no longer match).
             if case RepositoryError.changedOnDisk = error { self?.loadDiff() }
             return false
         }

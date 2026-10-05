@@ -1,7 +1,7 @@
 import Foundation
 @testable import NhanhCore
 
-/// Repository tạm cho integration test, cô lập khỏi cấu hình git của máy.
+/// A temp repository for integration tests, isolated from the machine's git config.
 struct TestRepo {
     let url: URL
     let store: GitEnvironmentStore
@@ -16,7 +16,7 @@ struct TestRepo {
         let runner = GitRunner(environmentStore: store, workingDirectory: dir)
         try await runner.run(["config", "user.name", "Nhánh Test"])
         try await runner.run(["config", "user.email", "test@example.com"])
-        // Byte trong repo đúng như test ghi: không đổi CRLF, không đọc file attributes toàn cục của máy.
+        // Bytes in the repo are exactly what the test wrote: no CRLF conversion, no reading of the machine's global file attributes.
         try await runner.run(["config", "core.autocrlf", "false"])
         try await runner.run(["config", "core.attributesFile", "/dev/null"])
         let repo = try await GitRepository.open(at: dir, environment: store)
@@ -50,7 +50,7 @@ struct TestRepo {
         try Data(contentsOf: url.appendingPathComponent(path))
     }
 
-    /// Byte của blob trong index (`git cat-file blob :path`).
+    /// A blob's bytes in the index (`git cat-file blob :path`).
     func indexBlob(_ path: String) async throws -> Data {
         try await repo.blob(":" + path)
     }
@@ -70,17 +70,17 @@ struct TestRepo {
     }
 }
 
-/// Tạo nội dung nhiều dòng "line 1\nline 2\n..."
+/// Builds multi-line content "line 1\nline 2\n..."
 func numberedLines(_ count: Int, prefix: String = "line") -> [String] {
     (1...count).map { "\(prefix) \($0)" }
 }
 
-/// Mỗi ký tự U+0000…U+00FF thành đúng một byte — nội dung thật của file Latin-1/CP1252/CP1258.
+/// Every character U+0000…U+00FF as exactly one byte — the real content of a Latin-1 / CP1252 / CP1258 file.
 func latin1(_ text: String) -> Data {
     Data(text.unicodeScalars.map { UInt8($0.value) })
 }
 
-/// Byte dạng dễ đọc khi so sánh: "\r", "\n", "\t" và byte ngoài ASCII in được hiện dạng thoát.
+/// Bytes in a readable form for comparisons: "\r", "\n", "\t" and printable non-ASCII bytes are shown escaped.
 func show(_ data: Data) -> String {
     data.map { byte -> String in
         switch byte {

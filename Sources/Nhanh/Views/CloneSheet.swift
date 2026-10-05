@@ -23,11 +23,11 @@ struct CloneSheet: View {
     @State private var errorMessage: String?
     @State private var task: Task<Void, Never>?
     @State private var showGitHubLogin = false
-    /// Clone thất bại vì GitHub từ chối xác thực: hiện nút đăng nhập cạnh lỗi.
+    /// The clone failed because GitHub refused authentication: show a sign-in button next to the error.
     @State private var suggestGitHubLogin = false
-    /// Repo vừa chọn trong danh sách của một tài khoản (để clone bằng đúng tài khoản đó).
+    /// The repo just picked from an account's list (so the clone uses that very account).
     @State private var picked: PickedRepository?
-    /// Vừa gán owner của repo đã chọn cho tài khoản liệt kê nó (báo cho người dùng biết).
+    /// The picked repo's owner was just assigned to the account that lists it (so the user can be told).
     @State private var assignmentNote: String?
     private let github = GitHubAccountManager.shared
 
@@ -143,8 +143,8 @@ struct CloneSheet: View {
         }
     }
 
-    /// Repo HTTPS trên github.com: cho biết tài khoản nào sẽ được dùng — đúng cách lệnh git chọn (username trong địa chỉ,
-    /// rồi bảng owner → tài khoản).
+    /// An HTTPS repo on github.com: tell the user which account will be used — exactly how the git command chooses
+    /// (username in the address, then the owner → account table).
     private var footnote: String {
         let remote = url.trimmingCharacters(in: .whitespacesAndNewlines)
         if let assignmentNote, picked?.cloneURL == remote { return assignmentNote }
@@ -155,7 +155,7 @@ struct CloneSheet: View {
             let resolved = github.resolution(forOwner: owner)?.profile.login
             if let picked, picked.cloneURL == remote, picked.owner.caseInsensitiveCompare(owner) == .orderedSame,
                let resolved, picked.login != resolved {
-                // Repo chọn trong danh sách của tài khoản khác tài khoản owner đang dùng: khi clone sẽ gán owner cho nó.
+                // The picked repo comes from an account other than the one the owner maps to: its owner gets assigned on clone.
                 return String(localized: "Clone bằng tài khoản @\(picked.login): owner \(owner) sẽ được gán cho @\(picked.login) (hiện dùng @\(resolved)).")
             }
             if let resolved {
@@ -197,8 +197,8 @@ struct CloneSheet: View {
         isCloning = true
         UserDefaults.standard.set(parentDirectory, forKey: Prefs.lastCloneDirectory)
         let remoteURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Repo chọn từ danh sách của một tài khoản: owner đang dùng tài khoản khác thì gán cho tài khoản đó, để clone
-        // (và fetch / push sau này) dùng đúng token.
+        // The repo was picked from an account's list: when the owner maps to a different account, assign it to
+        // that account so the clone (and every later fetch / push) uses the right token.
         if let picked, picked.cloneURL == remoteURL, github.noteCloneSelection(owner: picked.owner, login: picked.login) {
             assignmentNote = String(localized: "Đã gán owner \(picked.owner) cho @\(picked.login) — đổi lại trong Cài đặt → Tài khoản.")
         }
@@ -226,8 +226,8 @@ struct CloneSheet: View {
     }
 }
 
-/// "Repo GitHub của bạn" trong hộp Clone: lọc theo tên, chọn một repo để điền địa chỉ clone (HTTPS).
-/// Repo chọn trong danh sách của một tài khoản GitHub.
+/// "Your GitHub repos" in the Clone dialog: filter by name, pick one to fill in the clone address (HTTPS).
+/// The repo picked from a GitHub account's list.
 struct PickedRepository: Equatable {
     let cloneURL: String
     let owner: String
@@ -248,7 +248,7 @@ private struct GitHubRepositoryPicker: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var tokenRejected = false
-    /// Lần tải lại bằng tay đang chạy (nút ↻ / "Thử lại"): huỷ khi tải lại lần nữa hoặc đổi tài khoản.
+    /// A manual reload in progress (the ↻ / "Retry" button): cancelled by reloading again or switching account.
     @State private var reloadTask: Task<Void, Never>?
 
     private var filtered: [GitHubRepository] {
@@ -266,7 +266,7 @@ private struct GitHubRepositoryPicker: View {
                     GitHubAvatar(account: profile.account, size: 18)
                 }
                 if github.accounts.count > 1 {
-                    // Nhiều tài khoản (cá nhân, công ty…): chọn tài khoản để xem repo của nó.
+                    // Several accounts (personal, work…): pick the account whose repos to view.
                     Picker("Tài khoản", selection: $login) {
                         ForEach(github.accounts) { Text("@\($0.login)").tag($0.login) }
                     }
@@ -345,7 +345,7 @@ private struct GitHubRepositoryPicker: View {
         guard !login.isEmpty else { return }
         let account = login
         if loadedLogin != account {
-            // Đổi tài khoản: không để danh sách của tài khoản trước hiện trong lúc tải.
+            // Account switched: never leave the previous account's list on screen while loading.
             repositories = []
             loadedLogin = account
         }
@@ -357,7 +357,7 @@ private struct GitHubRepositoryPicker: View {
         } catch {
             result = .failure(error)
         }
-        // Đã đổi tài khoản hoặc tải lại trong lúc chờ: đây là kết quả cũ (có thể của tài khoản trước) — bỏ đi.
+        // The account was switched or a reload started while waiting: this is a stale result (possibly from the previous account) — drop it.
         guard login == account, !Task.isCancelled else { return }
         isLoading = false
         switch result {

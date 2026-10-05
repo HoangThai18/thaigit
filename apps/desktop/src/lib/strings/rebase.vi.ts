@@ -1,5 +1,6 @@
 /**
- * Chuỗi của rebase tương tác (đổi thứ tự / sửa message / gộp / bỏ commit, như GitKraken). Truy cập qua `vi.rebase.*`.
+ * Strings for the interactive rebase (reorder / edit message / squash / drop, like GitKraken).
+ * Reached through `vi.rebase.*`.
  */
 export const rebase = {
   menu: 'Rebase tương tác từ đây…',

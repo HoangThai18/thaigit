@@ -1,4 +1,4 @@
-// Mở các tính năng AI dạng markdown: giải thích một commit, viết mô tả Pull Request cho một nhánh.
+// Open the AI features that produce markdown: explain a commit, write a Pull Request description for a branch.
 
 import { refName, type Commit } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
@@ -17,7 +17,7 @@ export function explainCommit(store: RepoStore, commit: Commit): void {
   });
 }
 
-/** Nhánh đích mặc định: main / master / develop nếu có, không thì nhánh local đầu tiên khác `head`. */
+/** Default target branch: main / master / develop when one exists, otherwise the first local branch other than `head`. */
 function defaultBase(names: readonly string[], head: string): string | null {
   for (const candidate of ['main', 'master', 'develop', 'dev']) {
     if (candidate !== head && names.includes(candidate)) return candidate;
@@ -25,7 +25,7 @@ function defaultBase(names: readonly string[], head: string): string | null {
   return names.find((name) => name !== head) ?? null;
 }
 
-/** Hỏi nhánh đích rồi viết mô tả PR cho `head` (tên nhánh local). */
+/** Ask for the target branch, then write the PR description for `head` (a local branch name). */
 export async function describePullRequest(store: RepoStore, head: string): Promise<void> {
   const locals = store.localBranches.map(refName).filter((name) => name !== head);
   const remotes = store.remoteBranches.map(refName).filter((name) => !name.endsWith('/HEAD'));

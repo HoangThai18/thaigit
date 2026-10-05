@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `risk.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `ris.vi.ts` (same keys, same parameters). */
 import type { risk as source } from './risk.vi.ts';
 import type { Translation } from './types.ts';
 

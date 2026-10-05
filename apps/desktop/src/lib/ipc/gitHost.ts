@@ -5,7 +5,7 @@ import { FrameCollector, type RawFrame, newOpId } from './gitExec.ts';
 import { call } from './invoke.ts';
 import type { ConfigScope } from './types.ts';
 
-/** `destination` của `GitHost` trên Tauri là mã thư mục do hộp thoại native trả về, tuỳ chọn kèm tên thư mục con: `token` hoặc `token/tên`. */
+/** On Tauri a `GitHost` `destination` is the folder token returned by the native dialog, optionally with a subfolder name: `token` or `token/name`. */
 export function splitDestination(destination: string): { token: string; name: string | null } {
   const slash = destination.indexOf('/');
   if (slash < 0) return { token: destination, name: null };
@@ -14,9 +14,9 @@ export function splitDestination(destination: string): { token: string; name: st
 }
 
 export interface CloneOptions {
-  /** Mỗi dòng tiến độ của git ("Receiving objects: 45% …"). */
+  /** One line of git progress ("Receiving objects: 45% …"). */
   onProgress?: (line: string) => void;
-  /** Huỷ clone (huỷ theo bậc: mềm → cứng; thư mục dở dang được dọn). */
+  /** Cancel the clone (soft → hard escalation; the partial directory is cleaned up). */
   signal?: AbortSignal;
 }
 
@@ -27,8 +27,8 @@ function abortError(): Error {
 }
 
 /**
- * Clone về thư mục do hộp thoại native chọn (URL được Rust kiểm: không `ext::`, `fd::`, không bắt đầu bằng `-`).
- * Trả repo đã mở (repo do app clone được tin sẵn).
+ * Clone into a directory picked by the native dialog (Rust validates the URL: no `ext::`, no `fd::`,
+ * not starting with `-`). Returns the opened repo (a repo cloned by the app is trusted by definition).
  */
 export async function cloneRepoInfo(
   url: string,
@@ -43,7 +43,7 @@ export async function cloneRepoInfo(
     try {
       progress.push(frame);
     } catch {
-      // Frame lỗi không làm hỏng clone: kết quả lấy từ giá trị trả về của lệnh.
+      // An error frame must not fail the clone: the result comes from the command's return value.
     }
   });
   const signal = options.signal;
@@ -73,13 +73,13 @@ export async function cloneRepoInfo(
   }
 }
 
-/** `git init` (nhánh `main` nếu người dùng chưa đặt `init.defaultBranch`); trả repo đã mở (tin sẵn). */
+/** `git init` (branch `main` when the user has not set `init.defaultBranch`); returns the opened repo (trusted). */
 export function initRepoInfo(destination: string): Promise<OpenedRepo> {
   const { token, name } = splitDestination(destination);
   return call<OpenedRepo>(Commands.gitInit, { destToken: token, name });
 }
 
-// --- lệnh git có kiểu (không đi qua `git_exec`) -------------------------------------------------------------------------
+// --- typed git commands (not going through `git_exec`) ------------------------------------------------------
 
 export function configSet(repoId: string, key: string, value: string, scope: ConfigScope): Promise<void> {
   return call<void>(Commands.gitConfigSet, { repoId, key, value, scope });
@@ -93,7 +93,7 @@ export function remoteSetUrl(repoId: string, name: string, url: string): Promise
   return call<void>(Commands.gitRemoteSetUrl, { repoId, name, url });
 }
 
-/** Thêm worktree trong thư mục do hộp thoại native chọn (`destToken`); trả đường dẫn worktree mới. */
+/** Add a worktree in a directory picked by the native dialog (`destToken`); returns the new worktree path. */
 export function worktreeAdd(
   repoId: string,
   destToken: string,
@@ -105,12 +105,12 @@ export function worktreeAdd(
   return call<string>(Commands.gitWorktreeAdd, { repoId, destToken, name, branch, createBranch, start });
 }
 
-/** Mở một worktree / submodule của repo trong cửa sổ mới — Rust kiểm git có xác nhận đường dẫn đó. */
+/** Open one of the repo's worktrees / submodules in a new window — Rust checks that git really tracks that path. */
 export function openRelatedRepo(repoId: string, kind: 'worktree' | 'submodule', path: string): Promise<void> {
   return call<void>(Commands.openRelatedRepo, { repoId, kind, path });
 }
 
-/** Rebase tương tác theo kế hoạch có cấu trúc — Rust kiểm từng mục và tự soạn file todo. */
+/** Interactive rebase from a structured plan — Rust validates every entry and assembles the todo file itself. */
 export function rebaseInteractive(
   repoId: string,
   onto: string,

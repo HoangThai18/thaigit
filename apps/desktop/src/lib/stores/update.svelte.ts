@@ -1,5 +1,5 @@
-// Trạng thái cập nhật tự động cho giao diện: bản mới Rust vừa báo (`update-available`), tiến độ cài (`update-progress`), và hai
-// việc người dùng làm được — kiểm tra ngay, cài. Chỉ hoạt động trong app Tauri (cầu nối dev / test thì im lặng).
+// The auto-update state for the UI: a new version Rust just reported (`update-available`), the install progress (`update-progress`),
+// and the two things the user can do — check now, install. Only active in the Tauri app (a dev bridge / tests stay quiet).
 
 import type { UpdateInfo, UpdateProgressEvent } from '@thaigit/contracts';
 import { friendlyError } from '../errors/friendly.ts';
@@ -7,7 +7,7 @@ import { vi } from '../strings.vi.ts';
 import { dialogs as globalDialogs, type DialogStore } from './dialogs.svelte.ts';
 import { toasts as globalToasts, type ToastAction, type ToastStore } from './toasts.svelte.ts';
 
-/** Các hàm nói chuyện với Rust (tách ra để test không cần Tauri). */
+/** The functions talking to Rust (factored out so tests need no Tauri). */
 export interface UpdatePort {
   check(): Promise<UpdateInfo | null>;
   install(): Promise<void>;
@@ -26,7 +26,7 @@ export class UpdateStore {
   private readonly toasts: ToastStore;
   private readonly dialogs: DialogStore;
   private stops: (() => void)[] = [];
-  /** Phiên bản đã báo bằng toast (khỏi báo lại mỗi 6 giờ cùng một bản). */
+  /** The version already announced by a toast (so it is not announced again every 6 hours). */
   private announced: string | null = null;
 
   constructor(options: { toasts?: ToastStore; dialogs?: DialogStore } = {}) {
@@ -44,7 +44,7 @@ export class UpdateStore {
     this.stops.push(await port.onAvailable((update) => this.didFind(update, false)));
     this.stops.push(
       await port.onProgress((event) => {
-        // Lý do lỗi từ Rust là chữ kỹ thuật: chỉ giữ câu thân thiện.
+        // Rust's error reason is technical text: keep only the friendly sentence.
         this.progress = event.phase === 'failed' ? { ...event, message: vi.update.failedHint } : event;
         if (event.phase === 'failed') {
           this.toasts.error(vi.update.failed, undefined, {
@@ -62,7 +62,7 @@ export class UpdateStore {
     this.port = null;
   }
 
-  /** Kiểm ngay (người dùng bấm "Kiểm tra cập nhật…"): báo cả khi đã mới nhất hoặc lỗi. */
+  /** Check right away (the user pressed "Check for updates…"): reports even when already current or on error. */
   async check(currentVersion: string): Promise<void> {
     const port = this.port;
     if (!port || this.checking) return;
@@ -82,7 +82,7 @@ export class UpdateStore {
     }
   }
 
-  /** Cài bản đã báo (hỏi trước trừ khi `confirm = false`, ví dụ bấm "Thử lại"). */
+  /** Install the reported version (asks first unless `confirm = false`, e.g. a "Retry" click). */
   async install(confirm = true): Promise<void> {
     const port = this.port;
     const update = this.available;
@@ -101,7 +101,7 @@ export class UpdateStore {
     try {
       await port.install();
     } catch (error) {
-      // Rust đã phát `failed` (hiện toast ở trên); lỗi trước khi bắt đầu tải (không có bản nào, đang bận) thì báo ở đây.
+      // Rust already emitted `failed` (toast shown above); an error before the download starts (no version, busy) is reported here.
       if (this.progress?.phase !== 'failed') {
         this.progress = { phase: 'failed', downloaded: 0, total: null, message: friendlyError(error) };
         this.toasts.error(vi.update.failed, error, { tag: TOAST_TAG });

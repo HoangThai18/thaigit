@@ -55,17 +55,17 @@
   const activeId = $derived(tabs.activeId ?? -1);
   let busy = $state(false);
   let showClone = $state(false);
-  /** Chạy ngoài Tauri và không có cầu nối dev: không có lõi Rust để mở repo. */
+  /** Running outside Tauri with no dev bridge: there is no Rust core to open a repo with. */
   let unavailable = $state<string | undefined>(undefined);
-  /** Cửa sổ chính của app trên Tauri: nhớ các tab đang mở để lần sau mở lại. Bật sau khi đã mở lại xong. */
+  /** The app's main window on Tauri: remembers the open tabs so the next launch can reopen them. Enabled once restoring is done. */
   let remembersTabs = $state(false);
 
-  // Áp sáng/tối + kính lên <html> mỗi khi cài đặt (hoặc "giảm trong suốt" của OS) đổi.
+  // Apply light/dark + glass to `<html>` whenever the settings (or the OS "reduce transparency") change.
   $effect(() => {
     theme.apply(prefs.value.scheme, prefs.value.glass);
   });
 
-  // Nhớ repo của các tab (theo thứ tự) và tab đang chọn.
+  // Remember each tab's repo (in order) and which tab is selected.
   $effect(() => {
     if (!remembersTabs) return;
     const repos = tabs.tabs.flatMap((tab) => (tab.view.kind === 'repo' ? [tab] : []));
@@ -80,7 +80,7 @@
     }
   });
 
-  /** Tên hiển thị trên thanh tab. */
+  /** Display name shown on the tab bar. */
   function tabItem(id: number, view: View): TabItem {
     switch (view.kind) {
       case 'repo':
@@ -108,16 +108,16 @@
     newWindow().catch((error: unknown) => toasts.error(vi.welcome.newWindowFailed, error));
   }
 
-  /** Đóng repo của tab (dừng watcher, tự fetch…) nếu có. */
+  /** Release the tab's repo (stop watchers, auto-fetch…) if it has one. */
   async function release(view: View | undefined): Promise<void> {
     if (view?.kind === 'repo') await view.store.dispose();
   }
 
-  /** Đóng tab; tab cuối cùng thì chỉ quay về màn hình chào. */
+  /** Close a tab; the last remaining tab just returns to the welcome screen. */
   async function closeTab(id: number): Promise<void> {
     const tab = tabs.get(id);
     if (!tab) return;
-    // Bỏ repo khỏi tab TRƯỚC khi dừng nó: nút bấm trễ (toast của repo này) thấy ngay tab không còn giữ repo đó.
+    // Detach the repo from the tab BEFORE releasing it: a late button press (that repo's toast) immediately sees the tab no longer holds it.
     if (tabs.tabs.length === 1) {
       tabs.set(id, { kind: 'welcome' });
       void app.refreshRecent();
@@ -156,8 +156,9 @@
   }
 
   /**
-   * Phím tắt của cửa sổ: Ctrl/⌘ + T tab mới, Ctrl/⌘ + W đóng tab, Ctrl + Tab / Ctrl + Shift + Tab chuyển tab, Ctrl/⌘ + 1…9
-   * chọn tab, Ctrl/⌘ + Shift + N cửa sổ mới (chỉ trong app). Đang có hộp thoại / menu thì không đổi tab dưới chân nó.
+   * Window shortcuts: Ctrl/⌘ + T new tab, Ctrl/⌘ + W close tab, Ctrl + Tab / Ctrl + Shift + Tab switch tab,
+   * Ctrl/⌘ + 1…9 pick a tab, Ctrl/⌘ + Shift + N new window (app only). While a dialog / menu is open the tab
+   * underneath it doesn't change.
    */
   function onwindowkeydown(event: KeyboardEvent): void {
     if (event.defaultPrevented || dialogs.current !== null || menus.current !== null || app.host === null)
@@ -175,7 +176,7 @@
     event.preventDefault();
   }
 
-  /** Lỗi không lường trước (exception, promise bị từ chối không ai bắt): chỉ hiện một thông báo thân thiện. */
+  /** Unforeseen errors (a thrown exception, an unhandled rejection): show a single friendly toast only. */
   function reportUnexpected(error: unknown): void {
     toasts.error(vi.errors.unexpectedTitle, error, { tag: 'unexpected' });
   }
@@ -186,14 +187,14 @@
       reportUnexpected(event.reason);
     };
     const onError = (event: ErrorEvent): void => {
-      // Lỗi tải tài nguyên (ảnh đại diện…) không phải exception: bỏ qua.
+      // A resource load failure (an avatar…) is not an exception: ignore it.
       if (event.error === undefined && event.message === '') return;
       event.preventDefault();
       reportUnexpected(event.error ?? event.message);
     };
     window.addEventListener('unhandledrejection', onRejection);
     window.addEventListener('error', onError);
-    // macOS: thanh tiêu đề chồng (tauri.conf `titleBarStyle: Overlay`) nên chừa chỗ cho 3 nút đèn giao thông.
+    // macOS uses an overlay title bar (tauri.conf `titleBarStyle: Overlay`), so leave room for the three traffic-light buttons.
     document.documentElement.classList.toggle(
       'titlebar-overlay',
       hasTauriInternals() && detectOs() === 'mac',
@@ -202,7 +203,7 @@
     app.newTab = newTab;
     void boot();
     if (hasTauriInternals()) {
-      // Cập nhật tự động: Rust tự kiểm định kỳ và báo qua sự kiện; giao diện chỉ hiện + cài khi người dùng bấm.
+      // Automatic updates: Rust checks periodically and reports via an event; the UI only shows it and installs when the user clicks.
       void updates
         .start({
           check: updateCheck,
@@ -211,12 +212,12 @@
           onProgress: onUpdateProgress,
         })
         .catch(() => undefined);
-      // Hỏi tên đăng nhập / mật khẩu / passphrase trong app khi git/ssh cần (fetch / pull / push / clone).
+      // Ask for login / password / passphrase in-app when git/ssh needs one (fetch / pull / push / clone).
       void askpass
         .start({ reply: askpassReply, onRequest: onAskpassRequest, onClosed: onAskpassClosed })
         .catch(() => undefined);
       void appReady().catch(() => undefined);
-      // Thống kê ẩn danh: chỉ gửi khi người dùng đã bật (mặc định tắt).
+      // Anonymous usage stats: only sent when the user enabled them (off by default).
       telemetry.start();
     }
     return () => {
@@ -254,7 +255,7 @@
       const launched = await host.openLaunchRepo();
       if (launched) {
         await show(first, launched);
-        // Mở bằng thư mục ("Mở bằng Thaigit"): vẫn mở lại các tab cũ, sau tab vừa mở.
+        // Opened with a folder ("Open With Thaigit"): still restore the old tabs, after the tab just opened.
         if (restoring) await restoreTabs(host, false);
         remembersTabs = restoring;
         return;
@@ -267,7 +268,7 @@
     remembersTabs = restoring;
   }
 
-  /** Mở lại repo của các tab lần trước (cửa sổ chính). `intoFirst`: tab đầu dùng luôn tab chào đang có. */
+  /** Reopen the repos of the previous session's tabs (main window). `intoFirst`: the first tab reuses the existing welcome tab. */
   async function restoreTabs(host: Host, intoFirst: boolean): Promise<void> {
     const { openTabs, activeTab } = prefs.value;
     const welcome = intoFirst ? tabs.activeId : null;
@@ -298,7 +299,7 @@
     );
   }
 
-  /** Chạy một thao tác mở repo vào tab `tabId`: chặn bấm lặp, lỗi hiện thành toast (kèm nút `missing` khi thư mục không còn). */
+  /** Run an open-repo task into tab `tabId`: blocks repeat clicks, reports errors as toasts (with a `missing` action when the folder is gone). */
   async function guarded(
     tabId: number,
     task: () => Promise<RepoPort | null>,
@@ -320,7 +321,7 @@
   }
 
   async function show(tabId: number, port: RepoPort): Promise<void> {
-    // Repo đã mở ở tab khác: chuyển sang tab đó, bỏ tab chào vừa dùng để mở.
+    // The repo is already open in another tab: switch to it and drop the welcome tab that was just used to open it.
     const existing = tabs.find((view) => sameRepo(view, port));
     if (existing && existing.id !== tabId) {
       const current = tabs.get(tabId)?.view.kind;
@@ -341,15 +342,15 @@
     const previous = tabs.get(tabId)?.view;
     if (!previous) return;
     const store: RepoStore = new RepoStore(port, {
-      // Chỉ tác động khi repo này vẫn nằm ở tab đó: nút bấm trễ trên toast của repo đã đóng không được hỏi tin tưởng lại rồi
-      // đá văng repo khác (`trust` → `enter` thay luôn tab).
+      // Only act when this repo is still in that tab: a late press on a closed repo's toast must not ask
+      // for trust again and then evict a different repo (`trust` → `enter` would replace the tab).
       onUntrusted: () => {
         const view = tabs.get(tabId)?.view;
         if (view?.kind === 'repo' && view.store === store) void trust(tabId, port);
       },
     });
     tabs.set(tabId, { kind: 'repo', store });
-    // Dừng repo cũ của tab (cùng repo khi vừa tin tưởng) TRƯỚC khi bật watcher của repo mới: watcher theo id repo.
+    // Stop the tab's previous repo (the same repo right after trusting) BEFORE starting the new one's watcher: watchers are keyed by repo id.
     await release(previous);
     void store.start();
   }
@@ -360,7 +361,7 @@
     try {
       const next = await port.trust();
       if (next.info.trust === 'unknown') {
-        // Cấu hình đổi kể từ lúc hỏi: lõi Rust chỉ tin những gì người dùng đã thấy → hỏi lại với danh sách mới.
+        // The config changed since the question was asked: the Rust core only trusts what the user has seen → ask again with the new list.
         toasts.warning(vi.trust.changed);
         const previous = tabs.get(tabId)?.view;
         tabs.set(tabId, { kind: 'trust', port: next });
@@ -375,10 +376,10 @@
     }
   }
 
-  /** Nút × trên thanh công cụ của repo: đóng repo của tab (tab duy nhất thì về màn hình chào). */
+  /** The × button on a repo's toolbar: close that tab's repo (the last tab returns to the welcome screen). */
   const closeRepo = (tabId: number): Promise<void> => closeTab(tabId);
 
-  /** Tạo repo mới: chọn thư mục cha, đặt tên, `git init`, mở luôn. */
+  /** Create a new repo: pick the parent folder, name it, `git init`, then open it. */
   async function createRepo(tabId: number): Promise<void> {
     const host = app.host;
     if (!host || busy) return;
@@ -408,7 +409,7 @@
     guarded(tabId, () => app.host?.pickAndOpenRepo() ?? Promise.resolve(null));
   const openRecent = (tabId: number, repo: RecentRepo): Promise<void> =>
     guarded(tabId, () => app.host?.openRecent(repo.id) ?? Promise.resolve(null), {
-      // Thư mục đã bị xoá/đổi tên: cho phép dọn khỏi danh sách ngay trong thông báo lỗi.
+      // The folder was deleted / renamed: offer to remove it from the list right in the error toast.
       missing: { title: vi.welcome.forgetMissing, run: () => void app.forgetRecent(repo.id) },
     });
 </script>
@@ -433,7 +434,7 @@
       {@const view = active.view}
       {#if view.kind === 'repo'}
         {#key view.store}
-          <!-- Lỗi khi vẽ giao diện của repo: không hiện exception, chỉ báo thân thiện và cho thử lại / về màn hình chính. -->
+          <!-- A rendering error in the repo UI: don't show the exception, just report it friendly and offer retry / back to the home screen. -->
           <svelte:boundary onerror={(error) => reportUnexpected(error)}>
             <RepoWindow store={view.store} onclose={() => closeRepo(tabId)} />
             {#snippet failed(_error, reset)}
@@ -498,7 +499,7 @@
     min-height: 0;
   }
 
-  /* Thanh tab đã chừa chỗ cho nút đèn giao thông của macOS: phần dưới không chừa nữa. */
+  /* The tab bar already reserved room for the macOS traffic lights: the content area doesn't need to. */
   .tabbed .tab-content {
     --titlebar-inset: 0px;
   }

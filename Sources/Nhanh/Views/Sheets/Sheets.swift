@@ -58,7 +58,7 @@ struct SheetContent: View {
     }
 }
 
-/// Khung chung cho các hộp thoại nhỏ.
+/// A shared frame for the small dialogs.
 private struct SheetFrame<Content: View>: View {
     let title: String
     let systemImage: String
@@ -90,7 +90,7 @@ private struct SheetFrame<Content: View>: View {
     }
 }
 
-/// Kiểm tra nhanh tên nhánh/tag theo quy tắc git-check-ref-format.
+/// Quick branch / tag name validation by git's git-check-ref-format rules.
 enum RefNameRules {
     static func sanitize(_ name: String) -> String {
         name.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " ", with: "-")
@@ -108,7 +108,7 @@ enum RefNameRules {
     }
 }
 
-/// Sửa message một commit: điền sẵn message đầy đủ, ⌘↩ để lưu (↩ xuống dòng).
+/// Edit a commit's message: prefilled with the full message, ⌘↩ saves (↩ inserts a newline).
 private struct RewordCommitSheet: View {
     @Bindable var model: RepoModel
     let sha: String
@@ -453,7 +453,7 @@ private struct FileHistorySheet: View {
     }
 }
 
-/// Chuyển nhánh nhanh khi repo có nhiều nhánh: gõ để lọc (cả nhánh remote), ↑↓ để chọn, ↩ để checkout.
+/// Quick branch switching when the repo has many branches: type to filter (remote branches too), ↑↓ to select, ↩ to check out.
 private struct SwitchBranchSheet: View {
     @Bindable var model: RepoModel
     @State private var query = ""
@@ -464,7 +464,7 @@ private struct SwitchBranchSheet: View {
         let text = query.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return model.recentLocalBranches(limit: 40) }
         let matches = (model.localBranches + model.remoteBranches).filter { $0.name.localizedStandardContains(text) }
-        // Nhánh local trước, khớp từ đầu tên trước.
+        // Local branches first, prefix matches first.
         func rank(_ ref: GitRef) -> Int {
             let prefix = ref.shortBranchName.range(of: text, options: [.anchored, .caseInsensitive, .diacriticInsensitive]) != nil
             return (ref.kind == .localBranch ? 0 : 2) + (prefix ? 0 : 1)
@@ -524,7 +524,7 @@ private struct SwitchBranchSheet: View {
         .onChange(of: query) { highlighted = Self.defaultChoice(in: results)?.fullName }
     }
 
-    /// Mặc định chọn nhánh khác nhánh hiện tại (↩ là chuyển ngay, giống `git checkout -`).
+    /// A branch other than the current one is selected by default (↩ switches straight away, like `git checkout -`).
     private static func defaultChoice(in items: [GitRef]) -> GitRef? {
         items.first { !$0.isHead } ?? items.first
     }

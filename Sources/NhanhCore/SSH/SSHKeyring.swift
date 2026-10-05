@@ -1,16 +1,16 @@
 import Foundation
 import Security
 
-/// Một khoá SSH của Thaigit — phần KHÔNG bí mật (tên, khoá công khai…), lưu trong UserDefaults. Khoá bí mật nằm trong
-/// Keychain (`SSHKeySecretStore`), không bao giờ ghi ra đĩa dạng thô hay hiện ra giao diện.
+/// One of Thaigit's SSH keys — the NON-secret part (name, public key…), stored in UserDefaults. The secret
+/// lives in the Keychain (`SSHKeySecretStore`) and is never written to disk in the clear or shown in the UI.
 public struct SSHKeyInfo: Codable, Sendable, Equatable, Identifiable {
     public let id: String
     public var name: String
-    /// Dòng khoá công khai "ssh-ed25519 AAAA… comment".
+    /// The "ssh-ed25519 AAAA… comment" public key line.
     public let publicKey: String
     public let fingerprint: String
     public let type: String
-    /// Khoá bí mật có passphrase: mỗi lần dùng ssh-add hỏi passphrase qua hộp thoại của Thaigit.
+    /// The secret has a passphrase: every ssh-add asks for it through Thaigit's dialog.
     public let encrypted: Bool
     public let createdAt: Date
 
@@ -25,15 +25,16 @@ public struct SSHKeyInfo: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
-/// Nơi cất khoá bí mật SSH (mỗi khoá một mục theo id). App dùng Keychain; test dùng bản trong bộ nhớ.
+/// Where SSH private keys are stored (one entry per key id). The app uses the Keychain; tests use an in-memory version.
 public protocol SSHKeySecretStore: Sendable {
     func read(id: String) throws -> Data?
     func save(_ key: Data, id: String, label: String) throws
     func delete(id: String) throws
 }
 
-/// Khoá bí mật trong Keychain của macOS: generic password, service `com.phanthai.thaigit.ssh`, account = id của khoá,
-/// chỉ đọc được khi máy đã mở khoá, chỉ trên máy này (không đồng bộ iCloud, không vào bản sao lưu sang máy khác).
+/// Secrets in the macOS Keychain: a generic password with service `com.phanthai.thaigit.ssh` and account = the
+/// key's id; only readable once the machine has been unlocked, and only on this machine (no iCloud sync, no
+/// inclusion in backups copied elsewhere).
 public struct KeychainSSHKeyStore: SSHKeySecretStore {
     public static let defaultService = "com.phanthai.thaigit.ssh"
     public let service: String
@@ -82,7 +83,7 @@ public struct KeychainSSHKeyStore: SSHKeySecretStore {
     }
 }
 
-/// Khoá trong bộ nhớ — cho test (không đụng Keychain thật).
+/// In-memory keys — for tests (never touches the real Keychain).
 public final class InMemorySSHKeyStore: SSHKeySecretStore, @unchecked Sendable {
     private let lock = NSLock()
     private var keys: [String: Data] = [:]
@@ -108,8 +109,8 @@ public final class InMemorySSHKeyStore: SSHKeySecretStore, @unchecked Sendable {
     }
 }
 
-/// Danh sách khoá SSH của Thaigit: thêm (tạo mới / nhập), đổi tên, xoá, và đưa khoá bí mật cho ssh-agent tạm khi lệnh git
-/// chạm remote SSH (`GitRunner`). An toàn đa luồng.
+/// Thaigit's list of SSH keys: add (generate / import), rename, delete, and hand the secrets to the
+/// temporary ssh-agent when a git command touches an SSH remote (`GitRunner`). Thread-safe.
 public final class SSHKeyring: @unchecked Sendable {
     public static let listKey = "thaigit.sshKeys"
     public static let enabledKey = "thaigit.sshKeysEnabled"
@@ -131,7 +132,7 @@ public final class SSHKeyring: @unchecked Sendable {
         return cached
     }
 
-    /// Dùng khoá của Thaigit cho remote SSH (mặc định bật). Tắt thì git dùng ssh-agent / khoá ~/.ssh như bình thường.
+    /// Use Thaigit's key for SSH remotes (on by default). Off means git uses ssh-agent / ~/.ssh keys as usual.
     public var isEnabled: Bool {
         get {
             storage.data(forKey: Self.enabledKey).map { $0 != Data([0]) } ?? true
@@ -141,7 +142,7 @@ public final class SSHKeyring: @unchecked Sendable {
         }
     }
 
-    /// Tạo khoá Ed25519 mới, cất khoá bí mật vào kho.
+    /// Generate a new Ed25519 key and store its secret.
     @discardableResult
     public func generate(name: String, comment: String) throws -> SSHKeyInfo {
         let generated = SSHKeyFormat.generateEd25519(comment: comment)
@@ -150,8 +151,8 @@ public final class SSHKeyring: @unchecked Sendable {
         return info
     }
 
-    /// Nhập khoá bí mật có sẵn. `publicKey`: khoá công khai đã biết (file .pub đi kèm / `ssh-keygen -y`) khi khoá không ở
-    /// dạng OpenSSH; khoá dạng OpenSSH tự đọc được khoá công khai.
+    /// Import an existing private key. `publicKey`: the already known public key (the accompanying .pub
+    /// file / `ssh-keygen -y`) when the key isn't in OpenSSH format; an OpenSSH key yields its own public key.
     @discardableResult
     public func importKey(name: String, privateKey: Data, publicKey: SSHPublicKey?) throws -> SSHKeyInfo {
         guard SSHKeyFormat.looksLikePrivateKey(privateKey) else { throw SSHKeyError.unsupportedFormat }
@@ -192,7 +193,7 @@ public final class SSHKeyring: @unchecked Sendable {
         mutate { $0.removeAll { $0.id == id } }
     }
 
-    /// Khoá bí mật của mọi khoá (bỏ qua khoá không đọc được). Rỗng khi tắt hoặc chưa có khoá.
+    /// Every key's secret (keys that can't be read are skipped). Empty when disabled or when there are no keys.
     public func privateKeys() -> [Data] {
         guard isEnabled else { return [] }
         return keys.compactMap { try? secrets.read(id: $0.id) }
@@ -207,21 +208,21 @@ public final class SSHKeyring: @unchecked Sendable {
     }
 }
 
-/// Địa chỉ remote đi qua SSH: `ssh://…`, `git+ssh://…` hoặc dạng scp `git@github.com:owner/repo.git`.
+/// A remote address that goes over SSH: `ssh://…`, `git+ssh://…` or scp form `git@github.com:owner/repo.git`.
 public enum SSHRemoteURL {
     public static func isSSH(_ url: String) -> Bool {
         let lower = url.lowercased()
         if let scheme = lower.range(of: "://") {
             return ["ssh", "git+ssh", "ssh+git"].contains(String(lower[..<scheme.lowerBound]))
         }
-        // Dạng scp: có ":" trước dấu "/" đầu tiên, không phải đường dẫn trên máy ("./a:b", "/x", "C:\…").
+        // scp form: a ":" before the first "/", and not a local path ("./a:b", "/x", "C:\…").
         guard !lower.hasPrefix("/"), !lower.hasPrefix("."), !lower.hasPrefix("~"),
               let colon = lower.firstIndex(of: ":") else { return false }
         let host = lower[..<colon]
         return !host.isEmpty && !host.contains("/") && host.count > 1
     }
 
-    /// Host của địa chỉ SSH (bỏ user@ và cổng), viết thường. nil nếu không phải địa chỉ SSH.
+    /// Host of the SSH address (user@ and port stripped), lowercased. nil when it isn't an SSH address.
     public static func host(of url: String) -> String? {
         guard isSSH(url) else { return nil }
         var authority: Substring

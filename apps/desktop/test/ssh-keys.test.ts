@@ -1,5 +1,6 @@
-// Khoá SSH của Thaigit: store giữ đúng view Rust trả về, lỗi chỉ hiện câu thân thiện theo mã, huỷ hộp chọn file không báo
-// lỗi, kiểm tra kết nối ghi kết quả theo host.
+// Thaigit's SSH keys: the store keeps exactly the shape Rust returned, errors only show a friendly
+// sentence based on the code, cancelling the file picker is not an error, and the connection check records
+// its result per host.
 import type { SshKeyInfo, SshKeysView } from '@thaigit/contracts';
 import { describe, expect, it } from 'vitest';
 import { SshKeysStore, sshErrorText, type SshKeysPort } from '../src/lib/stores/sshKeys.svelte.ts';

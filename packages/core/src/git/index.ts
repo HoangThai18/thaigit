@@ -1,5 +1,6 @@
-// Barrel của `@thaigit/core` cho phần git: mô hình, parser thuần, runner, repository, lịch sử. (Nhật ký lệnh nằm ở
-// `support/command-log.ts` nhưng tiện cho UI nên xuất lại ở đây. `unquoteGitPath` cố ý KHÔNG xuất lại từ barrel.)
+// Barrel of `@thaigit/core` for the git part: models, pure parsers, runner, repository, history. (The command log lives
+// in `support/command-log.ts` but is re-exported here because the UI wants it. `unquoteGitPath` is deliberately NOT
+// re-exported from the barrel.)
 
 export { sha256Hex } from './bytes.ts';
 export * from './models.ts';

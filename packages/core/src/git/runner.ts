@@ -1,5 +1,6 @@
-// Chạy git qua port `Exec` (port GitRunner.swift): kiểm mã thoát, ghi nhật ký đã che credential, lỗi có kiểu.
-// Env và cờ `-c` KHÔNG viết ở đây: adapter (Rust trong app, Node trong test) áp từ `git-policy.json`.
+// Runs git through the `Exec` port (port of GitRunner.swift): checks the exit code, records the log with credentials
+// redacted, raises typed errors.
+// Env and `-c` flags are NOT set here: the adapter (Rust in the app, Node in tests) applies them from `git-policy.json`.
 
 import {
   effectiveKind,
@@ -12,7 +13,7 @@ import type { Exec, ExecResult } from '../ports/index.ts';
 import { redactSecrets, type CommandLog } from '../support/command-log.ts';
 import { decodeUtf8 } from './bytes.ts';
 
-/** Lỗi khi lệnh git trả mã thoát không mong đợi. `args` gồm cả subcommand (`["fetch", "--all"]`), không gồm cờ `-c` toàn cục. */
+/** A git command returned an unexpected exit code. `args` includes the subcommand (`["fetch", "--all"]`) but not the global `-c` flags. */
 export class GitError extends Error {
   readonly args: readonly string[];
   readonly exitCode: number;
@@ -28,23 +29,23 @@ export class GitError extends Error {
     this.stderr = stderr;
   }
 
-  /** Dòng lệnh để hiển thị; đã che credential. */
+  /** Command line for display; credentials already redacted. */
   get commandLine(): string {
     return redactSecrets(`git ${this.args.join(' ')}`);
   }
 
-  /** Toàn bộ output, dùng để nhận diện các lỗi quen thuộc. */
+  /** All output, used to recognise the familiar errors. */
   get combinedOutput(): string {
     return `${this.stderr}\n${this.stdout}`;
   }
 
-  /** Output có chứa `needle` không (không phân biệt hoa thường). */
+  /** Does the output contain `needle` (case-insensitive)? */
   contains(needle: string): boolean {
     return this.combinedOutput.toLowerCase().includes(needle.toLowerCase());
   }
 }
 
-/** Cùng luật với `GitError.message` của Swift: stderr là chính; ghép stdout nếu ngắn; không có gì thì nêu mã thoát. */
+/** Same rule as Swift's `GitError.message`: stderr is the message; append stdout when short; otherwise report the exit code. */
 function gitErrorMessage(args: readonly string[], exitCode: number, stdout: string, stderr: string): string {
   const err = stderr.trim();
   const out = stdout.trim();
@@ -54,7 +55,7 @@ function gitErrorMessage(args: readonly string[], exitCode: number, stdout: stri
   return `Lệnh git ${args[0] ?? ''} thất bại (mã thoát ${exitCode}).`;
 }
 
-/** Thao tác mạng bị người dùng huỷ. Luôn mang mã thoát thật của git để biết nó đã làm tới đâu (không che kết quả). */
+/** A network operation the user cancelled. Always carries git's real exit code so we know how far it got (the result is not hidden). */
 export class CancelledError extends Error {
   readonly exitCode: number;
 
@@ -66,12 +67,13 @@ export class CancelledError extends Error {
 }
 
 /**
- * Lỗi do bộ chuyển (Rust/Node) báo, cùng mã với `CommandError` của IPC: `policy` (lệnh bị chính sách chặn),
- * `out-of-scope`, `conflict` (CAS), `not-found`, `io`…. Khác `GitError` (git chạy xong nhưng mã thoát ≠ chấp nhận).
+ * An error reported by the adapter (Rust/Node), sharing its codes with IPC's `CommandError`: `policy` (command blocked
+ * by policy), `out-of-scope`, `conflict` (CAS), `not-found`, `io`…. Distinct from `GitError` (git ran but returned an
+ * unacceptable exit code).
  */
 export class AdapterError extends Error implements CommandError {
   readonly code: CommandError['code'];
-  /** Chỉ có khi `code === 'policy'` và vi phạm đến từ bộ kiểm tra của TS. */
+  /** Present only when `code === 'policy'` and the violation came from a TS-side checker. */
   readonly violation?: PolicyViolation;
 
   constructor(code: CommandError['code'], message: string, violation?: PolicyViolation) {
@@ -83,15 +85,15 @@ export class AdapterError extends Error implements CommandError {
 }
 
 export interface RunOptions {
-  /** Mã thoát chấp nhận được (mặc định `[0]`), ví dụ `[0, 1]` cho `diff --no-index`, `config --get`. */
+  /** Acceptable exit codes (default `[0]`), e.g. `[0, 1]` for `diff --no-index`, `config --get`. */
   acceptExitCodes?: readonly number[];
   stdin?: Uint8Array;
-  /** Chỉ khoá trong `env.fromCaller` của chính sách (`GIT_OPTIONAL_LOCKS=0`, `GIT_LITERAL_PATHSPECS=1`…). */
+  /** Only keys listed in the policy's `env.fromCaller` (`GIT_OPTIONAL_LOCKS=0`, `GIT_LITERAL_PATHSPECS=1`…). */
   env?: Readonly<Record<string, string>>;
   profile?: EnvProfile;
-  /** Mỗi dòng stderr đã bỏ khoảng trắng đầu/cuối (tiến trình clone/fetch/push); dòng rỗng bị bỏ. */
+  /** Each stderr line with leading/trailing whitespace trimmed (clone/fetch/push progress); empty lines dropped. */
   onProgress?: (line: string) => void;
-  /** Chỉ lệnh `network` huỷ được. */
+  /** Only `network` commands are cancellable. */
   signal?: AbortSignal;
 }
 
@@ -102,10 +104,10 @@ export interface RunOutput {
 }
 
 /**
- * Loại thao tác của một lệnh theo `git-policy.json` (nguồn sự thật cho khoá theo repo và quyền huỷ). Truyền `args` để nhận ra
- * dạng chỉ-đọc của subcommand `write` (`stash list`, `remote -v`…; khớp theo TOÀN BỘ hình dạng args, xem `readForms` trong
- * chính sách): chúng không cần khoá độc quyền nên mỗi lần làm mới không phải xếp hàng sau fetch/pull đang chạy lâu. Thiếu `args`
- * thì chỉ xét subcommand; subcommand lạ coi như `write` (khoá chặt nhất).
+ * Command kind per `git-policy.json` (the source of truth for per-repo locking and cancellation). Pass `args` so the
+ * read-only shapes of a `write` subcommand are recognised (`stash list`, `remote -v`…; matched against the WHOLE args
+ * shape, see `readForms` in the policy): they need no exclusive lock, so a refresh does not queue behind a long
+ * fetch/pull. Without `args` only the subcommand is considered; an unknown subcommand counts as `write` (tightest lock).
  */
 export function execKindOf(sub: string, args: readonly string[] = []): ExecKind {
   return effectiveKind(sub, args) ?? 'write';
@@ -118,8 +120,9 @@ export class GitRunner {
   ) {}
 
   /**
-   * Chạy `git <sub> <args…>`. Loại khoá lấy từ chính sách theo subcommand. Huỷ → `CancelledError(mã thoát thật)`;
-   * mã thoát ngoài `acceptExitCodes` → `GitError`. Lỗi của bộ chuyển (chính sách chặn, không chạy được git) được ghi nhật ký rồi ném lại.
+   * Run `git <sub> <args…>`. The lock kind comes from the policy by subcommand. Cancelling →
+   * `CancelledError(realExitCode)`; an exit code outside `acceptExitCodes` → `GitError`. Adapter errors (policy block,
+   * git could not be spawned) are logged and rethrown.
    */
   async run(sub: string, args: readonly string[], options: RunOptions = {}): Promise<RunOutput> {
     const { acceptExitCodes = [0], onProgress } = options;
@@ -161,7 +164,7 @@ export class GitRunner {
       cancelled: result.cancelled,
       stderr: decodeUtf8(result.stderr),
     });
-    // Bị huỷ: báo huỷ thay vì lỗi git (mã thoát 143 do SIGTERM), nhưng vẫn mang mã thật.
+    // Cancelled: report cancellation instead of a git error (exit code 143 from SIGTERM), but keep the real code.
     if (result.cancelled) throw new CancelledError(result.code);
     if (!acceptExitCodes.includes(result.code)) {
       throw new GitError(argv, result.code, decodeUtf8(result.stdout), decodeUtf8(result.stderr));
@@ -169,7 +172,7 @@ export class GitRunner {
     return { code: result.code, stdout: result.stdout, stderr: result.stderr };
   }
 
-  /** Như `output` của Swift: stdout giải mã UTF-8. */
+  /** Like Swift's `output`: stdout decoded as UTF-8. */
   async text(sub: string, args: readonly string[], options: RunOptions = {}): Promise<string> {
     return decodeUtf8((await this.run(sub, args, options)).stdout);
   }

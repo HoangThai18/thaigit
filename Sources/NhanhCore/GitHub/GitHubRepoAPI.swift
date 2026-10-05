@@ -1,23 +1,23 @@
 import Foundation
 
-/// Pull request đang mở trên GitHub (`GET /repos/{owner}/{repo}/pulls`).
+/// An open pull request on GitHub (`GET /repos/{owner}/{repo}/pulls`).
 public struct GitHubPullRequest: Sendable, Equatable, Identifiable {
     public let number: Int
     public let title: String
     public let body: String?
     public let isDraft: Bool
-    /// Trang của PR trên github.com (nil nếu GitHub trả về địa chỉ lạ — không mở).
+    /// The PR's page on github.com (nil when GitHub returns an unexpected address — don't open it).
     public let webURL: URL?
     public let author: String
     public let headBranch: String
     public let headSHA: String
-    /// "owner/repo" chứa nhánh của PR; nil khi repo fork đã bị xoá.
+    /// "owner/repo" holding the PR's branch; nil when the fork repo was deleted.
     public let headRepository: String?
     public let baseBranch: String
     public let updatedAt: Date?
-    /// Tên đăng nhập của người được gán xử lý PR (`assignees`).
+    /// Logins of the PR's assignees (`assignees`).
     public let assignees: [String]
-    /// Tên đăng nhập của người đang được nhờ review (`requested_reviewers`).
+    /// Logins of the requested reviewers (`requested_reviewers`).
     public let reviewers: [String]
 
     public init(number: Int, title: String, body: String? = nil, isDraft: Bool = false, webURL: URL? = nil, author: String,
@@ -40,13 +40,13 @@ public struct GitHubPullRequest: Sendable, Equatable, Identifiable {
 
     public var id: Int { number }
 
-    /// Nhánh của PR nằm ngay trong `repo` (không phải từ fork): fetch xong là có trên remote.
+    /// The PR's branch lives directly in `repo` (not from a fork): after fetching it's on the remote.
     public func isSameRepository(as repo: GitHubRepoRef) -> Bool {
         headRepository?.caseInsensitiveCompare("\(repo.owner)/\(repo.name)") == .orderedSame
     }
 }
 
-/// Issue đang mở trên GitHub.
+/// An open issue on GitHub.
 public struct GitHubIssue: Sendable, Equatable, Identifiable {
     public let number: Int
     public let title: String
@@ -64,13 +64,13 @@ public struct GitHubIssue: Sendable, Equatable, Identifiable {
     }
 }
 
-/// Nội dung một Pull Request mới (`POST /repos/{owner}/{repo}/pulls`).
+/// The body of a new Pull Request (`POST /repos/{owner}/{repo}/pulls`).
 public struct NewPullRequest: Sendable, Equatable {
     public var title: String
     public var body: String
-    /// Nhánh chứa thay đổi (tên nhánh trên GitHub, không có tiền tố remote).
+    /// The branch holding the changes (the branch name on GitHub, no remote prefix).
     public var head: String
-    /// Nhánh sẽ nhận thay đổi.
+    /// The branch that will receive the changes.
     public var base: String
     public var draft: Bool
 
@@ -83,15 +83,15 @@ public struct NewPullRequest: Sendable, Equatable {
     }
 }
 
-/// Lỗi riêng của API repo (ngoài các lỗi chung trong `GitHubError`).
+/// A repo-API-specific failure (outside the shared cases in `GitHubError`).
 public enum GitHubRepoAPIError: LocalizedError, Equatable, Sendable {
-    /// Tên owner / repo có ký tự lạ — không gọi API.
+    /// The owner / repo name has unusual characters — don't call the API.
     case invalidRepository
-    /// 404: repo không tồn tại hoặc là repo riêng tư mà token (nếu có) không có quyền.
+    /// 404: the repo doesn't exist, or it's private and the token (if any) has no access.
     case notFound
-    /// 403 do hết lượt gọi API (GitHub cho 60 lượt/giờ khi chưa đăng nhập).
+    /// 403 from an exhausted API rate limit (GitHub allows 60/hour when not signed in).
     case rateLimited
-    /// 422: GitHub từ chối nội dung gửi lên (PR đã có, hai nhánh không khác nhau…).
+    /// 422: GitHub rejected the submitted content (a PR already exists, the branches are identical…).
     case rejected(String)
 
     public var errorDescription: String? {
@@ -104,10 +104,10 @@ public enum GitHubRepoAPIError: LocalizedError, Equatable, Sendable {
     }
 }
 
-/// Gọi REST API của GitHub cho một repo: danh sách / tạo Pull Request, nhánh mặc định.
-/// Mọi request chỉ đi tới https://api.github.com; token (nếu có) chỉ nằm trong header Authorization.
+/// Calls GitHub's REST API for one repo: list / create Pull Requests, the default branch.
+/// Every request goes only to https://api.github.com; the token (when present) only ever rides in the Authorization header.
 public struct GitHubRepoAPI: Sendable {
-    /// Tối đa 3 trang × 100 PR đang mở.
+    /// At most 3 pages × 100 open PRs.
     public static let maxPages = 3
     private let transport: GitHubHTTPTransport
 
@@ -115,7 +115,7 @@ public struct GitHubRepoAPI: Sendable {
         self.transport = transport
     }
 
-    /// PR đang mở, mới cập nhật trước. Repo công khai đọc được cả khi chưa đăng nhập (`token` nil).
+    /// Open PRs, most recently updated first. A public repo is readable without signing in (`token` nil).
     public func openPullRequests(in repo: GitHubRepoRef, token: String?) async throws -> [GitHubPullRequest] {
         guard var next = Self.url(repo, "/pulls", query: [
             URLQueryItem(name: "state", value: "open"),
@@ -137,7 +137,7 @@ public struct GitHubRepoAPI: Sendable {
         return result
     }
 
-    /// Tạo PR; trả về PR vừa tạo (có số và đường dẫn).
+    /// Create a PR; returns the newly created PR (with its number and path).
     public func createPullRequest(_ new: NewPullRequest, in repo: GitHubRepoRef, token: String) async throws -> GitHubPullRequest {
         guard let url = Self.url(repo, "/pulls") else { throw GitHubRepoAPIError.invalidRepository }
         var request = Self.request(url, token: token)
@@ -151,7 +151,7 @@ public struct GitHubRepoAPI: Sendable {
         return payload.pullRequest
     }
 
-    /// Issue đang mở (bỏ các mục là Pull Request — API issues của GitHub trả cả PR), mới cập nhật trước.
+    /// Open issues (Pull Request entries excluded — GitHub's issues API returns them too), most recently updated first.
     public func openIssues(in repo: GitHubRepoRef, token: String?, limit: Int = 100) async throws -> [GitHubIssue] {
         guard let url = Self.url(repo, "/issues", query: [
             URLQueryItem(name: "state", value: "open"),
@@ -177,7 +177,7 @@ public struct GitHubRepoAPI: Sendable {
         }
     }
 
-    /// Nhánh mặc định của repo trên GitHub (nhánh đích gợi ý khi tạo PR).
+    /// The repo's default branch on GitHub (suggested as the PR target).
     public func defaultBranch(of repo: GitHubRepoRef, token: String?) async throws -> String {
         guard let url = Self.url(repo, "") else { throw GitHubRepoAPIError.invalidRepository }
         let (data, response) = try await send(Self.request(url, token: token))
@@ -187,7 +187,7 @@ public struct GitHubRepoAPI: Sendable {
         return info.default_branch
     }
 
-    /// Người có thể được gán vào PR / issue của repo (`GET /repos/{owner}/{repo}/assignees`), tối đa 3 trang × 100.
+    /// The people assignable to the repo's PRs / issues (`GET /repos/{owner}/{repo}/assignees`), at most 3 pages × 100.
     public func assignableUsers(in repo: GitHubRepoRef, token: String) async throws -> [ForgePerson] {
         guard var next = Self.url(repo, "/assignees", query: [URLQueryItem(name: "per_page", value: "100")])
         else { throw GitHubRepoAPIError.invalidRepository }
@@ -208,7 +208,7 @@ public struct GitHubRepoAPI: Sendable {
         return result
     }
 
-    /// Đặt lại người được gán xử lý PR (`PATCH /repos/{owner}/{repo}/issues/{number}`): gửi cả danh sách mới, danh sách rỗng là bỏ hết.
+    /// Replace the PR's assignees (`PATCH /repos/{owner}/{repo}/issues/{number}`): the whole new list is sent, an empty list removes them all.
     public func setAssignees(_ logins: [String], number: Int, in repo: GitHubRepoRef, token: String) async throws {
         guard let url = Self.url(repo, "/issues/\(number)") else { throw GitHubRepoAPIError.invalidRepository }
         var request = Self.request(url, token: token)
@@ -217,8 +217,8 @@ public struct GitHubRepoAPI: Sendable {
         request.httpBody = try JSONSerialization.data(withJSONObject: ["assignees": logins])
         let (data, response) = try await send(request)
         try Self.checkAssignment(response, data: data)
-        // GitHub trả 200 nhưng âm thầm bỏ qua người gán khi tài khoản không có quyền push (hoặc người đó không gán được): so với
-        // danh sách `assignees` trong phản hồi để không báo "đã cập nhật" khi thực tế chưa đổi gì.
+        // GitHub returns 200 but silently drops an assignee when the account can't push (or that person can't
+        // be assigned): compare against the `assignees` in the response so "updated" isn't reported when nothing changed.
         struct Echo: Decodable {
             struct User: Decodable { let login: String }
             let assignees: [User]?
@@ -229,8 +229,8 @@ public struct GitHubRepoAPI: Sendable {
         }
     }
 
-    /// Nhờ thêm người review (`POST …/pulls/{number}/requested_reviewers`) và bỏ những người không còn cần (`DELETE` cùng đường dẫn).
-    /// Bỏ trước, thêm sau; mỗi nhóm một lệnh gọi (nhóm rỗng thì không gọi).
+    /// Request more reviewers (`POST …/pulls/{number}/requested_reviewers`) and drop the ones no longer needed (`DELETE` on the same path).
+    /// Removals go first, additions after; one call per group (an empty group isn't called).
     public func updateReviewers(add: [String], remove: [String], number: Int, in repo: GitHubRepoRef, token: String) async throws {
         guard let url = Self.url(repo, "/pulls/\(number)/requested_reviewers") else { throw GitHubRepoAPIError.invalidRepository }
         if !remove.isEmpty { try await sendReviewers(remove, method: "DELETE", to: url, token: token) }
@@ -246,10 +246,10 @@ public struct GitHubRepoAPI: Sendable {
         try Self.checkAssignment(response, data: data)
     }
 
-    // MARK: - Nội bộ
+    // MARK: - Internal
 
-    /// `https://api.github.com/repos/{owner}/{repo}{suffix}` — nil nếu owner / repo có ký tự ngoài bộ GitHub cho phép
-    /// (không để tên lạ chen thêm đoạn đường dẫn hay query).
+    /// `https://api.github.com/repos/{owner}/{repo}{suffix}` — nil when owner / repo contains characters GitHub doesn't
+    /// allow (so an odd name can't inject extra path segments or a query).
     static func url(_ repo: GitHubRepoRef, _ suffix: String, query: [URLQueryItem] = []) -> URL? {
         guard isValidName(repo.owner, allowDot: false), isValidName(repo.name, allowDot: true) else { return nil }
         var components = URLComponents()
@@ -295,7 +295,7 @@ public struct GitHubRepoAPI: Sendable {
         }
     }
 
-    /// Kiểm phản hồi của thao tác gán người: 403 / 404 là thiếu quyền, 422 thì đoán lý do từ câu của GitHub.
+    /// Inspect an assign-people response: 403 / 404 mean a permission problem, 422 gets the reason guessed from GitHub's wording.
     static func checkAssignment(_ response: HTTPURLResponse, data: Data) throws {
         switch response.statusCode {
         case 200..<300: return
@@ -312,7 +312,7 @@ public struct GitHubRepoAPI: Sendable {
         }
     }
 
-    /// Lời giải thích cho lỗi 422, dịch các trường hợp hay gặp sang tiếng Việt.
+    /// An explanation for a 422, translating the common cases into the active language.
     static func rejectionMessage(_ data: Data) -> String {
         struct Payload: Decodable {
             struct Item: Decodable { let message: String? }
@@ -379,7 +379,7 @@ public struct GitHubRepoAPI: Sendable {
         }
     }
 
-    /// Chỉ mở trang trên https://github.com.
+    /// Only opens pages on https://github.com.
     static func trustedWebURL(_ text: String) -> URL? {
         guard let url = URL(string: text), url.scheme == "https", url.host?.lowercased() == "github.com" else { return nil }
         return url

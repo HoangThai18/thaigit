@@ -2,8 +2,8 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Tự cập nhật: định kỳ hỏi GitHub Releases, tải ngầm và kiểm chữ ký bản mới, cài khi người dùng khởi động lại
-/// (hoặc khi thoát app — lần mở sau đã là bản mới).
+/// Automatic updates: periodically ask GitHub Releases, silently download and verify the new build's signature, and
+/// install it when the user restarts (or when the app quits — the next launch is then the new build).
 @Observable
 final class AppUpdater {
     static let shared = AppUpdater()
@@ -23,9 +23,9 @@ final class AppUpdater {
 
     private(set) var phase: Phase = .idle
     private(set) var lastChecked: Date?
-    /// Lần mở đầu tiên sau khi cập nhật: hiện "Đã cập nhật lên …" một lần.
+    /// The first launch after an update: show "Updated to …" once.
     private(set) var justUpdated: JustUpdated?
-    /// Người dùng bấm "Để sau" — ẩn thẻ thông báo tới lần mở app sau (bản mới vẫn được cài khi thoát).
+    /// The user pressed "Later" — hide the notification card until the next launch (the new build is still installed on quit).
     var bannerHidden = false
 
     let currentVersion: String
@@ -53,7 +53,7 @@ final class AppUpdater {
         }
     }
 
-    /// Bản build có khoá công khai + địa chỉ cập nhật trong Info.plist.
+    /// The build's public key plus the update address, both in Info.plist.
     var isSupported: Bool { client != nil }
 
     var isBusy: Bool {
@@ -63,8 +63,8 @@ final class AppUpdater {
         }
     }
 
-    /// Chỉ thay được app nằm trong thư mục Applications và ghi được (không phải bản đang chạy từ thư mục build,
-    /// hay bản macOS "dịch chuyển" sang chỗ tạm khi mở thẳng từ file tải về).
+    /// Only replaceable when the app sits in the Applications folder and the folder is writable (not a build running from the
+    /// build directory, and not a "relocated" macOS app moved aside when opened straight from the download).
     var canInstallInPlace: Bool {
         let app = Bundle.main.bundleURL
         let path = app.path
@@ -158,11 +158,11 @@ final class AppUpdater {
             return
         }
         phase = .idle
-        // Chờ tiến trình này thoát hẳn rồi mở lại app (lúc này đã là bản mới).
+        // Wait for this process to fully exit, then relaunch the app (by now it is the new build).
         AppRelauncher.relaunch()
     }
 
-    /// Gọi khi app thoát: có bản mới đã tải xong thì cài luôn, lần mở sau là bản mới.
+    /// Called when the app quits: install straight away if a new build has finished downloading, so the next launch is the new one.
     func installPendingOnQuit() {
         guard case .ready(let staged) = phase, canInstallInPlace else { return }
         try? UpdateInstaller.install(staged, replacing: Bundle.main.bundleURL)
@@ -177,7 +177,7 @@ final class AppUpdater {
     }
 }
 
-/// Thẻ kính ở góc dưới bên trái cửa sổ: bản mới đã tải xong, hoặc vừa cập nhật xong.
+/// A glass card in the bottom-left corner of a window: a finished download, or a just-completed update.
 struct UpdateBanner: View {
     private let updater = AppUpdater.shared
     @Environment(TabsModel.self) private var tabs
@@ -243,7 +243,7 @@ struct UpdateBanner: View {
     }
 }
 
-/// Mục "Cập nhật" trong Cài đặt.
+/// The "Update" item in Settings.
 struct UpdateSettingsSection: View {
     @AppStorage(Prefs.autoUpdate) private var autoUpdate = true
     private let updater = AppUpdater.shared

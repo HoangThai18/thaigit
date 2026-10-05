@@ -1,6 +1,6 @@
 import Foundation
 
-/// Kết quả chạy một tiến trình con.
+/// The result of running one child process.
 public struct ProcessOutput: Sendable {
     public let exitCode: Int32
     public let stdout: Data
@@ -16,7 +16,7 @@ public struct ProcessOutput: Sendable {
     public var stderrString: String { String(decoding: stderr, as: UTF8.self) }
 }
 
-/// Hộp giá trị có khoá, dùng để gom dữ liệu từ nhiều luồng đọc pipe.
+/// A keyed box for collecting data from several pipe-reading tasks.
 final class LockedBox<Value>: @unchecked Sendable {
     private var value: Value
     private let lock = NSLock()
@@ -32,7 +32,7 @@ final class LockedBox<Value>: @unchecked Sendable {
     var current: Value { withValue { $0 } }
 }
 
-/// Gói các đối tượng Foundation (không Sendable) của một tiến trình để dùng trong closure chạy nền.
+/// Wraps a process's non-Sendable Foundation objects so they can be used in a background closure.
 private final class ProcessHandles: @unchecked Sendable {
     let process = Process()
     let stdout = Pipe()
@@ -45,14 +45,14 @@ private final class ProcessHandles: @unchecked Sendable {
 }
 
 public enum ProcessRunner {
-    /// Ghi vào pipe của tiến trình đã thoát sẽ phát SIGPIPE và giết app — bỏ qua tín hiệu này.
+    /// Writing to the pipe of an exited process raises SIGPIPE and kills the app — that signal is ignored.
     private static let ignoreSigpipe: Bool = {
         signal(SIGPIPE, SIG_IGN)
         return true
     }()
 
-    /// Chạy tiến trình, đọc stdout/stderr song song (tránh deadlock khi output lớn).
-    /// Huỷ Task sẽ gửi SIGTERM cho tiến trình.
+    /// Runs the process, reading stdout/stderr in parallel (avoiding deadlock on large output).
+    /// Cancelling the Task sends SIGTERM to the process.
     public static func run(
         executable: URL,
         arguments: [String],
@@ -107,7 +107,7 @@ public enum ProcessRunner {
                             if chunk.isEmpty { break }
                             errBox.withValue { $0.append(chunk) }
                             pending.append(chunk)
-                            // git dùng \r để cập nhật dòng tiến độ, \n cho dòng mới.
+                            // git uses \r to redraw a progress line and \n for a new line.
                             while let index = pending.firstIndex(where: { $0 == 0x0A || $0 == 0x0D }) {
                                 let lineData = pending[pending.startIndex..<index]
                                 pending.removeSubrange(pending.startIndex...index)

@@ -1,10 +1,11 @@
-// Diff ảnh: lấy byte bản cũ / bản mới của một file ảnh theo nguồn diff (index, HEAD, commit, stash, working tree) để xem
-// cạnh nhau. Chỉ đọc (cat-file / đọc file), giới hạn kích thước.
+// Image diff: fetch the old / new bytes of an image file from whichever diff source it came from (index,
+// HEAD, a commit, a stash, the working tree) so the two can be viewed side by side. Read-only (cat-file /
+// file read) and size-capped.
 
 import type { FileChange, GitRepository, Stash } from '@thaigit/core';
 import type { DiffSource } from '../stores/diff.svelte.ts';
 
-/** Ảnh trình duyệt của cả WKWebView lẫn WebView2 hiển thị được. */
+/** Image formats both WKWebView and WebView2 can display. */
 const IMAGE_TYPES: Readonly<Record<string, string>> = {
   png: 'image/png',
   jpg: 'image/jpeg',
@@ -16,7 +17,7 @@ const IMAGE_TYPES: Readonly<Record<string, string>> = {
   avif: 'image/avif',
 };
 
-/** Quá cỡ này thì không xem trước (tránh giữ hàng chục MB trong bộ nhớ webview). */
+/** Above this size there is no preview (avoids holding tens of MB in webview memory). */
 export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 
 export function imageType(path: string): string | null {
@@ -47,7 +48,7 @@ async function read(load: () => Promise<Uint8Array | null>): Promise<ImageSide> 
   }
 }
 
-/** Byte hai phía của file ảnh `change` theo `source`. File mới → không có bản cũ; file xoá → không có bản mới. */
+/** Both sides' bytes of the image file `change` per `source`. A new file has no old side; a deleted file has no new side. */
 export async function loadImagePair(
   git: GitRepository,
   source: DiffSource,

@@ -3,9 +3,10 @@ import { Commands, Events, type RepoChangedEvent } from '@thaigit/contracts';
 import { call } from './invoke.ts';
 
 /**
- * Theo dõi thay đổi của repo (debounce thích nghi + lọc gitignore + tắt tiếng khi app đang ghi đều ở Rust).
- * Nghe sự kiện TRƯỚC khi bật watcher để không bỏ lỡ sự kiện đầu. Trả hàm dừng.
- * Dùng `listen` của chính cửa sổ này: sự kiện `repo-changed` được Rust gửi theo nhãn cửa sổ.
+ * Watch a repo for changes (adaptive debounce + gitignore filtering + silencing while the app itself is
+ * writing, all inside Rust). Subscribe to the event BEFORE starting the watcher so the first change is
+ * never missed. Returns a stop function.
+ * Uses this window's own `listen`: the `repo-changed` event is sent by Rust per window label.
  */
 export async function watchRepo(
   repoId: string,
@@ -26,7 +27,7 @@ export async function watchRepo(
   };
 }
 
-/** Rust phát `git-env-changed` khi đổi/tìm lại git (vd. PATH của login shell nạp xong). Trả hàm huỷ nghe. */
+/** Rust emits `git-env-changed` when git changes or is re-detected (e.g. a login shell finished loading PATH). Returns an unsubscribe function. */
 export async function onGitEnvChanged(handler: () => void): Promise<() => void> {
   return getCurrentWebviewWindow().listen(Events.gitEnvChanged, () => handler());
 }

@@ -16,12 +16,12 @@
   interface Props {
     recent: readonly RecentRepo[];
     opening: boolean;
-    /** Thông báo khi chưa mở được repo (vd. chạy ngoài Tauri); có thì khoá nút mở. */
+    /** Message when no repo could be opened (e.g. running outside Tauri); when present the open button is disabled. */
     unavailable?: string;
     onopen: () => void;
     onrecent: (repo: RecentRepo) => void;
     onforget: (repo: RecentRepo) => void;
-    /** Clone / tạo repo mới (không có khi chạy ngoài app). */
+    /** Clone / create a new repo (absent when running outside the app). */
     onclone?: () => void;
     oninit?: () => void;
   }

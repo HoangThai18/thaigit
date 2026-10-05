@@ -1,6 +1,6 @@
-// Dữ liệu đã chuẩn bị sẵn để vẽ diff (tính ở luồng nền): chữ hiển thị (tab → khoảng trắng), vùng tô đậm trong
-// dòng, cặp dòng cho chế độ hai cột. CHỈ để hiển thị: giải mã UTF-8 lỏng, bỏ "\r" cuối dòng — không bao giờ
-// dùng kết quả này để dựng patch hay ghi file (patch dùng byte trong `FileDiff`).
+// Pre-computed data for drawing a diff (calculated off the main thread): display text (tabs → spaces), the bold
+// ranges inside a line, and deleted/added line pairs for two-column mode. DISPLAY ONLY: UTF-8 is decoded lossily and
+// the trailing "\r" is dropped — never build a patch or write a file from this (patches use the bytes in `FileDiff`).
 
 import { codePointLength, decodeUtf8Lossy, truncateCodePoints } from '../support/text.ts';
 import type { DiffLineKind, FileDiff } from './diff.ts';
@@ -9,7 +9,7 @@ import { type TextRange, inlineHighlights } from './inline-diff.ts';
 export const MAX_DISPLAY_LENGTH = 1_200;
 
 export interface PresentationLine {
-  /** Chỉ số dòng trong `hunk.lines` (dùng làm khoá chọn dòng cho `makePatch`). */
+  /** Line index in `hunk.lines` (used as the key for per-line selection in `makePatch`). */
   readonly index: number;
   readonly kind: DiffLineKind;
   readonly text: string;
@@ -33,7 +33,7 @@ export interface PresentationHunk {
 export interface DiffPresentation {
   readonly diff: FileDiff;
   readonly hunks: readonly PresentationHunk[];
-  /** Số code point của dòng dài nhất (đã đổi tab, đã cắt) — để tính bề ngang cuộn. */
+  /** Code point length of the longest line (after tab expansion and truncation) — used to size the horizontal scroll. */
   readonly maxLineLength: number;
   readonly maxLineNumber: number;
 }
@@ -44,7 +44,7 @@ export function buildPresentation(diff: FileDiff): DiffPresentation {
   let maxNumber = 0;
   for (const hunk of diff.hunks) {
     const texts = hunk.lines.map((line) => displayText(decodeUtf8Lossy(line.text)));
-    // Tô đậm tính trên chữ đã đổi tab để khớp vị trí hiển thị.
+    // Bold ranges are computed on the tab-expanded text so they match display positions.
     const highlights = inlineHighlights(
       hunk.lines.map((line, index) => ({ kind: line.kind, text: texts[index] ?? '' })),
     );
@@ -66,7 +66,7 @@ export function buildPresentation(diff: FileDiff): DiffPresentation {
   return { diff, hunks, maxLineLength: maxLength, maxLineNumber: maxNumber };
 }
 
-/** Tab → 4 dấu cách, bỏ "\r" cuối dòng (file CRLF), cắt dòng quá dài. */
+/** Tabs → 4 spaces, trailing "\r" dropped (CRLF files), over-long lines truncated. */
 export function displayText(text: string): string {
   let value = text.replaceAll('\t', '    ');
   if (value.endsWith('\r')) value = value.slice(0, -1);
@@ -76,7 +76,7 @@ export function displayText(text: string): string {
   return value;
 }
 
-/** Ghép dòng xoá thứ k với dòng thêm thứ k trong mỗi khối thay đổi. */
+/** Pairs the k-th deleted line with the k-th added line in each change block. */
 export function buildSplitRows(lines: readonly PresentationLine[]): SplitRow[] {
   const rows: SplitRow[] = [];
   let index = 0;

@@ -9,16 +9,16 @@
 
   interface Props {
     items: readonly MenuItem[];
-    /** Góc trên-trái mong muốn (menu gốc) hoặc hình chữ nhật của mục cha (menu con). */
+    /** Desired top-left corner (for a root menu) or the parent item's rectangle (for a submenu). */
     anchor: { x: number; y: number } | DOMRect;
     minWidth: number;
-    /** Chọn sẵn mục đầu (mở bằng bàn phím / mở menu con bằng phím). */
+    /** Preselect the first entry (opened by keyboard / a submenu opened with the keyboard). */
     focusFirst: boolean;
-    /** Menu chuột phải: hết chỗ phía dưới thì lật lên trên con trỏ. */
+    /** Right-click menu: when there's no room below it flips up above the cursor. */
     flipUp?: boolean;
     run: (item: MenuItem) => void;
     closeAll: () => void;
-    /** Menu con: ← quay về mục cha. */
+    /** Submenu: ← returns to the parent item. */
     onback?: () => void;
   }
 
@@ -31,7 +31,7 @@
   let childAnchor = $state<DOMRect | null>(null);
   let childFocusFirst = $state(false);
 
-  // Đo rồi đặt vị trí (chạy lại khi mục / neo đổi).
+  // Measure, then position (re-runs when the items or the anchor change).
   $effect(() => {
     const node = element;
     if (!node) return;

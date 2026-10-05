@@ -1,11 +1,15 @@
 /**
- * Mọi chuỗi giao diện gom một chỗ. `vi` là bộ chuỗi CỦA NGÔN NGỮ ĐANG DÙNG (giữ tên cũ để không phải sửa mọi nơi gọi):
- * tiếng Việt mặc định, tiếng Anh (`strings.en.ts`) khi người dùng chọn trong Cài đặt — chọn một lần lúc nạp app.
- * File này GỘP các file con trong `strings/` (mỗi `*.vi.ts` có bản `*.en.ts` cùng khoá):
- *  - `shell.vi.ts`: chuỗi "khung" (welcome, trust, window, graph, sidebar, inspector, time, errors, toast, dialog, menu, busy…)
- *    được trải phẳng nên `vi.window.x`, `vi.graph.x`… giữ nguyên như trước khi tách.
- *  - mỗi gói tính năng một namespace riêng: `vi.staging`, `vi.branches`, `vi.remote`, `vi.update`, `vi.snapshots`, `vi.history` (một file, một gói) — nhờ vậy
- *    các gói làm song song không bao giờ trùng khoá hay sửa chung file. Test `strings.test.ts` giữ namespace không trùng khoá của shell.
+ * Every UI string in one place. `vi` is the string set FOR THE ACTIVE LANGUAGE (the old name is kept so
+ * call sites don't all have to change): Vietnamese by default, English (`strings.en.ts`) when the user picks
+ * it in Settings — chosen once at load time.
+ * This file MERGES the sub-files under `strings/` (each `*.vi.ts` has a sibling `*.en.ts` with the same
+ * keys):
+ *  - `shell.vi.ts`: the "shell" strings (welcome, trust, window, graph, sidebar, inspector, time,
+ *    errors, toast, dialog, menu, busy…) spread out flat, so `vi.window.x`, `vi.graph.x`… keep working as
+ *    they did before the split.
+ *  - each feature area gets its own namespace: `vi.staging`, `vi.branches`, `vi.remote`, `vi.update`,
+ *    `vi.snapshots`, `vi.history` (one file, one area) — so areas worked on in parallel can never collide
+ *    on a key or edit the same file. `strings.test.ts` keeps the shell namespaces key-disjoint.
  */
 import { locale } from './i18n/locale.ts';
 import { en } from './strings.en.ts';
@@ -53,7 +57,7 @@ const viStrings = {
   terminal,
 } as const;
 
-/** Hình dạng chung của mọi bản dịch (chữ là `string`, hàm giữ nguyên tham số). */
+/** The shape shared by every translation (strings are `string`, functions keep their parameters). */
 export type Strings = Translation<typeof viStrings>;
 
 export const vi: Strings = locale === 'en' ? en : viStrings;

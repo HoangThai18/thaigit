@@ -1,32 +1,34 @@
 /**
- * Ảnh đại diện thật của người commit cho node graph (như GitKraken). Rust tải + cache trên đĩa rồi trả data URL
- * (`avatar_lookup`); ở đây chỉ giữ ảnh ĐÃ giải mã để canvas vẽ được. Chưa có ảnh thì node vẽ chữ viết tắt.
+ * Real commit-author avatars for graph nodes (like GitKraken). Rust downloads and disk-caches them, then
+ * returns data URLs (`avatar_lookup`); here we only keep the DECODED images so the canvas can paint them.
+ * Without an image the node draws initials.
  *
- * Một store dùng chung cho mọi cửa sổ: cùng một email chỉ hỏi Rust một lần, và `version` tăng mỗi khi có ảnh mới
- * để lớp canvas vẽ lại đúng một lần thay vì mỗi hàng một lần.
+ * One store shared by every window: a given email is only asked about once, and `version` bumps whenever a
+ * new image arrives so the canvas layer repaints exactly once instead of once per row.
  */
 import { avatarLookup, type GithubRepoRef } from '../ipc/index.ts';
 
-/** Số ảnh giữ đã giải mã trong RAM; vượt thì bỏ ảnh cũ nhất (Rust vẫn cache trên đĩa nên lần sau lấy lại rất nhanh). */
+/** Decoded images kept in RAM; beyond this the oldest is dropped (Rust still has the disk cache, so a refetch is cheap). */
 const MEMORY_LIMIT = 400;
-/** Hỏi lỗi tối đa số lần cho mỗi email rồi thôi (lệnh không tồn tại, IPC hỏng) — không hỏi vô hạn khi cuộn. */
+/** Give up on an email after this many failed attempts (missing command, broken IPC) — never hammer on every scroll. */
 const MAX_ATTEMPTS = 3;
 
-/** Khoá bộ nhớ theo email: chuẩn hoá giống Rust (`normalize`) để cùng một người chỉ có một mục. */
+/** Cache key per email: normalised exactly like Rust's `normalize` so one person maps to one entry. */
 export function avatarKey(email: string): string {
   return email.trim().toLowerCase();
 }
 
 /**
- * Cổng tải ảnh — test thay bằng hàm giả, không gọi IPC thật. `github` là repo trên GitHub của repo đang mở:
- * nhờ nó Rust tìm được ảnh qua API commit cho email thật (đa số người dùng GitHub không có Gravatar).
+ * Avatar download port — tests substitute a fake and never touch real IPC. `github` is the open repo's GitHub
+ * repo: it lets Rust resolve avatars for real emails through the commits API (most GitHub users have no
+ * Gravatar).
  */
 export type AvatarPort = (email: string, github: GithubRepoRef | null) => Promise<string | null>;
 
-/** Ảnh đã giải mã: Rust chỉ trả ảnh raster nên luôn là `HTMLImageElement` (canvas vẽ bằng kích thước tự nhiên). */
+/** Decoded avatar: Rust only returns raster images, so this is always an `HTMLImageElement` (the canvas draws at natural size). */
 export type AvatarImage = HTMLImageElement;
 
-/** Giải mã data URL thành ảnh đã nạp. `null` khi không có `Image` (môi trường kiểm thử) hoặc ảnh hỏng. */
+/** Decode a data URL into a loaded image. `null` when there is no `Image` (test environment) or the image is broken. */
 async function decode(dataUrl: string): Promise<AvatarImage | null> {
   if (typeof Image === 'undefined') return null;
   const image = new Image();
@@ -40,30 +42,30 @@ async function decode(dataUrl: string): Promise<AvatarImage | null> {
 }
 
 export class AvatarStore {
-  /** Tăng mỗi khi có ảnh mới — lớp canvas đọc để biết khi nào vẽ lại. */
+  /** Bumps whenever a new image arrives — the canvas layer reads it to know when to repaint. */
   version = $state(0);
   readonly #images = new Map<string, AvatarImage>();
-  /** email không có ảnh (đã hỏi xong) — để khỏi hỏi lại cùng một người. */
+  /** Emails with no avatar (already looked up) — so we never ask about the same person twice. */
   readonly #missing = new Set<string>();
   readonly #pending = new Map<string, Promise<void>>();
-  /** Số lần hỏi hỏng (lệnh không có — ví dụ cầu nối DEV; hoặc IPC hỏng). Hết lượt thì thôi hỏi lại. */
+  /** Failed attempt counts (command missing — e.g. the DEV bridge; or broken IPC). Once exhausted, no more retries. */
   readonly #failed = new Map<string, number>();
 
   /**
-   * Repo trên GitHub của repo đang mở. Đặt lại mỗi khi mở tab khác; ảnh đã tải vẫn giữ nguyên trong bộ nhớ
-   * (đúng với đa số repo), nên chỉ ảnh mới mới hỏi lại với repo mới.
+   * GitHub repo of the open repo. Reset whenever another tab is opened; already loaded images stay in memory
+   * (correct for most repos), so only genuinely new images are looked up for a new repo.
    */
   github = $state<GithubRepoRef | null>(null);
 
   /**
-   * Cài đặt "Ảnh đại diện thật trên graph". Tắt thì bỏ ảnh đang có khỏi bộ nhớ (đồng thời tăng `version` để
-   * canvas vẽ lại chữ viết tắt) và không hỏi gì nữa — đúng như `AvatarStore.isEnabled` của app Swift.
+   * The "Real avatars on graph" preference. Turning it off clears cached images (bumping `version` so the
+   * canvas repaints initials) and stops all lookups — mirroring the Swift app's `AvatarStore.isEnabled`.
    */
   enabled = $state(true);
 
   constructor(private readonly port: AvatarPort = avatarLookup) {}
 
-  /** Bật / tắt ảnh đại diện. `true` thì ảnh đã bỏ đi sẽ được tải lại khi hàng vào vùng thấy. */
+  /** Enable / disable avatars. With `true`, cleared images are reloaded as rows enter the viewport. */
   setEnabled(enabled: boolean): void {
     if (this.enabled === enabled) return;
     this.enabled = enabled;
@@ -73,14 +75,14 @@ export class AvatarStore {
     this.version += 1;
   }
 
-  /** Ảnh đã giải mã của `email`; `null` khi chưa tải xong hoặc không có ảnh. */
+  /** Decoded avatar for `email`; `null` while not yet loaded or when there is none. */
   image(email: string): AvatarImage | null {
     const key = avatarKey(email);
     if (!key.includes('@')) return null;
     return this.#images.get(key) ?? null;
   }
 
-  /** Bảo đảm ảnh của `email` nằm trong bộ nhớ (tải nếu chưa có). Lỗi thì im lặng: node vẽ chữ viết tắt. */
+  /** Make sure `email`'s image is in memory (downloading it if needed). Failures are silent: the node draws initials. */
   ensure(email: string): void {
     const key = avatarKey(email);
     if (!this.enabled) return;
@@ -97,7 +99,7 @@ export class AvatarStore {
     try {
       dataUrl = await this.port(email, this.github);
     } catch {
-      // Không ghi "không có ảnh": vẫn thử lại được (lỗi mạng, repo chưa tin cậy…). Nhưng không hỏi vô hạn.
+      // Don't record "no avatar": the lookup is worth retrying (network error, untrusted repo…). But don't retry forever.
       this.#failed.set(key, (this.#failed.get(key) ?? 0) + 1);
       return;
     }
@@ -125,5 +127,5 @@ export class AvatarStore {
   }
 }
 
-/** Store dùng chung: nhiều cửa sổ repo cùng xem một người commit không nên tải lại. */
+/** Shared store: several repo windows looking at the same committer must not download them again. */
 export const avatars = new AvatarStore();

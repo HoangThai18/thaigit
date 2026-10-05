@@ -97,7 +97,7 @@ describe('NodeExec: chính sách', () => {
         env: { GIT_LITERAL_PATHSPECS: '1' },
       });
       expect(dec.decode(diff.stdout)).toContain('+2');
-      // Cờ -c toàn cục có hiệu lực: color.ui=false dù cấu hình repo bật màu.
+      // The global -c flags really do apply: color.ui=false even though the repo config enables colour.
       t.git('config', 'color.ui', 'always');
       const colored = await exec.run({ kind: 'read', sub: 'diff', args: ['--', 'a.txt'] });
       expect(dec.decode(colored.stdout)).not.toContain('\u001b[');
@@ -231,7 +231,7 @@ describe.skipIf(IS_WINDOWS)('NodeExec/spawnGit: tiến trình, stderr, huỷ', (
         args: ['origin', 'main'],
         signal: controller.signal,
       });
-      // Chỉ huỷ sau khi script đã cài xong trap (lần chạy đầu của file mới có thể chậm vì quét bảo mật của hệ điều hành).
+      // Cancel only after the script has installed its trap (the first run of the file can be slow because of OS security scanning).
       await waitFor(() => fileExists(ready));
       controller.abort();
       const result = await pending;
@@ -277,14 +277,14 @@ describe.skipIf(IS_WINDOWS)('NodeExec/spawnGit: tiến trình, stderr, huỷ', (
       t.git('remote', 'add', 'origin', 'ssh://localhost/khong-ton-tai.git');
       const controller = new AbortController();
       const pending = repo.fetch({ signal: controller.signal });
-      // Chỉ huỷ khi git đã thực sự bật lệnh ssh (tiến trình con treo): đúng tình huống "mạng chậm".
+      // Cancel only once git has actually launched ssh (a child process is hanging): exactly the "slow network" situation.
       const sshPid = await hang.pid();
       expect(isProcessAlive(sshPid)).toBe(true);
       controller.abort();
       const error = await rejection(pending);
       expect(error).toBeInstanceOf(CancelledError);
       expect((error as CancelledError).exitCode).toBe(143);
-      // Huỷ giết cả nhóm tiến trình: ssh không bị bỏ lại mồ côi.
+      // Cancelling kills the whole process group, so ssh is not left orphaned.
       await waitFor(() => !isProcessAlive(sshPid), 5000);
     }));
 });
@@ -341,8 +341,8 @@ describe('NodeRepoFs: phạm vi', () => {
             expect((error as AdapterError).code, path).toBe('out-of-scope');
           }
         }
-        // Dời vào thùng rác: đi qua thư mục symlink ra ngoài thì bị chặn; còn chính symlink là mục nằm trong repo nên
-        // chỉ dời cái link, KHÔNG đụng tới file mà nó trỏ tới.
+        // Moving to the trash: going through a symlinked directory that points outside is blocked; the symlink itself is an
+        // entry inside the repo, so only the link moves — the file it targets is NOT touched.
         for (const path of ['link-dir/bi-mat.txt', 'link-tuong-doi/bi-mat.txt']) {
           expect(((await rejection(fs.trashUntracked([path]))) as AdapterError).code, path).toBe(
             'out-of-scope',
@@ -354,12 +354,12 @@ describe('NodeRepoFs: phạm vi', () => {
         await fs.restoreTrash(token);
         expect((await lstat(join(t.root, 'link-file'))).isSymbolicLink()).toBe(true);
         expect((await lstat(join(t.root, 'link-dir'))).isSymbolicLink()).toBe(true);
-        // Ghi vào file mới dưới thư mục symlink ra ngoài cũng bị chặn, và không có gì được tạo ngoài repo.
+        // Writing a new file under a symlinked directory pointing outside is blocked too, and nothing is created outside the repo.
         const error = await rejection(fs.writeWorktreeFile('link-dir/moi.txt', enc.encode('x'), null));
         expect((error as AdapterError).code).toBe('out-of-scope');
         expect(await readdir(outside)).toEqual(['bi-mat.txt']);
         expect(await readFile(join(outside, 'bi-mat.txt'), 'utf8')).toBe('BÍ MẬT');
-        // Symlink trỏ vào bên trong repo vẫn dùng được.
+        // A symlink pointing inside the repo still works.
         expect(dec.decode((await fs.readWorktreeFile('link-trong')) ?? new Uint8Array(0))).toBe('trong repo');
       }),
   );
@@ -396,7 +396,7 @@ describe('NodeRepoFs: phạm vi', () => {
         expect(await t.exists('.git/hooks/post-checkout')).toBe(false);
       }
       expect(await rejection(fs.trashUntracked(['.git/HEAD']))).toBeInstanceOf(AdapterError);
-      // `.gitignore`, `.github/…` không phải `.git`.
+      // `.gitignore`, `.github/…` are not `.git`.
       await fs.appendGitignore('node_modules/');
       await t.write('.github/workflows/ci.yml', 'name: ci\n');
       expect(await fs.readWorktreeFile('.github/workflows/ci.yml')).not.toBeNull();
@@ -458,7 +458,7 @@ describe('NodeRepoFs: ghi CAS theo byte', () => {
       await fs.writeWorktreeFile('a.txt', enc.encode('bản mới\n'), sha256(original));
       expect(await t.read('a.txt')).toBe('bản mới\n');
 
-      // Người dùng sửa file ngoài app trong lúc app đang giữ bản cũ.
+      // The user edited the file outside the app while the app held the old version.
       await t.write('a.txt', 'sửa ngoài app\n');
       const error = await rejection(
         fs.writeWorktreeFile('a.txt', enc.encode('app ghi đè\n'), sha256(original)),
@@ -468,7 +468,7 @@ describe('NodeRepoFs: ghi CAS theo byte', () => {
       expect(await t.read('a.txt')).toBe('sửa ngoài app\n');
       expect((await readdir(t.root)).filter((name) => name.includes('.tmp'))).toEqual([]);
 
-      // Sha viết hoa vẫn khớp; `null` nghĩa là "file phải chưa tồn tại".
+      // An uppercase sha still matches; `null` means "the file must not exist".
       await fs.writeWorktreeFile('a.txt', enc.encode('ok\n'), sha256('sửa ngoài app\n').toUpperCase());
       expect(
         ((await rejection(fs.writeWorktreeFile('a.txt', enc.encode('x'), null))) as AdapterError).code,
@@ -645,7 +645,7 @@ describe('NodeRepoFs: thùng rác của app', () => {
       const left = await readdir(join(t.repo.commonDir, 'thaigit', 'trash'));
       expect(left).toEqual([second]);
       expect(((await rejection(fs.restoreTrash(first))) as AdapterError).code).toBe('not-found');
-      // Thùng rác chưa quá hạn thì giữ nguyên.
+      // Trash not yet expired: left alone.
       const keep = new NodeRepoFs({ root: t.repo.root, gitDir: t.repo.gitDir, commonDir: t.repo.commonDir });
       await keep.restoreTrash(second).catch(() => undefined);
     }));
@@ -689,7 +689,7 @@ describe('NodeGitHost', () => {
     await withTempDir(async (dir) => {
       const host = new NodeGitHost(isolatedConfig());
       expect(await host.version()).toMatch(/^git version \d+\.\d+/);
-      // Không đặt thư mục tên "con": CON là tên thiết bị bị cấm trên Windows (git báo Invalid argument).
+      // Do not name a directory "con": CON is a reserved device name on Windows (git reports Invalid argument).
       const target = join(dir, 'cha', 'chau', 'dự án');
       await host.init(target);
       expect(rawGit(target, ['symbolic-ref', '--short', 'HEAD'])).toBe('main\n');
@@ -743,7 +743,7 @@ describe('NodeGitHost', () => {
         expect(error, url).toBeInstanceOf(AdapterError);
         expect((error as AdapterError).code).toBe('policy');
       }
-      // Clone từ nguồn không tồn tại → GitError với thông báo của git.
+      // Cloning from a nonexistent source → GitError carrying git's own message.
       const failure = await rejection(host.clone(join(dir, 'khong-co'), join(dir, 'dich')));
       expect(failure).toBeInstanceOf(GitError);
     });
@@ -799,7 +799,7 @@ describe('NodeTypedGit: lệnh có kiểu', () => {
       expect(((await rejection(typed.configSet('user.name', 'a\0b', 'local'))) as AdapterError).code).toBe(
         'policy',
       );
-      // branch.*.remote nhận URL: áp luật URL của chính sách.
+      // branch.*.remote takes a URL: the policy's URL rules apply.
       expect(
         ((await rejection(typed.configSet('branch.main.remote', 'ext::sh -c id', 'local'))) as AdapterError)
           .code,
@@ -851,7 +851,7 @@ describe('NodeTypedGit: lệnh có kiểu', () => {
         );
       }
       expect(t.git('remote').trim().split('\n').sort()).toEqual(['cục-bộ', 'origin']);
-      // Remote đã có → git báo lỗi chuẩn.
+      // Remote already exists → git reports its usual error.
       expect(await rejection(typed.remoteAdd('origin', 'https://x/y'))).toBeInstanceOf(GitError);
     }));
 });

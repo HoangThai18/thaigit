@@ -1,4 +1,4 @@
-// Lấy nhánh của một PR / MR về máy rồi checkout (dùng ở menu của sidebar và nút trong panel review).
+// Fetch a PR / MR's branch locally and check it out (used from the sidebar menu and the review panel button).
 
 import type { ForgeMergeRequest } from '@thaigit/contracts';
 import { refName } from '@thaigit/core';
@@ -8,7 +8,7 @@ import { vi } from '../strings.vi.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { pullRequestCheckout, targetOf } from './pullRequests.ts';
 
-/** Nhánh của PR về máy rồi checkout (nhánh local đã có thì chỉ checkout). */
+/** Fetch then check out the branch of a PR (if the local branch already exists, only check out). */
 export async function checkoutPullRequest(store: RepoStore, item: ForgeMergeRequest): Promise<void> {
   const text = vi.pullRequests;
   const current = targetOf(store);
@@ -25,7 +25,7 @@ export async function checkoutPullRequest(store: RepoStore, item: ForgeMergeRequ
       if (plan.sameRepo) {
         await git.checkoutTracking(plan.remoteRef, plan.localName);
       } else {
-        // Nhánh của fork: không đặt upstream (remote không có nhánh `pr/<số>` để pull / push).
+        // Branch of a fork: don't set an upstream (the remote has no `pr/<number>` branch to pull / push).
         await git.createBranch(plan.localName, plan.remoteRef, true);
         await git.unsetUpstream(plan.localName).catch(() => undefined);
       }

@@ -1,11 +1,11 @@
 <!-- Thanh kéo đổi độ rộng panel (sidebar / inspector). Con trỏ được "bắt" nên kéo ra ngoài thanh vẫn mượt; hỗ trợ bàn phím. -->
 <script lang="ts">
   interface Props {
-    /** Độ rộng hiện tại của panel (px). */
+    /** Current width of the panel (px). */
     value: number;
     min: number;
     max: number;
-    /** `left`: panel nằm bên trái thanh (kéo sang phải thì rộng ra); `right`: panel bên phải. */
+    /** `left`: the panel sits left of the bar (dragging right widens it); `right`: the panel is on the right. */
     side: 'left' | 'right';
     label: string;
     onchange: (width: number) => void;
@@ -74,7 +74,7 @@
     touch-action: none;
   }
 
-  /* Vùng bấm rộng hơn vạch kẻ. */
+  /* The hit area is wider than the drawn line. */
   .splitter::before {
     content: '';
     position: absolute;

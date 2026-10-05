@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `history.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `histor.vi.ts` (same keys, same parameters). */
 import type { history as source } from './history.vi.ts';
 import type { Translation } from './types.ts';
 

@@ -1,6 +1,7 @@
-//! Tìm git: cài đặt người dùng → PATH (macOS thêm PATH của login shell, tối đa 3 s) → thư mục dự phòng của chính sách
-//! → `where.exe` (Windows); kiểm `git --version` và "sàn bảo mật" theo advisory. Rust là nguồn sự thật duy nhất cho đường
-//! dẫn git: webview chỉ chọn được trong số ứng viên Rust tìm thấy hoặc file chọn qua hộp thoại native.
+//! Finding git: the user's install → PATH (on macOS also the login shell's PATH, at most 3 s) → the policy's fallback
+//! directories → `where.exe` (Windows); then `git --version` is checked and compared against the security floor in the
+//! advisories. Rust is the single source of truth for the git path: the webview can only choose among the candidates Rust
+//! found, or a file picked with the native dialog.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -13,16 +14,16 @@ use crate::errors::{AppError, Result};
 use crate::policy::policy;
 use crate::store;
 
-/// Dưới mức này thiếu tính năng cần dùng (`--pathspec-from-file`, `switch`, `restore`).
+/// Below this, a feature we need is missing (`--pathspec-from-file`, `switch`, `restore`).
 pub const MIN_FEATURE_VERSION: (u32, u32, u32) = (2, 35, 0);
 
-/// Ngày xem lại bảng sàn bảo mật gần nhất — xem lại mỗi lần phát hành (plan: Phase 2 "Sàn git bảo mật").
+/// When the security-floor table was last reviewed — review it on every release (plan: Phase 2 "Git security floor").
 pub const FLOOR_TABLE_REVIEWED: &str = "2026-10-02";
 
-/// Bản vá tối thiểu theo dòng (series) — gom từ các advisory git đến CVE-2025-48384/48385/48386 (07/2025), trước đó
-/// CVE-2024-32002/32004/32020/32021/32465, CVE-2024-50349/52006 và CVE-2022-23521/41903 (clone/checkout/credential).
-/// Dòng < 2.39 không còn bản vá nào → dưới sàn. Dòng ≤ 2.42 không có bản vá cho CVE-2025-48384 (chỉ ảnh hưởng
-/// `clone --recurse-submodules`, thứ app không bao giờ chạy) nên 2.39.5 … 2.42.4 vẫn đạt sàn. Dòng > 2.50: chưa có advisory.
+/// Minimum patch per series — gathered from git's advisories through CVE-2025-48384/48385/48386 (07/2025), before that
+/// CVE-2024-32002/32004/32020/32021/32465, CVE-2024-50349/52006 and CVE-2022-23521/41903 (clone/checkout/credential).
+/// Series < 2.39 has no patches left → below the floor. Series ≤ 2.42 has no patch for CVE-2025-48384 (it only affects
+/// `clone --recurse-submodules`, which the app never runs), so 2.39.5 … 2.42.4 still meet the floor. Series > 2.50: no advisory yet.
 const SECURITY_FLOOR: &[((u32, u32), u32)] = &[
     ((2, 39), 5),
     ((2, 40), 4),
@@ -38,21 +39,21 @@ const SECURITY_FLOOR: &[((u32, u32), u32)] = &[
     ((2, 50), 1),
 ];
 
-/// Git for Windows < 2.53.0.windows.2 lộ băm NTLM khi clone từ máy chủ lạ (CVE-2025-66413): chỉ cảnh báo, không chặn.
+/// Git for Windows < 2.53.0.windows.2 leaks an NTLM hash when cloning from an untrusted host (CVE-2025-66413): warn only, never block.
 const WINDOWS_NTLM_FIX: (u32, u32, u32, u32) = (2, 53, 0, 2);
 
-/// Phiên bản git đã tách từ `git --version`.
+/// The git version parsed out of `git --version`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GitVersion {
     pub major: u32,
     pub minor: u32,
     pub patch: u32,
-    /// Số bản dựng Git for Windows (`2.47.1.windows.2` → `Some(2)`).
+    /// Git for Windows build number (`2.47.1.windows.2` → `Some(2)`).
     pub windows_build: Option<u32>,
 }
 
 impl GitVersion {
-    /// Tách từ output như `git version 2.54.0 (Apple Git-157)` hoặc `git version 2.47.1.windows.2`.
+    /// Parsed from output like `git version 2.54.0 (Apple Git-157)` or `git version 2.47.1.windows.2`.
     pub fn parse(output: &str) -> Option<Self> {
         let rest = output.trim().strip_prefix("git version ")?;
         let token = rest.split_whitespace().next()?;
@@ -77,10 +78,10 @@ impl GitVersion {
     }
 }
 
-/// Kết quả so với sàn bảo mật.
+/// Result of comparing against the security floor.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FloorCheck {
-    /// Dưới bản vá RCE/clone mới nhất của dòng → chặn clone/fetch/pull.
+    /// Below the series' newest RCE / clone patch → clone/fetch/pull are blocked.
     pub below_floor: bool,
     pub minimum: Option<String>,
     pub warning: Option<String>,
@@ -125,12 +126,12 @@ pub fn check_floor(version: &GitVersion) -> FloorCheck {
     check
 }
 
-/// Thông tin git gửi cho webview (`git_locate`).
+/// What git info goes to the webview (`git_locate`).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitInfo {
     pub path: String,
-    /// Nguyên văn `git --version`, ví dụ `git version 2.54.0 (Apple Git-157)`.
+    /// The verbatim `git --version`, e.g. `git version 2.54.0 (Apple Git-157)`.
     pub version: String,
     pub version_tuple: [u32; 3],
     /// `setting` | `path` | `fallback` | `where`.
@@ -140,12 +141,12 @@ pub struct GitInfo {
     pub minimum_version: Option<String>,
     pub warning: Option<String>,
     pub login_shell_path_loaded: bool,
-    /// Các git Rust tìm thấy — `set_git_path` chỉ nhận một trong số này.
+    /// The git executables Rust found — `set_git_path` accepts only one of these.
     pub candidates: Vec<String>,
 }
 
 impl GitInfo {
-    /// Subcommand mạng bị chặn khi git dưới sàn bảo mật.
+    /// Network subcommands blocked while git is below the security floor.
     pub fn blocks(&self, sub: &str) -> bool {
         self.below_security_floor && matches!(sub, "clone" | "fetch" | "pull")
     }
@@ -163,7 +164,7 @@ struct State {
     login_path: Option<String>,
     login_loaded: bool,
     info: Option<Arc<GitInfo>>,
-    /// File git đã chọn qua hộp thoại native trong phiên này.
+    /// A git file chosen with the native dialog in this session.
     picked: Vec<PathBuf>,
 }
 
@@ -190,12 +191,12 @@ fn is_executable_file(path: &Path) -> bool {
             .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
 }
 
-/// Git đầu tiên (file thực thi) trong các thư mục; không bao giờ nhận `.cmd`/`.bat`.
+/// The first git executable (a real file) among these directories; never accepts `.cmd`/`.bat`.
 pub fn find_in_dirs(dirs: &[PathBuf]) -> Option<PathBuf> {
     dirs.iter().map(|dir| dir.join(exe_name())).find(|candidate| is_executable_file(candidate))
 }
 
-/// Gộp PATH như `GitEnvironment.make`: PATH login shell, PATH tiến trình, rồi thư mục dự phòng; bỏ trùng và rỗng.
+/// The merged PATH like `GitEnvironment.make`: login shell PATH, process PATH, then the fallback directories; duplicates and empties dropped.
 pub fn merge_path(login_path: Option<&str>, process_path: Option<&OsString>, fallbacks: &[PathBuf]) -> Vec<PathBuf> {
     let mut seen = std::collections::HashSet::new();
     let mut merged = Vec::new();
@@ -220,7 +221,7 @@ pub fn merge_path(login_path: Option<&str>, process_path: Option<&OsString>, fal
     merged
 }
 
-/// Thư mục dự phòng theo hệ điều hành (từ `git-policy.json`, thêm cài đặt per-user của Git for Windows).
+/// Per-OS fallback directories (from `git-policy.json`, plus Git for Windows' per-user install).
 pub fn fallback_dirs() -> Vec<PathBuf> {
     let fallback = &policy().env.path_fallback;
     let mut dirs: Vec<PathBuf> = if cfg!(windows) { &fallback.windows } else { &fallback.macos }
@@ -235,7 +236,7 @@ pub fn fallback_dirs() -> Vec<PathBuf> {
     dirs
 }
 
-/// Output của `$SHELL -l -i -c "echo MARKER; /usr/bin/env"` → giá trị `PATH=`.
+/// Output of `$SHELL -l -i -c "echo MARKER; /usr/bin/env"` → the `PATH=` value.
 pub fn parse_login_shell_output(text: &str, marker: &str) -> Option<String> {
     let after = &text[text.find(marker)? + marker.len()..];
     after.lines().find_map(|line| {
@@ -244,7 +245,7 @@ pub fn parse_login_shell_output(text: &str, marker: &str) -> Option<String> {
     })
 }
 
-/// Output của `where.exe git`: dòng đầu là file `.exe` (bỏ `.cmd`/`.bat`).
+/// Output of `where.exe git`: the first line is an `.exe` file (skip `.cmd`/`.bat`).
 pub fn parse_where_output(text: &str) -> Option<PathBuf> {
     text.lines()
         .map(str::trim)
@@ -256,7 +257,7 @@ pub fn parse_where_output(text: &str) -> Option<PathBuf> {
 #[cfg(target_os = "macos")]
 const LOGIN_MARKER: &str = "__THAIGIT_ENV_BEGIN__";
 
-/// PATH của login shell (macOS): app mở từ Finder/Dock chỉ có PATH tối thiểu nên thiếu Homebrew, gh, gpg….
+/// The login shell's PATH (macOS): an app launched from Finder/Dock only has a minimal PATH, missing Homebrew, gh, gpg…
 #[cfg(target_os = "macos")]
 async fn login_shell_path(timeout: Duration) -> Option<String> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
@@ -275,7 +276,7 @@ async fn login_shell_path(_timeout: Duration) -> Option<String> {
     None
 }
 
-/// macOS: `/usr/bin/git` là shim của Apple — không có Command Line Tools thì chạy nó sẽ bật hộp thoại cài đặt.
+/// macOS: `/usr/bin/git` is Apple's shim — without Command Line Tools, running it opens the install dialog.
 #[cfg(target_os = "macos")]
 async fn apple_git_usable() -> bool {
     tokio::process::Command::new("/usr/bin/xcode-select")
@@ -344,7 +345,7 @@ impl Locator {
         self.state.write().unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
-    /// Git hiện tại (đã `refresh`); `git-missing` nếu chưa có.
+    /// The current git (after `refresh`); `git-missing` when there is none.
     pub fn current(&self) -> Result<Arc<GitInfo>> {
         self.read().info.clone().ok_or_else(|| {
             AppError::GitMissing(
@@ -353,18 +354,18 @@ impl Locator {
         })
     }
 
-    /// Các thư mục tìm git: PATH login shell + PATH tiến trình + dự phòng.
+    /// Directories searched for git: login shell PATH + process PATH + fallbacks.
     pub fn search_dirs(&self) -> Vec<PathBuf> {
         let login = self.read().login_path.clone();
         merge_path(login.as_deref(), std::env::var_os("PATH").as_ref(), &fallback_dirs())
     }
 
-    /// PATH gộp, dùng làm `PATH` của mọi lệnh git.
+    /// The merged PATH, used as `PATH` for every git command.
     pub fn path_env(&self) -> OsString {
         std::env::join_paths(self.search_dirs()).unwrap_or_default()
     }
 
-    /// Nạp PATH của login shell (macOS) rồi tìm lại git; phát tín hiệu qua giá trị trả về `true` nếu đổi.
+    /// Load the login shell's PATH (macOS), then look for git again; signals a change by returning `true`.
     pub async fn load_login_path(&self, timeout: Duration) -> bool {
         let path = login_shell_path(timeout).await;
         {
@@ -378,7 +379,7 @@ impl Locator {
         self.refresh().await.is_ok()
     }
 
-    /// Tìm git theo thứ tự ưu tiên và nạp `git --version`.
+    /// Find git in priority order and read `git --version`.
     pub async fn refresh(&self) -> Result<Arc<GitInfo>> {
         let setting = self.read().setting.clone();
         let dirs = self.search_dirs();
@@ -386,7 +387,7 @@ impl Locator {
         if let Some(path) = setting.filter(|p| is_executable_file(p)) {
             candidates.push((path, "setting"));
         }
-        // Chỉ macOS: `/usr/bin/git` là shim của Apple, thử sau cùng và chỉ khi có Command Line Tools.
+        // macOS only: `/usr/bin/git` is Apple's shim, so try it last and only with Command Line Tools present.
         let apple = PathBuf::from("/usr/bin");
         let (apple_dirs, other_dirs): (Vec<_>, Vec<_>) =
             if cfg!(target_os = "macos") { dirs.iter().cloned().partition(|d| *d == apple) } else { (Vec::new(), dirs.clone()) };
@@ -438,7 +439,7 @@ impl Locator {
         Ok(info)
     }
 
-    /// `set_git_path`: `None` = tự tìm; `Some` phải là ứng viên Rust tìm thấy hoặc file đã chọn qua hộp thoại native.
+    /// `set_git_path`: `None` = search automatically; `Some` must be a candidate Rust found or a file already picked with the native dialog.
     pub async fn set_path(&self, requested: Option<&str>) -> Result<Arc<GitInfo>> {
         let new_setting = match requested {
             None => None,
@@ -472,7 +473,7 @@ impl Locator {
         }
     }
 
-    /// Chọn git bằng hộp thoại native: kiểm `--version` rồi áp dụng.
+    /// Pick git with the native dialog: verify `--version`, then apply it.
     pub async fn set_picked(&self, path: PathBuf) -> Result<Arc<GitInfo>> {
         if cfg!(windows) && !is_executable_file(&path) {
             return Err(AppError::policy("chỉ nhận file .exe (không chạy .cmd/.bat)"));
@@ -486,7 +487,7 @@ impl Locator {
         self.read().login_loaded
     }
 
-    /// Dựng bộ định vị với git cố định (test).
+    /// Build a locator with a fixed git (for tests).
     #[cfg(test)]
     pub async fn with_fixed_git(data_dir: &Path, git: &Path) -> Arc<Self> {
         let locator = Arc::new(Self::new(data_dir));
@@ -523,7 +524,7 @@ mod tests {
 
     #[test]
     fn security_floor_per_series() {
-        // CVE-2022-23521 và các CVE clone/checkout mới hơn: mỗi dòng cần bản vá mới nhất của nó.
+        // CVE-2022-23521 and the newer clone/checkout CVEs: each series needs its own newest patch.
         assert!(floor("2.35.5").below_floor);
         assert!(floor("2.38.9").below_floor, "dòng 2.38 không còn bản vá");
         assert!(floor("2.39.4").below_floor);
@@ -644,15 +645,15 @@ mod tests {
         let info = locator.refresh().await.expect("máy test phải có git");
         assert!(info.version.starts_with("git version "));
         assert!(!info.candidates.is_empty());
-        // JS không được trỏ git tới file tuỳ ý.
+        // JS may not point git at an arbitrary file.
         let error = locator.set_path(Some("/bin/sh")).await.unwrap_err();
         assert_eq!(error.code(), "policy");
-        // Chọn một ứng viên Rust tìm thấy thì được, và lưu lại.
+        // Choosing one of Rust's candidates is allowed, and is remembered.
         let again = locator.set_path(Some(&info.path)).await.unwrap();
         assert_eq!(again.path, info.path);
         let reloaded = Locator::new(dir.path());
         assert_eq!(reloaded.read().setting.as_deref(), Some(Path::new(&info.path)));
-        // Xoá cài đặt → tự tìm.
+        // Clearing the setting → search automatically.
         assert!(locator.set_path(None).await.is_ok());
     }
 }

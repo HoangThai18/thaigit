@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `ssh.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `ss.vi.ts` (same keys, same parameters). */
 import type { ssh as sshSource } from './ssh.vi.ts';
 import type { Translation } from './types.ts';
 

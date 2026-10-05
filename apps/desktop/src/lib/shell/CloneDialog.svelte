@@ -37,24 +37,24 @@
   let controller: AbortController | null = null;
   const text = vi.accounts;
   let urlInput = $state<HTMLInputElement | null>(null);
-  /** Tài khoản đang xem danh sách repo (`host/login`) và danh sách đó (mở bằng nút "Xem repo"). */
+  /** The account whose repo list is being shown (`host/login`) plus that list (opened via the "View repos" button). */
   let repoAccount = $state('');
   let repos = $state.raw<ForgeRepository[]>([]);
   let loadingRepos = $state(false);
   let reposError = $state<string | null>(null);
 
   const check = $derived(checkCloneUrl(url));
-  /** Owner trong URL đang dán (để biết tài khoản nào sẽ được dùng). */
+  /** Owner in the pasted URL (to know which account will be used). */
   const target = $derived(check.ok ? forgeTarget(url) : null);
   const hostHasAccounts = $derived(target !== null && accounts.accountsFor(target.host).length > 0);
   const usedLogin = $derived(target === null ? null : accounts.loginForOwner(target.host, target.owner));
-  /** Tài khoản có token trên máy — mới đọc được danh sách repo. */
+  /** Accounts that hold a token locally — only they can read a repo list. */
   const withToken = $derived(accounts.view.accounts.filter((account) => account.hasToken));
   const chosenAccount = $derived(
     withToken.find((account) => `${account.host}/${account.login}` === repoAccount) ?? withToken[0] ?? null,
   );
 
-  // Danh sách tài khoản chỉ nạp khi mở Cài đặt; hộp Clone cần nó để gợi ý repo và tài khoản sẽ dùng.
+  // The account list is only loaded when Settings is opened; the Clone dialog needs it to suggest repos and the account to use.
   onMount(() => {
     void accounts.refresh().catch(() => undefined);
   });
@@ -72,7 +72,7 @@
     urlInput?.focus();
   });
 
-  // Tên thư mục đi theo URL cho tới khi người dùng tự sửa.
+  // The folder name tracks the URL until the user edits it.
   $effect(() => {
     if (!nameEdited && check.ok) name = check.defaultName;
   });
@@ -129,7 +129,7 @@
     reposError = null;
   }
 
-  /** Bấm một repo trong danh sách: điền URL clone + gán owner cho tài khoản đó để clone / fetch / push dùng đúng token. */
+  /** Clicking a repo in the list: fills in the clone URL and assigns the owner to that account so clone / fetch / push use the right token. */
   function pickRepo(repo: ForgeRepository): void {
     url = repo.cloneUrl;
     nameEdited = false;

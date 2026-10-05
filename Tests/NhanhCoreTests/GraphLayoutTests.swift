@@ -20,7 +20,7 @@ struct GraphLayoutTests {
     }
 
     @Test func mergeOpensSecondLaneAndJoinsAtForkPoint() {
-        // M = merge(A, F); F trên nhánh feature tách từ A.
+        // M = merge(A, F); F branches off A on the feature branch.
         let rows = GraphLayout.compute([
             commit("M", ["A", "F"]),
             commit("F", ["A"]),
@@ -38,7 +38,7 @@ struct GraphLayoutTests {
             GraphLine(kind: .toNode, lane: 1, color: 1),
             GraphLine(kind: .fromNode, lane: 1, color: 1),
         ])
-        // A nhận cả hai làn (điểm rẽ nhánh), sau đó chỉ còn một làn.
+        // A receives both lanes (the branch fork point), then only one lane remains.
         #expect(rows[2].lines == [
             GraphLine(kind: .toNode, lane: 0, color: 0),
             GraphLine(kind: .toNode, lane: 1, color: 1),
@@ -64,7 +64,7 @@ struct GraphLayoutTests {
     }
 
     @Test func reusesFreedLanes() {
-        // Nhánh b kết thúc (gặp cha) rồi nhánh c mới mở lại dùng làn trống.
+        // After branch b ends (reaches its parent) branch c opens again and reuses the free lane.
         let rows = GraphLayout.compute([
             commit("a2", ["a1"]),
             commit("b1", ["a1"]),

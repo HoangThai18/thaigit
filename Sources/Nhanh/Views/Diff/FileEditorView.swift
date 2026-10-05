@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Vùng sửa file ngay trong app: chữ đơn cách, có hoàn tác, tắt mọi tự thay thế của macOS (ngoặc kép cong, gạch ngang,
-/// tự sửa chính tả…) để không đổi code ngoài ý muốn.
+/// The in-app file editing area: monospaced text, with undo, and every macOS auto-substitution turned off (smart quotes,
+/// dashes, automatic spell correction…) so code isn't changed behind your back.
 struct FileEditorView: View {
     @Bindable var session: FileEditorSession
 
@@ -26,7 +26,7 @@ struct FileEditorView: View {
     }
 }
 
-/// NSTextView thuần (không định dạng) bọc cho SwiftUI.
+/// A plain (unformatted) NSTextView wrapped for SwiftUI.
 struct CodeTextView: NSViewRepresentable {
     @Binding var text: String
 
@@ -62,7 +62,7 @@ struct CodeTextView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView, textView.string != text else { return }
-        // Nội dung đổi từ ngoài (vừa lưu, mở file khác): thay cả văn bản, giữ chỗ con trỏ nếu còn hợp lệ.
+        // Content changed from outside (just saved, another file opened): replace the whole text, keeping the caret if it's still valid.
         let selection = textView.selectedRanges
         textView.string = text
         let length = (text as NSString).length

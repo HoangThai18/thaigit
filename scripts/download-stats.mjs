@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// Thống kê lượt tải Thaigit cho ADMIN (chạy ở máy, cần `gh auth login`) — đọc số đếm của GitHub Releases:
-//   node scripts/download-stats.mjs            bảng tóm tắt
-//   node scripts/download-stats.mjs --json     dữ liệu thô (để lưu lại so sánh theo ngày)
+// Reports Thaigit download counts for the ADMIN (runs locally, needs `gh auth login`) by reading GitHub Releases' counters:
+//   node scripts/download-stats.mjs            summary table
+//   node scripts/download-stats.mjs --json     raw data (keep it around to compare day over day)
 //
-// Cách đếm (số cộng dồn từ lúc đăng file, GitHub không cho theo ngày):
-//  - macOS: Thaigit-macOS.zip = tải từ trang chủ / trang release; Thaigit-macOS-update.zip = app tự cập nhật (tách từ 1.1.1,
-//    bản cũ hơn gộp chung vào Thaigit-macOS.zip); update.json = lượt app kiểm cập nhật (mỗi máy ~4 lần/ngày) → ước lượng
-//    số máy đang dùng.
-//  - Windows: Thaigit-Windows-setup.exe (release desktop-beta) = tải từ trang chủ; Thaigit_<v>_x64-setup.exe = app tự cập
-//    nhật hoặc tải tay từ trang release; latest.json = lượt app kiểm cập nhật.
-// Đếm theo ngày, theo phiên bản app đang chạy… thuộc máy chủ admin trên VPS (plans/…/phase-07, mục 7b).
+// How the counting works (numbers accumulate since the asset was uploaded; GitHub offers no per-day breakdown):
+//  - macOS: Thaigit-macOS.zip = downloads from the homepage / release page; Thaigit-macOS-update.zip = self-updates (split
+//    out from 1.1.1, older releases are lumped into Thaigit-macOS.zip); update.json = update checks (~4 per machine per
+//    day) → an estimate of how many machines are in use.
+//  - Windows: Thaigit-Windows-setup.exe (desktop-beta release) = downloads from the homepage; Thaigit_<v>_x64-setup.exe =
+//    self-update or a manual download from the release page; latest.json = update checks.
+// Per-day counts and per-running-app-version counts belong to the admin server on the VPS (plans/…/phase-07, item 7b).
 import { execFileSync } from 'node:child_process';
 
 const REPO = process.env.THAIGIT_REPO ?? 'HoangThai18/thaigit';
@@ -18,7 +18,7 @@ function releases() {
   const raw = execFileSync('gh', ['api', '--paginate', `repos/${REPO}/releases?per_page=100`], {
     encoding: 'utf8',
   });
-  // --paginate nối các trang JSON liền nhau: "][" → ",".
+  // --paginate concatenates adjacent JSON pages: "][" → ",".
   return JSON.parse(raw.replace(/\]\s*\[/g, ','));
 }
 

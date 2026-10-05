@@ -1,5 +1,6 @@
-// Chạy tiến trình git trên Node (mức thấp, KHÔNG kiểm chính sách — chỉ `NodeExec` và các lệnh có kiểu được gọi trực tiếp,
-// mỗi nơi tự kiểm đầu vào). Spawn bằng mảng đối số (không qua shell), stdin là byte, stdout/stderr đọc song song.
+// Low-level git process execution on Node — does NOT enforce policy (only `NodeExec` and the typed commands call it
+// directly, each validating its own input). Spawned with an argv array (never a shell), stdin is bytes, stdout and
+// stderr are read concurrently.
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -8,30 +9,30 @@ import { buildGitEnv, type EnvProfile } from '@thaigit/contracts';
 import { concatBytes } from '../git/bytes.ts';
 import { AdapterError } from '../git/runner.ts';
 
-/** Cấu hình chung cho mọi adapter Node. */
+/** Config shared by every Node adapter. */
 export interface NodeGitConfig {
-  /** Đường dẫn git (mặc định "git" trong PATH). */
+  /** Path to git (default "git" from PATH). */
   gitPath?: string;
-  /** Môi trường gốc (mặc định `process.env`). Test cô lập cấu hình bằng cách đặt `GIT_CONFIG_GLOBAL`… ở đây. */
+  /** Base environment (default `process.env`). Tests isolate git config by setting `GIT_CONFIG_GLOBAL`… here. */
   baseEnv?: Readonly<Record<string, string | undefined>>;
-  /** Lệnh askpass cho hồ sơ `interactive` (mặc định: không đặt, giữ nguyên biến của môi trường gốc). */
+  /** Askpass command for the `interactive` profile (default: unset, keeping the base environment's variables). */
   askpass?: string;
-  /** Lệnh askpass "từ chối" cho hồ sơ `background` (mặc định `false`: mọi lời hỏi đều thất bại thay vì treo/bật cửa sổ). */
+  /** "Deny" askpass command for the `background` profile (default `false`: every prompt fails instead of hanging or popping a window). */
   askpassDeny?: string;
-  /** Thời gian chờ SIGTERM trước khi SIGKILL khi huỷ (mặc định 3000 ms). */
+  /** Grace period between SIGTERM and SIGKILL when cancelling (default 3000 ms). */
   killGraceMs?: number;
 }
 
 export interface SpawnGitOptions extends NodeGitConfig {
-  /** Đối số đầy đủ gồm cả cờ `-c` (đã qua `buildGitArgv`). */
+  /** Full argv including the `-c` flags (already passed through `buildGitArgv`). */
   argv: readonly string[];
   cwd: string;
   env: Readonly<Record<string, string>>;
   stdin?: Uint8Array;
-  /** Chỉ lệnh `network` huỷ được. */
+  /** Only `network` commands are cancellable. */
   cancellable: boolean;
   signal?: AbortSignal;
-  /** Mỗi dòng stderr (tách theo `\r` hoặc `\n`, giữ byte, bỏ dòng rỗng). */
+  /** Each stderr line (split on `\r` or `\n`, bytes preserved, empty lines dropped). */
   onStderrLine?: (line: Uint8Array) => void;
 }
 
@@ -44,7 +45,7 @@ export interface SpawnGitResult {
 
 const DEFAULT_KILL_GRACE_MS = 3000;
 
-/** Env cho git từ cấu hình adapter (một chỗ duy nhất, dùng chung `buildGitEnv` của chính sách). */
+/** Git environment built from the adapter config (the single place, sharing the policy's `buildGitEnv`). */
 export function gitEnvFor(
   config: NodeGitConfig,
   profile: EnvProfile,
@@ -58,7 +59,7 @@ export function gitEnvFor(
   });
 }
 
-/** Tách stderr thành dòng theo `\r` hoặc `\n` (git dùng `\r` để cập nhật dòng tiến độ). */
+/** Split stderr into lines on `\r` or `\n` (git uses `\r` to redraw the progress line). */
 class StderrLineSplitter {
   private pending: Uint8Array = new Uint8Array(0);
 
@@ -82,14 +83,14 @@ class StderrLineSplitter {
   }
 }
 
-/** Bản sao thành `Uint8Array` thuần (không phải `Buffer` chia sẻ bộ nhớ với chunk của Node). */
+/** Plain `Uint8Array` copy (not a `Buffer`, which may share memory with a Node chunk). */
 function copyBytes(data: Uint8Array, start: number, end: number): Uint8Array {
   return new Uint8Array(data.subarray(start, end));
 }
 
 function exitCodeOf(code: number | null, signal: NodeJS.Signals | null): number {
   if (code !== null) return code;
-  // Bị tín hiệu giết: quy ước của shell là 128 + số tín hiệu (SIGTERM → 143).
+  // Killed by a signal: the shell convention is 128 + signal number (SIGTERM → 143).
   const number = signal === null ? undefined : osConstants.signals[signal];
   return 128 + (number ?? 0);
 }
@@ -101,15 +102,15 @@ export function spawnGit(options: SpawnGitOptions): Promise<SpawnGitResult> {
   const killGraceMs = options.killGraceMs ?? DEFAULT_KILL_GRACE_MS;
 
   return new Promise<SpawnGitResult>((resolve, reject) => {
-    // Đã huỷ trước khi chạy: không spawn, báo huỷ (chưa có mã thoát thật nên dùng -1).
+    // Cancelled before it ran: never spawn, report cancellation (there is no real exit code yet, so -1).
     if (cancellable && signal?.aborted) {
       resolve({ code: -1, stdout: new Uint8Array(0), stderr: new Uint8Array(0), cancelled: true });
       return;
     }
 
-    // Lệnh mạng huỷ được chạy trong nhóm tiến trình riêng (POSIX) để huỷ giết luôn tiến trình con của git (ssh,
-    // git-remote-*) thay vì để chúng mồ côi — cùng cách Rust làm (SIGTERM cả process group). Cũng nghĩa là ssh/git
-    // không có terminal điều khiển nên không thể hỏi mật khẩu qua /dev/tty.
+    // A cancellable network command runs in its own process group (POSIX) so cancelling also kills git's children
+    // (ssh, git-remote-*) instead of orphaning them — same approach as Rust (SIGTERM the whole process group). This
+    // also means ssh/git have no controlling terminal, so they cannot prompt for a password on /dev/tty.
     const ownGroup = cancellable && process.platform !== 'win32';
     const child = spawn(gitPath, [...argv], {
       cwd,
@@ -124,7 +125,7 @@ export function spawnGit(options: SpawnGitOptions): Promise<SpawnGitResult> {
           process.kill(-child.pid, killSignal);
           return;
         } catch {
-          // Nhóm đã hết thành viên: thử gửi thẳng tới tiến trình chính.
+          // Group has no members left: try signalling the main process directly.
         }
       }
       child.kill(killSignal);
@@ -132,8 +133,8 @@ export function spawnGit(options: SpawnGitOptions): Promise<SpawnGitResult> {
 
     const stdoutChunks: Uint8Array[] = [];
     const stderrChunks: Uint8Array[] = [];
-    // Callback tiến trình ném lỗi không được làm sập tiến trình Node (lỗi trong event handler): giữ lỗi đầu tiên,
-    // để git chạy nốt (không để lại tiến trình mồ côi) rồi báo lỗi đó cho người gọi.
+    // An error thrown from the process callback must not crash Node (an error inside an event handler): keep the first
+    // error, let git finish (so no process is left orphaned), then rethrow it to the caller.
     let callbackError: { error: unknown } | undefined;
     const splitter = onStderrLine
       ? new StderrLineSplitter((line) => {
@@ -178,7 +179,7 @@ export function spawnGit(options: SpawnGitOptions): Promise<SpawnGitResult> {
     });
     child.on('error', (error: NodeJS.ErrnoException) => {
       finish(() => {
-        // ENOENT là "không tìm thấy git" — hoặc thư mục chạy không tồn tại (cũng báo ENOENT).
+        // ENOENT means "git not found" — or a missing working directory (also reported as ENOENT).
         if (error.code === 'ENOENT' && !existsSync(cwd)) {
           reject(new AdapterError('not-found', `Thư mục chạy git không tồn tại: ${cwd}`));
         } else {
@@ -207,7 +208,7 @@ export function spawnGit(options: SpawnGitOptions): Promise<SpawnGitResult> {
     });
 
     if (stdin && child.stdin) {
-      // Git thoát sớm khi không cần hết stdin → EPIPE; kết quả vẫn lấy từ mã thoát, nên bỏ qua lỗi ghi.
+      // Git exits early when it does not need all of stdin → EPIPE; the result still comes from the exit code, so ignore write errors.
       child.stdin.on('error', () => undefined);
       child.stdin.end(stdin);
     }

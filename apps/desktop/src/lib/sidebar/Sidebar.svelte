@@ -50,7 +50,7 @@
 
   let filter = $state('');
   let selectedId = $state<string | null>(null);
-  /** Remote đang mở (mặc định đóng; khi đang lọc thì mở hết). */
+  /** The open remote (collapsed by default; expanded while a filter is active). */
   let remoteOpen = $state<Record<string, boolean>>({});
 
   const query = $derived(foldText(filter.trim()));
@@ -63,7 +63,7 @@
 
   const matches = (text: string): boolean => containsFolded(text, query);
 
-  // --- dữ liệu từng mục (chỉ tính khi mục đang mở) ---
+  // --- per-section data (only computed while that section is open) ---
   const locals = $derived(
     sections.local
       ? filtering
@@ -78,7 +78,7 @@
     sections.tags ? (filtering ? store.tags.filter((ref) => matches(refName(ref))) : store.tags) : [],
   );
 
-  // Tên remote có thể chứa "/" (`team/a`): mỗi nhánh thuộc remote KHỚP DÀI NHẤT với phần đầu tên ref, và tên ngắn cắt theo remote đó.
+  // A remote name can contain "/" (`team/a`): a branch belongs to the remote whose name is the LONGEST prefix of the ref name, and the short name is cut at that remote.
   const remoteNames = $derived(store.remotes.map((remote) => remote.name));
   const remoteGroups = $derived.by(() => {
     const groups = new Map<string, GitRef[]>();
@@ -97,20 +97,21 @@
     return (remoteGroups.get(remote.name) ?? []).filter((ref) => matches(shortName(ref)));
   }
 
-  // --- chọn ---
-  // Chỉ đánh dấu ô sáng khi graph THỰC SỰ chọn được commit: ref trỏ vào commit chưa tải thì `revealRef` chỉ báo "Tải thêm"
-  // (trả `false`), không có gì được chọn nên ô cũng không được sáng.
+  // --- selection ---
+  // Only highlight a row when the graph can ACTUALLY select the commit: a ref pointing at a commit that
+  // isn't loaded makes `revealRef` report "Load more" (returns `false`), so nothing is selected and nothing
+  // is highlighted either.
   function selectRef(ref: GitRef): void {
     if (store.revealRef(ref)) selectedId = `ref:${ref.fullName}`;
   }
 
-  // Định danh theo `selector` (stash@{n}), không theo sha: hai mục stash có thể trùng sha (`git stash store` cùng một commit).
+  // Identified by `selector` (stash@{n}), not by sha: two stash entries can share a sha (`git stash store` the same commit).
   function selectStash(stash: Stash): void {
     selectedId = `stash:${stash.selector}`;
     store.select({ kind: 'stash', sha: stash.sha });
   }
 
-  // Bỏ chọn ở sidebar khi người dùng chọn commit/stash khác trên graph (như SidebarSelectionSync của Swift).
+  // Clear the sidebar selection when the user picks a different commit / stash on the graph (mirrors Swift's SidebarSelectionSync).
   $effect(() => {
     const selection = store.selection;
     const current = untrack(() => selectedId);

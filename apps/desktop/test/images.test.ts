@@ -1,4 +1,4 @@
-// Diff ảnh: lấy đúng byte bản cũ / bản mới theo nguồn diff, trên repo git thật.
+// Image diff: fetch the correct old / new bytes per diff source, on a real git repo.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';

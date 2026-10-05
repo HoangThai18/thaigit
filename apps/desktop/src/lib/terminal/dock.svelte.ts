@@ -1,6 +1,7 @@
 /**
- * Trạng thái panel terminal của một cửa sổ repo (như app Swift `TerminalSession`): danh sách tab, tab đang chọn, ẩn / hiện,
- * chiều cao. Phiên shell và xterm nằm trong `TerminalPanel` (gắn với từng tab) — bỏ tab khỏi danh sách là dừng shell của tab.
+ * Terminal panel state for one repo window (like the Swift app's `TerminalSession`): the tab list, the
+ * selected tab, hidden / shown, and the height. The shell session and xterm live in `TerminalPanel` (attached
+ * per tab) — removing a tab from the list stops that tab's shell.
  */
 import { vi } from '../strings.vi.ts';
 
@@ -13,13 +14,13 @@ export const TERMINAL_HEIGHT = { min: 120, max: 900, initial: 280 } as const;
 
 export class TerminalDock {
   visible = $state(false);
-  /** `$state.raw`: tab là bản ghi bất biến, đổi tiêu đề thì thay cả mảng. */
+  /** `$state.raw`: a tab is an immutable record, so changing its title replaces the whole array. */
   tabs = $state.raw<readonly TerminalTab[]>([]);
   selected = $state<number | null>(null);
   height = $state<number>(TERMINAL_HEIGHT.initial);
   private created = 0;
 
-  /** Bật / tắt panel (Ctrl+`); lần đầu mở thì tạo một tab. */
+  /** Show / hide the panel (Ctrl+`); the first time it opens, create one tab. */
   toggle(): void {
     if (!this.visible && this.tabs.length === 0) this.add();
     this.visible = !this.visible;
@@ -41,7 +42,7 @@ export class TerminalDock {
     if (this.tabs.length === 0) this.visible = false;
   }
 
-  /** Tiêu đề shell tự đặt (escape OSC) — chỉ hiện dạng text, cắt ngắn. */
+  /** Shell-chosen title (OSC escape) — shown as text only, truncated. */
   rename(key: number, title: string): void {
     const trimmed = title.trim().slice(0, 40);
     if (trimmed === '') return;

@@ -1,4 +1,4 @@
-// Tìm commit trên graph: không phân biệt dấu / hoa thường; khớp tiêu đề, tác giả, email, tiền tố SHA, nhãn nhánh.
+// Commit search on the graph: diacritic- and case-insensitive; matches subject, author, email, SHA prefix, branch label.
 import { describe, expect, it } from 'vitest';
 import { findMatches } from '../src/lib/graph/search.svelte.ts';
 import type { GraphEntry } from '../src/lib/stores/repo.svelte.ts';

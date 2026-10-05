@@ -1,9 +1,11 @@
 import Foundation
 
-/// Dòng thời gian snapshot của working tree — cùng đặc tả với app Tauri (`packages/contracts/snapshot.json`; test đối chiếu
-/// file đó và `snapshot.vectors.json`). Mỗi worktree một ref `refs/worktree/thaigit/snapshots`, mỗi mốc là một mục reflog của
-/// nó (kiểu `refs/stash`). Commit snapshot = tree của TOÀN BỘ working tree (tôn trọng .gitignore) dựng qua index tạm trong git
-/// dir — không bao giờ đụng index thật, nhánh, stash hay HEAD của người dùng.
+/// The snapshot timeline of a working tree — the same spec as the Tauri app
+/// (`packages/contracts/snapshot.json`; the tests compare against that file and `snapshot.vectors.json`). Each
+/// worktree gets a `refs/worktree/thaigit/snapshots` ref, and each milestone is one reflog entry of it (of the
+/// `refs/stash` kind). A snapshot commit is the tree of the ENTIRE working tree (honouring .gitignore) built
+/// through a temporary index inside the git dir — the user's real index, branches, stash and HEAD are never
+/// touched.
 public enum SnapshotReason: String, Sendable, CaseIterable {
     case auto
     case beforeRestore = "before-restore"
@@ -12,7 +14,7 @@ public enum SnapshotReason: String, Sendable, CaseIterable {
 
 public struct SnapshotMeta: Equatable, Sendable {
     public let reason: SnapshotReason
-    /// Số file khác HEAD lúc chụp; nil khi thiếu hoặc không hợp lệ.
+    /// How many files differed from HEAD at capture time; nil when missing or invalid.
     public let files: Int?
 
     public init(reason: SnapshotReason, files: Int?) {
@@ -22,11 +24,11 @@ public struct SnapshotMeta: Equatable, Sendable {
 }
 
 public struct SnapshotEntry: Equatable, Sendable, Identifiable {
-    /// Vị trí trong reflog (0 = mới nhất) — dùng để xoá (`ref@{index}`).
+    /// Position in the reflog (0 = newest) — used to delete it (`ref@{index}`).
     public let index: Int
     public let sha: String
     public let tree: String
-    /// Thời điểm chụp (giây).
+    /// When it was captured (seconds).
     public let time: Int
     public let reason: SnapshotReason
     public let files: Int?
@@ -36,10 +38,10 @@ public struct SnapshotEntry: Equatable, Sendable, Identifiable {
 }
 
 public struct SnapshotRestoreResult: Sendable {
-    /// Mốc chụp ngay trước khi khôi phục — khôi phục về nó là Hoàn tác.
+    /// The milestone captured right before a restore — restoring to it is Undo.
     public let before: SnapshotEntry
     public let restored: [String]
-    /// File chưa track tạo sau mốc, đã chuyển vào Thùng rác.
+    /// Untracked files created after the milestone, moved to the Trash.
     public let trashed: [String]
 }
 
@@ -56,7 +58,7 @@ public enum SnapshotSpec {
     public static let defaultKeepDays = 7
     public static let defaultKeepCount = 300
 
-    /// Thư mục của ref (watcher bỏ qua mọi thay đổi trong đó).
+    /// The ref's directory (the watcher ignores every change inside it).
     public static var refDirectory: String { String(ref[...ref.lastIndex(of: "/")!]) }
 
     static var identityEnvironment: [String: String] {
@@ -68,9 +70,9 @@ public enum SnapshotSpec {
         "\(messageHeader)\n\nreason: \(reason.rawValue)\nfiles: \(files)\n"
     }
 
-    /// Message (%B) của commit snapshot → metadata; nil nếu dòng đầu không đúng `messageHeader`.
+    /// The snapshot commit's message (%B) → metadata; nil when the first line isn't `messageHeader`.
     public static func parseMessage(_ message: String) -> SnapshotMeta? {
-        // Swift coi "\r\n" là MỘT ký tự nên phải chuẩn hoá trước khi tách dòng.
+        // Swift treats "\r\n" as ONE character, so normalise before splitting lines.
         let normalized = message.replacingOccurrences(of: "\r\n", with: "\n")
         let lines = normalized.split(separator: "\n", omittingEmptySubsequences: false).map { line in
             line.hasSuffix("\r") ? String(line.dropLast()) : String(line)
@@ -91,8 +93,8 @@ public enum SnapshotSpec {
         return SnapshotMeta(reason: reason, files: files)
     }
 
-    /// Chỉ số mục reflog cần xoá, giảm dần. Mục 0 không bao giờ bị xoá; mục xoá khi `index >= keepCount` hoặc cũ hơn `keepDays`
-    /// ngày (mốc ở tương lai do lệch đồng hồ thì giữ).
+    /// Reflog entry indices to delete, descending. Entry 0 is never deleted; an entry is deleted when `index >= keepCount` or
+    /// it's older than `keepDays` days (a milestone dated in the future by clock skew is kept).
     public static func selectExpired(entries: [(index: Int, time: Int)], now: Int, keepDays: Int, keepCount: Int) -> [Int] {
         let maxAge = keepDays * 86_400
         return entries
@@ -104,15 +106,15 @@ public enum SnapshotSpec {
 
 extension GitRepository {
     private static let snapshotLiteral = ["GIT_LITERAL_PATHSPECS": "1"]
-    /// Số đường dẫn / mục reflog mỗi lần gọi (dòng lệnh không quá dài).
+    /// How many paths / reflog entries per call (so the command line doesn't get too long).
     private static let snapshotBatch = 100
 
-    /// Runner không ghi Nhật ký lệnh: chụp tự động mỗi vài phút sẽ làm ngập nhật ký.
+    /// A runner that doesn't write the command log: automatic capture every few minutes would flood it.
     private var quietRunner: GitRunner {
         GitRunner(environmentStore: runner.environmentStore, workingDirectory: runner.workingDirectory, logger: nil)
     }
 
-    /// Tạo `<gitDir>/thaigit/` (thư mục thật, không phải symlink) và trả index tạm; `reset` xoá index tạm + file khoá của nó.
+    /// Create `<gitDir>/thaigit/` (a real directory, not a symlink) and return the temporary index; `reset` deletes the temporary index and its lock file.
     private func snapshotIndex(reset: Bool) throws -> URL {
         let parts = SnapshotSpec.indexFile.split(separator: "/").map(String.init)
         let dir = gitDir.appendingPathComponent(parts[0], isDirectory: true)
@@ -133,12 +135,12 @@ extension GitRepository {
         return index
     }
 
-    /// Các mốc, mới nhất trước (bỏ qua mục reflog không phải snapshot của Thaigit, nhưng giữ đúng chỉ số reflog).
+    /// The milestones, newest first (reflog entries that aren't Thaigit snapshots are skipped, but their reflog indices stay accurate).
     public func snapshots(limit: Int? = nil) async throws -> [SnapshotEntry] {
         try await readSnapshots(runner: runner, limit: limit)
     }
 
-    /// Chụp working tree. Cây giống hệt mốc mới nhất → trả mốc đó. `quiet` (mặc định với lý do `.auto`): không ghi Nhật ký lệnh.
+    /// Capture the working tree. A tree identical to the newest milestone returns that milestone. `quiet` (the default for the `.auto` reason): don't write the command log.
     @discardableResult
     public func takeSnapshot(reason: SnapshotReason, quiet: Bool? = nil) async throws -> SnapshotEntry {
         let runner = (quiet ?? (reason == .auto)) ? quietRunner : self.runner
@@ -146,7 +148,7 @@ extension GitRepository {
         do {
             try await runner.run(["add", "-A"], environment: ["GIT_INDEX_FILE": index.path])
         } catch let error as GitError where error.contains(".lock") && error.contains("exists") {
-            // Khoá mồ côi khi app bị tắt giữa lúc `git add`: index tạm chỉ là bộ đệm, dựng lại từ đầu.
+            // An orphaned lock when the app quits between `git add` calls: the temporary index is just a buffer, rebuilt from scratch.
             index = try snapshotIndex(reset: true)
             try await runner.run(["add", "-A"], environment: ["GIT_INDEX_FILE": index.path])
         }
@@ -173,13 +175,14 @@ extension GitRepository {
             ?? SnapshotEntry(index: 0, sha: sha, tree: tree, time: Int(Date().timeIntervalSince1970), reason: reason, files: files)
     }
 
-    /// File khác nhau giữa hai mốc (`from` → `to`).
+    /// Files that differ between two milestones (`from` → `to`).
     public func snapshotDifferences(from: String, to: String) async throws -> [FileChange] {
         try await changedFiles(commit: to, parent: from)
     }
 
-    /// Đưa working tree (toàn bộ, hoặc chỉ `paths` — file hay thư mục) về như mốc `target`. Luôn chụp mốc "trước khôi phục"
-    /// trước; chỉ ghi working tree. File chưa track tạo sau mốc được chuyển vào Thùng rác thay vì xoá.
+    /// Bring the working tree (all of it, or only `paths` — files or directories) back to milestone `target`. A
+    /// "before restore" milestone is always captured first; only the working tree is written. Untracked files
+    /// created after the milestone are moved to the Trash rather than deleted.
     public func restoreSnapshot(_ target: String, paths: [String]?) async throws -> SnapshotRestoreResult {
         let before = try await takeSnapshot(reason: .beforeRestore, quiet: false)
         let diff = try await runner.run(["diff-tree", "-r", "-z", "--name-status", "--no-renames", target, before.sha])
@@ -209,7 +212,7 @@ extension GitRepository {
         return SnapshotRestoreResult(before: before, restored: restored, trashed: untracked)
     }
 
-    /// Xoá mốc quá hạn / quá số lượng (luật chung); trả số mốc đã xoá.
+    /// Delete milestones that are too old / too numerous (the shared rule); returns how many were deleted.
     @discardableResult
     public func pruneSnapshots(now: Int, keepDays: Int, keepCount: Int) async throws -> Int {
         let runner = quietRunner

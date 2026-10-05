@@ -1,5 +1,6 @@
-// Repo git thật trong thư mục tạm + `RepoPort` chạy bằng bộ chuyển Node của @thaigit/core — dùng cho test của RepoStore
-// (cùng đường chạy git như cầu nối dev). `emit()` giả lập sự kiện `repo-changed` của watcher.
+// A real git repo in a temp directory plus a `RepoPort` running through @thaigit/core's Node adapter — used
+// by the RepoStore tests (same git code path as the dev bridge). `emit()` fakes the watcher's
+// `repo-changed` event.
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -39,18 +40,18 @@ export interface TestPort {
   readonly port: RepoPort;
   readonly git: (...args: string[]) => string;
   write(path: string, content: string): Promise<void>;
-  /** Giả lập watcher báo thay đổi. */
+  /** Fake a watcher reporting a change. */
   emit(event: Omit<RepoChangedEvent, 'repoId'>): void;
   readonly watchers: { count: number; stopped: number };
   cleanup(): Promise<void>;
 }
 
-/** Tạo repo mới (nhánh `main`), chạy `setup`, rồi mở bằng bộ chuyển Node. */
+/** Create a new repo (branch `main`), run `setup`, then open it through the Node adapter. */
 export async function openTestPort(
   setup: (git: (...args: string[]) => string, root: string) => void,
 ): Promise<TestPort> {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'thaigit-desktop-test-')));
-  // Đồng hồ giả tăng dần mỗi lệnh: commit luôn có thời điểm khác nhau nên `--date-order` cho thứ tự ổn định.
+  // The fake clock advances with each command, so commits always get distinct timestamps and `--date-order` gives a stable order.
   let clock = 1_700_000_000;
   const git = (...args: string[]): string => {
     clock += 60;
@@ -93,12 +94,12 @@ export async function openTestPort(
     emit: (event) => {
       for (const listener of [...listeners]) listener({ repoId: 'test', ...event });
     },
-    // Windows: tiến trình git vừa xong (hoặc đang dừng) có thể còn giữ thư mục một lúc → EBUSY; thử lại lâu hơn.
+    // On Windows a just-finished (or stopping) git process can hold the directory for a moment → EBUSY; retry with a longer wait.
     cleanup: () => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }),
   };
 }
 
-/** `count` commit tuyến tính (cũ → mới) trên `main` bằng `git fast-import` (nhanh hơn hàng trăm lần `git commit`). */
+/** `count` linear commits (old → new) on `main` via `git fast-import` (hundreds of times faster than `git commit`). */
 export function fastImportLinear(git: (...args: string[]) => string, root: string, count: number): void {
   const lines: string[] = [];
   for (let index = 1; index <= count; index++) {

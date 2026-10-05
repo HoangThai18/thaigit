@@ -1,18 +1,18 @@
-// Hộp thoại dùng chung (như `Confirmation` / các sheet nhỏ của app Swift): một hộp tại một thời điểm, trả kết quả qua Promise.
-// Hai loại: xác nhận (nút chính / nút phụ / Huỷ) và form ngắn (ô chữ, danh sách chọn, ô đánh dấu — đặt tên nhánh, push lên
-// remote…). Chỉ hiển thị chữ thường (không HTML) — nội dung có thể chứa tên nhánh / tên file do repo đặt.
+// Shared dialogs (like the Swift app's `Confirmation` and its small sheets): one dialog at a time, the result delivered via a Promise.
+// Two kinds: a confirmation (primary / secondary / Cancel) and a short form (text field, select, checkbox — naming a branch, pushing to a
+// remote…). Only plain text is ever rendered (no HTML), because the content can contain branch names / file names the repo chose.
 
 export interface ConfirmRequest {
   title: string;
   message: string;
   confirmTitle: string;
-  /** Nút xác nhận màu đỏ (xoá, huỷ thay đổi, force push…). */
+  /** A red confirm button (delete, discard changes, force push…). */
   destructive?: boolean;
-  /** Nút thứ hai giữa nút xác nhận và "Huỷ" (ví dụ "Revert, chưa commit"). */
+  /** A second button between the primary one and "Cancel" (e.g. "Revert, don't commit"). */
   secondaryTitle?: string;
 }
 
-/** Kết quả: 'confirm' (nút chính), 'secondary' (nút thứ hai), 'cancel' (Huỷ / Esc / bấm ra ngoài). */
+/** The result: 'confirm' (primary), 'secondary' (the second button), 'cancel' (Cancel / Esc / click outside). */
 export type ConfirmResult = 'confirm' | 'secondary' | 'cancel';
 
 export type FormField =
@@ -22,11 +22,11 @@ export type FormField =
       readonly label: string;
       readonly value: string;
       readonly placeholder?: string;
-      /** Chữ đơn cách (tên nhánh, SHA…). */
+      /** A single-line field (a branch name, a SHA…). */
       readonly monospace?: boolean;
     }
   | {
-      /** Ô nhiều dòng (message commit…): Enter xuống dòng, Ctrl / ⌘ + Enter để xác nhận. */
+      /** A multi-line field (a commit message…): Enter inserts a newline, Ctrl / ⌘ + Enter confirms. */
       readonly kind: 'multiline';
       readonly id: string;
       readonly label: string;
@@ -34,7 +34,7 @@ export type FormField =
       readonly placeholder?: string;
     }
   | {
-      /** Ô ẩn ký tự (mật khẩu, passphrase): không tự điền, không kiểm chính tả. */
+      /** A masked field (a password, a passphrase): no autofill, no spell check. */
       readonly kind: 'password';
       readonly id: string;
       readonly label: string;
@@ -58,7 +58,7 @@ export interface FormRequest {
   fields: readonly FormField[];
   confirmTitle: string;
   destructive?: boolean;
-  /** Lỗi hiện dưới form (`null` = hợp lệ); còn lỗi thì nút chính tắt. Chạy lại mỗi lần sửa ô nên phải nhanh, không gọi git. */
+  /** An error shown below the form (`null` = valid); while it is set the primary button is disabled. It re-runs on every edit, so it must be fast and must not call git. */
   validate?: (values: FormValues) => string | null;
 }
 
@@ -74,7 +74,7 @@ export type PendingDialog =
       readonly resolve: (values: FormValues | null) => void;
     });
 
-/** Giá trị chữ của một ô form (đã bỏ khoảng trắng hai đầu). */
+/** The text value of a form field (trimmed at both ends). */
 export function textValue(values: FormValues, id: string): string {
   const value = values[id];
   return typeof value === 'string' ? value.trim() : '';
@@ -88,7 +88,7 @@ export class DialogStore {
   current = $state.raw<PendingDialog | null>(null);
   private serial = 0;
 
-  /** Hiện hộp xác nhận; hộp đang mở (nếu có) bị đóng như bấm Huỷ. */
+  /** Show a confirmation; an already-open dialog is dismissed as if Cancel had been pressed. */
   ask(request: ConfirmRequest): Promise<ConfirmResult> {
     this.dismiss();
     return new Promise((resolve) => {
@@ -96,12 +96,12 @@ export class DialogStore {
     });
   }
 
-  /** Như `ask` nhưng chỉ cần biết có bấm nút chính không. */
+  /** Like `ask`, for when only "was the primary button pressed" matters. */
   async confirm(request: ConfirmRequest): Promise<boolean> {
     return (await this.ask(request)) === 'confirm';
   }
 
-  /** Hiện form; trả giá trị các ô khi bấm nút chính, `null` khi huỷ. */
+  /** Show a form; returns the field values on the primary button, `null` on cancel. */
   form(request: FormRequest): Promise<FormValues | null> {
     this.dismiss();
     return new Promise((resolve) => {
@@ -109,7 +109,7 @@ export class DialogStore {
     });
   }
 
-  /** Trả lời hộp xác nhận; với form thì chỉ 'cancel' có nghĩa (gửi form dùng `submit`). */
+  /** Answer a confirmation dialog; for a form only 'cancel' has meaning (use `submit` to submit). */
   answer(result: ConfirmResult): void {
     const pending = this.current;
     if (!pending) return;
@@ -123,7 +123,7 @@ export class DialogStore {
     pending.resolve(result);
   }
 
-  /** Gửi form đang mở (bỏ qua nếu còn lỗi kiểm tra). */
+  /** Submit the open form (ignored while a validation error is present). */
   submit(values: FormValues): void {
     const pending = this.current;
     if (!pending || pending.kind !== 'form') return;

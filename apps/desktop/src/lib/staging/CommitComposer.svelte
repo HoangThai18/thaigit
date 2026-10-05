@@ -55,12 +55,12 @@
         : null,
   );
 
-  // Đã đồng ý dùng AI: đọc lượt còn lại để hiện cạnh nút (không gửi nội dung gì).
+  // AI consent already given: read the remaining count to show next to the button (nothing is sent).
   $effect(() => {
     if (AI_ENABLED && ai.consented) untrack(() => void ai.refreshQuota());
   });
 
-  // Mở repo đang merge / revert dở (hoặc thao tác vừa dừng vì xung đột): điền sẵn message git đã soạn.
+  // Opened on a repo with an unfinished merge / revert (or an operation that just stopped on a conflict): prefill the message git prepared.
   $effect(() => {
     if (store.operation === null) return;
     untrack(() => void prefillPendingMessage(store));
@@ -68,7 +68,7 @@
 
   const pushable = $derived(canCommitAndPush(store));
 
-  // Lưu bản nháp theo repo mỗi khi gõ (không lưu lúc amend: khi đó ô soạn chứa message của commit cũ).
+  // Save a per-repo draft on every keystroke (not while amending: the box then holds an existing commit's message).
   $effect(() => {
     const { summary, body, amend } = draft;
     if (amend) return;

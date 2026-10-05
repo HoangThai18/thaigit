@@ -1,10 +1,10 @@
-//! Worktree và submodule (như GitKraken): thêm worktree (lệnh có kiểu — thư mục đích chọn bằng hộp thoại native như clone)
-//! và mở một worktree / submodule của repo đang mở trong cửa sổ mới.
+//! Worktrees and submodules (like GitKraken): add a worktree (a typed command — the destination folder is picked with a
+//! native dialog, like clone) and open one of the opened repo's worktrees / submodules in a new window.
 //!
-//! Rust không nhận đường dẫn tuỳ ý từ webview để mở: đường dẫn phải là một worktree do CHÍNH `git worktree list` của repo báo,
-//! hoặc một submodule (gitlink `160000` trong index, nằm trong working tree) đã được khởi tạo. Cửa sổ mới lấy đường dẫn đó
-//! qua `take_launch_paths` theo nhãn cửa sổ (xem `Registry::set_window_launch`), rồi đi qua luồng mở repo thường (hỏi tin
-//! tưởng nếu cần).
+//! Rust does not accept an arbitrary path from the webview to open: the path must be a worktree reported by the repo's OWN
+//! `git worktree list`, or an initialised submodule (a `160000` gitlink in the index, inside the working tree). The new
+//! window picks that path up via `take_launch_paths` keyed by window label (see `Registry::set_window_launch`), then goes
+//! through the normal repo-opening flow (asking for trust when needed).
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -25,8 +25,8 @@ pub enum RelatedKind {
     Submodule,
 }
 
-/// Tên nhánh / commit-ish đưa cho `git worktree add`: không rỗng, không bắt đầu bằng `-` (bị hiểu thành cờ), không ký tự điều
-/// khiển hay khoảng trắng. Git kiểm tên nhánh lần cuối.
+/// Branch / commit-ish handed to `git worktree add`: non-empty, not starting with `-` (which would read as an option), no
+/// control characters or whitespace. Git validates the branch name as a last step.
 pub fn validate_branch_arg(value: &str) -> Result<()> {
     let bad = value.is_empty()
         || value.len() > 255
@@ -35,7 +35,7 @@ pub fn validate_branch_arg(value: &str) -> Result<()> {
     if bad { Err(AppError::policy(format!("tên nhánh `{value}` không hợp lệ"))) } else { Ok(()) }
 }
 
-/// Đường dẫn các worktree trong output `git worktree list --porcelain -z` (mỗi trường kết thúc bằng NUL).
+/// The worktree paths in `git worktree list --porcelain -z` output (each field ends with NUL).
 pub fn parse_worktree_paths(output: &str) -> Vec<PathBuf> {
     output.split('\0').filter_map(|field| field.strip_prefix("worktree ")).map(PathBuf::from).collect()
 }
@@ -58,7 +58,7 @@ impl Core {
         .await
     }
 
-    /// Đường dẫn (đã chuẩn hoá) của một worktree / submodule của repo `repo_id` — từ chối nếu git không xác nhận nó.
+    /// The normalised path of one worktree / submodule of repo `repo_id` — rejected when git does not confirm it.
     pub async fn related_repo_path(&self, repo_id: &str, kind: RelatedKind, path: &str) -> Result<PathBuf> {
         let entry = self.registry.get(repo_id)?;
         match kind {
@@ -96,8 +96,8 @@ impl Core {
         }
     }
 
-    /// `git_worktree_add`: thêm worktree trong thư mục `<token>/<name>` (token do hộp thoại native cấp). `create_branch` = tạo
-    /// nhánh mới `branch` từ `start` (null = HEAD); không thì checkout nhánh có sẵn `branch`. Trả đường dẫn worktree mới.
+    /// `git_worktree_add`: add a worktree in `<token>/<name>` (the token comes from a native dialog). `create_branch` =
+    /// create a new branch `branch` from `start` (null = HEAD); otherwise check out the existing `branch`. Returns the new worktree path.
     pub async fn git_worktree_add(
         &self,
         repo_id: &str,
@@ -173,17 +173,17 @@ mod tests {
         let path = core.git_worktree_add(id, &picked.token, "repo-tinh-nang", "tinh-nang", true, None).await.unwrap();
         assert!(Path::new(&path).join("a.txt").exists());
         assert_eq!(repo.git(&["branch", "--list", "tinh-nang"]).trim(), "+ tinh-nang");
-        // token chỉ dùng được một lần; nhánh bắt đầu bằng `-` bị chặn trước khi chạy git
+        // the token is single-use; a branch starting with `-` is blocked before git runs
         assert!(core.git_worktree_add(id, &picked.token, "khac", "khac", true, None).await.is_err());
         let picked = core.registry.grant_folder(&parent);
         assert_eq!(core.git_worktree_add(id, &picked.token, "x", "--detach", false, None).await.unwrap_err().code(), "policy");
 
         assert_eq!(core.related_repo_path(id, RelatedKind::Worktree, &path).await.unwrap(), canonical(Path::new(&path)).unwrap());
-        // Thư mục bất kỳ (kể cả chính tmp) không phải worktree → bị từ chối.
+        // An arbitrary directory (even tmp itself) is not a worktree → rejected.
         let stranger = repo.tmp().to_string_lossy().into_owned();
         assert_eq!(core.related_repo_path(id, RelatedKind::Worktree, &stranger).await.unwrap_err().code(), "policy");
 
-        // Submodule: chỉ gitlink thật trong index.
+        // Submodule: only a real gitlink in the index.
         let sub = TestRepo::new();
         sub.write("s.txt", "s\n");
         sub.commit_all("sub");

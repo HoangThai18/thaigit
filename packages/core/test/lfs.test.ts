@@ -1,4 +1,4 @@
-// Git LFS: parser thuần + thao tác trên git-lfs thật (qua NodeExec + chính sách). Máy không có git-lfs thì bỏ qua phần git thật.
+// Git LFS: the pure parser plus operations against real git-lfs (through NodeExec and the policy). Machines without git-lfs skip the real-git part.
 import { spawnSync } from 'node:child_process';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -59,7 +59,7 @@ describe.skipIf(!HAS_LFS)('git-lfs thật', () => {
       const content = 'nội dung lớn\n'.repeat(100);
       await t.write('a.bin', content);
       await t.commitAll('thêm file LFS');
-      // Trong git, file chỉ còn là con trỏ.
+      // In git the file is just a pointer.
       const blob = t.git('cat-file', '-p', 'HEAD:a.bin');
       expect(parseLfsPointer(blob)?.size).toBe(Buffer.byteLength(content));
 
@@ -70,7 +70,7 @@ describe.skipIf(!HAS_LFS)('git-lfs thật', () => {
       t.git('push', '-q', '--no-verify', 'origin', 'main');
       expect(await readdir(join(bare, 'lfs', 'objects'))).not.toEqual([]);
 
-      // Clone không có bộ lọc LFS: working tree chỉ có con trỏ; `lfs pull` thay bằng file thật.
+      // The clone has no LFS filter: the working tree only holds pointers; `lfs pull` replaces them with the real files.
       const clone = join(t.root, '..', 'ban-clone');
       rawGit(join(t.root, '..'), ['clone', '-q', '-b', 'main', pathToFileURL(bare).href, clone]);
       expect(parseLfsPointer(await readFile(join(clone, 'a.bin'), 'utf8'))).not.toBeNull();

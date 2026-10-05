@@ -1,22 +1,24 @@
 /**
- * Review một Pull Request / Merge Request (panel bên phải, thay chi tiết khi mở): mô tả của PR và các file thay đổi so với
- * điểm tách khỏi nhánh đích — đúng "Files changed" của GitHub / GitLab. Bấm file để xem diff của riêng file đó ở vùng giữa.
+ * Review a Pull Request / Merge Request (right-hand panel, replacing the details when opened): the PR's
+ * description and the files changed relative to the merge base against the target branch — GitHub /
+ * GitLab's "Files changed". Clicking a file shows that file's diff in the centre area.
  *
- * Store chỉ giữ trạng thái; việc lấy nhánh về máy và tính danh sách file nằm ở `openReview.ts` (chạy qua hàng đợi thao tác của repo).
+ * The store only holds state; fetching the branches and computing the file list lives in `openReview.ts`
+ * (run through the repo's operation queue).
  */
 import type { ForgeMergeRequest, ForgePerson, ForgeProvider } from '@thaigit/contracts';
 import type { FileChange } from '@thaigit/core';
 import type { DiffSource, DiffStore } from '../stores/diff.svelte.ts';
 
-/** Phần của `RepoStore` mà review cần (tránh import vòng). */
+/** The slice of `RepoStore` that review needs (avoids a circular import). */
 export interface ReviewHost {
   readonly diff: DiffStore;
-  /** Các panel cùng chỗ bên phải: mở review thì đóng Dòng thời gian / Lịch sử file. */
+  /** Panels that share the right-hand slot: opening review closes Timeline / File history. */
   closeTimeline(): void;
   closeFileHistory(): void;
 }
 
-/** Thay đổi của PR: từ điểm tách (`from`) tới đầu nhánh của PR (`head`). */
+/** The PR's changes: from the merge base (`from`) to the tip of the PR branch (`head`). */
 export interface ReviewChanges {
   readonly head: string;
   readonly from: string;
@@ -25,24 +27,24 @@ export interface ReviewChanges {
 
 export type ReviewPhase = 'loading' | 'ready' | 'failed';
 
-/** Danh sách người có thể gán (nạp khi mở bảng chọn lần đầu của PR đang xem). */
+/** People who can be assigned (loaded the first time the picker opens for the current PR). */
 export type PeoplePhase = 'idle' | 'loading' | 'ready' | 'failed';
 
 export class ReviewStore {
-  /** PR đang review; `null` = panel đóng. */
+  /** PR being reviewed; `null` = the panel is closed. */
   request = $state.raw<ForgeMergeRequest | null>(null);
-  /** Loại máy chủ của repo (đổi cách gọi PR / MR). */
+  /** The repo's host kind (changes how PR / MR are called). */
   provider = $state<ForgeProvider | null>(null);
   phase = $state<ReviewPhase>('loading');
   changes = $state.raw<ReviewChanges | null>(null);
-  /** Người có thể gán vào PR / MR (GitHub: người gán được của repo, GitLab: thành viên project). */
+  /** People assignable to a PR / MR (GitHub: repo assignees, GitLab: project members). */
   candidates = $state.raw<readonly ForgePerson[]>([]);
   peoplePhase = $state<PeoplePhase>('idle');
-  /** Đang gửi thay đổi người review / người được gán lên máy chủ. */
+  /** A reviewer / assignee change is being sent to the host. */
   saving = $state(false);
-  /** Tăng sau mỗi lần lưu thành công: danh sách PR / MR ở sidebar nạp lại cho khớp. */
+  /** Bumped after each successful save: the sidebar's PR / MR list reloads to match. */
   peopleVersion = $state(0);
-  /** Mỗi lần mở / đóng / tải lại tăng một bậc: kết quả của lần cũ về muộn thì bị bỏ. */
+  /** Bumped on every open / close / reload: a late result from an earlier run is discarded. */
   private token = 0;
   private peopleToken = 0;
 
@@ -52,7 +54,7 @@ export class ReviewStore {
     return this.request !== null;
   }
 
-  /** Bắt đầu (hoặc tải lại) review `request`: trả mã lần này để `finish` / `fail` nhận ra kết quả của chính nó. */
+  /** Start (or reload) the review of `request`; returns this run's id so `finish` / `fail` recognise their own result. */
   begin(request: ForgeMergeRequest, provider: ForgeProvider | null): number {
     this.host.closeTimeline();
     this.host.closeFileHistory();
@@ -90,7 +92,7 @@ export class ReviewStore {
     this.resetPeople();
   }
 
-  /** Bắt đầu nạp danh sách người có thể gán; `null` nếu đang nạp hoặc đã nạp rồi (mở bảng chọn nhiều lần không gọi lại). */
+  /** Start loading the assignable-people list; `null` if it is already loading or loaded (reopening the picker doesn't refetch). */
   beginPeople(): number | null {
     if (this.request === null || this.peoplePhase === 'loading' || this.peoplePhase === 'ready') return null;
     this.peoplePhase = 'loading';
@@ -108,14 +110,14 @@ export class ReviewStore {
     this.peoplePhase = 'failed';
   }
 
-  /** Đánh dấu đang lưu; trả `false` nếu không có PR nào đang xem hoặc đang lưu dở (không gửi chồng hai lệnh). */
+  /** Mark a save as in flight; returns `false` when no PR is open or a save is already running (never submit twice). */
   beginSaving(): boolean {
     if (this.request === null || this.saving) return false;
     this.saving = true;
     return true;
   }
 
-  /** Lưu xong: nhận PR / MR đọc lại từ máy chủ (chỉ khi vẫn đang xem đúng PR đó). */
+  /** Save finished: take the PR / MR re-read from the host (only if the same PR is still open). */
   finishSaving(updated: ForgeMergeRequest): void {
     this.saving = false;
     const request = this.request;
@@ -135,7 +137,7 @@ export class ReviewStore {
     this.saving = false;
   }
 
-  /** Đường dẫn file của PR đang mở diff (tô hàng trong danh sách), nếu có. */
+  /** File path of the open diff inside the PR (highlights the list row), if any. */
   get openPath(): string | null {
     const changes = this.changes;
     const open = this.host.diff.file;
@@ -143,19 +145,19 @@ export class ReviewStore {
     return open.source.sha === changes.head && open.source.parent === changes.from ? open.change.path : null;
   }
 
-  /** Nguồn diff của PR (đầu nhánh so với điểm tách); `label` là chữ nhận diện ở đầu diff (vd. `#12`). */
+  /** Diff source of the PR (branch tip vs merge base); `label` is the identifier shown above the diff (e.g. `#12`). */
   diffSource(label: string): DiffSource | null {
     const changes = this.changes;
     return changes === null ? null : { kind: 'commit', sha: changes.head, parent: changes.from, label };
   }
 
-  /** Mở diff của một file trong PR ở vùng giữa. */
+  /** Open the diff of one PR file in the centre area. */
   openFile(change: FileChange, label: string): void {
     const source = this.diffSource(label);
     if (source !== null) this.host.diff.open(change, source);
   }
 
-  /** Đóng panel thì đóng luôn diff của PR (diff của commit khác giữ nguyên). */
+  /** Closing the panel also closes the PR's diff (a commit's diff is left alone). */
   private dropOpenDiff(): void {
     const changes = this.changes;
     const open = this.host.diff.file;

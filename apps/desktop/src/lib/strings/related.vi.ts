@@ -1,5 +1,5 @@
 /**
- * Chuỗi của worktree và submodule (sidebar, menu, hộp thoại). Truy cập qua `vi.related.*`.
+ * Strings for worktrees and submodules (sidebar, menu, dialogs). Reached through `vi.related.*`.
  */
 export const related = {
   // Sidebar
@@ -27,7 +27,7 @@ export const related = {
   syncSubmodules: 'Đồng bộ URL submodule (sync)',
   openFailed: 'Không mở được cửa sổ mới',
 
-  // Thêm worktree
+  // Add worktree
   addTitle: 'Thêm worktree',
   addMessage: (folder: string) =>
     `Worktree là một thư mục làm việc thứ hai của cùng repo, checkout một nhánh khác — làm song song mà không phải stash hay chuyển nhánh. Thư mục mới nằm trong ${folder}.`,
@@ -45,7 +45,7 @@ export const related = {
   addRunning: (branch: string) => `Thêm worktree cho ${branch}`,
   added: (branch: string) => `Đã thêm worktree cho ${branch}`,
 
-  // Gỡ / dọn
+  // Remove / clean
   removeConfirmTitle: (name: string) => `Gỡ worktree ${name}?`,
   removeConfirmMessage:
     'Thư mục của worktree sẽ bị xoá; nhánh và các commit vẫn giữ nguyên trong repo. Git sẽ từ chối nếu worktree còn thay đổi chưa commit.',

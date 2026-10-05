@@ -1,16 +1,17 @@
 import Foundation
 
-/// Chạy từng lệnh shell cho terminal đơn giản trong app: mỗi lệnh một tiến trình zsh không tương tác (stdin trống),
-/// output trả về theo dòng khi có, nhớ thư mục sau `cd`. Không giả lập terminal: chương trình cần bàn phím (vim, less,
-/// hỏi mật khẩu) sẽ không dùng được — đặt PAGER=cat, GIT_TERMINAL_PROMPT=0 để lệnh không chờ nhập.
+/// Runs each shell command for the app's simple terminal: every command is a separate non-interactive zsh
+/// process (empty stdin), output is returned line by line when there is any, and the working directory
+/// after a `cd` is remembered. This is not an emulated terminal: programs needing a keyboard (vim, less,
+/// a password prompt) won't work — set PAGER=cat and GIT_TERMINAL_PROMPT=0 so commands don't wait for input.
 public enum TerminalShell {
     public struct Result: Sendable, Equatable {
         public let exitCode: Int32
-        /// Thư mục sau khi chạy (đổi khi lệnh có `cd`).
+        /// The directory after running (changes when the command contains a `cd`).
         public let directory: URL
     }
 
-    /// Dấu đánh dấu dòng báo thư mục cuối (ký tự 0x1E không xuất hiện trong output thường).
+    /// Marker that flags the directory line (character 0x1E never appears in normal output).
     static let marker = "\u{1E}THAIGIT_PWD:"
 
     static let script = """
@@ -21,7 +22,7 @@ public enum TerminalShell {
     exit $__thaigit_status
     """
 
-    /// Biến môi trường cho lệnh: không màu, không pager, không hỏi mật khẩu trên terminal.
+    /// Environment variables for the command: no colour, no pager, no password prompts on the terminal.
     public static func environment(base: [String: String]) -> [String: String] {
         var environment = base
         environment["TERM"] = "dumb"
@@ -33,8 +34,8 @@ public enum TerminalShell {
         return environment
     }
 
-    /// Chạy `command` trong `directory`. `onLine(dòng, làLỗi)` được gọi cho từng dòng output (đã bỏ mã màu ANSI).
-    /// Huỷ Task thì dừng lệnh (SIGTERM cho các tiến trình con rồi cho shell).
+    /// Runs `command` in `directory`. `onLine(line, isError)` is called per output line (ANSI colour codes removed).
+    /// Cancelling the Task stops the command (SIGTERM to the child processes, then to the shell).
     public static func run(
         _ command: String,
         in directory: URL,
@@ -77,7 +78,7 @@ public enum TerminalShell {
                         var splitter = LineSplitter()
                         let handle = pipe.fileHandleForReading
                         func emit(_ line: String) {
-                            // Dấu thư mục có thể dính sau dòng cuối chưa xuống dòng của lệnh ("abc\u{1E}THAIGIT_PWD:/x").
+                            // The directory marker can stick to the last line of output when it has no trailing newline ("abc\u{1E}THAIGIT_PWD:/x").
                             if !isError, let range = line.range(of: marker) {
                                 let before = String(line[..<range.lowerBound])
                                 if !before.isEmpty { onLine(TerminalText.clean(before), false) }
@@ -104,7 +105,7 @@ public enum TerminalShell {
             }
         } onCancel: {
             guard process.isRunning else { return }
-            // Shell chạy lệnh trong tiến trình con: dừng con trước (pkill -P), rồi tới shell.
+            // The shell runs the command in a child process: kill the child first (pkill -P), then the shell.
             let pid = process.processIdentifier
             let killer = Process()
             killer.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
@@ -116,7 +117,7 @@ public enum TerminalShell {
     }
 }
 
-/// Tách byte thành dòng UTF-8 (giữ phần cuối chưa có "\n" cho lần sau).
+/// Splits bytes into UTF-8 lines (keeping a trailing part without "\n" for the next round).
 struct LineSplitter {
     private var pending = Data()
 
@@ -139,7 +140,7 @@ struct LineSplitter {
 public enum TerminalText {
     private static let ansi = try! NSRegularExpression(pattern: "\u{1B}\\[[0-9;?]*[ -/]*[@-~]|\u{1B}\\][^\u{07}\u{1B}]*(\u{07}|\u{1B}\\\\)|\u{1B}[@-Z\\\\-_]")
 
-    /// Bỏ mã màu / điều khiển ANSI; dòng có "\r" (thanh tiến độ ghi đè) chỉ giữ phần sau "\r" cuối cùng.
+    /// Strips ANSI colour / control codes; a line containing "\r" (a progress bar redrawing) keeps only the part after the last "\r".
     public static func clean(_ line: String) -> String {
         var text = line
         if text.contains("\u{1B}") {

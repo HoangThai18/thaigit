@@ -30,7 +30,7 @@ struct AdvancedGitTests {
         #expect(await t.repo.signatureFormat(of: signed) == .ssh)
         #expect(await t.repo.verifySignature(of: unsigned) == .unsigned)
 
-        // Repo tự đặt gpg.ssh.program thành lệnh lạ: xác minh vẫn dùng ssh-keygen thật, lệnh lạ không chạy.
+        // The repo sets gpg.ssh.program to an odd command: verification still uses the real ssh-keygen and never runs the odd command.
         let marker = t.url.appendingPathComponent("da-chay")
         try t.write("evil.sh", "#!/bin/sh\ntouch '\(marker.path)'\nexit 1\n")
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: t.url.appendingPathComponent("evil.sh").path)
@@ -46,7 +46,7 @@ struct AdvancedGitTests {
         }
         #expect(!FileManager.default.fileExists(atPath: marker.path))
 
-        // Tắt ký: giữ khoá, chỉ đổi commit.gpgsign.
+        // Signing off: the key is kept, only commit.gpgsign changes.
         try await t.repo.configureSigning(CommitSigningConfig(signCommits: false, signTags: false, format: .ssh, key: nil), global: false)
         #expect(await t.repo.signingConfig() == CommitSigningConfig(signCommits: false, signTags: false, format: .ssh, key: key.path))
     }
@@ -151,7 +151,7 @@ struct AdvancedGitTests {
         #expect(try await t.git("log", "--format=%s", "develop").contains("phiên bản 1.0"))
         #expect(try await t.repo.status().head.branchName == "develop")
 
-        // Conflict giữa chừng: báo bước dừng và các bước còn lại.
+        // A conflict mid-way: report the stopping step and the remaining steps.
         try await t.repo.startFlow(.hotfix, name: "1.0.1", config: config)
         try t.write("VERSION", "1.0.1\n")
         try await t.commitAll("sửa gấp")

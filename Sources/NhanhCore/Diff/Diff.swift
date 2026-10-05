@@ -5,13 +5,14 @@ public struct DiffLine: Sendable, Hashable {
         case context
         case addition
         case deletion
-        /// "\ No newline at end of file" — áp dụng cho dòng ngay trước nó.
+        /// "\ No newline at end of file" — applies to the line right before it.
         case noNewline
     }
 
     public let kind: Kind
-    /// Nội dung dòng, không gồm ký tự đánh dấu đầu dòng và "\n" cuối. "\r" của file CRLF được GIỮ (patch dựng lại
-    /// bằng `text + "\n"` mới đúng từng byte); hiển thị thì dùng `DiffPresentation` (đã bỏ "\r").
+    /// The line's content, without the leading marker character and the trailing "\n". A CRLF file's "\r" is
+    /// KEPT (a patch rebuilt as `text + "\n"` has to match byte for byte); for display use `DiffPresentation`
+    /// (which strips "\r").
     public let text: String
     public let oldNumber: Int?
     public let newNumber: Int?
@@ -33,7 +34,7 @@ public struct DiffHunk: Sendable, Hashable, Identifiable {
     public let oldCount: Int
     public let newStart: Int
     public let newCount: Int
-    /// Phần chữ sau "@@ ... @@" (thường là tên hàm).
+    /// The text after "@@ ... @@" (usually the enclosing function name).
     public let section: String
     public let lines: [DiffLine]
 
@@ -48,7 +49,7 @@ public struct DiffHunk: Sendable, Hashable, Identifiable {
         self.lines = lines
     }
 
-    /// Chỉ số các dòng thêm/xoá trong hunk.
+    /// Indices of the added / deleted lines within the hunk.
     public var changeLineIndices: [Int] {
         lines.indices.filter { lines[$0].isChange }
     }
@@ -57,7 +58,7 @@ public struct DiffHunk: Sendable, Hashable, Identifiable {
 public struct FileDiff: Sendable, Hashable {
     public var oldPath: String?
     public var newPath: String?
-    /// Các dòng header từ "diff --git" đến "+++" (dùng lại khi dựng patch).
+    /// The header lines from "diff --git" through "+++" (reused when building the patch).
     public var headerLines: [String]
     public var hunks: [DiffHunk]
     public var isBinary: Bool
@@ -68,8 +69,9 @@ public struct FileDiff: Sendable, Hashable {
     public var similarity: Int?
     public var additions: Int
     public var deletions: Int
-    /// false nếu output git của file này có byte không phải UTF-8 (file Latin-1, CP1258…): chữ đã giải mã lỏng
-    /// (byte lỗi thành U+FFFD) chỉ để hiển thị — dựng patch từ đó sẽ ghi EF BF BD vào index/working tree.
+    /// false when this file's git output contains non-UTF-8 bytes (a Latin-1 file, CP1258…): the loosely
+    /// decoded text (bad bytes became U+FFFD) is display-only — building a patch from it would write
+    /// EF BF BD into the index / working tree.
     public var isValidUTF8: Bool
 
     public init(oldPath: String? = nil, newPath: String? = nil, headerLines: [String] = [], hunks: [DiffHunk] = [],
@@ -93,8 +95,8 @@ public struct FileDiff: Sendable, Hashable {
 
     public var lineCount: Int { hunks.reduce(0) { $0 + $1.lines.count } }
 
-    /// Có thể stage/unstage/discard từng hunk hoặc từng dòng không. File không phải UTF-8 thì không: chỉ thao tác
-    /// cả file (`git add`/`restore`/`reset` giữ nguyên byte).
+    /// Whether hunks or individual lines can be staged / unstaged / discarded. A non-UTF-8 file cannot: only
+    /// whole-file operations work there (`git add` / `restore` / `reset` keep the bytes as-is).
     public var supportsPartialStaging: Bool {
         isValidUTF8 && !isBinary && !isNewFile && !isDeletedFile && !hunks.isEmpty
             && headerLines.contains { $0.hasBytePrefix("--- ") } && headerLines.contains { $0.hasBytePrefix("+++ ") }
@@ -104,25 +106,26 @@ public struct FileDiff: Sendable, Hashable {
 }
 
 public enum DiffParser {
-    /// Parse output dạng unified diff (`git diff`, `git diff-tree -p`), có thể gồm nhiều file.
+    /// Parse unified-diff output (`git diff`, `git diff-tree -p`), possibly spanning several files.
     public static func parse(_ text: String) -> [FileDiff] {
         var text = text
         return text.withUTF8 { parse(bytes: $0) }
     }
 
-    /// Parse byte thô của git — dùng bản này cho output thật (không giải mã cả output trước khi tách dòng).
+    /// Parse git's raw bytes — use this for real output (the whole output isn't decoded before splitting lines).
     public static func parse(_ data: Data) -> [FileDiff] {
         data.withUnsafeBytes { raw in
             raw.withMemoryRebound(to: UInt8.self) { parse(bytes: $0) }
         }
     }
 
-    /// Tách dòng CHỈ theo byte "\n": trong Swift "\r\n" là MỘT Character nên tách theo Character làm dính các dòng
-    /// CRLF vào nhau; ở đây "\r" nằm lại cuối `DiffLine.text`. Ký tự đánh dấu đầu dòng (" ", "+", "-", "\\") cũng xét
-    /// theo byte (dòng bắt đầu bằng dấu kết hợp vẫn đúng). Phần của file nào có byte không phải UTF-8 vẫn được giải
-    /// mã lỏng để hiển thị nhưng bị đánh dấu `isValidUTF8 = false`.
+    /// Split lines ONLY on the byte "\n": in Swift "\r\n" is ONE Character, so splitting on Character
+    /// glues CRLF lines together; here the "\r" stays at the end of `DiffLine.text`. The leading marker
+    /// character (" ", "+", "-", "\\") is also examined by byte (a line starting with a combining mark
+    /// is still handled correctly). A file region with non-UTF-8 bytes is still decoded leniently for
+    /// display but flagged `isValidUTF8 = false`.
     private static func parse(bytes: UnsafeBufferPointer<UInt8>) -> [FileDiff] {
-        // Gần như luôn hợp lệ: kiểm một lần cả buffer, chỉ khi hỏng mới kiểm riêng phần của từng file.
+        // Almost always valid: check the whole buffer once and only look per-file region when it fails.
         let allValid = UTF8Text.isValid(bytes)
         var files: [FileDiff] = []
         var current: FileDiff?
@@ -216,7 +219,7 @@ public enum DiffParser {
         return files
     }
 
-    /// Giải mã (lỏng) phần `line[offset...]`.
+    /// Decode (leniently) the region `line[offset...]`.
     private static func decode(_ line: UnsafeBufferPointer<UInt8>, from offset: Int = 0) -> String {
         String(decoding: UnsafeBufferPointer(rebasing: line[min(offset, line.count)...]), as: UTF8.self)
     }
@@ -279,9 +282,9 @@ public enum DiffParser {
     }
 }
 
-/// Tô sáng phần thay đổi bên trong một dòng (so cặp dòng xoá/thêm liền kề).
+/// Highlights the changed parts inside a line (comparing adjacent deleted/added line pairs).
 public enum InlineDiff {
-    /// Khoảng ký tự (theo Character) khác nhau giữa hai dòng; nil nếu hai dòng khác nhau quá nhiều.
+    /// The differing Character ranges of the two lines; nil when they differ too much.
     public static func changedRanges(old: String, new: String) -> (old: Range<Int>, new: Range<Int>)? {
         let a = Array(old)
         let b = Array(new)
@@ -294,7 +297,7 @@ public enum InlineDiff {
         }
         let common = prefix + suffix
         let longest = max(a.count, b.count)
-        // Nếu phần giống nhau quá ít thì tô cả dòng là đủ, không tô từng phần.
+        // Too little in common: highlighting the whole line is enough, no need to go per range.
         guard longest > 0, Double(common) / Double(longest) >= 0.3 else { return nil }
         let oldRange = prefix..<(a.count - suffix)
         let newRange = prefix..<(b.count - suffix)
@@ -302,7 +305,7 @@ public enum InlineDiff {
         return (oldRange, newRange)
     }
 
-    /// Trả về: chỉ số dòng trong hunk → khoảng ký tự cần tô đậm.
+    /// Returns: line index within the hunk → the Character ranges to embolden.
     public static func highlights(for hunk: DiffHunk) -> [Int: Range<Int>] {
         var result: [Int: Range<Int>] = [:]
         let lines = hunk.lines

@@ -47,7 +47,7 @@
     );
   });
 
-  /** Bitbucket chưa gán người được từ app (chỉ hiện danh sách người review). */
+  /** Bitbucket can't be assigned from the app yet (only the reviewer list is shown). */
   const editablePeople = $derived(review.provider === 'github' || review.provider === 'gitlab');
 
   let showFullBody = $state(false);

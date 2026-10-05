@@ -61,12 +61,12 @@
       store.remotes.length > 0 &&
       (gaps.shallow || gaps.narrowRemotes.length > 0),
   );
-  /** Vùng giữa đang bị diff / blame che (graph ẩn đi). */
+  /** The centre area is currently covered by a diff / blame (the graph is hidden). */
   const centerCovered = $derived(store.diff.file !== null || store.blame.target !== null);
   let showLog = $state(false);
   let showBranchPicker = $state(false);
   const filterSummary = $derived(graphFilterSummary(store));
-  /** Số file chưa commit (một file vừa stage vừa sửa tiếp chỉ tính một lần) — chip cạnh tên nhánh. */
+  /** Uncommitted file count (a file that is both staged and then modified counts once) — chip next to the branch name. */
   const uncommittedCount = $derived(
     new Set([
       ...store.status.staged.map((change) => change.path),
@@ -81,7 +81,7 @@
   $effect(() => startAutoFetch(store));
   $effect(() => startAutoSnapshots(store));
 
-  // Kéo-thả: nhánh / tag lên nhánh hoặc remote (menu chọn thao tác), file giữa "Chưa stage" và "Đã stage".
+  // Drag and drop: branch / tag onto a branch or remote (a menu picks the operation), file between "Unstaged" and "Staged".
   $effect(() => {
     const repo = store;
     drag.handler = {
@@ -97,7 +97,7 @@
     };
   });
 
-  /** Phím tắt của repo (Ctrl trên Windows/Linux, ⌘ trên macOS) — như menu Repository của app Swift. */
+  /** Repo keyboard shortcuts (Ctrl on Windows/Linux, ⌘ on macOS) — mirrors the Swift app's Repository menu. */
   function onwindowkeydown(event: KeyboardEvent): void {
     if (
       event.defaultPrevented ||
@@ -387,7 +387,7 @@
     min-height: 0;
   }
 
-  /* Chừa chỗ cho nút đèn giao thông của macOS (chỉ khi cửa sổ dùng thanh tiêu đề chồng). */
+  /* Leave room for the macOS traffic-light buttons (only when the window uses an overlay title bar). */
   .inset {
     flex: none;
     width: var(--titlebar-inset);
@@ -519,7 +519,7 @@
     min-height: 0;
   }
 
-  /* Không dùng display: none — giữ khung cuộn của graph (vị trí cuộn) khi mở diff rồi quay lại. */
+  /* Not `display: none` — keep the graph's scroll container (and its scroll position) alive across a diff and back. */
   .graph-area.hidden {
     position: absolute;
     inset: 0;

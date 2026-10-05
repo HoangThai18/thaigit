@@ -1,5 +1,5 @@
-// Tự fetch nền theo cài đặt "tự fetch mỗi N phút" (0 = tắt), như app Swift: kiểm mỗi phút, bỏ qua khi cửa sổ đang ẩn, đang
-// bận, hoặc vừa fetch / pull chưa đủ N phút.
+// Background autofetch following the "autofetch every N minutes" preference (0 = off), like the Swift app: check every
+// minute, skip while a window is hidden, while something is running, or when the last fetch / pull was less than N minutes ago.
 
 import type { RepoStore } from '../stores/repo.svelte.ts';
 import { backgroundFetch } from './remote.ts';
@@ -12,7 +12,7 @@ export function shouldAutoFetch(store: RepoStore, now: number, hidden: boolean):
   return store.lastFetch === null || now - store.lastFetch >= minutes * 60_000;
 }
 
-/** Bắt đầu tự fetch cho `store`; trả hàm dừng. */
+/** Start autofetch for `store`; returns the stop function. */
 export function startAutoFetch(store: RepoStore, tickMs = TICK_MS): () => void {
   let running = false;
   const timer = setInterval(() => {

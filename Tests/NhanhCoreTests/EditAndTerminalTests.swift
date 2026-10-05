@@ -24,10 +24,10 @@ struct EditAndTerminalTests {
         #expect(try Data(contentsOf: url) == Data([0xEF, 0xBB, 0xBF]) + Data("dòng 1\r\ndòng 2 đã sửa\r\ndòng 3\r\n".utf8))
         let mode = try FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int
         #expect(mode == 0o755)
-        // Không còn file tạm.
+        // No temp file left behind.
         #expect(try FileManager.default.contentsOfDirectory(atPath: root.path) == ["chay.sh"])
 
-        // Sửa ở nơi khác sau khi mở: không ghi đè trừ khi được phép.
+        // Edited elsewhere after opening: no overwrite unless allowed.
         try Data("người khác sửa\r\n".utf8).write(to: url)
         #expect(throws: EditableTextFile.Problem.changedOnDisk) { _ = try saved.save("của tôi\n", in: root) }
         _ = try saved.save("của tôi\n", in: root, overwrite: true)

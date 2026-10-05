@@ -1,8 +1,10 @@
-//! Chạy tiến trình con và stream frame: đọc stdout/stderr đồng thời (không deadlock khi cả hai cùng lớn), huỷ theo bậc.
+//! Runs the child process and streams frames: stdout/stderr are read concurrently (so neither deadlocks when both grow
+//! large), and cancellation happens in stages.
 //!
-//! Unix: mỗi lệnh là một process group (`process_group(0)`), huỷ = SIGTERM cả nhóm → chờ → SIGKILL. Windows:
-//! `CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP` + Job Object; huỷ = CTRL_BREAK → chờ → `TerminateJobObject`.
-//! Module này không biết gì về repo/chính sách; `core.rs` lo kiểm tra, khoá và gắn nhãn cửa sổ.
+//! Unix: each command is its own process group (`process_group(0)`), cancelling = SIGTERM the group → wait → SIGKILL.
+//! Windows: `CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP` plus a Job Object; cancelling = CTRL_BREAK → wait →
+//! `TerminateJobObject`.
+//! This module knows nothing about repos or policy; `core.rs` handles validation, locking and window labels.
 
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -19,15 +21,15 @@ use tokio::task::JoinHandle;
 use crate::errors::{AppError, Result};
 use crate::frames::{LineSplitter, MAX_STDOUT_FRAME, TAG_STDOUT, stderr_frame};
 
-/// Nơi nhận frame (Channel của Tauri trong app; bộ gom trong test).
+/// Where frames are received (Tauri's Channel in the app; a collector in tests).
 pub trait FrameSink: Send + Sync + 'static {
     fn send(&self, frame: Vec<u8>);
 }
 
-/// Giới hạn tổng số byte (stdout + stderr) mà một lệnh được phép chuyển tiếp. Webview không báo nhận từng frame nên không có
-/// backpressure thật: frame lớn nằm trong hàng đợi của Tauri cho tới khi JS lấy, và một webview treo/bị chiếm quyền sẽ không bao
-/// giờ lấy. Đây là CHẶN TRÊN cho bộ nhớ đó (và cho bộ gom của lệnh nội bộ): vượt mức → bỏ frame, huỷ tiến trình
-/// (`cancel`) và đánh dấu `exceeded` để người gọi trả lỗi rõ ràng thay vì frame `exit`.
+/// Cap on the total bytes (stdout + stderr) one command may forward. The webview does not acknowledge frames, so there is
+/// no real backpressure: a large frame sits in Tauri's IPC queue until JS picks it up, and a hung or busy webview never
+/// does. This is the UPPER BOUND on that memory (and on an internal command's collector): past it, frames are dropped,
+/// the process is cancelled and `exceeded` is set, so the caller reports a clear error instead of an `exit` frame.
 pub struct LimitedSink {
     inner: Arc<dyn FrameSink>,
     limit: u64,
@@ -41,7 +43,7 @@ impl LimitedSink {
         Self { inner, limit, sent: AtomicU64::new(0), exceeded: AtomicBool::new(false), cancel }
     }
 
-    /// Đã vượt giới hạn (tiến trình đã bị huỷ, phần output còn lại bị bỏ)?
+    /// Already past the limit (the process was cancelled, the remaining output dropped)?
     pub fn exceeded(&self) -> bool {
         self.exceeded.load(Ordering::SeqCst)
     }
@@ -66,7 +68,7 @@ impl FrameSink for LimitedSink {
     }
 }
 
-/// Tín hiệu huỷ dùng chung giữa bảng op, khoá và tác vụ chạy lệnh.
+/// Cancellation signal shared by the op table, the locks and the command-running task.
 #[derive(Debug, Default)]
 pub struct CancelToken {
     flag: AtomicBool,
@@ -99,14 +101,16 @@ impl CancelToken {
     }
 }
 
-/// Thời gian chờ của từng bậc huỷ.
+/// Wait time for each cancellation stage.
 #[derive(Debug, Clone, Copy)]
 pub struct CancelTiming {
-    /// Sau tín hiệu mềm (SIGTERM / CTRL_BREAK) chờ bấy lâu rồi mới giết cứng.
+    /// After a soft signal (SIGTERM / CTRL_BREAK), wait this long before the hard kill.
     pub soft_wait: Duration,
-    /// Sau khi tiến trình chính thoát vì huỷ, chờ nhóm tiến trình con dọn xong rồi mới dọn cứng.
+    /// After the main process exits due to cancellation, give the child process group this long to clean up before the
+    /// hard kill.
     pub group_grace: Duration,
-    /// Sau khi tiến trình thoát, chờ bấy lâu cho hai luồng đọc hết dữ liệu (con cháu giữ pipe mở thì bỏ qua).
+    /// After the process exits, wait this long for both reader threads to drain (skipped when a grandchild keeps the pipe
+    /// open).
     pub reader_grace: Duration,
 }
 
@@ -121,7 +125,7 @@ pub struct ProcessSpec {
     pub program: PathBuf,
     pub args: Vec<OsString>,
     pub cwd: PathBuf,
-    /// Môi trường đầy đủ (`env_clear` rồi đặt các biến này).
+    /// The full environment (`env_clear`, then these variables set).
     pub env: Vec<(OsString, OsString)>,
     pub stdin: Option<Vec<u8>>,
 }
@@ -134,39 +138,39 @@ pub struct ExitInfo {
 
 #[cfg(windows)]
 mod job {
-    //! Job Object: gom git và mọi tiến trình con để `TerminateJobObject` dọn sạch ở bậc cứng.
+    //! Job Object: groups git and every child process so `TerminateJobObject` cleans up at the hard stage.
     use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
     use windows_sys::Win32::System::JobObjects::{AssignProcessToJobObject, CreateJobObjectW, TerminateJobObject};
 
     pub struct Job(HANDLE);
 
-    // SAFETY: HANDLE của Job Object dùng được từ mọi luồng; ta chỉ gọi API an toàn luồng của Win32.
+    // SAFETY: the Job Object HANDLE is usable from any thread; we only call thread-safe Win32 APIs.
     unsafe impl Send for Job {}
     unsafe impl Sync for Job {}
 
     impl Job {
         pub fn create_and_assign(process: HANDLE) -> Option<Self> {
-            // SAFETY: tham số null hợp lệ (job vô danh, thuộc tính mặc định); kết quả được kiểm.
+            // SAFETY: null parameters are valid (anonymous job, default attributes); the result is checked.
             let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
             if handle.is_null() {
                 return None;
             }
             let job = Self(handle);
-            // SAFETY: cả hai handle còn sống trong lúc gọi.
+            // SAFETY: both handles are alive during the call.
             let assigned = unsafe { AssignProcessToJobObject(job.0, process) };
             (assigned != 0).then_some(job)
         }
 
         pub fn terminate(&self) {
-            // SAFETY: handle job còn sống đến khi `Drop`.
+            // SAFETY: the job handle stays alive until `Drop`.
             unsafe { TerminateJobObject(self.0, 1) };
         }
     }
 
     impl Drop for Job {
         fn drop(&mut self) {
-            // SAFETY: đóng đúng một lần handle do ta tạo. Không đặt KILL_ON_JOB_CLOSE nên git chạy nền
-            // (gc --auto đã tách) không bị giết khi lệnh xong.
+            // SAFETY: closing the handle we created exactly once. KILL_ON_JOB_CLOSE is not set, so background git
+            // processes (a detached `gc --auto`) are not killed when the command ends.
             unsafe { CloseHandle(self.0) };
         }
     }
@@ -179,8 +183,8 @@ fn signal_group(pid: u32, signal: Option<nix::sys::signal::Signal>) -> bool {
     i32::try_from(pid).is_ok_and(|raw| killpg(Pid::from_raw(raw), signal).is_ok())
 }
 
-/// Bậc mềm: SIGTERM cả process group (git tự dọn `*.lock`) / CTRL_BREAK tới process group (Windows).
-/// Trả `true` nếu tín hiệu đã được gửi đi.
+/// Soft stage: SIGTERM the whole process group (git cleans up its own `*.lock`) / CTRL_BREAK to the process group (Windows).
+/// Returns `true` when the signal was actually sent.
 fn soft_signal(pid: u32) -> bool {
     #[cfg(unix)]
     {
@@ -189,9 +193,10 @@ fn soft_signal(pid: u32) -> bool {
     #[cfg(windows)]
     {
         use windows_sys::Win32::System::Console::{CTRL_BREAK_EVENT, GenerateConsoleCtrlEvent};
-        // Best effort: app GUI không gắn console và tiến trình con (CREATE_NO_WINDOW) có console riêng nên lệnh này thường
-        // thất bại (trả 0) — khi đó chờ bậc mềm là vô ích, xuống bậc cứng ngay (xem plan: spike CTRL_BREAK).
-        // SAFETY: gọi API Win32 với số nguyên, không con trỏ.
+        // Best effort: a GUI app has no console attached and the child (CREATE_NO_WINDOW) has its own, so this usually
+        // fails (returns 0) — waiting out the soft stage would be pointless, so go straight to the hard stage (see the
+        // plan: spike CTRL_BREAK).
+        // SAFETY: Win32 API called with an integer, no pointers.
         unsafe { GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid) != 0 }
     }
 }
@@ -203,7 +208,7 @@ struct Handles {
 }
 
 impl Handles {
-    /// Bậc cứng: SIGKILL cả nhóm / `TerminateJobObject`.
+    /// Hard stage: SIGKILL the whole group / `TerminateJobObject`.
     fn hard_kill(&self, child: &mut Child) {
         #[cfg(unix)]
         if let Some(pid) = self.pid {
@@ -216,7 +221,7 @@ impl Handles {
         let _ = child.start_kill();
     }
 
-    /// Còn tiến trình nào trong nhóm không (Unix: `killpg(pgid, 0)`).
+    /// Is any process left in the group (Unix: `killpg(pgid, 0)`)?
     fn group_alive(&self) -> bool {
         #[cfg(unix)]
         {
@@ -237,7 +242,7 @@ async fn staged_kill(child: &mut Child, handles: &Handles, timing: CancelTiming)
     }
     match tokio::time::timeout(timing.soft_wait, child.wait()).await {
         Ok(status) => {
-            // Tiến trình chính đã thoát nhờ tín hiệu mềm: cho nhóm con thời gian dọn, rồi dọn cứng phần còn sót.
+            // The main process exited from the soft signal: give the child group time to clean up, then hard-kill the rest.
             let deadline = tokio::time::Instant::now() + timing.group_grace;
             while handles.group_alive() && tokio::time::Instant::now() < deadline {
                 tokio::time::sleep(Duration::from_millis(25)).await;
@@ -258,8 +263,8 @@ async fn staged_kill(child: &mut Child, handles: &Handles, timing: CancelTiming)
     }
 }
 
-/// Gộp các lần đọc nhỏ thành frame lớn (≤ 64 KB) để giảm số thông điệp IPC: `git log` ghi từng cụm nhỏ nên nếu mỗi lần
-/// đọc là một frame thì 6 MB thành hàng chục nghìn thông điệp. Chờ thêm tối đa `COALESCE` cho phần dở dang.
+/// Coalesces small reads into larger frames (≤ 64 KB) to cut IPC message count: `git log` writes in small chunks, so one
+/// frame per read would turn 6 MB into tens of thousands of messages. Waits at most `COALESCE` for the pending tail.
 const COALESCE: Duration = Duration::from_millis(3);
 
 fn fresh_frame() -> Vec<u8> {
@@ -278,7 +283,7 @@ async fn pump_stdout<R: AsyncRead + Unpin>(mut out: R, sink: Arc<dyn FrameSink>)
             match tokio::time::timeout(COALESCE, out.read(&mut scratch)).await {
                 Ok(result) => result,
                 Err(_) => {
-                    // Im lặng quá `COALESCE`: đẩy phần đang gom đi để người nhận không phải chờ.
+                    // Silent for more than `COALESCE`: flush what is buffered so the receiver need not wait.
                     sink.send(std::mem::replace(&mut frame, fresh_frame()));
                     continue;
                 }
@@ -320,7 +325,7 @@ async fn pump_stderr<R: AsyncRead + Unpin>(mut err: R, sink: Arc<dyn FrameSink>)
 async fn drain(task: Option<JoinHandle<()>>, grace: Duration) {
     let Some(mut task) = task else { return };
     if tokio::time::timeout(grace, &mut task).await.is_err() {
-        // Tiến trình cháu giữ pipe mở sau khi git thoát: bỏ qua để frame exit vẫn được gửi.
+        // A grandchild keeps the pipe open after git exits: skip it so the exit frame can still be sent.
         task.abort();
     }
 }
@@ -344,8 +349,9 @@ fn spawn_error(program: &std::path::Path, error: &std::io::Error) -> AppError {
     }
 }
 
-/// Chạy tiến trình, gửi frame stdout/stderr tới `sink` và trả mã thoát. KHÔNG gửi frame exit — người gọi gửi sau
-/// khi mọi frame khác đã xong (luôn là frame cuối). `cancel` = `None` nghĩa là lệnh không được huỷ.
+/// Runs the process, sends stdout/stderr frames to `sink` and returns the exit code. It does NOT send the exit frame —
+/// the caller does that once every other frame has finished (it is always last). `cancel` = `None` means the command cannot
+/// be cancelled.
 pub async fn run_process(
     spec: ProcessSpec,
     sink: Arc<dyn FrameSink>,
@@ -361,7 +367,7 @@ pub async fn run_process(
         .stdin(if spec.stdin.is_some() { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        // Không kill khi bỏ future: giết cứng git đang ghi là cách tạo `index.lock` mồ côi.
+        // Do not kill when dropping the future: hard-killing a git that is writing is how orphaned `index.lock` files happen.
         .kill_on_drop(false);
     #[cfg(unix)]
     command.process_group(0);
@@ -381,7 +387,7 @@ pub async fn run_process(
 
     if let (Some(data), Some(mut stdin)) = (spec.stdin, child.stdin.take()) {
         tokio::spawn(async move {
-            // Git có thể thoát trước khi đọc hết stdin (BrokenPipe): không phải lỗi.
+            // Git may exit before reading all of stdin (BrokenPipe): not an error.
             let _ = stdin.write_all(&data).await;
             let _ = stdin.shutdown().await;
         });
@@ -409,7 +415,7 @@ pub async fn run_process(
     Ok(ExitInfo { code: exit_code(status), cancelled })
 }
 
-/// Bộ gom frame (test và các lệnh nội bộ cần đọc trọn output).
+/// Frame collector (for tests and internal commands that need the full output).
 #[derive(Debug, Default)]
 pub struct CollectSink {
     frames: std::sync::Mutex<Vec<Vec<u8>>>,
@@ -421,7 +427,7 @@ impl FrameSink for CollectSink {
     }
 }
 
-/// Output đã gom.
+/// The collected output.
 #[derive(Debug, Default, Clone)]
 pub struct Collected {
     pub stdout: Vec<u8>,
@@ -441,7 +447,7 @@ impl Collected {
 }
 
 impl CollectSink {
-    /// Ghép các frame đã nhận (đúng thứ tự gửi) thành output.
+    /// Concatenate the received frames (in send order) into one output.
     pub fn collect(&self) -> Collected {
         let frames = self.frames.lock().unwrap_or_else(|p| p.into_inner());
         let mut out = Collected { frame_count: frames.len(), ..Collected::default() };
@@ -499,7 +505,7 @@ mod tests {
 
     #[tokio::test]
     async fn heavy_stdout_and_stderr_at_once_do_not_deadlock() {
-        // 6 MB mỗi luồng, vượt xa bộ đệm pipe: nếu đọc tuần tự sẽ treo.
+        // 6 MB per stream, far beyond the pipe buffer: reading sequentially would deadlock.
         let script = "head -c 6000000 /dev/zero | tr '\\0' 'a' & head -c 6000000 /dev/zero | tr '\\0' 'b' >&2 & wait";
         let (exit, out) = tokio::time::timeout(Duration::from_secs(30), run(sh(script))).await.expect("không được treo");
         assert_eq!(exit.code, 0);
@@ -512,7 +518,7 @@ mod tests {
     #[tokio::test]
     async fn large_stdout_is_chunked_within_the_frame_limit_and_hash_matches() {
         let sink = Arc::new(CollectSink::default());
-        // 50 MB giả lập `git log` khổng lồ; so SHA-256 phía nhận với phía gửi.
+        // A simulated 50 MB `git log`; compare the receiver's SHA-256 with the sender's.
         let script = "head -c 52428800 /dev/urandom | tee /dev/stderr 2>/dev/null | cat";
         let mut spec = sh(script);
         spec.args = vec!["-c".into(), "head -c 52428800 /dev/urandom > \"$OUT\"; cat \"$OUT\"".into()];
@@ -614,7 +620,7 @@ mod tests {
         let exit = run_process(sh(&script), Arc::new(CollectSink::default()), Some(token), fast()).await.unwrap();
         assert!(exit.cancelled);
         let pid: i32 = std::fs::read_to_string(&pid_file).unwrap().trim().parse().unwrap();
-        // Chờ hệ điều hành dọn xong rồi kiểm tra tiến trình cháu đã chết (kill(pid, 0) → ESRCH).
+        // Wait for the OS to finish cleaning up, then check that the grandchild is dead (kill(pid, 0) → ESRCH).
         let mut dead = false;
         for _ in 0..50 {
             if nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None).is_err() {
@@ -628,7 +634,7 @@ mod tests {
 
     #[tokio::test]
     async fn grandchild_holding_the_pipe_open_does_not_block_the_exit() {
-        // Con cháu chạy nền giữ stdout/stderr mở sau khi tiến trình chính thoát.
+        // A background grandchild keeps stdout/stderr open after the main process exits.
         let spec = sh("(sleep 20 >&1 2>&2 &) ; echo done");
         let timing = CancelTiming { reader_grace: Duration::from_millis(300), ..CancelTiming::default() };
         let started = std::time::Instant::now();

@@ -1,18 +1,18 @@
-// Commit / amend từ ô soạn commit (port `commit()` của RepoModel+Actions.swift): ghép tóm tắt + mô tả, commit qua hàng đợi,
-// xoá ô soạn khi xong và hiện "Hoàn tác" (soft reset về HEAD cũ — thay đổi trở lại trạng thái đã stage, message trả về ô soạn).
+// Commit / amend from the commit editor (a port of `commit()` in RepoModel+Actions.swift): joins summary + body, commits through
+// the queue, clears the editor when done and offers "Undo" (a soft reset back to the old HEAD — the changes return to their staged state and the message goes back into the editor).
 
 import { vi } from '../strings.vi.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { push } from './remote.ts';
 
-/** Message đầy đủ từ tóm tắt + mô tả (bỏ khoảng trắng thừa hai đầu; mô tả rỗng thì chỉ có tóm tắt). */
+/** The full message from summary + body (surrounding whitespace trimmed; an empty body yields just the summary). */
 export function composeMessage(summary: string, body: string): string {
   const head = summary.trim();
   const rest = body.trim();
   return rest === '' ? head : `${head}\n\n${rest}`;
 }
 
-/** Tách message có sẵn (amend, MERGE_MSG) thành tóm tắt + mô tả. */
+/** Split an existing message (amend, MERGE_MSG) into summary + body. */
 export function splitMessage(message: string): { summary: string; body: string } {
   const normalized = message.replace(/\r\n/g, '\n').trim();
   const newline = normalized.indexOf('\n');
@@ -25,13 +25,13 @@ export interface CommitCheck {
   readonly reason: string | null;
 }
 
-/** Commit được chưa (để bật/tắt nút và giải thích vì sao). */
+/** Whether there is anything to commit (enables / disables the button and explains why not). */
 export function canCommit(store: RepoStore): CommitCheck {
   const draft = store.commitDraft;
   if (draft.summary.trim() === '') return { ok: false, reason: vi.staging.needSummary };
   if (store.status.conflicts.length > 0)
     return { ok: false, reason: vi.staging.conflictsFirst(store.status.conflicts.length) };
-  // Amend chỉ sửa message thì không cần gì đã stage; đang merge / revert thì commit hoàn tất thao tác.
+  // An amend that only changes the message needs nothing staged; while merging / reverting, committing finishes the operation.
   if (store.status.staged.length === 0 && !draft.amend && store.operation === null) {
     return { ok: false, reason: vi.staging.needStaged };
   }
@@ -39,8 +39,8 @@ export function canCommit(store: RepoStore): CommitCheck {
 }
 
 /**
- * Bật / tắt amend. Bật khi ô soạn trống thì điền sẵn message của commit gần nhất (như Swift), tắt thì trả lại những gì đã
- * gõ trước khi bật.
+ * Turn amend on / off. When turning it on with an empty editor, prefill the latest commit's message (like Swift); when
+ * turning it off, restore whatever was typed before it was enabled.
  */
 export async function setAmend(
   store: RepoStore,
@@ -58,7 +58,7 @@ export async function setAmend(
         draft.summary = message.summary;
         draft.body = message.body;
       } catch {
-        // Không đọc được message cũ: để trống cho người dùng tự gõ.
+        // The old message cannot be read: leave it empty for the user to type.
       }
     }
     return before;
@@ -71,16 +71,16 @@ export async function setAmend(
 }
 
 /**
- * "Commit & Push" dùng được không: có remote, đang ở một nhánh, không amend (amend commit đã push thì push thường bị từ chối,
- * "Pull trước" lại tạo merge — để người dùng tự push có cân nhắc).
+ * Whether "Commit & push" is available: there is a remote, we are on a branch, and amend is off (amending an already-pushed
+ * commit is usually rejected by push, while "Pull first" creates a merge — better to let the user consider it).
  */
 export function canCommitAndPush(store: RepoStore): boolean {
   return store.remotes.length > 0 && store.currentBranchRef !== undefined && !store.commitDraft.amend;
 }
 
 /**
- * Commit với nội dung ô soạn. `stageAllFirst`: "Stage tất cả & commit". `push`: commit xong thì push nhánh hiện tại luôn
- * (commit lỗi thì không push).
+ * Commit with the editor's content. `stageAllFirst`: "Stage all & commit". `push`: push the current branch once the commit
+ * succeeds (no push when the commit fails).
  */
 export async function commit(
   store: RepoStore,
@@ -126,8 +126,8 @@ export async function commit(
 }
 
 /**
- * Hoàn tác commit vừa tạo: đưa nhánh về `previousHead` giữ nguyên thay đổi (đã stage), trả message về ô soạn. Commit đầu tiên
- * của nhánh (không có HEAD cũ) thì xoá ref của nhánh, giữ index.
+ * Undo the commit just created: move the branch back to `previousHead` keeping the changes (staged), and return the
+ * message to the editor. For the branch's first commit (no old HEAD) delete the branch ref and keep the index.
  */
 export function undoCommit(
   store: RepoStore,

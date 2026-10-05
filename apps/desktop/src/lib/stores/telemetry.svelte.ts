@@ -1,6 +1,6 @@
-// Thống kê ẩn danh — MẶC ĐỊNH TẮT, chỉ chạy khi người dùng bật (thẻ hỏi ở màn hình chính hoặc Cài đặt). Mỗi ngày tối đa
-// một lần gửi đúng 4 trường: mã ngẫu nhiên `telemetryId` (riêng, không liên quan mã cài đặt AI), hệ điều hành, kiến trúc,
-// phiên bản app. Tắt → xoá mã. Không gửi tên repo, đường dẫn, email hay nội dung gì khác.
+// Anonymous analytics — OFF BY DEFAULT, only active once the user enables it (a card on the main screen or in Settings). At most
+// once a day exactly 4 fields are sent: a random `telemetryId` (separate, unrelated to the AI install id), the OS, the
+// architecture, and the app version. Turning it off deletes the id. No repo names, paths, email addresses or any other content.
 
 import {
   TELEMETRY_PING_PATH,
@@ -16,10 +16,10 @@ const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
 
 interface TelemetrySaved {
   enabled: boolean;
-  /** Đã hỏi ở màn hình chính chưa (chỉ hỏi một lần). */
+  /** Whether the main-screen card has already been answered (asked once only). */
   asked: boolean;
   telemetryId: string | null;
-  /** Ngày (UTC) đã gửi gần nhất. */
+  /** The UTC day of the last successful send. */
   lastPingDay: string;
 }
 
@@ -36,7 +36,7 @@ function sanitize(raw: unknown): TelemetrySaved {
   };
 }
 
-/** Nền tảng / kiến trúc của bản build (Tauri CLI đặt `TAURI_ENV_*` lúc build); không xác định → không gửi. */
+/** The build's platform / architecture (the Tauri CLI sets `TAURI_ENV_*` at build time); unknown → nothing is sent. */
 export function buildTarget(
   env: { TAURI_ENV_PLATFORM?: string; TAURI_ENV_ARCH?: string } = import.meta.env,
 ): { platform: TelemetryPlatform; arch: TelemetryArch } | null {
@@ -90,7 +90,7 @@ export class TelemetryStore {
     this.saved = sanitize(raw);
   }
 
-  /** Bản build có gửi được không (biết nền tảng + kiến trúc + phiên bản). */
+  /** Whether this build can send anything (platform + architecture + version known). */
   get supported(): boolean {
     return this.#target !== null && this.#appVersion !== '';
   }
@@ -104,13 +104,13 @@ export class TelemetryStore {
     if (enabled) void this.pingIfDue();
   }
 
-  /** Bỏ qua thẻ hỏi mà không bật. */
+  /** Dismiss the card without enabling it. */
   dismiss(): void {
     this.saved.asked = true;
     this.#save();
   }
 
-  /** Gửi nếu đã bật và hôm nay chưa gửi (hai lần gọi chồng nhau chỉ gửi một). Lỗi mạng: im lặng, lần kiểm sau thử lại. */
+  /** Send if enabled and not already sent today (two overlapping calls send once). A network error is silent; the next check retries. */
   pingIfDue(): Promise<void> {
     this.#inflight ??= this.#ping().finally(() => {
       this.#inflight = null;
@@ -136,11 +136,11 @@ export class TelemetryStore {
         this.#save();
       }
     } catch {
-      // Không gửi được: thử lại ở lần kiểm sau.
+      // Nothing sent: retry at the next check.
     }
   }
 
-  /** Kiểm ngay rồi mỗi 6 giờ (app để mở qua đêm vẫn được tính ngày mới). */
+  /** Check right away, then every 6 hours (an app left open overnight still counts the new day). */
   start(): void {
     this.stop();
     void this.pingIfDue();
@@ -156,7 +156,7 @@ export class TelemetryStore {
     try {
       this.#storage?.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify($state.snapshot(this.saved)));
     } catch {
-      // Bị chặn: chỉ sống trong phiên này.
+      // Blocked: it only lives for this session.
     }
   }
 }

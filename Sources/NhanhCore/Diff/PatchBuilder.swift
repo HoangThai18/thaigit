@@ -1,17 +1,20 @@
 import Foundation
 
-/// Dựng patch chỉ chứa các hunk/dòng được chọn, để stage/unstage/discard từng phần.
+/// Builds a patch containing only the selected hunks/lines, for staging / unstaging / discarding part of a
+/// change.
 ///
-/// - Stage (diff index→worktree, áp dụng xuôi vào index): `reverse = false`.
-/// - Unstage (diff HEAD→index, áp dụng ngược vào index) và Discard
-///   (diff index→worktree, áp dụng ngược vào worktree): `reverse = true`.
+/// - Stage (index→worktree diff, applied forward into the index): `reverse = false`.
+/// - Unstage (HEAD→index diff, applied in reverse into the index) and Discard
+///   (index→worktree diff, applied in reverse into the working tree): `reverse = true`.
 ///
-/// Dòng không được chọn: khi áp xuôi, dòng xoá thành ngữ cảnh còn dòng thêm bị bỏ;
-/// khi áp ngược thì ngược lại. Trong mỗi khối thay đổi, dòng xoá thứ k và dòng thêm thứ k
-/// được xen kẽ theo vị trí, để "sửa dòng 2 nhưng giữ dòng 3" cho kết quả đúng thứ tự.
+/// Unselected lines: applying forward, a deleted line becomes context while an added one is dropped;
+/// applying in reverse it's the other way round. Inside each change block the k-th deleted line and the
+/// k-th added line are interleaved by position, so "fix line 2 but keep line 3" comes out in the right
+/// order.
 ///
-/// Nội dung từng dòng chép nguyên văn từ diff (kể cả "\r" của file CRLF), nên `git apply` tái tạo đúng từng byte —
-/// với điều kiện diff là UTF-8 hợp lệ (`FileDiff.supportsPartialStaging` đã chặn file không phải UTF-8).
+/// Each line's content is copied verbatim from the diff (including a CRLF file's "\r"), so `git apply`
+/// reproduces every byte exactly — provided the diff is valid UTF-8 (`FileDiff.supportsPartialStaging`
+/// already blocks non-UTF-8 files).
 public enum PatchBuilder {
     private struct Item {
         var kind: DiffLine.Kind
@@ -27,8 +30,8 @@ public enum PatchBuilder {
     }
 
     /// - Parameters:
-    ///   - selection: id hunk → tập chỉ số dòng (trong `hunk.lines`) được chọn.
-    /// - Returns: nội dung patch, hoặc nil nếu không có thay đổi nào được chọn / file không stage từng phần được.
+    ///   - selection: hunk id → the set of selected line indices (within `hunk.lines`).
+    /// - Returns: the patch content, or nil when nothing is selected / the file doesn't support partial staging.
     public static func makePatch(file: FileDiff, selection: [Int: Set<Int>], reverse: Bool) -> String? {
         guard file.supportsPartialStaging, var patch = patchHeader(file, reverse: reverse) else { return nil }
         var delta = 0
@@ -41,10 +44,10 @@ public enum PatchBuilder {
             let oldCount = lines.filter { $0.marker != "+" }.count
             let newCount = lines.filter { $0.marker != "-" }.count
 
-            // "anchor" = số dòng đứng trước khoảng. Quy ước unified diff: khoảng rỗng thì
-            // start = anchor, khoảng có dòng thì start = anchor + 1.
-            // Phía được giữ nguyên (old khi stage, new khi áp ngược) có đúng các dòng như hunk gốc,
-            // nên anchor của phía đó không đổi; phía còn lại lệch theo delta của các hunk trước.
+            // "anchor" = the number of lines preceding the range. Unified diff convention: for an empty
+            // range start = anchor, for a non-empty range start = anchor + 1.
+            // The unchanged side (old when staging, new when applying in reverse) has exactly the original
+            // hunk's lines, so its anchor doesn't move; the other side shifts by the delta of the earlier hunks.
             let originalOldAnchor = hunk.oldCount == 0 ? hunk.oldStart : hunk.oldStart - 1
             let originalNewAnchor = hunk.newCount == 0 ? hunk.newStart : hunk.newStart - 1
             let oldAnchor: Int
@@ -72,21 +75,23 @@ public enum PatchBuilder {
         return patch.joined(separator: "\n") + "\n"
     }
 
-    /// Chọn toàn bộ dòng thay đổi của một hunk.
+    /// Select every changed line of a hunk.
     public static func selectionForWholeHunk(_ hunk: DiffHunk) -> [Int: Set<Int>] {
         [hunk.id: Set(hunk.changeLineIndices)]
     }
 
-    /// Dòng header chỉ có ở đổi tên/sao chép: không được đưa vào patch nội dung.
+    /// The header line only exists for a rename / copy: it must not go into the content patch.
     private static let renameCopyPrefixes = [
         "similarity index ", "dissimilarity index ", "rename from ", "rename to ", "copy from ", "copy to ",
     ]
 
-    /// Header của patch. Bỏ dòng đổi mode: stage một phần nội dung không nên kéo theo đổi quyền file.
-    /// File đổi tên/sao chép (diff --cached -M): patch còn "rename from/to" khi áp ngược sẽ ĐỔI TÊN NGƯỢC lại trong
-    /// index (b.txt mất khỏi index, a.txt sống lại) chứ không chỉ bỏ vài dòng — nên viết lại header thành sửa nội dung
-    /// một đường dẫn: đường dẫn mới khi áp ngược (unstage), đường dẫn cũ khi áp xuôi. Không đọc được tên → nil
-    /// (từ chối) thay vì đoán.
+    /// The patch header. The mode-change line is dropped: staging part of the content shouldn't drag along a
+    /// file permission change.
+    /// A renamed / copied file (`diff --cached -M`): keeping "rename from/to" would RENAME THE FILE BACK in
+    /// the index when applied in reverse (b.txt leaves the index, a.txt comes back) instead of just dropping
+    /// a few lines — so the header is rewritten as a content edit of a single path: the new path when
+    /// applying in reverse (unstage), the old path when applying forward. An unreadable name → nil (refuse)
+    /// rather than guess.
     private static func patchHeader(_ file: FileDiff, reverse: Bool) -> [String]? {
         let withoutMode = file.headerLines.filter { !$0.hasBytePrefix("old mode ") && !$0.hasBytePrefix("new mode ") }
         func isRenameOrCopy(_ line: String) -> Bool { renameCopyPrefixes.contains { line.hasBytePrefix($0) } }
@@ -115,8 +120,9 @@ public enum PatchBuilder {
         return header
     }
 
-    /// Tách phần tên của dòng "--- a/x" / "+++ b/x" (đã bỏ 4 byte đầu). Git đặt tên trong ngoặc kép kiểu C khi có
-    /// ký tự đặc biệt ("a/t\303\240i.txt" — giữ nguyên dạng đã escape) và thêm TAB cuối dòng khi tên có dấu cách.
+    /// Split the name part of a "--- a/x" / "+++ b/x" line (the first 4 bytes already stripped). Git C-quotes
+    /// names containing special characters ("a/t\303\240i.txt" — kept in escaped form) and appends a TAB
+    /// when the name contains a space.
     private static func parseNameToken(_ rest: [UInt8], side: String) -> (quoted: Bool, path: String, tab: Bool)? {
         var text = rest[...]
         let tab = text.last == UInt8(ascii: "\t")
@@ -128,7 +134,7 @@ public enum PatchBuilder {
     }
 
     private static func buildLines(hunk: DiffHunk, selected: Set<Int>, reverse: Bool) -> [Output]? {
-        // Gộp dấu "\ No newline" vào dòng đứng trước.
+        // Fold a "\ No newline" marker into the preceding line.
         var items: [Item] = []
         for (index, line) in hunk.lines.enumerated() {
             if line.kind == .noNewline {
@@ -181,9 +187,10 @@ public enum PatchBuilder {
         return fixNoNewlineContext(output)
     }
 
-    /// Dòng thêm/xoá đã chọn mà "không có newline cuối file" phải là dòng cuối của phía của nó. Ghép cặp xen kẽ có
-    /// thể đặt nó TRƯỚC dòng ngữ cảnh (từ dòng chưa chọn) cùng khối; git vẫn áp patch nhưng nối hai dòng làm một
-    /// ("y1" + "x2" → "y1x2") — hỏng dữ liệu âm thầm. Dời dòng đó xuống cuối khối (chỉ đổi những khối vốn đã sai).
+    /// A selected added/deleted line marked "no newline at end of file" must end its own side. Interleaving
+    /// pairs can place it BEFORE a context line (from an unselected line) of the same block; git still applies
+    /// the patch but concatenates the two lines into one ("y1" + "x2" → "y1x2") — silent data corruption.
+    /// Move that line to the end of the block (touching only blocks that were already wrong).
     private static func keepNoNewlineChangesLast(_ block: [Output]) -> [Output] {
         let lastOld = block.lastIndex { $0.marker != "+" } ?? -1
         let lastNew = block.lastIndex { $0.marker != "-" } ?? -1
@@ -197,9 +204,9 @@ public enum PatchBuilder {
         return stay + moved
     }
 
-    /// Dòng ngữ cảnh "không có newline cuối file" chỉ hợp lệ khi là dòng cuối của cả hai phía.
-    /// Nếu không, tách thành cặp -/+ để mỗi phía có đúng ký tự xuống dòng. Phía vừa được thêm xuống dòng dùng kiểu
-    /// xuống dòng của dòng lân cận (file CRLF thì "\r\n", không để lọt một "\n" lẻ).
+    /// A "no newline at end of file" context line is only valid as the last line of BOTH sides.
+    /// Otherwise split it into a -/+ pair so each side gets exactly one line terminator. The side that just
+    /// gained a terminator uses its neighbouring line's ending (a CRLF file gets "\r\n", never a lone "\n").
     private static func fixNoNewlineContext(_ lines: [Output]) -> [Output] {
         let lastOld = lines.lastIndex { $0.marker != "+" }
         let lastNew = lines.lastIndex { $0.marker != "-" }
@@ -226,7 +233,7 @@ public enum PatchBuilder {
         return fixed
     }
 
-    /// Thêm "\r" cuối `text` nếu dòng gần nhất có xuống dòng (không phải dòng "không newline") kết thúc bằng "\r".
+    /// Appends "\r" to `text` when the closest preceding line ends with a terminator (not a "no newline" line) that ends in "\r".
     private static func withNeighbourLineEnding(_ text: String, lines: [Output], index: Int) -> String {
         for distance in stride(from: 1, to: lines.count, by: 1) {
             let candidates = [index - distance, index + distance].filter { lines.indices.contains($0) }

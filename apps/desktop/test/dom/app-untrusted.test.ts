@@ -1,5 +1,6 @@
-// App.svelte: nút "Xem lại cấu hình repo" trên toast chỉ được tác động lên repo ĐANG mở; toast của repo đã đóng thì gỡ luôn.
-// RepoWindow được thay bằng bản giả (chỉ lấy `store`/`onclose`): kiểm phần keo của App, không dựng cả cửa sổ repo.
+// App.svelte: the "Review repo config" button on a toast must only affect the repo that is CURRENTLY open;
+// a toast of an already closed repo just gets dismissed. RepoWindow is replaced by a fake (it only takes
+// `store` / `onclose`): this covers App's glue, not the whole repo window.
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExecRequest } from '@thaigit/core';
@@ -43,7 +44,7 @@ async function until(condition: () => boolean, what: string, timeoutMs = 8000): 
   }
 }
 
-/** Mở App với một repo mà lõi từ chối `status` vì `untrusted`; trả port, hàm trust giả và hàm dọn. */
+/** Open App with a repo whose core refuses `status` with `untrusted`; returns the port, a fake trust function and a cleanup function. */
 async function openUntrustedApp(): Promise<{ port: RepoPort; trust: ReturnType<typeof vi.fn> }> {
   const test = await openTestPort((git) => git('commit', '-q', '--allow-empty', '-m', 'a'));
   cleanups.push(() => test.cleanup());

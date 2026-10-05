@@ -1,9 +1,12 @@
-//! Cập nhật tự động: `tauri-plugin-updater` kiểm `latest.json` của kênh (release cố định `desktop-<kênh>` trên GitHub), chữ ký
-//! minisign của bản cài kiểm bằng khoá công khai trong `tauri.conf.json` (`requireSignedVersion`: phiên bản ghi trong chữ ký phải
-//! khớp manifest — không tráo được bản cũ có chữ ký thật vào số phiên bản mới). Kiểm lúc khởi động (sau 20 giây) rồi mỗi 6 giờ, có
-//! bản mới thì phát `update-available`; cài khi người dùng bấm (chờ các lệnh git đang chạy xong), phát `update-progress`.
-//! Webview chỉ gọi `update_check` / `update_install` / `update_set_channel` và nghe sự kiện — kênh nào, bản nào hợp lệ, khi nào
-//! cài đều quyết ở đây. Plugin KHÔNG được cấp quyền cho webview (capability không có `updater:*`).
+//! Auto-update: `tauri-plugin-updater` fetches the channel's `latest.json` (from the fixed `desktop-<channel>` GitHub
+//! release), and the installed build verifies its minisign signature with the public key in `tauri.conf.json`
+//! (`requireSignedVersion`: the version recorded in the signature must match the manifest, so an old signed build cannot be
+//! swapped for a newer version number). It checks at startup (after 20 seconds) and every 6 hours, emits
+//! `update-available` when there is a new version, and installs when the user clicks (waiting for running git commands
+//! to finish), emitting `update-progress`.
+//! The webview only calls `update_check` / `update_install` / `update_set_channel` and listens for events — which channel
+//! is current, which version is valid and when to install are all decided here. The plugin is NOT granted to the webview
+//! (the capability has no `updater:*`).
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -18,16 +21,16 @@ use crate::core::Core;
 use crate::errors::{AppError, Result};
 use crate::store;
 
-/// Nơi đặt manifest: `<RELEASES>/desktop-<kênh>/latest.json`.
+/// Where the manifest lives: `<RELEASES>/desktop-<channel>/latest.json`.
 const RELEASES: &str = "https://github.com/HoangThai18/thaigit/releases/download";
 const FIRST_CHECK_DELAY: Duration = Duration::from_secs(20);
 const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
-/// Chờ tối đa chừng này cho các lệnh git đang chạy xong trước khi cài (cài giữa lúc git ghi có thể để lại index.lock).
+/// Wait at most this long for running git commands before installing (installing mid-write can leave an index.lock).
 const IDLE_WAIT: Duration = Duration::from_secs(30);
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
-/// Kênh cập nhật: manifest `latest.json` nằm trên release cố định `desktop-<kênh>` của GitHub.
-/// Chuỗi serde khớp `UpdateChannel` ở TS (`'beta' | 'stable'`).
+/// Update channel: the `latest.json` manifest lives on the fixed `desktop-<channel>` GitHub release.
+/// serde string matching TS's `UpdateChannel` (`'beta' | 'stable'`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Channel {
@@ -43,7 +46,7 @@ impl Channel {
         }
     }
 
-    /// Bản đang chạy là bản thử (`2.0.0-beta.1`) thì mặc định kênh beta, không thì stable.
+    /// A prerelease build (`2.0.0-beta.1`) defaults to the beta channel, otherwise stable.
     fn default_for(version: &semver::Version) -> Self {
         if version.pre.is_empty() { Self::Stable } else { Self::Beta }
     }
@@ -53,13 +56,13 @@ pub fn endpoint(channel: Channel) -> url::Url {
     url::Url::parse(&format!("{RELEASES}/desktop-{}/latest.json", channel.as_str())).expect("URL manifest hợp lệ")
 }
 
-/// Một bản cập nhật hợp lệ (đã qua chữ ký + chống hạ cấp). Khớp `UpdateInfo` ở TS (camelCase).
+/// A valid update (signature and downgrade protection already verified). Matches TS's `UpdateInfo` (camelCase).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     pub current_version: String,
     pub version: String,
-    /// Ghi chú phát hành (văn bản thường).
+    /// Release notes (plain text).
     pub notes: Option<String>,
     /// RFC 3339.
     pub pub_date: Option<String>,
@@ -70,7 +73,7 @@ struct UpdateAvailableEvent {
     update: UpdateInfo,
 }
 
-/// Khớp `UpdateProgressEvent` ở TS.
+/// Matches TS's `UpdateProgressEvent`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct UpdateProgressEvent {
@@ -87,13 +90,13 @@ struct SavedChannel {
 
 struct UpdaterState {
     channel: std::sync::Mutex<Channel>,
-    /// Bản `check` vừa báo — `install` cài đúng bản này (người dùng đã thấy số phiên bản).
+    /// The update the last `check` reported — `install` installs exactly this one (the user already saw the version).
     pending: tokio::sync::Mutex<Option<Update>>,
     installing: AtomicBool,
     saved_path: Option<PathBuf>,
 }
 
-/// State của updater (có sau `init`). App dựng không qua `setup` (test IPC) thì báo lỗi thay vì panic.
+/// Updater state (present after `init`). An app built without going through `setup` (IPC tests) reports an error instead of panicking.
 fn state<R: Runtime>(app: &AppHandle<R>) -> Result<tauri::State<'_, UpdaterState>> {
     app.try_state::<UpdaterState>().ok_or_else(|| AppError::Internal("Bộ cập nhật chưa khởi tạo.".into()))
 }
@@ -115,8 +118,8 @@ fn info_of(update: &Update) -> UpdateInfo {
     }
 }
 
-/// Khởi tạo lúc `setup` (sau `app.manage(core)`): đăng ký plugin updater, đọc kênh đã lưu, bắt đầu vòng kiểm định kỳ (chỉ ở
-/// bản build release — bản dev không tự kiểm).
+/// Set up during `setup` (after `app.manage(core)`): register the updater plugin, read the saved channel, start the periodic
+/// check (release builds only — a dev build never self-updates).
 pub fn init<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     app.plugin(tauri_plugin_updater::Builder::new().build()).map_err(|error| AppError::Internal(format!("updater: {error}")))?;
     let saved_path = app.path().app_data_dir().ok().map(|dir| dir.join("update-channel.json"));
@@ -136,7 +139,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(FIRST_CHECK_DELAY).await;
             loop {
-                // Lỗi mạng khi tự kiểm thì im lặng; lần sau thử lại.
+                // A network error during the automatic check is silent; the next round retries.
                 let _ = check(&handle).await;
                 tokio::time::sleep(CHECK_INTERVAL).await;
             }
@@ -145,8 +148,8 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     Ok(())
 }
 
-/// `update_check`: kiểm manifest của kênh hiện tại. `Ok(None)` = đang ở bản mới nhất; `Ok(Some)` = có bản hợp lệ
-/// (và phát thêm `update-available`).
+/// `update_check`: fetch the manifest of the current channel. `Ok(None)` = already up to date; `Ok(Some)` = a valid update
+/// exists (and `update-available` is emitted as well).
 pub async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<UpdateInfo>> {
     let state = state(app)?;
     let channel = *state.channel.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -154,7 +157,7 @@ pub async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<UpdateInfo>>
         .updater_builder()
         .endpoints(vec![endpoint(channel)])
         .map_err(updater_error)?
-        // Chỉ nhận bản MỚI HƠN (không bao giờ hạ cấp, kể cả khi manifest ghi số nhỏ hơn).
+        // Only accept a NEWER version (never downgrade, even if the manifest lists a lower number).
         .version_comparator(|current, release| release.version > current)
         .build()
         .map_err(updater_error)?;
@@ -178,7 +181,7 @@ fn emit_progress<R: Runtime>(app: &AppHandle<R>, phase: &'static str, downloaded
     let _ = app.emit("update-progress", UpdateProgressEvent { phase, downloaded, total, message });
 }
 
-/// Chờ các lệnh git đang chạy (mọi repo) xong, tối đa `IDLE_WAIT`.
+/// Wait for running git commands (all repos) to finish, at most `IDLE_WAIT`.
 async fn wait_for_git_idle<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     let Some(core) = app.try_state::<Arc<Core>>() else { return Ok(()) };
     let deadline = Instant::now() + IDLE_WAIT;
@@ -191,8 +194,8 @@ async fn wait_for_git_idle<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     Ok(())
 }
 
-/// `update_install`: tải + kiểm chữ ký + cài bản đã báo bởi `check`, phát `update-progress`. Windows: trình cài NSIS chạy và
-/// app tự thoát; macOS/Linux: cài xong thì khởi động lại.
+/// `update_install`: download + verify the signature + install the update reported by `check`, emitting `update-progress`.
+/// On Windows the NSIS installer runs and the app exits itself; on macOS/Linux the app restarts after installing.
 pub async fn install<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     let state = state(app)?;
     if state.installing.swap(true, Ordering::SeqCst) {
@@ -217,7 +220,7 @@ async fn install_pending<R: Runtime>(app: &AppHandle<R>, state: &UpdaterState) -
     let progress_app = app.clone();
     let verify_app = app.clone();
     emit_progress(app, "downloading", 0, None, None);
-    // `download` kiểm chữ ký minisign trước khi trả byte; sai chữ ký thì lỗi, không cài gì.
+    // `download` verifies the minisign signature before returning any byte; a bad signature is an error and installs nothing.
     let bytes = update
         .download(
             |chunk, total| {
@@ -233,7 +236,7 @@ async fn install_pending<R: Runtime>(app: &AppHandle<R>, state: &UpdaterState) -
     let bytes = match bytes {
         Ok(bytes) => bytes,
         Err(error) => {
-            // Giữ lại bản đã báo để người dùng bấm thử lại.
+            // Keep the reported update so the user can click Retry.
             *state.pending.lock().await = Some(update);
             return Err(updater_error(error));
         }
@@ -244,7 +247,8 @@ async fn install_pending<R: Runtime>(app: &AppHandle<R>, state: &UpdaterState) -
     app.restart();
 }
 
-/// `update_set_channel`: đổi kênh (lưu bền). Bản đã báo của kênh cũ bị bỏ — UI kiểm lại nếu muốn.
+/// `update_set_channel`: switch channel (persisted). A previously reported update of the old channel is dropped — the UI
+/// re-checks if it wants one.
 pub fn set_channel<R: Runtime>(app: &AppHandle<R>, channel: Channel) -> Result<()> {
     let state = state(app)?;
     *state.channel.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = channel;
@@ -295,7 +299,7 @@ mod tests {
         let data = tempfile::tempdir().unwrap();
         let app = tauri::test::mock_builder().build(crate::app_context()).expect("app giả");
         init(app.handle()).expect("plugin updater nhận cấu hình trong tauri.conf.json");
-        // Kênh mặc định theo phiên bản trong tauri.conf.json (bản thử → beta, bản chính thức → ổn định); đổi kênh thì lưu bền.
+        // Default channel follows the version in tauri.conf.json (prerelease → beta, release → stable); a chosen channel persists.
         let expected = Channel::default_for(&current_version(app.handle()));
         assert_eq!(*state(app.handle()).unwrap().channel.lock().unwrap(), expected);
         let path = data.path().join("update-channel.json");

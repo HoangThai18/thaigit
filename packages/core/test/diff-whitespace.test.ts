@@ -1,4 +1,4 @@
-// Diff bỏ qua khoảng trắng (`--ignore-all-space`) trên git thật.
+// Whitespace-ignoring diffs (`--ignore-all-space`) against real git.
 import { describe, expect, it } from 'vitest';
 import { withTestRepo } from './helpers/test-repo.ts';
 

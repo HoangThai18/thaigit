@@ -1,4 +1,4 @@
-// Fetch / pull / push / tạo nhánh / đổi nhánh / stash — chạy trên repo git thật với "remote" là repo bare cục bộ.
+// Fetch / pull / push / create branch / switch branch / stash — on a real git repo whose "remote" is a local bare repo.
 import { mkdtemp, realpath, rm } from 'node:fs/promises';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -42,13 +42,13 @@ interface Fixture {
   store: RepoStore;
   toasts: ToastStore;
   dialogs: DialogStore;
-  /** Repo bare đóng vai remote `origin`. */
+  /** The bare repo acting as the `origin` remote. */
   bare: string;
-  /** Bản clone thứ hai — "đồng nghiệp" đẩy commit lên remote. */
+  /** A second clone — the "colleague" that pushes commits to the remote. */
   other: string;
 }
 
-/** Repo có `origin` (bare cục bộ) với `main` đã push và đặt upstream, cùng một bản clone khác của remote. */
+/** A repo with an `origin` (local bare) whose `main` is pushed and has an upstream, plus another clone of that remote. */
 async function openWithRemote(): Promise<Fixture> {
   const base = await realpath(await mkdtemp(join(tmpdir(), 'thaigit-remote-test-')));
   cleanups.push(() => rm(base, { recursive: true, force: true, maxRetries: 3 }));
@@ -77,7 +77,7 @@ async function openWithRemote(): Promise<Fixture> {
   return { test, store, toasts, dialogs: new DialogStore(), bare, other };
 }
 
-/** "Đồng nghiệp" commit và push một file lên remote. */
+/** The "colleague" commits and pushes a file to the remote. */
 function pushFromOther(other: string, file: string, content: string, message: string): void {
   writeFileSync(join(other, file), content);
   rawGit(other, ['add', '.']);
@@ -175,7 +175,7 @@ describe('push', () => {
     expect(lastToast(toasts)).toBe('Đã push main → origin/main');
     expect(rawGit(bare, ['rev-parse', 'main']).trim()).toBe(store.headOid);
 
-    // Đồng nghiệp push trước: push của mình bị từ chối.
+    // The colleague pushed first: our push is rejected.
     rawGit(other, ['pull', '-q']);
     pushFromOther(other, 'b.txt', 'b\n', 'Của đồng nghiệp');
     await test.write('c.txt', 'c\n');
@@ -190,7 +190,7 @@ describe('push', () => {
       'Force push…',
     ]);
 
-    // Force push (with-lease cần đã fetch ref remote mới nhất).
+    // Force push (--with-lease needs the newest remote ref fetched first).
     await fetch(store);
     const done = push(store, { force: true, dialogs });
     await done;
@@ -209,7 +209,7 @@ describe('push', () => {
       ['remote', 'origin'],
       ['branch', 'tinh-nang'],
     ]);
-    // Tên không hợp lệ: không gửi được.
+    // Invalid name: nothing can be sent.
     dialogs.submit({ remote: 'origin', branch: 'tên có dấu cách' });
     expect(dialogs.current).not.toBeNull();
     dialogs.submit({ remote: 'origin', branch: 'tinh-nang' });
@@ -349,7 +349,7 @@ describe('nhánh / stash từ thanh công cụ', () => {
     rawGit(other, ['switch', '-q', '-c', 'feature/x']);
     pushFromOther(other, 'x.txt', 'x\n', 'Nhánh feature');
     rawGit(other, ['push', '-q', 'origin', 'feature/x']);
-    // Như `git clone --single-branch`: chỉ lấy main.
+    // Like `git clone --single-branch`: only main is fetched.
     test.git('config', 'remote.origin.fetch', '+refs/heads/main:refs/remotes/origin/main');
     await store.refreshAndWait(7);
     expect(store.historyGaps).toEqual({ shallow: false, narrowRemotes: ['origin'] });

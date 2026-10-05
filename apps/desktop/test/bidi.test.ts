@@ -33,7 +33,7 @@ describe('showBidi: ký tự điều khiển bidi thành ký hiệu nhìn thấy
   it('hasBidiControls nhận đúng các ký tự điều khiển', () => {
     expect(hasBidiControls(`a${RLO}b`)).toBe(true);
     expect(hasBidiControls('a‏b')).toBe(true);
-    expect(hasBidiControls('a​b')).toBe(false); // zero-width space không phải điều khiển bidi
+    expect(hasBidiControls('a​b')).toBe(false); // a zero-width space is not a bidi control
   });
 });
 

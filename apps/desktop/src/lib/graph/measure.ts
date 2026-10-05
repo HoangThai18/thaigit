@@ -1,6 +1,7 @@
 /**
- * Đo độ rộng chữ của nhãn nhánh bằng canvas với đúng font của viên nhãn (CSS `.pill-text`: 600 11px font UI), có nhớ đệm.
- * Cần để xếp "+N" khi nhãn tràn ô — DOM không cho biết chữ rộng bao nhiêu mà không dựng và đo từng phần tử.
+ * Measure label text width on a canvas using the exact font of the pill (CSS `.pill-text`: 600 11px UI
+ * font), with memoisation. Needed to place "+N" when labels overflow the cell — the DOM cannot report
+ * text width without laying out and measuring every element.
  */
 const cache = new Map<string, number>();
 let context: CanvasRenderingContext2D | null | undefined;
@@ -21,7 +22,7 @@ function ensureContext(fontFamily: string): CanvasRenderingContext2D | null {
   return context;
 }
 
-/** Độ rộng (px) của `text`; không có canvas (môi trường lạ) thì ước lượng 6,3px/ký tự. */
+/** Width (px) of `text`; without a canvas (exotic environment) fall back to 6.3px per character. */
 export function measurePillText(text: string, fontFamily: string): number {
   const cached = cache.get(text);
   if (cached !== undefined && fontKey === fontFamily) return cached;

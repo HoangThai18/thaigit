@@ -14,7 +14,7 @@ import { latin1, showBytes, utf8 } from './helpers/git-cli.ts';
 
 const lines = (...rows: string[]): string => `${rows.join('\n')}\n`;
 
-// Mẫu y hệt DiffTests.swift
+// Fixtures identical to DiffTests.swift
 const sample = lines(
   'diff --git a/src/app.swift b/src/app.swift',
   'index 1111111..2222222 100644',
@@ -152,7 +152,7 @@ describe('parseDiff theo byte (FM2/FM8/AD9)', () => {
     expect([...context!.text]).toEqual([0x63, 0x61, 0x66, 0xe9]);
     expect([...deletion!.text]).toEqual([0x56, 0x69, 0xea, 0xf2, 0x74]);
     expect([...addition!.text].slice(-2)).toEqual([0x6d, 0xd0]);
-    // Giải mã lỏng sẽ làm hỏng: chứng minh vì sao patch phải dựng từ byte.
+    // A lossy decode would corrupt this: proof that patches must be built from bytes.
     expect(decodeUtf8Lossy(context!.text)).toContain('\ufffd');
   });
 
@@ -198,7 +198,7 @@ describe('parseDiff theo byte (FM2/FM8/AD9)', () => {
   it('dòng rỗng hoàn toàn trong hunk bị bỏ qua như bản Swift, dòng lạ cũng vậy', () => {
     const [file] = parseDiff(utf8(`${header.join('\n')}\n@@ -1,2 +1,2 @@\n a\n\n?lạ\n-b\n+c\n`));
     expect(kinds(file!.hunks[0]!.lines)).toEqual(['context', 'deletion', 'addition']);
-    // Số dòng vẫn đúng: dòng bị bỏ không làm lệch bộ đếm.
+    // Line numbers still correct: a dropped line does not shift the counts.
     expect(file!.hunks[0]!.lines[1]!.oldNumber).toBe(2);
   });
 

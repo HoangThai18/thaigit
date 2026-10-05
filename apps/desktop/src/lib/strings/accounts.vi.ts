@@ -1,6 +1,6 @@
 /**
- * Chuỗi của màn Tài khoản (đăng nhập GitHub / GitLab / Bitbucket, đa tài khoản) và phần Pull Request / Merge Request.
- * Truy cập qua `vi.accounts.*` và `vi.pullRequests.*`.
+ * Strings for the Accounts screen (GitHub / GitLab / Bitbucket sign-in, multiple accounts) and the
+ * Pull Request / Merge Request part. Reached through `vi.accounts.*` and `vi.pullRequests.*`.
  */
 
 export const accounts = {
@@ -63,7 +63,7 @@ export const accounts = {
   tokenMissing: 'Chưa có token trên máy — dán lại token của tài khoản này.',
   addedToast: (login: string) => `Đã thêm tài khoản ${login}.`,
   removedToast: (login: string) => `Đã gỡ ${login}.`,
-  /** Lỗi khi gọi máy chủ (chỉ theo mã lỗi; chi tiết kỹ thuật không lên giao diện). */
+  /** Error while calling the server (keyed on the error code only; technical detail never reaches the UI). */
   errors: {
     auth: 'Máy chủ không nhận đăng nhập — token sai, đã hết hạn hoặc thiếu quyền (hoặc kho bí mật của máy đang khoá). Đăng nhập lại tài khoản đó.',
     notFound: 'Không tìm thấy trên máy chủ — kiểm tra tên repo, hoặc tài khoản chưa có quyền với repo này.',

@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `remote.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `remot.vi.ts` (same keys, same parameters). */
 import type { remote as source } from './remote.vi.ts';
 import type { Translation } from './types.ts';
 

@@ -193,13 +193,13 @@ describe('IP sau proxy và giới hạn tốc độ', () => {
     const { app } = setup({ config: testConfig({ AI_IP_RPM: '1', AI_QUOTA_COMMIT: '100' }) });
     const a = await register(app, undefined, '127.0.0.1');
     const b = await register(app, undefined, '127.0.0.1');
-    // Peer không tin cậy gửi X-Real-IP giả: vẫn bị tính theo peer thật → lần 2 bị chặn.
+    // An untrusted peer sends a fake X-Real-IP: it is still counted against the real peer → the second attempt is blocked.
     const spoof = (ip: string) => ({ 'x-test-peer': '198.51.100.7', 'X-Real-IP': ip });
     await readSse(await app.request('/v1/ai/commit-message', post({ ...a.headers, ...spoof('1.1.1.1') })));
     const blocked = await app.request('/v1/ai/commit-message', post({ ...b.headers, ...spoof('2.2.2.2') }));
     expect(blocked.status).toBe(429);
     expect(await blocked.json()).toMatchObject({ error: { code: 'ip_rate_limited' } });
-    // Qua proxy tin cậy (127.0.0.1): mỗi IP thật có hạn mức riêng.
+    // Through a trusted proxy (127.0.0.1): each real IP gets its own quota.
     const viaProxy = (ip: string) => ({ 'x-test-peer': '127.0.0.1', 'X-Real-IP': ip });
     const one = await app.request('/v1/ai/commit-message', post({ ...a.headers, ...viaProxy('1.1.1.1') }));
     expect(one.status).toBe(200);

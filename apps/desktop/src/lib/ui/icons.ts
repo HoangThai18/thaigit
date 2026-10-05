@@ -1,6 +1,7 @@
 /**
- * Bộ biểu tượng nét (lưới 24×24) vẽ tay cho giao diện — thay SF Symbols của app Swift. Khai báo dạng dữ liệu (đường/hình
- * tròn/chữ nhật) để component dựng bằng `{#each}`: không bao giờ phải dùng `{@html}`.
+ * Hand-drawn stroke icon set (24×24 grid) for the UI — the counterpart to the Swift app's SF Symbols.
+ * Declared as data (paths / circles / rects) so components can render it with `{#each}`: `{@html}` is never
+ * needed.
  */
 export type IconShape =
   | { d: string; fill?: boolean }
@@ -16,7 +17,7 @@ const rect = (x: number, y: number, w: number, h: number, r: number): IconShape 
   rect: [x, y, w, h, r],
 });
 
-/** Thùng rác: dùng chung cho `discard` (huỷ thay đổi) và `trash` (xoá). */
+/** Trash can: shared by `discard` (cancel the changes) and `trash` (delete). */
 const TRASH = [
   d('M4.5 7h15M9.5 7V5.2a1.4 1.4 0 0 1 1.4-1.4h2.2a1.4 1.4 0 0 1 1.4 1.4V7'),
   d('M6.6 7l.9 11.4a2 2 0 0 0 2 1.8h5a2 2 0 0 0 2-1.8L17.4 7M10.2 11v5.6M13.8 11v5.6'),
@@ -78,7 +79,7 @@ export const ICONS = {
   ],
   spinner: [d('M12 3.5a8.5 8.5 0 1 0 8.5 8.5')],
 
-  // --- Thao tác git (menu ngữ cảnh, thanh công cụ, hộp thoại) ---
+  // --- git operations (context menus, toolbars, dialogs) ---
   stage: [circle(12, 12, 8.6), d('M12 8.2v7.6M8.2 12h7.6')],
   unstage: [circle(12, 12, 8.6), d('M8.2 12h7.6')],
   discard: [...TRASH],

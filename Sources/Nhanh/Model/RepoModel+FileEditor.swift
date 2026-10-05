@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// File đang sửa ngay trong app (nút "Sửa" trên diff của thay đổi chưa stage, như GitKraken).
+/// A file being edited right in the app (the "Edit" button on an unstaged change's diff, like GitKraken).
 @Observable
 final class FileEditorSession {
     private(set) var file: EditableTextFile
@@ -24,7 +24,7 @@ final class FileEditorSession {
 }
 
 extension RepoModel {
-    /// Sửa được trong app: file trong working tree (chưa stage hoặc file mới), không phải file đã xoá.
+    /// Editable in-app: a file in the working tree (unstaged, or new), not a deleted file.
     func canEditInApp(_ file: OpenFile) -> Bool {
         file.source == .unstaged && file.change.kind != .deleted && file.change.kind != .conflicted
     }
@@ -45,7 +45,7 @@ extension RepoModel {
         }
     }
 
-    /// Lưu file đang sửa. File bị sửa ở nơi khác sau khi mở thì hỏi trước khi ghi đè.
+    /// Save the file being edited. If it changed elsewhere since it was opened, ask before overwriting.
     func saveEditor(overwrite: Bool = false) {
         guard let session = fileEditor, !session.isSaving else { return }
         session.isSaving = true
@@ -70,7 +70,7 @@ extension RepoModel {
         }
     }
 
-    /// Thôi sửa: còn thay đổi chưa lưu thì hỏi trước.
+    /// Stop editing: ask first when there are unsaved changes.
     func cancelEditing() {
         guard let session = fileEditor else { return }
         guard session.isDirty else {
@@ -87,7 +87,7 @@ extension RepoModel {
         }
     }
 
-    /// Gọi khi chuyển sang file khác / đóng diff: bản sửa chưa lưu được giữ lại và nhắc người dùng quay lại lưu.
+    /// Called when switching to another file / closing the diff: an unsaved edit is kept and the user is reminded to come back and save.
     func editorWillLeave(to next: OpenFile?) {
         guard let session = fileEditor, next?.change.path != session.path || next?.source != .unstaged else { return }
         guard session.isDirty else {

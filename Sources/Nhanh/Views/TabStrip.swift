@@ -1,15 +1,15 @@
 import AppKit
 import SwiftUI
 
-/// Thanh tab tự vẽ ở hàng trên cùng của cửa sổ, cạnh 3 nút đỏ/vàng/xanh (như GitKraken): Trang chủ cố định ở đầu,
-/// tab repo co giãn theo bề ngang, × để đóng, + mở tab mới, kéo để đổi chỗ, chuột phải để đóng nhiều tab;
-/// nút "Có gì mới" ở cuối hàng.
+/// The hand-drawn tab bar on the window's top row, next to the red/yellow/green buttons (like GitKraken): Home is pinned first,
+/// repo tabs stretch with the width, × closes, + opens a new tab, dragging reorders, right-click closes several tabs at
+/// once; the "What's New" button sits at the end of the row.
 struct TabStrip: View {
     @Bindable var tabs: TabsModel
-    /// Chiều cao bằng thanh tiêu đề của cửa sổ để 3 nút đỏ/vàng/xanh nằm giữa hàng tab.
+    /// The window's title-bar height, so the red/yellow/green buttons end up centred in the tab row.
     let height: CGFloat
 
-    /// Chừa chỗ cho 3 nút đỏ/vàng/xanh.
+    /// Room left for the red/yellow/green buttons.
     private static let trafficLightsWidth: CGFloat = 78
     private static let addButtonWidth: CGFloat = 34
     private static let homeTabWidth: CGFloat = 40
@@ -57,12 +57,12 @@ struct TabStrip: View {
             .frame(height: height)
         }
         .frame(height: height)
-        // Chỉ vùng trống (nền) kéo được cửa sổ; kéo tab là để đổi chỗ tab.
+        // Only the empty area (the background) drags the window; dragging a tab reorders tabs.
         .background { Color(nsColor: .underPageBackgroundColor).windowDraggable() }
     }
 }
 
-/// Tab Trang chủ: chỉ có biểu tượng ngôi nhà, luôn ở đầu, không đóng / kéo được.
+/// The Home tab: only a house icon, always first, can't be closed or dragged.
 private struct HomeTabButton: View {
     let tabs: TabsModel
     let isSelected: Bool
@@ -163,7 +163,7 @@ private struct TabButton: View {
     }
 }
 
-/// Nút biểu tượng nhỏ trên thanh tab: chỉ hiện nền khi rê chuột / bấm.
+/// A small icon button on the tab bar: its background only appears on hover / press.
 private struct TabIconButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         StyledBody(configuration: configuration)
@@ -186,7 +186,7 @@ private struct TabIconButtonStyle: ButtonStyle {
 }
 
 extension View {
-    /// Kéo vùng trống của thanh tab để di chuyển cửa sổ, nhấp đúp để phóng to (như thanh tiêu đề thường).
+    /// Drag the tab bar's empty area to move the window, double-click to zoom (like a normal title bar).
     @ViewBuilder
     func windowDraggable() -> some View {
         if #available(macOS 15, *) {

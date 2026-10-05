@@ -1,6 +1,6 @@
 import Foundation
 
-/// Nhật ký các lệnh git đã chạy (giữ tối đa `capacity` dòng gần nhất). An toàn đa luồng.
+/// Log of the git commands that ran (keeps at most the `capacity` most recent lines). Thread-safe.
 public final class CommandLog: @unchecked Sendable {
     private let lock = NSLock()
     private var storage: [GitCommandRecord] = []

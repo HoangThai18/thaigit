@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Tạo manifest `latest.json` cho bộ cập nhật của bản Windows (tauri-plugin-updater).
-//   node scripts/desktop-latest-json.mjs <phiên bản> <tag> <file .exe> <file .sig> <CHANGELOG> > latest.json
-// Ghi chú phát hành lấy từ mục "## <phiên bản>" của CHANGELOG (văn bản thường).
+// Builds the `latest.json` manifest for the Windows updater (tauri-plugin-updater).
+//   node scripts/desktop-latest-json.mjs <version> <tag> <file .exe> <file .sig> <CHANGELOG> > latest.json
+// Release notes come from the "## <version>" section of CHANGELOG (plain text).
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 

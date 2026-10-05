@@ -1,8 +1,8 @@
 import Foundation
 
-/// Cờ rủi ro trước khi commit (không AI) — port của `packages/core/src/risk/` (app Tauri); hai bên test cùng
-/// `packages/contracts/risk-rules.vectors.json`. Chỉ cảnh báo, không chặn commit; kết quả chỉ có ĐƯỜNG DẪN, không bao giờ có
-/// nội dung bí mật.
+/// Risk flags raised before a commit (non-AI) — a port of `packages/core/src/risk/` (the Tauri app); both
+/// sides test against `packages/contracts/risk-rules.vectors.json`. Warning only, never blocks a commit; the
+/// result carries PATHS only and never secret contents.
 public enum RiskCode: String, Sendable, CaseIterable {
     case testsRemoved = "tests-removed"
     case testsSkipped = "tests-skipped"
@@ -16,9 +16,9 @@ public struct RiskInput: Sendable, Equatable {
     public enum Status: String, Sendable { case added, modified, deleted }
     public let path: String
     public let status: Status
-    /// Dòng được thêm (không kèm dấu `+`).
+    /// An added line (without the leading `+`).
     public var addedLines: [String]
-    /// Kích thước file hiện tại (byte); nil = không rõ.
+    /// The file's current size (bytes); nil = unknown.
     public var size: Int?
 
     public init(path: String, status: Status, addedLines: [String] = [], size: Int? = nil) {
@@ -44,7 +44,7 @@ public enum RiskRules {
     public static let largeFileBytes = 1024 * 1024
 
     private static func regex(_ pattern: String, _ options: NSRegularExpression.Options = []) -> NSRegularExpression {
-        // Mẫu cố định trong code: lỗi cú pháp là lỗi lập trình (test vector bắt ngay).
+        // The pattern is hardcoded here: a syntax error is a programming error (a test vector catches it at once).
         try! NSRegularExpression(pattern: pattern, options: options)
     }
 
@@ -52,7 +52,7 @@ public enum RiskRules {
         regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 
-    // MARK: Test / thư viện / CI
+    // MARK: Test / dependency / CI
 
     private static let testDirs: Set<String> = ["test", "tests", "__tests__", "spec", "specs"]
     private static let testFile = [#"\.(?:test|spec)\.[a-z0-9]+$"#, #"_test\.[a-z0-9]+$"#, #"^test_.+\.py$"#].map { regex($0) }
@@ -98,7 +98,7 @@ public enum RiskRules {
         return ciNames.contains { matches($0, name) }
     }
 
-    // MARK: Bí mật (port của `ai/secret-scan.ts`)
+    // MARK: Secrets (a port of `ai/secret-scan.ts`)
 
     private static let sensitiveFiles = [
         #"^\.env(?:\..*)?$"#, #"\.env$"#, #"\.(?:pem|key|p12|pfx|jks|keystore|kdbx|ovpn|ppk|asc|gpg)$"#,
@@ -168,7 +168,7 @@ public enum RiskRules {
         return false
     }
 
-    // MARK: Luật
+    // MARK: Rules
 
     private static func applies(_ code: RiskCode, to file: RiskInput) -> Bool {
         let present = file.status != .deleted
@@ -188,7 +188,7 @@ public enum RiskRules {
         }
     }
 
-    /// Các cờ theo thứ tự `RiskCode.allCases`, mỗi cờ kèm đường dẫn đã sắp xếp (theo mã Unicode, như bản TS).
+    /// The flags in `RiskCode.allCases` order, each with its paths already sorted (by Unicode code point, like the TS version).
     public static func detect(_ files: [RiskInput]) -> [RiskFlag] {
         RiskCode.allCases.compactMap { code in
             let paths = files.filter { applies(code, to: $0) }.map(\.path)
@@ -197,7 +197,7 @@ public enum RiskRules {
         }
     }
 
-    /// `git diff -U0` → các dòng được thêm theo đường dẫn mới.
+    /// `git diff -U0` → the added lines keyed by the new path.
     public static func addedLinesByPath(_ patch: String) -> [String: [String]] {
         var result: [String: [String]] = [:]
         var current: String?
@@ -235,11 +235,11 @@ extension GitRepository {
     private static let riskMaxDiffBytes = 8 * 1024 * 1024
     private static let riskMaxNewFiles = 100
 
-    /// Đầu vào cho cờ rủi ro từ thay đổi chưa commit: một lần `git diff HEAD -U0`, đọc file mới để biết kích thước và nội dung.
+    /// The input for risk flags from uncommitted changes: one `git diff HEAD -U0`, reading the new files for size and content.
     public func riskInputs(status: WorkingTreeStatus) async throws -> [RiskInput] {
         var order: [String] = []
         var files: [String: RiskInput] = [:]
-        // Working tree là thứ sẽ được commit khi "Stage tất cả & commit": thay đổi chưa stage đè lên đã stage.
+        // The working tree is what gets committed by "Stage all & commit": unstaged changes layer on top of staged ones.
         for change in status.staged + status.unstaged {
             let riskStatus: RiskInput.Status = switch change.kind {
             case .deleted: .deleted

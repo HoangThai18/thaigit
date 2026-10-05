@@ -14,7 +14,7 @@
 
   interface Props {
     store: RepoStore;
-    /** Mở hộp tìm & chuyển nhánh. */
+    /** Open the find & switch branch box. */
     onfind?: () => void;
   }
 

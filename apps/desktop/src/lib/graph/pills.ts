@@ -1,7 +1,8 @@
 /**
- * Nhãn nhánh/tag ("pill") trên cột "Nhánh / Tag": gom ref theo commit (port `labelsByCommit` của RepoModel.swift), xếp chỗ
- * các viên trong độ rộng cột kèm "+N" khi tràn (port `RefsCellView.pillLayout`) và màu kính theo màu làn. Hàm thuần: chỉ
- * `measure` (đo chữ) do phía gọi đưa vào — giao diện dùng canvas, test dùng độ rộng giả.
+ * Branch/tag labels ("pills") in the Branch/Tag column: grouped per commit (a port of `labelsByCommit` in
+ * RepoModel.swift), laid out inside the column width with a "+N" chip on overflow (a port of
+ * `RefsCellView.pillLayout`), tinted with glass colours derived from the lane colour. Pure: the only
+ * impure input, `measure` (text measurement), is injected — the UI passes a canvas measurer, tests a fake.
  */
 import {
   headBranchName,
@@ -20,7 +21,7 @@ export interface RefLabel {
   readonly text: string;
   readonly isCurrentBranch: boolean;
   readonly hasLocal: boolean;
-  /** Số nhánh remote gộp vào nhãn này (nhánh local cùng tên/upstream → cùng một viên có biểu tượng đám mây). */
+  /** Number of remote branches folded into this label (a local branch with the same name/upstream becomes one pill with a cloud icon). */
   readonly remoteCount: number;
   readonly isTag: boolean;
   readonly isDetachedHead: boolean;
@@ -30,7 +31,7 @@ export interface RefLabel {
 export interface LabelOptions {
   showRemotes: boolean;
   showTags: boolean;
-  /** Tên các remote đã cấu hình: để nhận đúng remote có `/` trong tên (`team/a`); thiếu thì cắt ở `/` đầu tiên. */
+  /** Names of the configured remotes: needed to detect remotes whose names contain `/` (`team/a`); absent means truncate at the first `/`. */
   remoteNames?: readonly string[];
 }
 
@@ -43,8 +44,9 @@ function byName(a: GitRef, b: GitRef): number {
 const MAIN_BRANCHES = new Set(['main', 'master', 'develop', 'dev']);
 
 /**
- * Thứ tự hiển thị — nhãn đầu là nhãn còn thấy khi ô hẹp (còn lại gom vào "+N"): HEAD / nhánh hiện tại, rồi nhánh chính
- * (main / master / develop), rồi nhánh local khác, remote, cuối cùng tag.
+ * Display order — the first label is the one still visible in a narrow cell (the rest fold into "+N"):
+ * HEAD / current branch, then the main branch (main / master / develop), then other local branches,
+ * remotes, and finally tags.
  */
 function rank(label: RefLabel): number {
   if (label.isDetachedHead || label.isCurrentBranch) return 0;
@@ -54,7 +56,7 @@ function rank(label: RefLabel): number {
   return 3;
 }
 
-/** Nhãn theo commit đích. Commit không có nhãn thì không có khoá trong kết quả. */
+/** Labels keyed by target commit. A commit without labels gets no key in the result. */
 export function buildRefLabels(
   refs: readonly GitRef[],
   head: HeadState,
@@ -166,7 +168,7 @@ export function pillIcons(label: RefLabel): PillIcon[] {
   return icons;
 }
 
-/** Chú thích hiện khi rê chuột vào nhãn (mỗi ref một dòng). */
+/** Tooltip shown when hovering a label (one ref per line). */
 export function pillTooltip(label: RefLabel): string {
   if (label.isDetachedHead) return vi.graph.detachedHeadPill;
   return label.refs
@@ -183,7 +185,7 @@ export function pillTooltip(label: RefLabel): string {
     .join('\n');
 }
 
-// MARK: - Xếp chỗ
+// MARK: - Layout
 
 export const PILL = {
   height: 18,
@@ -194,13 +196,13 @@ export const PILL = {
   gap: 4,
   rightPadding: 4,
   moreWidth: 26,
-  /** Chỗ chừa lại cho chip "+N" khi còn nhãn phía sau. */
+  /** Space kept for the "+N" chip while labels remain. */
   moreReserve: 30,
-  /** Dưới ngưỡng này thì không vẽ thêm viên nào mà gộp vào "+N". */
+  /** Below this threshold no more pills are drawn; the rest fold into "+N". */
   minAvailable: 44,
-  /** Khoảng cách giữa tên nhánh và badge số file chưa commit. */
+  /** Gap between the branch name and the uncommitted file count badge. */
   badgeGap: 5,
-  /** Đệm hai bên của badge (`.pill-badge` có `padding: 0 4px`) — phải tính vào bề rộng nếu không sẽ bóp tên nhánh. */
+  /** Horizontal padding of the badge (`.pill-badge` has `padding: 0 4px`) — must count towards the width or the branch name gets squeezed. */
   badgePadX: 4,
 } as const;
 
@@ -212,18 +214,20 @@ export interface PillPlacement {
 
 export interface PillLayout {
   pills: PillPlacement[];
-  /** Chip "+N" khi tràn. */
+  /** The "+N" chip used on overflow. */
   more: { x: number; count: number } | null;
-  /** Mép phải của phần cuối cùng (đường nối sang cột graph bắt đầu từ đây). */
+  /** Right edge of the last element (the connector to the graph column starts here). */
   end: number;
 }
 
 /**
- * Xếp các nhãn trong ô rộng `width`. `measure(text)` trả độ rộng chữ (px). Viên cuối có thể bị co lại (chữ cắt "…").
- * Luật như Swift: còn nhãn phía sau thì chừa 30px cho "+N"; chỗ trống < 44px thì dừng và hiện "+N" ở vị trí đó.
+ * Lay out the labels inside a cell of width `width`. `measure(text)` returns the text width (px). The last
+ * pill may be shrunk (text truncated with "…"). Same rules as Swift: while labels remain, reserve 30px for
+ * "+N"; when the free space drops below 44px, stop and show "+N" at that position.
  *
- * `pendingCount` > 0 thì viên của nhánh đang đứng rộng thêm chỗ cho badge "✎ N" — số file chưa commit thuộc nhánh
- * đó nên đứng cạnh tên nhánh, không phải trên dòng "// WIP".
+ * With `pendingCount` > 0 the pill of the checked-out branch reserves extra room for the "✎ N" badge —
+ * those uncommitted files belong to that branch, so the badge sits next to the branch name rather than on
+ * the "// WIP" row.
  */
 export function layoutPills(
   labels: readonly RefLabel[],
@@ -257,8 +261,9 @@ export function layoutPills(
 }
 
 /**
- * Phần chừa thêm cho badge "✎ N" — chỉ viên của nhánh đang đứng. Tính cả `gap` của flex trước badge và đệm hai bên
- * của nó: thiếu hai thứ này thì tên nhánh bị cắt cụt ("m…") dù cột còn dư chỗ.
+ * Extra room reserved for the "✎ N" badge — only for the pill of the checked-out branch. It includes the
+ * flex `gap` before the badge plus the badge's horizontal padding: without both the branch name gets cut
+ * to "m…" even when the column has room to spare.
  */
 function badgeExtra(label: RefLabel, pendingCount: number, measure: (text: string) => number): number {
   if (!label.isCurrentBranch || pendingCount <= 0) return 0;
@@ -267,22 +272,22 @@ function badgeExtra(label: RefLabel, pendingCount: number, measure: (text: strin
   );
 }
 
-// MARK: - Màu
+// MARK: - Colour
 
 export interface PillAppearance {
-  /** Màu nền trên/dưới (gradient dọc) đã gồm độ mờ. */
+  /** Top/bottom background colours (vertical gradient), alpha included. */
   top: string;
   bottom: string;
-  /** Viền kính sáng bên trong. */
+  /** Bright inner glass rim. */
   rim: string;
   rimWidth: number;
-  /** Viền màu mảnh bên ngoài. */
+  /** Thin outer colour rim. */
   edge: string;
 }
 
 const DETACHED_GRAY = parseHex('#8e8e93');
 
-/** Màu kính của một viên theo màu làn (`laneHex`): remote-only nhạt hơn, HEAD tách rời xám, nhánh hiện tại đậm và viền sáng hơn. */
+/** Glass colours of a pill from its lane colour (`laneHex`): remote-only is lighter, detached HEAD is grey, the current branch is darker with a brighter rim. */
 export function pillAppearance(label: RefLabel, laneHex: string, dimmed = false): PillAppearance {
   const lane = parseHex(laneHex);
   const fill = label.isDetachedHead

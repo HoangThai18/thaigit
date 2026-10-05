@@ -1,16 +1,16 @@
 import NhanhCore
 import SwiftUI
 
-/// Blame như GitKraken: từng dòng của file kèm người sửa, thời gian và lời commit (mỗi nhóm dòng liền nhau của cùng
-/// một commit chỉ ghi một lần). Bấm vào phần tên bên trái để tới commit đó trên graph.
+/// Blame like GitKraken: every line of the file with who changed it, when, and the commit message (each run of adjacent
+/// lines from the same commit is labelled once). Click the left-hand part to jump to that commit on the graph.
 struct BlameSheet: View {
     @Bindable var model: RepoModel
     let path: String
-    /// nil: bản trong working tree (kể cả dòng chưa commit).
+    /// nil: the working tree version (including uncommitted lines).
     let rev: String?
     @Environment(\.dismiss) private var dismiss
     @State private var blame: Blame?
-    /// Chỉ số nhóm (đổi màu nền xen kẽ) theo số dòng.
+    /// The group index (used to alternate the background colour), by line number.
     @State private var groupIndex: [Int: Int] = [:]
     @State private var errorMessage: String?
 

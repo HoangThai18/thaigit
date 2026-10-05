@@ -1,6 +1,7 @@
-// Giải conflict theo byte với git THẬT: tạo merge conflict trong repo tạm rồi parse/giải/lưu bằng `ConflictFile`.
-// Quy tắc: file không phải UTF-8 bị từ chối và không đổi byte nào; BOM + kiểu xuống dòng giữ nguyên; chỉ vùng khối
-// xung đột bị thay.
+// Byte-level conflict resolution against REAL git: create a merge conflict in a temp repo, then parse/resolve/save with
+// `ConflictFile`.
+// Rules: a non-UTF-8 file is rejected without a single byte changed; BOM and line terminators survive; only the conflict
+// block regions are replaced.
 
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -24,7 +25,7 @@ interface ConflictSetup {
   readonly conflictStyle?: 'merge' | 'diff3';
 }
 
-/** Hai nhánh cùng sửa một chỗ → `git merge` dừng với xung đột; trả repo đang ở giữa merge. */
+/** Two branches editing the same spot → `git merge` stops with a conflict; returns the repo mid-merge. */
 function makeConflict(setup: ConflictSetup): TempRepo {
   const path = setup.path ?? 'f.txt';
   const repo = TempRepo.create({ autocrlf: 'false' });
@@ -133,7 +134,7 @@ describe('BOM UTF-8 + CRLF', () => {
       theirs: ['one', 'THEIRS', 'three'],
       oursThenTheirs: ['one', 'OURS', 'THEIRS', 'three'],
       theirsThenOurs: ['one', 'THEIRS', 'OURS', 'three'],
-      base: ['one', 'three'], // merge mặc định không có phần base → rỗng
+      base: ['one', 'three'], // a default merge has no "ours" section → empty
       neither: ['one', 'three'],
     };
     for (const [choice, lines] of Object.entries(expected) as [ConflictResolution, string[]][]) {

@@ -28,7 +28,7 @@ public struct Commit: Sendable, Hashable, Identifiable {
     public var shortSHA: String { String(id.prefix(7)) }
     public var isMerge: Bool { parents.count > 1 }
 
-    /// Commit giả đại diện cho thay đổi chưa commit (node "WIP" trên graph).
+    /// A synthetic commit standing for uncommitted changes (the graph's "WIP" node).
     public static let workingTreeID = "__NHANH_WORKING_TREE__"
     public var isWorkingTree: Bool { id == Self.workingTreeID }
 
@@ -47,17 +47,17 @@ public enum RefKind: String, Sendable, Hashable, Codable {
 public struct GitRef: Sendable, Hashable, Identifiable {
     public let fullName: String
     public let kind: RefKind
-    /// Commit mà ref trỏ tới (đã bóc tag annotated).
+    /// The commit the ref points at (annotated tags peeled).
     public let target: String
-    /// Object của chính ref (tag object với annotated tag).
+    /// The ref's own object (the tag object for an annotated tag).
     public let objectName: String
-    /// Upstream dạng rút gọn, ví dụ "origin/main".
+    /// The short upstream, e.g. "origin/main".
     public let upstream: String?
     public let ahead: Int
     public let behind: Int
     public let upstreamGone: Bool
     public let isHead: Bool
-    /// Ngày commit (hoặc ngày tạo tag annotated) — để xếp "nhánh gần đây".
+    /// The commit date (or an annotated tag's creation date) — used to sort "recently used branches".
     public let date: Date?
 
     public init(fullName: String, kind: RefKind, target: String, objectName: String, upstream: String?,
@@ -90,7 +90,7 @@ public struct GitRef: Sendable, Hashable, Identifiable {
         return name.split(separator: "/", maxSplits: 1).first.map(String.init)
     }
 
-    /// Với nhánh remote "origin/feature/x" trả về "feature/x".
+    /// For the remote branch "origin/feature/x" returns "feature/x".
     public var shortBranchName: String {
         guard kind == .remoteBranch else { return name }
         let parts = name.split(separator: "/", maxSplits: 1)
@@ -101,7 +101,7 @@ public struct GitRef: Sendable, Hashable, Identifiable {
 }
 
 public enum HeadState: Sendable, Hashable {
-    /// Đang ở một nhánh. `oid == nil` nghĩa là nhánh chưa có commit nào.
+    /// On a branch. A nil `oid` means the branch has no commits yet.
     case branch(name: String, oid: String?)
     case detached(oid: String)
     case unknown
@@ -149,8 +149,8 @@ public struct Stash: Sendable, Hashable, Identifiable {
 
     public var id: String { sha }
 
-    /// "On main: tin nhắn" → "tin nhắn". Stash tự đặt tên "WIP on main: abc123 msg" → "WIP trên main: msg"
-    /// (giữ chữ WIP để không bị nhầm với tên commit).
+    /// "On main: message" → "message". A stash git named itself "WIP on main: abc123 msg" → "WIP on main: msg"
+    /// (keeping the word WIP so it isn't mistaken for a commit name).
     public var displayMessage: String {
         let parts = message.split(separator: ":", maxSplits: 1)
         guard parts.count == 2 else { return message }
@@ -164,7 +164,7 @@ public struct Stash: Sendable, Hashable, Identifiable {
         return rest
     }
 
-    /// Nhánh mà stash được tạo ra.
+    /// The branch the stash was created on.
     public var branchName: String? {
         let parts = message.split(separator: ":", maxSplits: 1)
         guard let head = parts.first else { return nil }
@@ -221,7 +221,7 @@ public struct FileChange: Sendable, Hashable, Identifiable {
     public var id: String { path }
     public var fileName: String { (path as NSString).lastPathComponent }
     public var directory: String { (path as NSString).deletingLastPathComponent }
-    /// Tất cả đường dẫn liên quan (để rename được nhận diện khi diff theo pathspec).
+    /// Every related path (so a rename is recognised when diffing by pathspec).
     public var allPaths: [String] {
         if let oldPath, oldPath != path { return [oldPath, path] }
         return [path]
@@ -251,7 +251,7 @@ public enum ConflictKind: String, Sendable, Hashable {
         }
     }
 
-    /// Có tồn tại file kèm dấu xung đột trong working tree không.
+    /// Whether a file with conflict markers exists in the working tree.
     public var hasMarkers: Bool { self == .bothModified || self == .bothAdded }
 }
 
@@ -294,7 +294,7 @@ public struct WorkingTreeStatus: Sendable, Equatable {
                                                 staged: [], unstaged: [], conflicts: [], stashCount: 0)
 
     public var isClean: Bool { staged.isEmpty && unstaged.isEmpty && conflicts.isEmpty }
-    /// Số file khác nhau có thay đổi.
+    /// How many distinct files changed.
     public var changedFileCount: Int {
         Set(staged.map(\.path) + unstaged.map(\.path) + conflicts.map(\.path)).count
     }
@@ -321,7 +321,7 @@ public enum RepoOperation: Sendable, Equatable {
         }
     }
 
-    /// Tên ngắn để ghép câu: "Huỷ merge", "Tiếp tục rebase"…
+    /// A short name for composing sentences: "Cancel merge", "Continue rebase"…
     public var shortName: String {
         switch self {
         case .merging: return "merge"
@@ -353,7 +353,7 @@ public struct CommitDetails: Sendable, Equatable {
         self.files = files
     }
 
-    /// Phần thân message (bỏ dòng tóm tắt đầu tiên).
+    /// The message body (the first summary line removed).
     public var body: String {
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let newline = trimmed.firstIndex(of: "\n") else { return "" }
@@ -371,7 +371,7 @@ public enum ResetMode: String, Sendable, CaseIterable {
 }
 
 public enum PullMode: String, Sendable, CaseIterable, Codable {
-    /// Fast-forward nếu được, không thì tạo merge commit.
+    /// Fast-forward when possible, otherwise create a merge commit.
     case merge
     case rebase
     case fastForwardOnly

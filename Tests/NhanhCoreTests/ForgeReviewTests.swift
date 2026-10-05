@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import NhanhCore
 
-/// Trả lần lượt các phản hồi đã xếp sẵn cho GitLab và ghi lại mọi request — không có kết nối mạng thật nào.
+/// Returns the queued responses for GitLab in order and records every request — no real network connection anywhere.
 private final class ReviewGitLab: @unchecked Sendable {
     struct Reply {
         var status: Int
@@ -50,7 +50,7 @@ struct ForgeReviewTests {
                      sourceBranch: "tinh-nang", targetBranch: target, headSHA: nil, updatedAt: nil)
     }
 
-    // MARK: - Refspec để review
+    // MARK: - Refspecs for review
 
     @Test func buildsRefspecsForGitHubAndGitLab() throws {
         let hub = try #require(github().reviewRefs(remote: "origin"))
@@ -67,7 +67,7 @@ struct ForgeReviewTests {
 
     @Test func refusesUnsafeBranchAndRemoteNames() {
         for bad in ["", "-x", "a:b", "a b", "x..y", "a^b", "a\\b", "a~1", "a?b", "a*b", "a[b", "/a", "a/", "a//b", "a.", "a.lock", "a@{b", "a\u{7f}b"] {
-            #expect(github(target: bad).reviewRefs(remote: "origin") == nil, "nhánh \(bad.debugDescription) phải bị từ chối")
+            #expect(github(target: bad).reviewRefs(remote: "origin") == nil, "branch \(bad.debugDescription) must be refused")
         }
         #expect(github().reviewRefs(remote: "-evil") == nil)
         #expect(github().reviewRefs(remote: "a b") == nil)
@@ -152,15 +152,15 @@ struct ForgeReviewTests {
     }
 
     @Test func detectsAssigneesThatGitHubSilentlyDropped() async throws {
-        // Không có quyền push (hoặc người không gán được): GitHub trả 200 nhưng bỏ qua phần đó — danh sách trả về ngắn hơn.
+        // No push permission (or the person can't be assigned): GitHub answers 200 but drops that part — the returned list is shorter.
         let dropped = FakeGitHub([.json(200, #"{"assignees":[{"login":"an"}]}"#)])
         await #expect(throws: ForgeReviewError.rejected) {
             try await GitHubRepoAPI(transport: dropped.transport).setAssignees(["an", "binh"], number: 12, in: Self.repo, token: "t")
         }
-        // Bỏ hết: phản hồi rỗng là đúng.
+        // Removing everyone: an empty response is correct.
         let cleared = FakeGitHub([.json(200, #"{"assignees":[]}"#)])
         try await GitHubRepoAPI(transport: cleared.transport).setAssignees([], number: 12, in: Self.repo, token: "t")
-        // Phản hồi không có trường assignees (máy chủ GitHub Enterprise cũ…): không kết luận gì, coi như thành công.
+        // A response with no `assignees` field (an older GitHub Enterprise…): draw no conclusion, treat it as success.
         let silent = FakeGitHub([.json(200, "{}")])
         try await GitHubRepoAPI(transport: silent.transport).setAssignees(["an"], number: 12, in: Self.repo, token: "t")
     }

@@ -1,5 +1,6 @@
-// Dựng body gửi cho AI từ repo đang mở: diff (đã lọc + quét bí mật bằng `buildDiffContext` của core), nhánh, vài subject
-// gần nhất. Cùng một dữ liệu dùng cho "Xem dữ liệu sẽ gửi" — người dùng thấy đúng những gì sẽ đi.
+// Builds the request body sent to the AI from the open repo: the diff (filtered and secret-scanned by the
+// core's `buildDiffContext`), the branches and a few recent subjects. The exact same data backs "See the data
+// so what the user sees is what actually goes out.
 
 import {
   AI_LIMITS,
@@ -10,7 +11,7 @@ import {
 import { buildDiffContext, parseDiff, type Commit, type GitRepository } from '@thaigit/core';
 import type { AiPreview, AiStore } from '../stores/ai.svelte.ts';
 
-/** Phần ngân sách token dành cho prompt + subject + câu trả lời (phần còn lại cho diff). */
+/** Share of the token budget reserved for prompt + subjects + answer (the rest goes to the diff). */
 const PROMPT_RESERVE = 900;
 
 function diffBudget(ai: AiStore): number {
@@ -26,7 +27,7 @@ export interface Prepared<T> {
   preview: AiPreview;
 }
 
-/** Ngữ cảnh viết commit: thay đổi đã stage (amend mà chưa stage gì thì lấy diff của commit đang sửa). `null` = không có gì. */
+/** Commit-writing context: staged changes (when amending with nothing staged, use the diff of the commit being amended). `null` = nothing to send. */
 export async function commitContext(
   git: GitRepository,
   ai: AiStore,
@@ -61,7 +62,7 @@ export async function commitContext(
   };
 }
 
-/** Ngữ cảnh giải thích một commit (so với cha đầu tiên). */
+/** Context for explaining one commit (compared against its first parent). */
 export async function explainContext(
   git: GitRepository,
   ai: AiStore,
@@ -93,7 +94,7 @@ export async function explainContext(
   };
 }
 
-/** Ngữ cảnh mô tả Pull Request: commit + diff của `head` so với điểm rẽ khỏi `base`. */
+/** Context for a Pull Request description: commits + diff of `head` against its fork point from `base`. */
 export async function prContext(
   git: GitRepository,
   ai: AiStore,

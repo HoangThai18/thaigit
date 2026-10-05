@@ -2,13 +2,13 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Sidebar: LOCAL / REMOTE / PULL REQUESTS / TAGS / STASHES như GitKraken. Bấm để nhảy tới commit, double-click để
-/// checkout, kéo một nhánh thả lên nhánh khác để merge/rebase/push.
+/// The sidebar: LOCAL / REMOTE / PULL REQUESTS / TAGS / STASHES like GitKraken. Click to jump to a commit, double-click to
+/// check out, drag one branch onto another to merge / rebase / push.
 struct SidebarView: View {
     @Bindable var model: RepoModel
     @State private var selection: String?
     @State private var filter = ""
-    /// Chờ một nhịp rồi mới mở review của PR / MR vừa chọn: lướt phím mũi tên qua nhiều dòng không fetch từng dòng.
+    /// Wait a beat before opening the review of the selected PR / MR: arrowing through many rows must not fetch each one.
     @State private var reviewDebounce = ReviewDebounce()
     @AppStorage("sidebar.showLocal") private var showLocal = true
     @AppStorage("sidebar.showRemote") private var showRemote = true
@@ -27,8 +27,8 @@ struct SidebarView: View {
         !filtering || text.localizedStandardContains(trimmedFilter)
     }
 
-    // List của SwiftUI so khác lại toàn bộ hàng mỗi lần cập nhật, nên chỉ dựng hàng của mục đang mở,
-    // giới hạn số hàng mỗi cấp, và view này không đọc `status`/`selection` (đổi liên tục).
+    // SwiftUI's List re-diffs every row on each update, so only build the rows of the open section,
+    // limit the rows per level, and keep this view from reading `status` / `selection` (which change constantly).
     var body: some View {
         List(selection: $selection) {
             Section(isExpanded: $showLocal) {
@@ -130,7 +130,7 @@ struct SidebarView: View {
         }
     }
 
-    /// Git Flow, submodule, worktree — tách khỏi `body` để biểu thức của List không quá nặng cho trình biên dịch.
+    /// Git Flow, submodules, worktrees — split out of `body` so the List's expressions don't overload the compiler.
     @ViewBuilder
     private var extraSections: some View {
         if let flow = model.extras.gitFlow {
@@ -234,7 +234,7 @@ struct SidebarView: View {
         }
     }
 
-    /// Mục MERGE REQUESTS (repo ở GitLab) — tách khỏi `body` để biểu thức của List không quá nặng cho trình biên dịch.
+    /// The MERGE REQUESTS section (a repo on GitLab) — split out of `body` so the List's expressions don't overload the compiler.
     @ViewBuilder
     private var mergeRequestSection: some View {
         if model.mergeRequests.state != .notGitLab, model.gitlabRemote != nil {
@@ -440,7 +440,7 @@ struct SidebarView: View {
         return model.mergeRequests.items.first { $0.number == number }
     }
 
-    /// Đường dẫn mở được thành tab (submodule đã tải về, worktree khác thư mục đang mở).
+    /// Paths that can be opened as a tab (a fetched submodule, a worktree outside the open folder).
     private func openablePath(for id: String) -> String? {
         if id.hasPrefix("sub:"), let module = model.extras.submodules.first(where: { "sub:" + $0.path == id }),
            module.state != .uninitialized {
@@ -503,7 +503,7 @@ private struct BranchRow: View {
     let toggleHidden: () -> Void
     @State private var hovering = false
 
-    /// Mờ đi khi nhánh không hiện trên graph.
+    /// Dimmed when the branch isn't shown on the graph.
     private var isDimmed: Bool { visibility == .hidden || (visibility == .outsideSolo && !isCurrent) }
 
     var body: some View {
@@ -523,7 +523,7 @@ private struct BranchRow: View {
                     .foregroundStyle(Color.accentColor)
                     .help("Đang chỉ hiện nhánh này (solo)")
             }
-            // Như GitKraken: rê chuột vào nhánh hiện nút con mắt để ẩn / hiện nhánh trên graph.
+            // Like GitKraken: hovering a branch reveals an eye button to hide / show it on the graph.
             if visibility == .hidden || (hovering && canHide && visibility != .solo && visibility != .outsideSolo) {
                 Button(action: toggleHidden) {
                     Image(systemName: visibility == .hidden ? "eye.slash" : "eye")
@@ -565,10 +565,10 @@ private struct BranchRow: View {
 
 private struct PullRequestRow: View {
     let pull: GitHubPullRequest
-    /// PR của nhánh đang đứng.
+    /// The PRs of the checked-out branch.
     let isCurrent: Bool
 
-    /// Tách riêng khỏi `body`: viết gộp trong `.help(...)` làm trình biên dịch trên CI hết thời gian suy kiểu.
+    /// Split out of `body`: writing everything inline in `.help(...)` makes the CI compiler run out of type-inference time.
     private var tooltip: String {
         var title = "#\(pull.number) \(pull.title)"
         if pull.isDraft { title += String(localized: " (nháp)") }
@@ -600,8 +600,8 @@ private struct PullRequestRow: View {
     }
 }
 
-/// Giữ tác vụ chờ mở review trong một đối tượng tham chiếu: ghi vào `@State` kiểu giá trị sẽ làm sidebar dựng lại cả List
-/// mỗi lần bấm một PR / MR, còn đổi thuộc tính của đối tượng này thì không.
+/// Keeps the pending "open review" task in a reference object: assigning a value to `@State` would rebuild the sidebar's whole
+/// List on every PR / MR click, whereas mutating a property of this object does not.
 private final class ReviewDebounce {
     var task: Task<Void, Never>?
 }
@@ -609,7 +609,7 @@ private final class ReviewDebounce {
 private struct MergeRequestRow: View {
     let request: ForgeRequest
 
-    /// Tách riêng khỏi `body` cho trình biên dịch khỏi phải suy kiểu một biểu thức dài.
+    /// Split out of `body` so the compiler doesn't have to infer types for one long expression.
     private var tooltip: String {
         var title = request.reference + " " + request.title
         if request.isDraft { title += String(localized: " (nháp)") }
@@ -654,14 +654,14 @@ private struct StashRow: View {
     }
 }
 
-/// Cây nhánh theo dấu "/" (feature/a, feature/b → thư mục feature).
+/// The branch tree keyed on "/" (feature/a, feature/b → folder feature).
 struct BranchNode: Identifiable {
     let id: String
     let name: String
     var ref: GitRef?
     var children: [BranchNode]
 
-    /// Số nhánh bên trong (tính cả thư mục con).
+    /// How many branches are inside (child folders included).
     var leafCount: Int { ref != nil ? 1 : children.reduce(0) { $0 + $1.leafCount } }
 
     static func build(_ refs: [GitRef], name: KeyPath<GitRef, String>) -> [BranchNode] {
@@ -717,11 +717,11 @@ struct BranchTree<Row: View>: View {
     }
 }
 
-/// Số hàng dựng sẵn mỗi cấp và số hàng thêm mỗi lần bấm "Hiện thêm".
+/// Rows pre-built per level, and rows added per "Show more" click.
 private let sidebarPageSize = 50
 private let sidebarPageStep = 200
 
-/// Chỉ dựng một phần danh sách dài; phần còn lại hiện khi bấm "Hiện thêm…".
+/// Only part of a long list is built; the rest appears when "Show more…" is clicked.
 private struct LimitedRows<Item: Identifiable, Row: View>: View {
     let items: [Item]
     let noun: String
@@ -755,7 +755,7 @@ private struct PlaceholderRow: View {
     }
 }
 
-/// Thư mục nhánh. Thư mục nhỏ mở sẵn để thấy ngay các nhánh; thư mục lớn thu gọn cho nhẹ.
+/// A branch folder. Small folders start expanded so branches are visible at once; bigger ones collapse to stay cheap.
 private struct BranchFolder<Content: View>: View {
     let name: String
     let count: Int
@@ -790,7 +790,7 @@ private struct BranchFolder<Content: View>: View {
     }
 }
 
-/// Một remote trong mục REMOTE: thả nhánh local vào để push.
+/// A remote in the REMOTE section: drop a local branch onto it to push.
 private struct RemoteGroup<Content: View>: View {
     let remote: Remote
     let model: RepoModel
@@ -827,8 +827,8 @@ private struct RemoteGroup<Content: View>: View {
     }
 }
 
-/// Bỏ chọn ở sidebar khi người dùng chọn commit khác trên graph. Tách riêng để SidebarView không phụ
-/// thuộc `model.selection` (đổi commit đang chọn không làm dựng lại cả danh sách nhánh).
+/// Clear the sidebar selection when the user picks another commit on the graph. Split out so SidebarView doesn't depend
+/// on `model.selection` (changing the selected commit doesn't rebuild the whole branch list).
 private struct SidebarSelectionSync: View {
     let model: RepoModel
     @Binding var selection: String?

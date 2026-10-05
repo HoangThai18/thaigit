@@ -1,20 +1,20 @@
-// Repo này nói chuyện với máy chủ nào: đọc `owner` + `repo` từ URL remote (Rust cũng kiểm lại khi gọi API). Dùng cho phần
-// Pull Request / Merge Request và menu "Tài khoản cho repo này".
+// Which host this repo talks to: read `owner` + `repo` from the remote URL (Rust re-validates when calling
+// the API). Used by the Pull Request / Merge Request area and the "Account for this repo" menu.
 
 import { KNOWN_FORGE_HOSTS, type ForgeProvider } from '@thaigit/contracts';
 
 export interface ForgeTarget {
   host: string;
   provider: ForgeProvider | null;
-  /** Segment đầu của đường dẫn (user / tổ chức / nhóm gốc). */
+  /** First path segment (user / organisation / root group). */
   owner: string;
-  /** Phần còn lại sau owner, bỏ `.git` (`app`, hoặc `sub/app` với nhóm con của GitLab). */
+  /** What follows the owner, `.git` stripped (`app`, or `sub/app` for a GitLab subgroup). */
   repo: string;
-  /** URL remote đầy đủ (chỉ để hiển thị). */
+  /** Full remote URL (display only). */
   url: string;
 }
 
-/** Provider đoán từ host: ba host chính thức, rồi tên có chữ gitlab / bitbucket / github (máy chủ tự host); còn lại `null`. */
+/** Provider guessed from the host: the three official hosts, then names containing gitlab / bitbucket / github (self-hosted); otherwise `null`. */
 export function providerOfHost(host: string): ForgeProvider | null {
   const lower = host.trim().toLowerCase();
   for (const provider of ['github', 'gitlab', 'bitbucket'] as const) {
@@ -55,7 +55,7 @@ export function forgeTarget(url: string): ForgeTarget | null {
     .replace(/\.git$/i, '')
     .replace(/\/+$/, '');
   const segments = cleaned.split('/').filter((segment) => segment.length > 0);
-  // Owner / tên repo chỉ gồm ký tự an toàn (được dùng trong URL API — Rust kiểm lại trước khi gọi).
+  // Owner / repo name only contain safe characters (they end up in API URLs — Rust re-validates before calling).
   const safe = /^[A-Za-z0-9._-]{1,100}$/;
   if (
     segments.length < 2 ||
@@ -64,7 +64,7 @@ export function forgeTarget(url: string): ForgeTarget | null {
     return null;
   }
   const [owner = '', ...rest] = segments;
-  // GitLab có nhóm con (`group/sub/repo`): owner là nhóm gốc (chọn tài khoản), repo là phần còn lại (đường dẫn của project).
+  // GitLab has subgroups (`group/sub/repo`): the owner is the root group (which picks the account) and the repo is the rest (the project path).
   return { host, provider: providerOfHost(host), owner, repo: rest.join('/'), url: text };
 }
 
@@ -73,19 +73,19 @@ function splitOnce(text: string, separator: string): [string, string] {
   return [text.slice(0, index), text.slice(index + 1)];
 }
 
-/** Remote theo thứ tự ưu tiên: `origin`, rồi remote đầu tiên. */
+/** Remotes in preference order: `origin`, then the first remote. */
 export function preferredRemote<T extends { name: string; fetchUrl: string }>(
   remotes: readonly T[],
 ): T | null {
   return remotes.find((remote) => remote.name === 'origin') ?? remotes[0] ?? null;
 }
 
-/** Target của một repo đã mở: kèm tên remote (`origin`…) mà target đó đọc ra. */
+/** Target of an opened repo: includes the remote name (`origin`…) it was read from. */
 export interface RepoForgeTarget extends ForgeTarget {
   remote: string;
 }
 
-/** Target của repo từ danh sách remote; `null` nếu remote ưu tiên không nói chuyện với máy chủ app nhận ra. */
+/** Target of a repo given its remotes; `null` when the preferred remote doesn't talk to a host the app recognises. */
 export function repoForgeTarget(
   remotes: readonly { name: string; fetchUrl: string }[],
 ): RepoForgeTarget | null {
@@ -94,7 +94,7 @@ export function repoForgeTarget(
   return remote && target ? { ...target, remote: remote.name } : null;
 }
 
-/** Trang commit trên web (GitHub / GitLab / Bitbucket, kể cả tự host); `null` nếu không nhận ra máy chủ. */
+/** Commit page on the web (GitHub / GitLab / Bitbucket, self-hosted too); `null` when the host is unrecognised. */
 export function commitWebUrl(target: ForgeTarget, sha: string): string | null {
   if (!/^[0-9a-f]{4,64}$/i.test(sha)) return null;
   const base = `https://${target.host}/${target.owner}/${target.repo}`;

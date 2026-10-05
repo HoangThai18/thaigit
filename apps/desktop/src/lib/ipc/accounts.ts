@@ -1,4 +1,4 @@
-// Tài khoản git và Pull Request / Merge Request: mọi lệnh đều gọi Rust (token không bao giờ đi qua IPC).
+// Git accounts and Pull Request / Merge Request: every command goes through Rust (tokens never cross IPC).
 import type {
   AccountsView,
   ForgeAccount,
@@ -11,16 +11,16 @@ import type {
 import { Commands } from './commands.ts';
 import { call } from './invoke.ts';
 
-// --- tài khoản ------------------------------------------------------------------------------------------------------
+// --- accounts ------------------------------------------------------------------------------------------------------
 
-/** Tài khoản đã đăng nhập (không token) + tài khoản mặc định + owner đã gán. */
+/** Signed-in accounts (no token) plus the default account and the assigned owner. */
 export function accountsList(): Promise<AccountsView> {
   return call<AccountsView>(Commands.accountsList);
 }
 
 /**
- * Thêm tài khoản bằng Personal access token / app password. Rust kiểm token với API của máy chủ rồi mới lưu vào kho bí
- * mật của hệ điều hành; `host` lạ thì phải khai `provider`.
+ * Add an account via a personal access token / app password. Rust validates the token against the
+ * host's API and only then stores it in the OS keychain; an unknown `host` requires `provider`.
  */
 export function accountsAddToken(
   host: string,
@@ -31,8 +31,9 @@ export function accountsAddToken(
 }
 
 /**
- * Bắt đầu đăng nhập bằng mã (OAuth device flow): trả mã để người dùng nhập ở `verificationUri`. Máy chủ chưa có Client ID
- * thì lỗi `auth` — dùng `accountsAddToken`.
+ * Start a device-code sign-in (OAuth device flow): returns the code for the user to enter at
+ * `verificationUri`. Fails with `auth` when the host has no Client ID configured — use
+ * `accountsAddToken` instead.
  */
 export function accountsStartLogin(
   host: string,
@@ -43,14 +44,14 @@ export function accountsStartLogin(
 }
 
 /**
- * Hỏi token một lần: `null` = người dùng chưa xác nhận ở trang máy chủ (gọi lại sau `interval` giây); xong thì Rust đã lưu
- * tài khoản và trả login của nó.
+ * Poll for the token once: `null` = the user has not confirmed on the host's page yet (call again after
+ * `interval` seconds); once confirmed Rust has stored the account and returns its login.
  */
 export function accountsPollLogin(deviceCode: string): Promise<string | null> {
   return call<string | null>(Commands.accountsPollLogin, { deviceCode });
 }
 
-/** Đóng phiên đăng nhập (đóng hộp thoại) — mã cũ không dùng được nữa. */
+/** Close the sign-in session (dismisses the dialog) — the old code stops working. */
 export function accountsCancelLogin(deviceCode: string): Promise<void> {
   return call<void>(Commands.accountsCancelLogin, { deviceCode });
 }
@@ -63,7 +64,7 @@ export function accountsSetDefault(host: string, login: string): Promise<Account
   return call<AccountsView>(Commands.accountsSetDefault, { host, login });
 }
 
-/** Gán owner (user / tổ chức) cho tài khoản; `login = null` bỏ gán (dùng tài khoản mặc định). */
+/** Assign an owner (user / organisation) to the account; `login = null` clears the assignment (use the default account). */
 export function accountsAssignOwner(
   host: string,
   owner: string,
@@ -72,7 +73,7 @@ export function accountsAssignOwner(
   return call<AccountsView>(Commands.accountsAssignOwner, { host, owner, login });
 }
 
-/** Tên / email dùng cho commit với tài khoản này (rỗng = tên hiển thị và email ẩn của máy chủ). */
+/** Name / email used for commits with this account (empty = the host's display name and hidden email). */
 export function accountsSetIdentity(
   host: string,
   login: string,
@@ -82,17 +83,17 @@ export function accountsSetIdentity(
   return call<AccountsView>(Commands.accountsSetIdentity, { host, login, name, email });
 }
 
-/** Client ID của OAuth App cho đăng nhập bằng mã (rỗng = xoá). */
+/** OAuth App client ID for device sign-in (empty clears it). */
 export function accountsSetClientId(host: string, clientId: string): Promise<AccountsView> {
   return call<AccountsView>(Commands.accountsSetClientId, { host, clientId });
 }
 
-/** Repo tài khoản này truy cập được (hộp Clone). */
+/** Repos this account can reach (the Clone dialog). */
 export function accountsRepositories(host: string, login: string): Promise<ForgeRepository[]> {
   return call<ForgeRepository[]>(Commands.accountsRepositories, { host, login });
 }
 
-// --- Pull Request / Merge Request ----------------------------------------------------------------------------------
+// --- Pull Request / Merge Request -------------------------------------------------------------------------------
 
 export interface ForgeRepoRef {
   host: string;
@@ -101,7 +102,7 @@ export interface ForgeRepoRef {
   repo: string;
 }
 
-/** PR đang mở (GitHub / Bitbucket) hoặc MR đang mở (GitLab) của `owner/repo`. */
+/** Open PRs (GitHub / Bitbucket) or open MRs (GitLab) for `owner/repo`. */
 export function forgeListMergeRequests(repo: ForgeRepoRef): Promise<ForgeMergeRequest[]> {
   return call<ForgeMergeRequest[]>(Commands.forgeListMergeRequests, { repo });
 }
@@ -114,28 +115,28 @@ export interface NewMergeRequest extends ForgeRepoRef {
   draft: boolean;
 }
 
-/** Tạo PR / MR từ nhánh hiện tại; trả PR vừa tạo (webview chỉ hiện, không tự đoán trạng thái). */
+/** Create a PR / MR from the current branch; returns the newly created PR (the webview only displays it, it never guesses the state). */
 export function forgeCreateMergeRequest(request: NewMergeRequest): Promise<ForgeMergeRequest> {
   return call<ForgeMergeRequest>(Commands.forgeCreateMergeRequest, { request });
 }
 
-/** Người có thể gán vào PR / MR của repo (GitHub `assignees`, GitLab thành viên project). */
+/** People who can be assigned to a PR / MR of the repo (GitHub `assignees`, GitLab project members). */
 export function forgeListAssignable(repo: ForgeRepoRef): Promise<ForgePerson[]> {
   return call<ForgePerson[]>(Commands.forgeListAssignable, { repo });
 }
 
-/** Danh sách nào của PR / MR đang sửa. */
+/** Lists a PR / MR is part of. */
 export type PeopleRole = 'reviewers' | 'assignees';
 
 export interface SetPeopleRequest extends ForgeRepoRef {
-  /** Số PR / iid của MR. */
+  /** PR number, or MR iid. */
   number: string;
   role: PeopleRole;
-  /** Danh sách MỚI (thay hẳn danh sách cũ); rỗng là bỏ hết. */
+  /** NEW lists (replacing the old ones); empty removes them all. */
   people: ForgePerson[];
 }
 
-/** Đặt lại người review / người được gán; trả PR / MR đọc lại từ máy chủ (webview không tự đoán kết quả). */
+/** Replace reviewers / assignees; returns the PR / MR re-read from the host (the webview never assumes the outcome). */
 export function forgeSetPeople(request: SetPeopleRequest): Promise<ForgeMergeRequest> {
   return call<ForgeMergeRequest>(Commands.forgeSetPeople, { request });
 }

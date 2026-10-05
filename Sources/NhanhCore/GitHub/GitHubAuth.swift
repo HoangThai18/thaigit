@@ -1,19 +1,20 @@
 import Foundation
 
-/// Gửi một request HTTP, trả về dữ liệu và phản hồi. Test thay bằng closure giả — không bao giờ gọi mạng thật.
+/// Sends one HTTP request and returns the data plus the response. Tests substitute a fake closure — never the real network.
 public typealias GitHubHTTPTransport = @Sendable (URLRequest) async throws -> (Data, HTTPURLResponse)
 
-/// Chờ giữa hai lần hỏi token (test thay bằng closure ghi lại thời gian chờ, không chờ thật).
+/// The wait between two token polls (tests substitute a closure that records the wait instead of waiting).
 public typealias GitHubSleep = @Sendable (Duration) async throws -> Void
 
-/// Đăng nhập GitHub bằng OAuth Device Flow (không cần client secret, không cần trang callback) và gọi vài API cần cho app.
+/// GitHub sign-in through the OAuth Device Flow (no client secret, no callback page) plus the few APIs the app
+/// needs.
 ///
-/// 1. `requestDeviceCode()` lấy mã để người dùng nhập ở github.com/login/device.
-/// 2. `pollForToken(_:)` hỏi token theo `interval` tới khi người dùng xác nhận, từ chối hoặc mã hết hạn.
-/// 3. `fetchUser(token:)` / `listRepositories(token:)` gọi REST API bằng token đó.
+/// 1. `requestDeviceCode()` gets the code the user enters at github.com/login/device.
+/// 2. `pollForToken(_:)` polls for the token every `interval` until the user confirms, denies, or the code expires.
+/// 3. `fetchUser(token:)` / `listRepositories(token:)` call the REST API with that token.
 public struct GitHubAuth: Sendable {
-    /// `workflow` cần để push thay đổi trong `.github/workflows`; `read:org` để biết tài khoản thuộc tổ chức nào
-    /// (chọn token theo owner khi có nhiều tài khoản).
+    /// `workflow` is needed to push changes in `.github/workflows`; `read:org` to learn which organisations the
+    /// account belongs to (so the token can be picked by owner when there are several accounts).
     public static let scopes = ["repo", "workflow", "read:org", "write:public_key"]
     public static let deviceCodeURL = URL(string: "https://github.com/login/device/code")!
     public static let accessTokenURL = URL(string: "https://github.com/login/oauth/access_token")!
@@ -24,11 +25,11 @@ public struct GitHubAuth: Sendable {
     public static let organizationsURL = URL(string: "https://api.github.com/user/orgs?per_page=100")!
     public static let defaultVerificationURL = URL(string: "https://github.com/login/device")!
     public static let maxRepositoryPages = 10
-    /// Lỗi mạng liên tiếp tối đa khi đang chờ người dùng xác nhận (mất mạng thoáng qua không bắt nhập lại mã).
+    /// Max consecutive network errors while waiting for the user to confirm (a brief outage must not force re-entering the code).
     static let maxPollingFailures = 3
     static let userAgent = "Thaigit"
 
-    /// nil khi Info.plist chưa có Client ID: mọi thao tác ném `GitHubError.notConfigured(nil)`.
+    /// nil when Info.plist has no client ID: every operation throws `GitHubError.notConfigured(nil)`.
     public let clientID: String?
     private let transport: GitHubHTTPTransport
     private let sleep: GitHubSleep
@@ -46,7 +47,7 @@ public struct GitHubAuth: Sendable {
 
     public var isConfigured: Bool { clientID != nil }
 
-    /// Phiên mạng tạm (ephemeral): không cookie, không ghi cache phản hồi API ra đĩa.
+    /// A temporary (ephemeral) network session: no cookies, no API response cache written to disk.
     private static let session = URLSession(configuration: .ephemeral)
 
     public static func urlSessionTransport() -> GitHubHTTPTransport {
@@ -68,7 +69,7 @@ public struct GitHubAuth: Sendable {
         let body = try? JSONDecoder().decode(OAuthResponse.self, from: data)
         let error = body?.error.map { Self.oauthError($0, description: body?.errorDescription) }
         if let error, case .notConfigured = error { throw error }
-        // Client ID không tồn tại: GitHub trả 404 (kèm `{"error":"Not Found"}`).
+        // A client ID that doesn't exist: GitHub answers 404 (with `{"error":"Not Found"}`).
         if response.statusCode == 404 { throw GitHubError.notConfigured(String(localized: "GitHub không nhận ra Client ID")) }
         if let error { throw error }
         guard response.statusCode == 200 else { throw GitHubError.badResponse(response.statusCode) }
@@ -85,15 +86,15 @@ public struct GitHubAuth: Sendable {
         )
     }
 
-    /// Hỏi token theo `interval` cho tới khi có kết quả. `slow_down` tăng khoảng chờ thêm 5 giây (RFC 8628).
-    /// Huỷ Task thì ném `CancellationError`.
+    /// Poll for the token every `interval` until there's a result. `slow_down` adds 5 more seconds to the wait (RFC 8628).
+    /// Cancelling the Task throws `CancellationError`.
     public func pollForToken(_ code: GitHubDeviceCode) async throws -> String {
         guard let clientID else { throw GitHubError.notConfigured(nil) }
         var interval = max(1, code.interval)
         var waited = 0
         var failures = 0
         while true {
-            // Lần hỏi kế tiếp đã quá hạn của mã: dừng thay vì hỏi tiếp vô ích.
+            // The code's own expiry has passed by the next poll: stop instead of polling uselessly.
             guard waited + interval <= code.expiresIn else { throw GitHubError.expired }
             try await sleep(.seconds(interval))
             waited += interval
@@ -129,7 +130,7 @@ public struct GitHubAuth: Sendable {
             case let error?:
                 throw Self.oauthError(error, description: body?.errorDescription)
             case nil:
-                // Máy chủ GitHub lỗi tạm thời: coi như lỗi mạng, hỏi lại.
+                // A temporary GitHub server error: treat it as a network error and retry.
                 if response.statusCode >= 500 {
                     failures += 1
                     if failures >= Self.maxPollingFailures { throw GitHubError.badResponse(response.statusCode) }
@@ -152,16 +153,16 @@ public struct GitHubAuth: Sendable {
         }
     }
 
-    /// Kết quả thêm khoá SSH lên tài khoản.
+    /// The outcome of adding an SSH key to an account.
     public enum SSHKeyUpload: Sendable, Equatable {
         case added
-        /// Khoá đã có trên GitHub (của tài khoản này hoặc tài khoản khác).
+        /// The key is already on GitHub (under this account or another one).
         case alreadyExists
-        /// Token thiếu quyền `write:public_key` (đăng nhập trước khi Thaigit xin quyền này): cần đăng nhập lại hoặc tự dán.
+        /// The token lacks the `write:public_key` scope (signed in before Thaigit requested it): sign in again or paste it manually.
         case missingScope
     }
 
-    /// Thêm khoá SSH công khai vào tài khoản (`POST /user/keys`).
+    /// Add an SSH public key to the account (`POST /user/keys`).
     public func addSSHKey(token: String, title: String, publicKey: String) async throws -> SSHKeyUpload {
         var request = Self.apiRequest(Self.sshKeysURL, token: token)
         request.httpMethod = "POST"
@@ -181,16 +182,16 @@ public struct GitHubAuth: Sendable {
         }
     }
 
-    /// Repo của người dùng (của mình, được mời làm collaborator, thuộc tổ chức), mới cập nhật trước.
-    /// Đi theo header `Link: rel="next"`, tối đa `maxRepositoryPages` trang (100 repo mỗi trang).
+    /// The user's repositories (owned, invited as a collaborator, or in an organisation), most recently updated first.
+    /// Follows the `Link: rel="next"` header, up to `maxRepositoryPages` pages (100 repos each).
     public func listRepositories(token: String) async throws -> [GitHubRepository] {
-        // Repo vừa được cập nhật giữa hai lần gọi có thể nhảy sang trang sau: bỏ bản trùng.
+        // A repository updated between two calls can shift to a later page: drop the duplicate.
         var seen = Set<String>()
         return try await paginated(Self.repositoriesURL, token: token, as: GitHubRepository.self)
             .filter { seen.insert($0.fullName).inserted }
     }
 
-    /// Tổ chức của người dùng (`GET /user/orgs`, cần scope `read:org`) — để chọn token theo owner là tổ chức.
+    /// The user's organisations (`GET /user/orgs`, needs the `read:org` scope) — so an organisation owner can be matched.
     public func listOrganizations(token: String) async throws -> [String] {
         struct Organization: Decodable { let login: String }
         var seen = Set<String>()
@@ -199,7 +200,7 @@ public struct GitHubAuth: Sendable {
             .filter { seen.insert($0.lowercased()).inserted }
     }
 
-    /// GET danh sách theo trang, đi theo header `Link: rel="next"` (chỉ tới api.github.com), tối đa `maxRepositoryPages` trang.
+    /// GET a paged list, following the `Link: rel="next"` header (only to api.github.com), up to `maxRepositoryPages` pages.
     private func paginated<Item: Decodable>(_ first: URL, token: String, as type: Item.Type) async throws -> [Item] {
         var next: URL? = first
         var pages = 0
@@ -218,9 +219,8 @@ public struct GitHubAuth: Sendable {
         return result
     }
 
-    /// URL `rel="next"` trong header Link của GitHub, ví dụ
-    /// `<https://api.github.com/user/repos?page=2>; rel="next", <https://api.github.com/user/repos?page=5>; rel="last"`.
-    /// URL có thể chứa dấu phẩy (`affiliation=owner,collaborator`) nên tách theo cặp `<…>`, không tách theo dấu phẩy.
+    /// The `rel="next"` URL from GitHub's Link header, for example
+    /// The URL may contain commas (`affiliation=owner,collaborator`) so it's split on `<…>` pairs, not on commas.
     public static func nextPageURL(linkHeader: String?) -> URL? {
         guard let linkHeader else { return nil }
         var rest = Substring(linkHeader)
@@ -247,7 +247,7 @@ public struct GitHubAuth: Sendable {
         return []
     }
 
-    // MARK: - Nội bộ
+    // MARK: - Internal
 
     private struct OAuthResponse: Decodable {
         var deviceCode: String?
@@ -306,7 +306,7 @@ public struct GitHubAuth: Sendable {
         }
     }
 
-    /// Chỉ mở trang xác nhận trên github.com (không mở địa chỉ lạ dù phản hồi bị sửa).
+    /// Only opens the confirmation page on github.com (never an odd address even if the response was tampered with).
     static func trustedVerificationURL(_ text: String?) -> URL {
         guard let text, let url = URL(string: text), url.scheme == "https",
               let host = url.host?.lowercased(), host == "github.com" else {
@@ -315,7 +315,7 @@ public struct GitHubAuth: Sendable {
         return url
     }
 
-    /// Token chỉ được gửi tới https://api.github.com — không đi theo link trang sau trỏ sang host khác.
+    /// The token is only ever sent to https://api.github.com — it never follows a next-page link to another host.
     static func trustedAPIURL(_ url: URL) -> URL? {
         guard url.scheme == "https", url.host?.lowercased() == "api.github.com" else { return nil }
         return url

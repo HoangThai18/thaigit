@@ -1,21 +1,21 @@
 import Foundation
 
-/// Nhật ký thay đổi (CHANGELOG.md đi kèm app) tách thành từng phiên bản cho tab "Có gì mới".
+/// The changelog (the CHANGELOG.md shipped with the app) split per version for the "What's New" tab.
 public struct ReleaseNotes: Sendable, Equatable {
     public struct Section: Sendable, Equatable, Identifiable {
-        /// "1.1.0", hoặc nguyên tiêu đề nếu không phải số phiên bản (ví dụ "Chưa phát hành").
+        /// "1.1.0", or the raw heading when it isn't a version number (e.g. "Chưa phát hành").
         public var title: String
-        /// Phần sau dấu "—" của tiêu đề, thường là ngày phát hành.
+        /// The part after the heading's "—", usually the release date.
         public var date: String?
-        /// Đoạn văn trước danh sách.
+        /// The paragraph before the list.
         public var paragraphs: [String]
-        /// Các gạch đầu dòng (Markdown inline).
+        /// The bullet items (inline Markdown).
         public var items: [String]
 
         public var id: String { title }
         public var isUnreleased: Bool { AppVersion(title) == nil }
 
-        /// Mục này có phải phiên bản `version` không — so bằng `AppVersion` ("1.1" là "1.1.0", "v1.2" là "1.2").
+        /// Whether this entry is version `version` — compared with `AppVersion` ("1.1" is "1.1.0", "v1.2" is "1.2").
         public func isVersion(_ version: String) -> Bool {
             guard let mine = AppVersion(title), let other = AppVersion(version) else { return title == version }
             return mine == other
@@ -24,10 +24,10 @@ public struct ReleaseNotes: Sendable, Equatable {
 
     public var sections: [Section]
 
-    /// Đọc Markdown kiểu "## 1.0.0 — 2026-10-02" rồi các dòng "- …"; bỏ tiêu đề "# …" và phần mở đầu. Tiêu đề tách ở
-    /// gạch dài / gạch ngắn / gạch nối có khoảng trắng hai bên ("1.0.0-beta" không bị tách), số phiên bản trong ngoặc
-    /// vuông ("[1.1.0]", kiểu keep-a-changelog) được bỏ ngoặc. Dòng tiếp nối (thụt đầu dòng) được nối vào gạch đầu dòng
-    /// phía trên.
+    /// Read Markdown of the form "## 1.0.0 — 2026-10-02" followed by "- …" lines; drops the "# …" title and the
+    /// preamble. Headings split on an em / en dash or hyphen surrounded by spaces ("1.0.0-beta" is not split),
+    /// and a bracketed version ("[1.1.0]", keep-a-changelog style) loses its brackets. Continuation lines
+    /// (indented) are appended to the bullet above.
     public static func parse(_ markdown: String) -> ReleaseNotes {
         var sections: [Section] = []
         var paragraph: [String] = []

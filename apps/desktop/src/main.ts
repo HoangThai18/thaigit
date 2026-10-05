@@ -5,7 +5,7 @@ import { locale } from './lib/i18n/locale.ts';
 import { setNativeLocale } from './lib/ipc/os.ts';
 
 document.documentElement.lang = locale;
-// Rust nhớ ngôn ngữ cho chữ nó tự hiện (hộp chọn thư mục, hộp "chế độ an toàn" lúc khởi động lần sau).
+// Rust remembers the language so native UI strings follow it (folder picker, the "safe mode" dialog on the next launch).
 void setNativeLocale(locale).catch(() => undefined);
 
 const target = document.getElementById('app');

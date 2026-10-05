@@ -1,16 +1,16 @@
 import NhanhCore
 import SwiftUI
 
-/// Giải quyết xung đột như GitKraken: mỗi đoạn chọn Current / Incoming / cả hai, hoặc tick từng dòng; khung Kết quả
-/// xem trước cả file (sửa tay được trước khi lưu); nút / phím nhảy giữa các đoạn.
+/// Conflict resolution like GitKraken: per region choose Current / Incoming / both, or tick individual lines; a Result
+/// frame previews the whole file (hand-editable before saving); buttons / keys jump between regions.
 struct ConflictResolverView: View {
     @Bindable var model: RepoModel
     let file: ConflictFile
     let entry: ConflictEntry
     @State private var choices: [Int: ConflictFile.Choice] = [:]
-    /// Đoạn đang đứng (để nhảy trước / sau).
+    /// The region in view (for previous / next jumps).
     @State private var current = 0
-    /// Nội dung khung Kết quả khi người dùng sửa tay (nil: kết quả theo các lựa chọn).
+    /// The Result frame's contents when the user hand-edited them (nil: the result follows the choices).
     @State private var editedOutput: String?
     @State private var confirmMarkers = false
 
@@ -145,7 +145,7 @@ struct ConflictResolverView: View {
         .padding(10)
     }
 
-    /// Chọn cho một đoạn rồi tự sang đoạn chưa chọn kế tiếp (như GitKraken) — chỉ khi vừa chọn cả phía.
+    /// After choosing for a region, jump to the next unchosen one (like GitKraken) — only right after a whole-side pick.
     private func select(_ id: Int, _ choice: ConflictFile.Choice?) {
         choices[id] = choice
         editedOutput = nil
@@ -182,7 +182,7 @@ struct ConflictResolverView: View {
     }
 }
 
-/// Khung Kết quả: cả file sau khi áp các lựa chọn (đoạn chưa chọn vẫn hiện dấu xung đột). Bật "Sửa" để sửa tay.
+/// The Result frame: the whole file with the choices applied (unchosen regions still show their conflict markers). Enable "Edit" to hand-edit.
 private struct OutputPane: View {
     let text: String
     @Binding var editing: Bool
@@ -326,7 +326,7 @@ private struct ChoiceButton: View {
     }
 }
 
-/// Một phía của đoạn xung đột: mỗi dòng có ô tick (bấm dòng để chọn / bỏ), nhấp đúp tiêu đề để giữ cả phía.
+/// One side of a conflict region: every line has a tick box (click the line to toggle it), double-click the header to keep the whole side.
 private struct SideColumn: View {
     let title: String
     let label: String
@@ -401,8 +401,8 @@ private struct CodeLines: View {
     }
 }
 
-/// Xung đột trong file không phải UTF-8 (Latin-1, CP1258…): không giải từng đoạn trong app vì ghi lại qua chuỗi sẽ
-/// làm hỏng mọi ký tự không phải ASCII — chỉ chọn nguyên bản một bên (`git checkout`, giữ nguyên byte) hoặc mở editor.
+/// A conflict in a non-UTF-8 file (Latin-1, CP1258…): the app never decodes region by region because writing it back through a
+/// string would corrupt every non-ASCII character — only take one whole side verbatim (`git checkout`, bytes preserved) or open the editor.
 struct ConflictNotUTF8View: View {
     @Bindable var model: RepoModel
     let entry: ConflictEntry
@@ -432,7 +432,7 @@ struct ConflictNotUTF8View: View {
     }
 }
 
-/// Xung đột không có dấu <<<<<<< (file bị xoá ở một bên, hoặc đã sửa tay xong).
+/// A conflict with no <<<<<<< marker (the file was deleted on one side, or it was already hand-resolved).
 struct ConflictWithoutMarkersView: View {
     @Bindable var model: RepoModel
     let entry: ConflictEntry

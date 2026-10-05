@@ -1,4 +1,4 @@
-// Thống kê ẩn danh: mặc định tắt (không request nào), bật mới tạo mã, mỗi ngày tối đa một lần, chỉ đúng 4 trường.
+// Anonymous telemetry: off by default (no request at all), enabling it creates an id, at most once a day, and only the 4 declared fields are sent.
 import { describe, expect, it } from 'vitest';
 import { buildTarget, TELEMETRY_STORAGE_KEY, TelemetryStore } from '../src/lib/stores/telemetry.svelte.ts';
 import type { KeyValueStorage } from '../src/lib/stores/prefs.svelte.ts';

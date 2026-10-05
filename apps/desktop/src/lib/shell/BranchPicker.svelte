@@ -30,7 +30,7 @@
       remotes: store.remotes.map((remote) => remote.name),
     }),
   );
-  // Danh sách đổi (gõ thêm chữ, mở hộp) thì chọn lại mục mặc định; ↑↓ / rê chuột ghi đè tạm thời.
+  // When the list changes (typing more characters, opening the box) re-select the default entry; ↑↓ / hover override it temporarily.
   let highlighted = $derived(defaultChoice(items));
   const current = $derived(items[highlighted]);
 
@@ -51,7 +51,7 @@
   }
 
   function onkeydown(event: KeyboardEvent): void {
-    // Phím trong hộp không lan ra ngoài (Esc không đóng luôn khung diff phía sau, phím tắt repo không chạy).
+    // Keys inside the box must not escape (Esc shouldn't also close the diff pane behind, repo shortcuts must not fire).
     event.stopPropagation();
     if (event.key === 'Escape') {
       event.preventDefault();

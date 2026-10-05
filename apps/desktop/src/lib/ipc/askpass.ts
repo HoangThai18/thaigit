@@ -2,8 +2,9 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { Commands, Events, type AskpassClosedEvent, type AskpassRequestEvent } from '@thaigit/contracts';
 import { call } from './invoke.ts';
 
-// Askpass tương tác: git/ssh cần tên đăng nhập / mật khẩu / passphrase → Rust hỏi cửa sổ sở hữu lệnh qua `askpass-request`,
-// webview trả lời bằng `askpass_reply` (`null` = Huỷ). Không bao giờ log câu hỏi / câu trả lời.
+// Interactive askpass: when git/ssh needs a login / password / passphrase, Rust asks the window that owns
+// the command over `askpass-request` and the webview answers with `askpass_reply` (`null` = Cancel). The
+// question and the answer are never logged.
 
 export function askpassReply(requestId: string, answer: string | null): Promise<void> {
   return call<void>(Commands.askpassReply, { requestId, answer });

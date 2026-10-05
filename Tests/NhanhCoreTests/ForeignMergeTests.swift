@@ -40,8 +40,8 @@ struct ForeignMergeTests {
         #expect(GitRepository.anonymizedSource("git@github.com:ten/a.git") == "git@github.com:ten/a.git")
     }
 
-    /// Dự án A bán cho công ty B (B là bản copy, không chung lịch sử): lần đầu cần --allow-unrelated-histories,
-    /// các lần sau đã có commit chung nên merge bình thường. Không lần nào để lại remote hay ref tạm.
+    /// Project A is sold to company B (B is a copy with no shared history): the first merge needs
+    /// --allow-unrelated-histories, later ones have shared commits so they merge normally. No attempt ever leaves a remote or a temporary ref behind.
     @Test func mergesBranchOfUnrelatedRepository() async throws {
         let a = try await TestRepo.make()
         let b = try await TestRepo.make()
@@ -68,7 +68,7 @@ struct ForeignMergeTests {
         #expect(try await b.repo.commitMessage("HEAD").hasPrefix("Merge branch 'A' of \(a.url.path)"))
         #expect(try await b.repo.status().head.branchName == "A")
 
-        // Lần sau: chỉ cần merge thường.
+        // Next time: an ordinary merge is enough.
         try a.write("sua-loi.txt", "đã sửa lần 2\n")
         try await a.commitAll("A: sửa lỗi lần 2")
         try await b.repo.mergeBranch("A", fromRepository: a.url.path)
@@ -84,7 +84,7 @@ struct ForeignMergeTests {
         defer { a.cleanup(); b.cleanup() }
         try a.write("f.txt", "gốc\n")
         try await a.commitAll("gốc")
-        // B chưa có commit nào: merge chỉ đưa nhánh về đúng commit của A.
+        // B has no commits yet: the merge just brings the branch to exactly A's commit.
         try await b.repo.mergeBranch("main", fromRepository: a.url.path)
         #expect(try await b.repo.resolveCommit("HEAD") == (try await a.repo.resolveCommit("HEAD")))
 
@@ -105,9 +105,10 @@ struct ForeignMergeTests {
         #expect(try b.read("f.txt") == "B sửa\n")
     }
 
-    /// Merge vào nhánh khác nhánh hiện tại: fetch TRƯỚC khi checkout — nguồn lỗi (nhánh đã xoá, thư mục không còn) thì
-    /// HEAD không đổi. Đã checkout mà git từ chối merge ngay (không có MERGE_HEAD) thì quay lại nhánh cũ; xung đột thì ở
-    /// lại nhánh đích để giải như merge thường.
+    /// Merging into a branch that isn't the current one: fetch happens BEFORE the checkout — a failing source (deleted
+    /// branch, missing folder) leaves HEAD unchanged. If git refuses the merge right after the checkout (no
+    /// MERGE_HEAD) the old branch is restored; on a conflict it stays on the target branch to be resolved like a
+    /// normal merge.
     @Test func mergeIntoOtherBranchFetchesFirstAndReturnsWhenRefused() async throws {
         let a = try await TestRepo.make()
         let b = try await TestRepo.make()
@@ -118,12 +119,12 @@ struct ForeignMergeTests {
         try await b.commitAll("B")
         try await b.git("branch", "dich")
 
-        // Nhánh nguồn không còn: lỗi ở bước fetch, chưa checkout gì.
+        // The source branch is gone: the failure is at the fetch step, nothing was checked out.
         await #expect(throws: GitError.self) { try await b.repo.fetchForeignBranch("da-xoa", fromRepository: a.url.path) }
         #expect(try await b.repo.status().head.branchName == "main")
         #expect(try await b.git("for-each-ref", "refs/thaigit").isEmpty)
 
-        // Hai repo không chung lịch sử: git từ chối ngay sau khi đã checkout "dich" → quay lại "main".
+        // Two repos with no shared history: git refuses right after "dich" was checked out → back to "main".
         try await b.repo.fetchForeignBranch("main", fromRepository: a.url.path)
         do {
             try await b.repo.mergeFetchedForeignBranch("main", fromRepository: a.url.path, into: "dich")
@@ -136,13 +137,13 @@ struct ForeignMergeTests {
         #expect(b.repo.operationState() == nil)
         #expect(try await b.git("for-each-ref", "refs/thaigit").isEmpty)
 
-        // Lần sau (cho phép lịch sử không liên quan): merge vào "dich", HEAD ở "dich".
+        // Next time (unrelated histories allowed): merge into "dich", HEAD on "dich".
         try await b.repo.fetchForeignBranch("main", fromRepository: a.url.path)
         try await b.repo.mergeFetchedForeignBranch("main", fromRepository: a.url.path, into: "dich", allowUnrelatedHistories: true)
         #expect(try await b.repo.status().head.branchName == "dich")
         #expect(try b.read("f.txt") == "a\n")
 
-        // Xung đột: ở lại nhánh đích với MERGE_HEAD.
+        // Conflict: stays on the target branch with MERGE_HEAD.
         try await b.repo.switchTo(branch: "main")
         try a.write("f.txt", "A sửa\n")
         try await a.commitAll("A sửa")
@@ -159,8 +160,8 @@ struct ForeignMergeTests {
         #expect(try await b.git("for-each-ref", "refs/thaigit").isEmpty)
     }
 
-    /// Bấm "Huỷ" khi `git merge` đang chạy (hook chậm / merge lớn): merge vẫn chạy tới cùng — không để index nửa vời mà
-    /// không có MERGE_HEAD — và ref tạm luôn được xoá.
+    /// Pressing "Cancel" while `git merge` runs (a slow hook / a big merge): the merge still runs to completion — no
+    /// half-written index without a MERGE_HEAD — and the temporary ref is always deleted.
     @Test func cancellingDuringMergeFinishesMergeAndRemovesTempRef() async throws {
         let a = try await TestRepo.make()
         let b = try await TestRepo.make()
@@ -169,8 +170,9 @@ struct ForeignMergeTests {
         try await a.commitAll("A")
         try b.write("g.txt", "b\n")
         try await b.commitAll("B")
-        // Hook của `git merge` báo đã chạy (file `started`) rồi chờ tới khi test cho đi tiếp (file `release`): huỷ chắc chắn
-        // rơi vào lúc merge đang chạy, không phụ thuộc tốc độ máy. Chờ tối đa 60 giây chỉ để không treo.
+        // `git merge`'s hook signals that it ran (the `started` file) then waits until the test lets it continue (the `release`
+        // file): cancelling reliably lands while the merge is running, regardless of machine speed. The 60 second
+        // cap only stops it hanging.
         let started = b.repo.gitDir.appendingPathComponent("hook-started")
         let release = b.repo.gitDir.appendingPathComponent("hook-release")
         let hook = b.repo.gitDir.appendingPathComponent("hooks/pre-merge-commit")
@@ -193,7 +195,7 @@ struct ForeignMergeTests {
         while !FileManager.default.fileExists(atPath: started.path), Date() < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
-        #expect(FileManager.default.fileExists(atPath: started.path), "git merge chưa chạy tới hook")
+        #expect(FileManager.default.fileExists(atPath: started.path), "git merge never reached the hook")
         task.cancel()
         try Data().write(to: release)
         _ = await task.result
@@ -205,7 +207,7 @@ struct ForeignMergeTests {
         #expect(try await b.repo.resolveCommit("HEAD^2") == (try await a.repo.resolveCommit("HEAD")))
     }
 
-    /// Nguồn merge có "user:token@": nhật ký lệnh không giữ userinfo.
+    /// A merge source with "user:token@": the command log never keeps the userinfo.
     @Test func commandLogHidesUserInfoOfSources() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("nhanh-log-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

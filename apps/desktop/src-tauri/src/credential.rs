@@ -1,13 +1,14 @@
-//! Credential helper của Thaigit: git hỏi "đăng nhập vào host này bằng tài khoản nào", app trả token đúng tài khoản.
+//! Thaigit's credential helper: when git asks "which account should I sign in to this host with", the app returns the
+//! right account's token.
 //!
-//! Cơ chế (giống askpass): chính binary app đóng vai helper — `thaigit --credential-helper get|store|erase`. Tiến trình đó đọc
-//! giao thức credential của git trên stdin, hỏi app qua 127.0.0.1 bằng token RIÊNG của lệnh đang chạy, in ra
-//! `username=` / `password=` cho git. Token không bao giờ nằm trong env của tiến trình git, không ghi vào cấu hình repo và
-//! không xuất hiện trong tham số lệnh hay Nhật ký lệnh.
+//! Mechanism (like askpass): the app binary itself acts as the helper — `thaigit --credential-helper get|store|erase`.
+//! That process reads git's credential protocol on stdin, asks the app over 127.0.0.1 using the PER-COMMAND token, and
+//! prints `username=` / `password=` for git. The token never sits in the git process's environment, is never written to
+//! the repo config, and never appears in command arguments or the Command log.
 //!
-//! Chỉ `get` được trả lời; `store` / `erase` bỏ qua để token không bị chép sang helper khác (osxkeychain, GCM…) và token
-//! người dùng tự lưu không bị xoá. Host không có tài khoản trong app (hoặc owner không khớp tài khoản nào) thì helper im
-//! lặng — git rơi về `GIT_ASKPASS` và hộp thoại trong app như bình thường.
+//! Only `get` is answered; `store` / `erase` are skipped so a token is not copied to another helper (osxkeychain, GCM…) and
+//! a token the user stored themselves is not deleted. A host with no account in the app (or an owner matching no
+//! account) makes the helper stay silent — git then falls back to `GIT_ASKPASS` and the in-app dialog as usual.
 
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -24,7 +25,7 @@ use tauri::Manager;
 use crate::accounts::Accounts;
 use crate::errors::AppError;
 
-/// Cờ của tiến trình helper: `<exe> --credential-helper get`.
+/// Helper process flag: `<exe> --credential-helper get`.
 pub const HELPER_FLAG: &str = "--credential-helper";
 pub const PORT_ENV: &str = "THAIGIT_CRED_PORT";
 pub const TOKEN_ENV: &str = "THAIGIT_CRED_TOKEN";
@@ -32,24 +33,24 @@ pub const TOKEN_ENV: &str = "THAIGIT_CRED_TOKEN";
 const MAX_LINE_BYTES: usize = 8 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// Thông tin git gửi cho helper (`protocol=https\nhost=github.com\npath=owner/repo\n\n`).
+/// What git sends the helper (`protocol=https\nhost=github.com\npath=owner/repo\n\n`).
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct CredentialQuery {
     pub protocol: String,
     pub host: String,
-    /// `path=owner/repo` (git gửi nhờ `credential.<url>.useHttpPath=true`).
+    /// `path=owner/repo` (git sends it thanks to `credential.<url>.useHttpPath=true`).
     pub path: String,
     pub username: Option<String>,
 }
 
 impl CredentialQuery {
-    /// Owner đầu tiên trong `path` (`owner/repo`, `group/sub/repo`) — dùng để chọn tài khoản.
+    /// First owner in `path` (`owner/repo`, `group/sub/repo`) — used to pick an account.
     pub fn owner(&self) -> Option<&str> {
         self.path.split('/').find(|segment| !segment.is_empty())
     }
 }
 
-/// Đọc giao thức credential trên stdin (dòng `key=value`, kết thúc bằng dòng rỗng / EOF).
+/// Read the credential protocol from stdin (lines `key=value`, terminated by a blank line / EOF).
 pub fn parse_query(text: &str) -> CredentialQuery {
     let mut query = CredentialQuery::default();
     for line in text.lines() {
@@ -87,10 +88,11 @@ struct ClientResponse {
     password: Option<String>,
 }
 
-/// Phiên credential của MỘT lệnh git: token hết hạn khi lệnh xong.
+/// The credential session of ONE git command: the token expires when the command ends.
 ///
-/// `hosts` là những host mà lệnh này thật sự chạm (đọc từ `git remote -v` của repo, hoặc URL người dùng clone) — helper chỉ được
-/// chèn cho các host đó nên lệnh không chạm github.com thì không sinh gì liên quan tới github.com.
+/// `hosts` are the hosts this command actually touches (read from the repo's `git remote -v`, or the URL the user is
+/// cloning) — the helper is only injected for those hosts, so a command that does not touch github.com produces nothing
+/// related to github.com.
 pub struct CredentialSession {
     server: Arc<CredentialServer>,
     token: String,
@@ -157,7 +159,7 @@ impl CredentialServer {
         CredentialSession { server: self.clone(), token, hosts }
     }
 
-    /// Host này có tài khoản đã có token không (dùng để quyết định có chèn helper hay không).
+    /// Does any account of this host already have a token (i.e. must the helper be injected)?
     pub fn host_known(&self, host: &str) -> bool {
         self.accounts.host_has_token(host)
     }
@@ -171,7 +173,7 @@ impl CredentialServer {
             _ => None,
         };
         let response = match request {
-            // Chỉ `get`; `store` / `erase` cố tình bỏ qua.
+            // Only `get`; `store` / `erase` are deliberately skipped.
             Some(request) if request.op == "get" => self.resolve(request),
             _ => ClientResponse::default(),
         };
@@ -181,7 +183,7 @@ impl CredentialServer {
         let _ = write.shutdown().await;
     }
 
-    /// Chọn tài khoản cho host + owner rồi trả token. `None` khi host không có tài khoản nào phù hợp.
+    /// Pick an account for host + owner and return its token. `None` when no account matches the host.
     fn resolve(&self, request: ClientRequest) -> ClientResponse {
         let sessions = self.sessions.lock().unwrap_or_else(|p| p.into_inner());
         let known = sessions.contains(&request.token);
@@ -190,7 +192,7 @@ impl CredentialServer {
         }
         let query = CredentialQuery { protocol: request.protocol, host: request.host, path: request.path, username: request.username };
         let Some(resolved) = self.accounts.resolve(&query.host, query.owner()) else { return ClientResponse::default() };
-        // URL có username (`https://alice@host/…`) chỉ dùng đúng tài khoản đó.
+        // A URL with a username (`https://alice@host/…`) only ever uses that exact account.
         if let Some(username) = &query.username
             && !username.eq_ignore_ascii_case(&resolved.login)
         {
@@ -203,7 +205,7 @@ impl CredentialServer {
     }
 }
 
-/// Lệnh git chạm các remote HTTPS này (`git remote get-url` của repo, đã đọc bởi Rust) → danh sách host cần helper.
+/// The git command touches these HTTPS remotes (the repo's `git remote get-url`, already read by Rust) → the hosts needing a helper.
 pub fn helper_hosts(urls: &[String], accounts: &Accounts) -> Vec<String> {
     let mut hosts: Vec<String> = Vec::new();
     for url in urls {
@@ -218,7 +220,7 @@ pub fn helper_hosts(urls: &[String], accounts: &Accounts) -> Vec<String> {
     hosts
 }
 
-/// Các cặp `-c` chèn trước subcommand: xoá helper của người dùng CHỈ với URL host đó rồi trỏ tới helper của app.
+/// `-c` pairs inserted before the subcommand: drop the user's helper for THAT host only, then point at the app's helper.
 pub fn helper_config(host: &str, program: &Path) -> Vec<String> {
     let quoted = format!("!'{}'", program.to_string_lossy().replace('\'', r"'\''"));
     let key = format!("credential.https://{host}/");
@@ -232,7 +234,7 @@ pub fn helper_config(host: &str, program: &Path) -> Vec<String> {
     ]
 }
 
-/// Khởi tạo lúc `setup` (sau `app.manage(core)`): máy chủ 127.0.0.1, chính exe của app làm helper (Unix: script bọc).
+/// Set up during `setup` (after `app.manage(core)`): the 127.0.0.1 server, the app's own exe as helper (Unix: a wrapper script).
 pub fn init<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> crate::errors::Result<()> {
     let Some(core) = app.try_state::<Arc<crate::core::Core>>() else { return Ok(()) };
     let Some(program) = std::env::current_exe().ok().map(|exe| helper_program(&core.data_dir, &exe)) else { return Ok(()) };
@@ -241,8 +243,9 @@ pub fn init<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> crate::errors::Resu
     Ok(())
 }
 
-/// Chương trình git sẽ chạy làm helper: Unix = script bọc trong thư mục dữ liệu (`credential.sh` → `<exe> --credential-helper "$@"`);
-/// Windows = chính exe của app (git chạy qua `sh.exe` của Git for Windows nên `!'<exe>' --credential-helper` vẫn đúng).
+/// The program git will run as the helper: on Unix a wrapper script in the data directory (`credential.sh` →
+/// `<exe> --credential-helper "$@"`); on Windows the app's own exe (git runs it through Git for Windows' `sh.exe`, so
+/// `!'<exe>' --credential-helper` still works).
 pub fn helper_program(data_dir: &std::path::Path, exe: &std::path::Path) -> OsString {
     #[cfg(unix)]
     {
@@ -265,14 +268,14 @@ pub fn helper_program(data_dir: &std::path::Path, exe: &std::path::Path) -> OsSt
     }
 }
 
-// --- Tiến trình helper (git gọi) --------------------------------------------------------------------------------------
+// --- The helper process (called by git) --------------------------------------------------------------------------------
 
-/// Tiến trình này đang được git gọi làm credential helper?
+/// Is this process being called by git as a credential helper?
 pub fn is_helper_invocation(args: &[OsString]) -> bool {
     args.iter().skip(1).any(|arg| arg == HELPER_FLAG)
 }
 
-/// Điểm vào sớm của `main()`: `Some(mã thoát)` nếu tiến trình này là helper (đã trả lời xong).
+/// Early entry point of `main()`: `Some(exit code)` when this process is the helper (already answered).
 pub fn client_exit_code() -> Option<i32> {
     let args: Vec<OsString> = std::env::args_os().collect();
     if !is_helper_invocation(&args) {
@@ -286,7 +289,7 @@ pub fn client_exit_code() -> Option<i32> {
         (Some(port), Some(token)) => ask_server(port, &token, &op, &query),
         _ => None,
     };
-    // Không có câu trả lời vẫn thoát 0: helper im lặng để git rơi về hộp thoại / báo lỗi xác thực.
+    // Still exit 0 with no answer: the helper stays silent so git falls back to the dialog / reports an auth error.
     let printed = match answer {
         Some((username, password)) => {
             let mut stdout = std::io::stdout().lock();
@@ -306,7 +309,7 @@ fn read_stdin_query() -> CredentialQuery {
     parse_query(&text)
 }
 
-/// Hỏi app qua 127.0.0.1; `None` = không có tài khoản phù hợp / app không chạy.
+/// Ask the app over 127.0.0.1; `None` = no matching account / the app is not running.
 pub fn ask_server(port: u16, token: &str, op: &str, query: &CredentialQuery) -> Option<(String, String)> {
     let mut stream = TcpStream::connect_timeout(&SocketAddr::from((Ipv4Addr::LOCALHOST, port)), CONNECT_TIMEOUT).ok()?;
     stream.set_read_timeout(Some(Duration::from_secs(10))).ok()?;
@@ -383,9 +386,9 @@ mod tests {
         assert_eq!(ask(&server, &session, "erase", &query("github.com", "acme/app.git")), None);
         assert_eq!(ask(&server, &session, "get", &query("bitbucket.org", "acme/app.git")), None);
         assert!(ask(&server, &session, "get", &query("github.com", "acme/app.git")).is_some());
-        // Token không thuộc lệnh nào → không trả lời.
+        // The token belongs to no command → do not answer.
         assert_eq!(ask_server(server.port(), "token-gia", "get", &query("github.com", "acme/app.git")), None);
-        // Owner không có tài khoản nào: KHÔNG rơi về tài khoản khác.
+        // No account for that owner: NEVER fall back to a different account.
         let accounts = accounts_with_two_accounts();
         accounts.remove("github.com", "bob").unwrap();
         let (server, session) = start(accounts);
@@ -453,7 +456,8 @@ mod tests {
         assert!(!server.host_known("bitbucket.org"));
     }
 
-    /// Lệnh mạng chạm remote HTTPS github.com: argv có cờ helper (trước subcommand) và env có token của riêng lệnh này.
+    /// A network command touching a github.com HTTPS remote: argv carries the helper flag (before the subcommand) and the
+    /// env carries this command's own token.
     #[tokio::test]
     async fn a_network_command_gets_the_helper_flag_and_its_own_token() {
         use crate::core::SpawnOptions;
@@ -490,17 +494,17 @@ mod tests {
         let token = env.get(TOKEN_ENV).expect("có token của lệnh").to_string_lossy().into_owned();
         assert_eq!(token.len(), 64);
         assert!(env.get(PORT_ENV).unwrap().to_string_lossy().parse::<u16>().is_ok());
-        // Helper của app hỏi app → đúng tài khoản theo owner.
+        // The app's helper asks the app → the right account per owner.
         assert_eq!(
             ask_server(server.port(), &token, "get", &query("github.com", "acme/app.git")),
             Some(("bob".into(), "token-bob".into()))
         );
-        // Lệnh xong → token hết hiệu lực.
+        // The command ended → the token expires.
         drop(session);
         assert_eq!(ask_server(server.port(), &token, "get", &query("github.com", "acme/app.git")), None);
     }
 
-    /// Remote SSH (khoá SSH của người dùng) và host lạ: không chèn gì cả.
+    /// SSH remote (the user's own SSH keys) and unknown hosts: nothing is injected.
     #[tokio::test]
     async fn no_helper_for_ssh_remotes_or_unknown_hosts() {
         use crate::core::SpawnOptions;

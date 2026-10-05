@@ -1,6 +1,6 @@
-//! Gọi API của máy chủ git: đăng nhập (OAuth device flow hoặc token người dùng dán), đọc danh sách repo, tổ chức và
-//! Pull Request / Merge Request. Mọi request đi từ Rust (webview không có scope HTTP), token chỉ nằm trong biến cục bộ
-//! của lệnh và không bao giờ vào log.
+//! Calls the git host's API: sign-in (OAuth device flow or a token the user pasted), reading the repo, organisation and
+//! Pull Request / Merge Request lists. Every request goes out from Rust (the webview has no HTTP scope), the token only
+//! lives in a local variable, and it never reaches the log.
 
 use serde::{Deserialize, Serialize};
 
@@ -11,20 +11,20 @@ const USER_AGENT: &str = concat!("Thaigit/", env!("CARGO_PKG_VERSION"));
 const MAX_ITEMS: usize = 200;
 const REQUEST_TIMEOUT_S: u64 = 30;
 
-/// Số trang tối đa khi lấy danh sách (mỗi trang 100 / 20 mục tuỳ API).
+/// Max pages when reading a list (100 / 20 items per page depending on the API).
 const MAX_PAGES: u32 = 5;
 
 fn http() -> Result<reqwest::Client> {
     reqwest::Client::builder()
         .user_agent(USER_AGENT)
         .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_S))
-        // Token đi trong header `Authorization`; không để reqwest gửi nó theo URL (redirect có thể đổi host).
+        // The token travels in the `Authorization` header; never let reqwest put it in the URL (a redirect could change host).
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|error| AppError::Internal(format!("Không tạo được HTTP client: {error}")))
 }
 
-/// Một request: URL đã dựng từ host đã kiểm, token ở header. Chỉ chấp nhận JSON.
+/// One request: URL built from a validated host, token in the header. JSON only.
 async fn request(
     client: &reqwest::Client,
     method: reqwest::Method,
@@ -33,7 +33,7 @@ async fn request(
     body: Option<&serde_json::Value>,
 ) -> Result<(u16, serde_json::Value)> {
     let mut builder = client.request(method, url).header("Accept", "application/json");
-    // Bước xin mã / hỏi token của device flow chưa có token: không gửi header rỗng.
+    // The device flow's request-code / token-poll steps have no token yet: do not send an empty header.
     if !token.is_empty() {
         builder = builder.header("Authorization", format!("Bearer {token}"));
     }
@@ -59,7 +59,7 @@ fn host_of(url: &str) -> String {
     url::Url::parse(url).ok().and_then(|parsed| parsed.host_str().map(|host| host.to_string())).unwrap_or_else(|| "máy chủ".into())
 }
 
-/// Lỗi theo mã của máy chủ → lỗi chuẩn hoá (UI hiện câu thân thiện, kỹ thuật ở Nhật ký lệnh).
+/// A host error code → a normalised error (the UI shows a friendly sentence, the technical detail goes to the Command log).
 fn check_status(_provider: Provider, host: &str, status: u16, body: &serde_json::Value) -> Result<()> {
     match status {
         200..=299 => Ok(()),
@@ -72,7 +72,7 @@ fn check_status(_provider: Provider, host: &str, status: u16, body: &serde_json:
             Err(AppError::Auth(format!("Tài khoản không có quyền trên {host} (403){scope}")))
         }
         404 => Err(AppError::NotFound(format!("Không tìm thấy trên {host} (404) — kiểm tra tên repo hoặc tài khoản"))),
-        // Máy chủ hiểu yêu cầu nhưng không nhận (nhánh nguồn chưa push, đã có PR cho nhánh này…).
+        // The host understood the request but refused it (source branch not pushed, a PR already exists for that branch…).
         409 | 422 => {
             let message = body["message"].as_str().unwrap_or_default();
             Err(AppError::Conflict(format!("Máy chủ {host} không nhận yêu cầu ({status}): {message}")))
@@ -83,16 +83,16 @@ fn check_status(_provider: Provider, host: &str, status: u16, body: &serde_json:
     }
 }
 
-/// Danh tính tài khoản lấy từ API (không có token).
+/// Account identity read from the API (no token).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identity {
     pub login: String,
     pub display_name: String,
-    /// Id của máy chủ (GitHub dùng cho email ẩn).
+    /// The server's id (GitHub uses it for the private email address).
     pub id: String,
 }
 
-/// Một repo mà tài khoản truy cập được.
+/// A repository the account can access.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ForgeRepository {
@@ -102,16 +102,16 @@ pub struct ForgeRepository {
     pub default_branch: String,
     pub is_private: bool,
     pub web_url: String,
-    /// URL clone HTTPS, không kèm token (token đi qua credential helper của app).
+    /// HTTPS clone URL without a token (the token travels through the app's credential helper).
     pub clone_url: String,
 }
 
-/// Pull Request (GitHub / Bitbucket) hoặc Merge Request (GitLab) — cùng một kiểu để UI hiển thị giống nhau.
+/// A Pull Request (GitHub / Bitbucket) or Merge Request (GitLab) — one type, so the UI renders them identically.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ForgeMergeRequest {
     pub host: String,
-    /// Số PR/MR (GitHub) hoặc `iid` (GitLab / Bitbucket).
+    /// The PR/MR number (GitHub) or `iid` (GitLab / Bitbucket).
     pub number: String,
     pub title: String,
     pub body: String,
@@ -124,28 +124,28 @@ pub struct ForgeMergeRequest {
     pub head_host: String,
     pub head_owner: String,
     pub updated_at: String,
-    /// Số commit / thay đổi nếu API có (GitHub có `commits`).
+    /// Commit / change count when the API has it (GitHub has `commits`).
     pub commits: Option<u32>,
-    /// Người được gán xử lý (Bitbucket không có khái niệm này).
+    /// The current assignee (Bitbucket has no such concept).
     pub assignees: Vec<ForgePerson>,
-    /// Người được nhờ review.
+    /// The requested reviewer.
     pub reviewers: Vec<ForgePerson>,
 }
 
-/// Người dùng trên máy chủ có thể được gán vào PR / MR (hoặc đã được gán).
+/// A user on the server who can be assigned to PRs / MRs (or already is).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ForgePerson {
     pub username: String,
-    /// Tên hiển thị (có thể trống: GitHub trả danh sách người chỉ có `login`).
+    /// Display name (may be empty: GitHub's user list only carries `login`).
     #[serde(default)]
     pub name: String,
-    /// GitLab gán người theo số id; GitHub gán theo `username` (không có id).
+    /// GitLab assigns users by numeric id; GitHub assigns by `username` (no id available).
     #[serde(default)]
     pub id: Option<i64>,
 }
 
-/// Danh sách nào của PR / MR đang được sửa.
+/// Which list of a PR / MR is being changed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PeopleRole {
@@ -153,7 +153,7 @@ pub enum PeopleRole {
     Assignees,
 }
 
-/// Mã của màn hình đăng nhập bằng mã (OAuth device flow).
+/// The device-flow (OAuth) sign-in screen's data.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCode {
@@ -161,33 +161,33 @@ pub struct DeviceCode {
     pub verification_uri: String,
     pub expires_in: u32,
     pub interval: u32,
-    /// Bí mật tạm của RFC 8628: webview giữ để hỏi token, hết hạn cùng mã người dùng nhập, không phải token dài hạn.
+    /// RFC 8628's temporary secret: the webview holds it to poll for a token; it expires together with the user code and is not a long-lived token.
     pub device_code: String,
 }
 
-/// Phạm vi cần xin khi đăng nhập bằng device flow.
+/// Scopes to request when signing in with the device flow.
 pub fn scopes(provider: Provider) -> &'static str {
     match provider {
         Provider::Github => "repo workflow read:org write:public_key",
         Provider::Gitlab => "api read_api read_user read_repository",
-        // Bitbucket không có device flow.
+        // Bitbucket has no device flow.
         Provider::Bitbucket => "",
     }
 }
 
-// MARK: - Khoá SSH
+// MARK: - SSH keys
 
-/// Kết quả gửi khoá SSH công khai lên tài khoản.
+/// Result of uploading an SSH public key to an account.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SshKeyUpload {
     Added,
     AlreadyExists,
-    /// Token thiếu quyền thêm khoá (GitHub: `write:public_key`, GitLab: `api`) hoặc máy chủ không hỗ trợ: tự dán ở trang web.
+    /// The token lacks the key-upload scope (GitHub: `write:public_key`, GitLab: `api`) or the host does not support it: the user pastes it on the web page.
     MissingScope,
 }
 
-/// Thêm khoá SSH công khai vào tài khoản (`POST /user/keys` của GitHub và GitLab).
+/// Add an SSH public key to the account (GitHub and GitLab's `POST /user/keys`).
 pub async fn add_ssh_key(host: &str, provider: Provider, token: &str, title: &str, public_key: &str) -> Result<SshKeyUpload> {
     if provider == Provider::Bitbucket {
         return Ok(SshKeyUpload::MissingScope);
@@ -208,7 +208,7 @@ pub async fn add_ssh_key(host: &str, provider: Provider, token: &str, title: &st
     }
 }
 
-/// Trang thêm khoá SSH bằng tay trên máy chủ.
+/// The host's page for adding an SSH key manually.
 pub fn ssh_keys_page(host: &str, provider: Provider) -> String {
     match provider {
         Provider::Github => format!("https://{host}/settings/ssh/new"),
@@ -219,16 +219,16 @@ pub fn ssh_keys_page(host: &str, provider: Provider) -> String {
 
 // MARK: - Device flow
 
-/// Địa chỉ của device flow trên host: (xin mã, hỏi token). GitHub Enterprise dùng chính host đó.
+/// Device-flow endpoints on a host: (request code, poll for token). GitHub Enterprise uses that very host.
 fn device_flow_urls(host: &str, provider: Provider) -> (String, String) {
     match provider {
         Provider::Github => (format!("https://{host}/login/device/code"), format!("https://{host}/login/oauth/access_token")),
-        // GitLab: Application ID của app đăng ký (public client, không cần secret).
+        // GitLab: the registered application's id (a public client, no secret needed).
         _ => (format!("https://{host}/oauth/authorize_device"), format!("https://{host}/oauth/token")),
     }
 }
 
-/// Trang người dùng nhập mã: chỉ nhận trang https trên đúng host đó (phản hồi bị sửa cũng không mở được trang lạ).
+/// The page where the user types the code: only an https page on exactly that host (a tampered response still cannot open a foreign page).
 fn same_host_page(uri: &str, host: &str) -> String {
     let fallback = format!("https://{host}/login/device");
     match url::Url::parse(uri) {
@@ -237,7 +237,7 @@ fn same_host_page(uri: &str, host: &str) -> String {
     }
 }
 
-/// Bước 1: xin mã để người dùng nhập trên trang của máy chủ.
+/// Step 1: request the code the user types on the host's page.
 pub async fn request_device_code(host: &str, provider: Provider, client_id: &str) -> Result<DeviceCode> {
     let client = http()?;
     let (url, _) = device_flow_urls(host, provider);
@@ -267,7 +267,7 @@ pub async fn request_device_code(host: &str, provider: Provider, client_id: &str
     })
 }
 
-/// Token OAuth máy chủ cấp. GitLab: token sống ~2 giờ, kèm refresh token để làm mới (GitHub OAuth App: không hết hạn).
+/// The OAuth token the host issued. GitLab: tokens live ~2 hours and come with a refresh token (a GitHub OAuth App token does not expire).
 #[derive(PartialEq, Eq)]
 pub struct TokenGrant {
     pub access: String,
@@ -292,17 +292,17 @@ impl TokenGrant {
     }
 }
 
-/// Kết quả một lần hỏi token của device flow.
+/// Result of one device-flow token poll.
 #[derive(Debug, PartialEq, Eq)]
 pub enum PollOutcome {
-    /// Người dùng chưa xác nhận: hỏi lại sau `interval`.
+    /// The user has not confirmed yet: poll again after `interval`.
     Pending,
-    /// Máy chủ bảo hỏi chậm lại (RFC 8628): cộng thêm 5 giây vào `interval`.
+    /// The host asked us to slow down (RFC 8628): add 5 seconds to `interval`.
     SlowDown,
     Token(TokenGrant),
 }
 
-/// Làm mới token OAuth bằng refresh token (public client: chỉ cần Client ID). Refresh token cũ hết hiệu lực sau lần này.
+/// Refresh an OAuth token with the refresh token (a public client needs only the client id). The old refresh token expires after this call.
 pub async fn refresh_token(host: &str, provider: Provider, client_id: &str, refresh: &str) -> Result<TokenGrant> {
     let client = http()?;
     let (_, url) = device_flow_urls(host, provider);
@@ -314,7 +314,7 @@ pub async fn refresh_token(host: &str, provider: Provider, client_id: &str, refr
     Err(AppError::Auth(format!("Phiên đăng nhập {host} đã hết hạn — đăng nhập lại tài khoản đó")))
 }
 
-/// Bước 2: hỏi token một lần (UI hỏi lại theo `interval` cho tới khi người dùng xác nhận).
+/// Step 2: poll for the token once (the UI retries every `interval` until the user confirms).
 pub async fn poll_for_token(host: &str, provider: Provider, client_id: &str, device_code: &str) -> Result<PollOutcome> {
     let client = http()?;
     let (_, url) = device_flow_urls(host, provider);
@@ -335,15 +335,15 @@ pub async fn poll_for_token(host: &str, provider: Provider, client_id: &str, dev
         "expired_token" => Err(AppError::Auth(format!("Mã đăng nhập {host} đã hết hạn — bấm đăng nhập lại"))),
         _ => {
             check_status(provider, host, status, &value)?;
-            // Mã 200 nhưng không có token: máy chủ trả lời lệch — hỏi lại thay vì báo đăng nhập sai.
+            // Status 200 but no token: the host answered unexpectedly — poll again instead of reporting a sign-in failure.
             Ok(PollOutcome::Pending)
         }
     }
 }
 
-// MARK: - Danh tính, tổ chức, repo
+// MARK: - Identity, organisations, repositories
 
-/// Đọc danh tính tài khoản từ token (dùng để kiểm tra token trước khi lưu).
+/// Read the account identity from a token (used to validate a token before storing it).
 pub async fn fetch_identity(host: &str, provider: Provider, token: &str) -> Result<Identity> {
     let client = http()?;
     let base = provider.api_base(host);
@@ -373,14 +373,14 @@ pub async fn fetch_identity(host: &str, provider: Provider, token: &str) -> Resu
     Ok(identity)
 }
 
-/// Tổ chức / nhóm / workspace mà tài khoản là thành viên — để chọn token theo owner.
+/// Organisations / groups / workspaces the account belongs to — used to pick a token by owner.
 pub async fn fetch_organizations(host: &str, provider: Provider, token: &str) -> Result<Vec<String>> {
     let client = http()?;
     let base = provider.api_base(host);
     let mut names: Vec<String> = Vec::new();
     for (page, url) in pages(provider, &base, "orgs", "groups", 100).into_iter().enumerate() {
         let (status, value) = request(&client, reqwest::Method::GET, &url, token, None).await?;
-        // GitHub trả 403 khi token thiếu `read:org` — tổ chức chỉ để chọn token, thiếu thì bỏ trống cũng được.
+        // GitHub returns 403 when the token lacks `read:org` — organisations only pick a token, so leaving them empty is fine.
         if status == 403 || status == 401 {
             return Ok(names);
         }
@@ -404,7 +404,7 @@ pub async fn fetch_organizations(host: &str, provider: Provider, token: &str) ->
     Ok(names)
 }
 
-/// Danh sách repo của tài khoản (dùng cho hộp Clone).
+/// The account's repository list (for the Clone dialog).
 pub async fn list_repositories(host: &str, provider: Provider, token: &str, login: &str) -> Result<Vec<ForgeRepository>> {
     let client = http()?;
     let base = provider.api_base(host);
@@ -435,7 +435,7 @@ pub async fn list_repositories(host: &str, provider: Provider, token: &str, logi
     Ok(repos)
 }
 
-/// URL từng trang của endpoint danh sách repo. Bitbucket Cloud cần workspace nên không chia trang bằng `page`.
+/// Per-page URL of the repo-list endpoint. Bitbucket Cloud needs a workspace, so it cannot paginate with `page`.
 fn repository_pages(provider: Provider, host: &str, base: &str, login: &str) -> Vec<String> {
     match provider {
         Provider::Github => {
@@ -444,7 +444,7 @@ fn repository_pages(provider: Provider, host: &str, base: &str, login: &str) -> 
                 .collect()
         }
         Provider::Gitlab => (1..=MAX_PAGES).map(|page| format!("{base}/projects?membership=true&per_page=100&page={page}&order_by=last_activity_at")).collect(),
-        // `login` là workspace của tài khoản Bitbucket.
+        // `login` is the Bitbucket account's workspace.
         Provider::Bitbucket => {
             let _ = host;
             vec![format!("{base}/repositories/{}?role=member&sort=-updated_on&pagelen=100", urlencode(login))]
@@ -452,12 +452,12 @@ fn repository_pages(provider: Provider, host: &str, base: &str, login: &str) -> 
     }
 }
 
-/// URL từng trang của endpoint tổ chức.
+/// Per-page URL of the organisation endpoint.
 fn pages(provider: Provider, base: &str, github: &str, gitlab: &str, per_page: u32) -> Vec<String> {
     match provider {
         Provider::Github => (1..=MAX_PAGES).map(|page| format!("{base}/user/{github}?per_page={per_page}&page={page}")).collect(),
         Provider::Gitlab => (1..=MAX_PAGES).map(|page| format!("{base}/{gitlab}?per_page={per_page}&page={page}")).collect(),
-        // Workspace của Bitbucket lấy ở chỗ khác (`fetch_identity` tự gọi); không cần trang ở đây.
+        // A Bitbucket workspace comes from elsewhere (`fetch_identity` calls for it); no paging needed here.
         Provider::Bitbucket => vec![format!("{base}/workspaces?role=member")],
     }
 }
@@ -518,7 +518,7 @@ fn urlencode(value: &str) -> String {
 
 // MARK: - Pull Request / Merge Request
 
-/// PR đang mở của repo.
+/// The repository's open PRs.
 pub async fn list_merge_requests(host: &str, provider: Provider, token: &str, owner: &str, repo: &str) -> Result<Vec<ForgeMergeRequest>> {
     let client = http()?;
     let base = provider.api_base(host);
@@ -557,7 +557,7 @@ fn merge_request_list_url(provider: Provider, base: &str, owner: &str, repo: &st
     }
 }
 
-/// Tạo PR / MR từ nhánh hiện tại.
+/// Create a PR / MR from the current branch.
 #[allow(clippy::too_many_arguments)]
 pub async fn create_merge_request(
     host: &str,
@@ -606,7 +606,7 @@ pub async fn create_merge_request(
         .ok_or_else(|| AppError::Io(format!("Máy chủ {host} không trả về PR vừa tạo")))
 }
 
-/// Một PR cụ thể (dùng khi cần số commit / trạng thái chi tiết).
+/// One specific PR (used when the commit count / detailed state is needed).
 pub async fn fetch_merge_request(
     host: &str,
     provider: Provider,
@@ -669,7 +669,7 @@ fn parse_merge_request(
             draft: item["draft"].as_bool().unwrap_or(false) || item["work_in_progress"].as_bool().unwrap_or(false),
             web_url: item["web_url"].as_str().unwrap_or_default().to_string(),
             head_host: host.to_string(),
-            // MR từ fork: project nguồn khác project đích (không biết owner của fork → để trống).
+            // An MR from a fork: the source project differs from the target project (the fork's owner is unknown → left empty).
             head_owner: if item["source_project_id"] == item["target_project_id"] { owner.to_string() } else { String::new() },
             updated_at: item["updated_at"].as_str().unwrap_or_default().to_string(),
             commits: None,
@@ -703,7 +703,7 @@ fn parse_merge_request(
     Some(merge_request)
 }
 
-/// Một người trong JSON của máy chủ (`None` nếu thiếu tên đăng nhập).
+/// One user in the host's JSON (`None` when the login is missing).
 fn person(provider: Provider, user: &serde_json::Value) -> Option<ForgePerson> {
     let text = |key: &str| user[key].as_str().map(str::to_string);
     match provider {
@@ -720,12 +720,12 @@ fn person(provider: Provider, user: &serde_json::Value) -> Option<ForgePerson> {
     }
 }
 
-/// Mảng người (`assignees`, `reviewers`…) trong JSON; không phải mảng thì rỗng.
+/// The user array (`assignees`, `reviewers`…) in the JSON; empty when it is not an array.
 fn people(provider: Provider, value: &serde_json::Value) -> Vec<ForgePerson> {
     value.as_array().map(|list| list.iter().filter_map(|user| person(provider, user)).collect()).unwrap_or_default()
 }
 
-/// Kiểm tra host + provider trước khi gọi API (webview gửi lên).
+/// Validate host + provider before calling the API (both sent by the webview).
 pub fn check_host(host: &str, provider: Option<Provider>) -> Result<(String, Provider)> {
     if !valid_host(host) {
         return Err(AppError::Auth(format!("Host không hợp lệ: {host}")));
@@ -734,7 +734,7 @@ pub fn check_host(host: &str, provider: Option<Provider>) -> Result<(String, Pro
     Ok((host.to_ascii_lowercase(), provider))
 }
 
-/// owner + repo từ webview: chữ, số, `-`, `_`, `.`, `/` và dài có hạn (đi qua `provider_for` để kiểm host).
+/// owner + repo from the webview: letters, digits, `-`, `_`, `.`, `/` and bounded length (goes through `provider_for` so the host is validated).
 pub(crate) fn check_repo_path(owner: &str, repo: &str) -> Result<(String, String)> {
     let clean = |value: &str, what: &str| -> Result<String> {
         let trimmed = value.trim().trim_matches('/').to_string();
@@ -751,9 +751,9 @@ pub(crate) fn check_repo_path(owner: &str, repo: &str) -> Result<(String, String
     Ok((clean(owner, "owner")?, clean(repo, "repo")?))
 }
 
-/// Token của tài khoản mặc định (hoặc đã gán) cho `owner` trên host — PR/MR đọc bằng tài khoản có quyền thật.
+/// Token of the default (or assigned) account for `owner` on the host — PRs / MRs are read with an account that really has access.
 fn owner_token(accounts: &crate::accounts::Accounts, host: &str, owner: &str) -> Result<(Provider, String)> {
-    // Token OAuth sắp hết hạn đã được làm mới bởi người gọi (`refresh_due`).
+    // An OAuth token about to expire was already refreshed by the caller (`refresh_due`).
     let provider = accounts.provider_of(host)?;
     let resolved = accounts
         .resolve(host, Some(owner))
@@ -762,7 +762,7 @@ fn owner_token(accounts: &crate::accounts::Accounts, host: &str, owner: &str) ->
     Ok((provider, token))
 }
 
-/// PR đang mở của `owner/repo` (webview gửi host + owner + repo; token chọn trong Rust).
+/// Open PRs of `owner/repo` (the webview sends host + owner + repo; the token is chosen in Rust).
 pub async fn list_for(
     accounts: &crate::accounts::Accounts,
     host: &str,
@@ -777,7 +777,7 @@ pub async fn list_for(
     list_merge_requests(&host, provider, &token, &owner, &repo).await
 }
 
-/// Tạo PR/MR từ nhánh hiện tại.
+/// Create a PR / MR from the current branch.
 #[allow(clippy::too_many_arguments)]
 pub async fn create(
     accounts: &crate::accounts::Accounts,
@@ -800,7 +800,7 @@ pub async fn create(
     create_merge_request(&host, provider, &token, &owner, &repo, title, body, source_branch, target_branch, draft).await
 }
 
-/// Người có thể gán vào PR / MR của repo: GitHub `assignees`, GitLab thành viên (kể cả thừa hưởng từ nhóm). Bitbucket chưa hỗ trợ.
+/// Users who can be assigned to the repo's PRs / MRs: GitHub `assignees`, GitLab members (including inherited from groups). Bitbucket does not support it yet.
 pub async fn list_assignable(host: &str, provider: Provider, token: &str, owner: &str, repo: &str) -> Result<Vec<ForgePerson>> {
     let client = http()?;
     let base = provider.api_base(host);
@@ -820,7 +820,7 @@ pub async fn list_assignable(host: &str, provider: Provider, token: &str, owner:
             break;
         }
         for item in &raw {
-            // Thành viên GitLab bị khoá / chờ duyệt không gán được.
+            // A locked or still-pending GitLab member cannot be assigned.
             if matches!(provider, Provider::Gitlab) && item["state"].as_str().is_some_and(|state| state != "active") {
                 continue;
             }
@@ -840,9 +840,9 @@ fn unsupported_people() -> AppError {
     AppError::policy("Bitbucket chưa hỗ trợ gán người ở đây — làm trên trang web")
 }
 
-/// Đặt lại danh sách người review hoặc người được gán của PR / MR rồi đọc lại PR / MR (kết quả thật của máy chủ).
-/// GitHub: assignees thay cả danh sách bằng một lệnh; reviewers so với danh sách hiện có để chỉ bỏ / thêm phần khác biệt.
-/// GitLab: `assignee_ids` / `reviewer_ids` (danh sách rỗng gửi `[0]` = bỏ hết).
+/// Replace the reviewer or assignee list of a PR / MR, then re-read the PR / MR (the host's real result).
+/// GitHub: assignees replace the whole list in one call; reviewers are diffed against the current list so only the difference is removed / added.
+/// GitLab: `assignee_ids` / `reviewer_ids` (an empty list sends `[0]` = clear them all).
 #[allow(clippy::too_many_arguments)]
 pub async fn set_people(
     host: &str,
@@ -873,7 +873,7 @@ pub async fn set_people(
                     let current = fetch_merge_request(host, provider, token, owner, repo, number).await?;
                     let (add, remove) = reviewer_changes(&current.reviewers, people);
                     let url = format!("{base}/repos/{owner}/{repo}/pulls/{number}/requested_reviewers");
-                    // Bỏ trước, thêm sau; mỗi nhóm một lệnh gọi (nhóm rỗng thì không gọi).
+                    // Remove first, add after; one call per group (an empty group makes no call).
                     for (method, logins) in [(reqwest::Method::DELETE, remove), (reqwest::Method::POST, add)] {
                         if logins.is_empty() {
                             continue;
@@ -909,15 +909,15 @@ pub async fn set_people(
     fetch_merge_request(host, provider, token, owner, repo, number).await
 }
 
-/// Tên đăng nhập GitHub (chữ, số, `-`, `_`, `.`; dài có hạn; `[` `]` cho tài khoản bot như `app[bot]`) — đi vào thân JSON chứ
-/// không vào URL, nhưng vẫn không nhận ký tự lạ.
+/// A GitHub login (letters, digits, `-`, `_`, `.`; bounded length; `[` and `]` for bot accounts such as `app[bot]`) — it goes
+/// into the JSON body rather than a URL, but odd characters are still rejected.
 fn valid_login(login: &str) -> bool {
     !login.is_empty()
         && login.len() <= 100
         && login.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '[' | ']'))
 }
 
-/// Từ danh sách review hiện có và danh sách mong muốn: (cần thêm, cần bỏ) — so tên đăng nhập không phân biệt hoa thường.
+/// From the current reviewer list and the desired one: (to add, to remove) — comparing logins case-insensitively.
 fn reviewer_changes<'a>(current: &'a [ForgePerson], wanted: &'a [ForgePerson]) -> (Vec<&'a str>, Vec<&'a str>) {
     let has = |list: &[ForgePerson], login: &str| list.iter().any(|user| user.username.eq_ignore_ascii_case(login));
     let add = wanted.iter().filter(|user| !has(current, &user.username)).map(|user| user.username.as_str()).collect();
@@ -925,7 +925,7 @@ fn reviewer_changes<'a>(current: &'a [ForgePerson], wanted: &'a [ForgePerson]) -
     (add, remove)
 }
 
-/// Người có thể gán của `owner/repo` (webview gửi host + owner + repo; token chọn trong Rust).
+/// Users who can be assigned in `owner/repo` (the webview sends host + owner + repo; the token is chosen in Rust).
 pub async fn assignable_for(
     accounts: &crate::accounts::Accounts,
     host: &str,
@@ -940,7 +940,7 @@ pub async fn assignable_for(
     list_assignable(&host, provider, &token, &owner, &repo).await
 }
 
-/// Đặt lại người review / người được gán của một PR / MR của `owner/repo`.
+/// Replace the reviewers / assignees of one PR / MR of `owner/repo`.
 #[allow(clippy::too_many_arguments)]
 pub async fn set_people_for(
     accounts: &crate::accounts::Accounts,
@@ -965,7 +965,7 @@ pub async fn set_people_for(
     set_people(&host, provider, &token, &owner, &repo, number, role, people).await
 }
 
-/// Tên nhánh hợp lệ cho `git` (không ký tự lạ, không khoảng trắng) — cũng chặn ký tự điều khiển.
+/// A branch name valid for `git` (no odd characters, no whitespace) — control characters are blocked too.
 fn check_branch(branch: &str) -> Result<()> {
     let trimmed = branch.trim();
     let ok = !trimmed.is_empty()
@@ -1099,7 +1099,7 @@ mod tests {
         assert_eq!(parsed.reviewers[0].name, "Dũng");
         assert_eq!(parsed.reviewers[1].username, "Chỉ tên");
 
-        // Không có trường người → danh sách rỗng, không lỗi.
+        // No user field → an empty list, not an error.
         let bare = serde_json::json!({ "number": 2 });
         let parsed = parse_merge_request("github.com", Provider::Github, "acme", "app", &bare).unwrap();
         assert!(parsed.assignees.is_empty() && parsed.reviewers.is_empty());

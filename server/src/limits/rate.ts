@@ -1,8 +1,8 @@
-// Giới hạn tốc độ trong bộ nhớ (token bucket theo khoá). Mất khi khởi động lại — chấp nhận được với giới hạn theo phút.
+// In-memory rate limiting (a token bucket per key). Lost on restart — acceptable for per-minute limits.
 
 export interface RateResult {
   ok: boolean;
-  /** Giây phải chờ khi bị từ chối. */
+  /** Seconds the caller must wait after being rejected. */
   retryAfter: number;
 }
 
@@ -17,7 +17,7 @@ export class RateLimiter {
   readonly #buckets = new Map<string, Bucket>();
   #lastSweep = 0;
 
-  /** `capacity` lượt mỗi `windowMs` (nạp lại đều). */
+  /** `capacity` units per `windowMs` (refilled evenly). */
   constructor(capacity: number, windowMs: number) {
     this.#capacity = capacity;
     this.#refillPerMs = capacity / windowMs;
@@ -36,13 +36,13 @@ export class RateLimiter {
     return { ok: false, retryAfter: Math.max(1, Math.ceil((1 - bucket.tokens) / this.#refillPerMs / 1000)) };
   }
 
-  /** Trả lại một lượt (request bị từ chối ở bước sau, không tính). */
+  /** Return one unit (the request was rejected later, so it was never counted). */
   refund(key: string): void {
     const bucket = this.#buckets.get(key);
     if (bucket !== undefined) bucket.tokens = Math.min(this.#capacity, bucket.tokens + 1);
   }
 
-  /** Dọn bucket đã đầy lại (không còn ảnh hưởng) để bộ nhớ không phình. */
+  /** Drop buckets that have refilled completely (they no longer matter) so memory stays flat. */
   #sweep(now: number): void {
     if (now - this.#lastSweep < 60_000) return;
     this.#lastSweep = now;
@@ -53,7 +53,7 @@ export class RateLimiter {
   }
 }
 
-/** Đếm theo ngày trong bộ nhớ (vd. số telemetryId mới mỗi IP mỗi ngày). */
+/** In-memory per-day counter (e.g. new telemetryIds per IP per day). */
 export class DailyCounter {
   #day = '';
   readonly #counts = new Map<string, number>();

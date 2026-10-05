@@ -1,27 +1,28 @@
 /**
- * Lịch sử một file (panel bên phải, thay chi tiết khi mở — như "File History" của GitKraken): các commit đụng tới file, theo dấu
- * qua các lần đổi tên. Chọn một commit để xem thay đổi của riêng file đó ở vùng giữa.
+ * History of one file (right-hand panel, replacing the details when opened — like GitKraken's "File
+ * History"): the commits that touched the file, followed across renames. Pick a commit to see that file's
+ * own changes in the centre area.
  */
 import type { FileHistoryEntry, GitRepository } from '@thaigit/core';
 import type { DiffStore } from '../stores/diff.svelte.ts';
 import { vi } from '../strings.vi.ts';
 
-/** Số commit tối đa đọc một lần (file sửa rất nhiều lần vẫn mở nhanh). */
+/** Commits read in one go (a heavily changed file still opens fast). */
 export const FILE_HISTORY_LIMIT = 500;
 
-/** Phần của `RepoStore` mà lịch sử file cần (tránh import vòng). */
+/** The slice of `RepoStore` that file history needs (avoids a circular import). */
 export interface FileHistoryHost {
   readonly git: GitRepository;
   readonly diff: DiffStore;
-  /** Hai panel cùng chỗ bên phải: mở lịch sử file thì đóng Dòng thời gian. */
+  /** Panels that share the right-hand slot: opening file history closes the Timeline. */
   closeTimeline(): void;
-  /** Mở lịch sử file thì đóng Review PR (cùng chỗ bên phải). */
+  /** Opening file history closes the PR review (same right-hand slot). */
   closeReview?(): void;
   showError(title: string, error: unknown): void;
 }
 
 export class FileHistoryStore {
-  /** Đường dẫn file đang xem lịch sử (tên hiện tại); `null` = panel đóng. */
+  /** Path whose history is on screen (its current name); `null` = panel closed. */
   path = $state<string | null>(null);
   entries = $state.raw<readonly FileHistoryEntry[]>([]);
   loading = $state(false);
@@ -35,7 +36,7 @@ export class FileHistoryStore {
     return this.path !== null;
   }
 
-  /** Đã chạm giới hạn đọc: có thể còn commit cũ hơn. */
+  /** The read limit has been hit: there may be older commits. */
   get limited(): boolean {
     return this.entries.length >= FILE_HISTORY_LIMIT;
   }
@@ -78,7 +79,7 @@ export class FileHistoryStore {
     }
   }
 
-  /** Chọn một commit: mở thay đổi của file đó (so với cha đầu tiên) ở vùng giữa. */
+  /** Pick a commit: open that file's changes (versus its first parent) in the centre area. */
   select(entry: FileHistoryEntry): void {
     this.selected = entry;
     const commit = entry.commit;

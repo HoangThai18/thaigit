@@ -1,6 +1,6 @@
 #!/bin/bash
-# Sao lưu DB hằng ngày, giữ 14 bản. Cron (root):  17 3 * * *  /srv/thaigit/server/deploy/backup.sh
-# Chép ra ngoài VPS (rclone…) thì MÃ HOÁ trước (vd. `age -r <khoá công khai>`).
+# Daily database backup, keeping 14 copies. Cron (root):  17 3 * * *  /srv/thaigit/server/deploy/backup.sh
+# When copying off the VPS (rclone…), ENCRYPT first (e.g. `age -r <public key>`).
 set -euo pipefail
 DATA_DIR="${DATA_DIR:-/var/lib/thaigit-api}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/thaigit-api}"

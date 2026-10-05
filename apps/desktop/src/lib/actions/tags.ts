@@ -1,4 +1,4 @@
-// Tạo / xoá / push tag (port phần Tag của RepoModel+Actions.swift).
+// Creating / deleting / pushing tags (a port of the Tag part of RepoModel+Actions.swift).
 
 import { isValidRefName, refName, type GitRef } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
@@ -11,7 +11,7 @@ import {
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { handleNetworkError } from './errors.ts';
 
-/** Hỏi tên (+ lời nhắn, + push luôn) rồi tạo tag tại `sha`. */
+/** Ask for a name (+ a message, + push right away), then create the tag at `sha`. */
 export async function beginCreateTag(
   store: RepoStore,
   sha: string,
@@ -137,7 +137,7 @@ export async function deleteTag(store: RepoStore, ref: GitRef, dialogs?: DialogS
   });
 }
 
-/** Push một tag lên `remote` (mặc định remote chính của repo). */
+/** Push a tag to `remote` (default: the repo's main remote). */
 export function pushTag(
   store: RepoStore,
   ref: GitRef,

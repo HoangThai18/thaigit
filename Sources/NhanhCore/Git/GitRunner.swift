@@ -1,6 +1,6 @@
 import Foundation
 
-/// Lỗi khi lệnh git trả mã thoát không mong đợi.
+/// A git command returned an unexpected exit code.
 public struct GitError: LocalizedError, Sendable, CustomStringConvertible {
     public let arguments: [String]
     public let exitCode: Int32
@@ -29,7 +29,7 @@ public struct GitError: LocalizedError, Sendable, CustomStringConvertible {
     public var description: String { message }
     public var commandLine: String { "git " + arguments.joined(separator: " ") }
 
-    /// Toàn bộ output, dùng để nhận diện các lỗi quen thuộc.
+    /// The complete output, used to recognise familiar errors.
     public var combinedOutput: String { stderr + "\n" + stdout }
 
     public func contains(_ needle: String) -> Bool {
@@ -37,7 +37,7 @@ public struct GitError: LocalizedError, Sendable, CustomStringConvertible {
     }
 }
 
-/// Một dòng nhật ký lệnh git đã chạy (để hiển thị trong "Nhật ký lệnh").
+/// One line of the git command log (shown in "Command log").
 public struct GitCommandRecord: Sendable, Identifiable, Hashable {
     public let id: UUID
     public let arguments: [String]
@@ -63,7 +63,7 @@ public struct GitRunner: Sendable {
     public let workingDirectory: URL?
     public let logger: (@Sendable (GitCommandRecord) -> Void)?
 
-    /// Ghi đè cấu hình người dùng có thể làm hỏng việc parse output.
+    /// Overriding the user's config could break output parsing.
     public static let globalArguments: [String] = [
         "-c", "core.quotepath=false",
         "-c", "color.ui=false",
@@ -71,11 +71,11 @@ public struct GitRunner: Sendable {
         "-c", "log.showSignature=false",
         "-c", "diff.noprefix=false",
         "-c", "diff.mnemonicPrefix=false",
-        // true thì dòng ngữ cảnh rỗng thành dòng trống (thiếu " "): parser bỏ qua nên patch dựng lại sai ngữ cảnh.
+        // true would make an empty context line a blank line (losing the " "): the parser skips it and the rebuilt patch gets wrong context.
         "-c", "diff.suppressBlankEmpty=false",
         "-c", "advice.detachedHead=false",
-        // Repo lạ có thể đặt core.fsmonitor thành một lệnh tuỳ ý trong .git/config; app chạy `git status`
-        // tự động khi mở/làm mới repo nên tắt hẳn để mở repo không bao giờ chạy lệnh của repo.
+        // An untrusted repo may set core.fsmonitor to an arbitrary command in .git/config; the app runs `git status`
+        // automatically when opening / refreshing a repo, so it's disabled outright — opening a repo never runs a command from the repo.
         "-c", "core.fsmonitor=false",
     ]
 
@@ -89,9 +89,10 @@ public struct GitRunner: Sendable {
         GitRunner(environmentStore: environmentStore, workingDirectory: directory, logger: logger)
     }
 
-    /// `credentialURLs`: địa chỉ remote mà lệnh mạng này thật sự chạm, do người gọi đọc từ cấu hình remote (xem
-    /// `GitRepository.remoteURLs`) — không đoán từ tham số. Chỉ khi có địa chỉ https://github.com và đã đăng nhập mới
-    /// thêm credential helper + token của đúng các tài khoản dùng cho những địa chỉ đó.
+    /// `credentialURLs`: the remote addresses this network command really touches, read by the caller from the
+    /// remote config (see `GitRepository.remoteURLs`) — never guessed from the arguments. The credential helper
+    /// and the tokens of exactly the accounts used for those addresses are added only when there is a
+    /// https://github.com address and the user is signed in.
     @discardableResult
     public func run(
         _ arguments: [String],
@@ -102,11 +103,12 @@ public struct GitRunner: Sendable {
         onProgress: (@Sendable (String) -> Void)? = nil
     ) async throws -> ProcessOutput {
         let (environment, github, ssh, gitlab) = environmentStore.snapshot()
-        // Lệnh chạm remote HTTPS trên github.com: thêm credential helper chọn token theo owner, đọc token từ biến môi
-        // trường của riêng tiến trình này. Nhật ký lệnh và GitError chỉ giữ `arguments` của người gọi — không chứa token.
+        // The command touches an HTTPS remote on github.com: add a credential helper that picks the token by
+        // owner, with tokens read from environment variables of this process alone. The command log and GitError
+        // keep only the caller's `arguments` — never a token.
         var credentials = GitCredentialInjection.additions(forURLs: credentialURLs, credentials: github)
-        // Remote HTTPS trên một host GitLab đã đăng nhập (gitlab.com, GitLab tự host): token qua helper riêng, token OAuth
-        // sắp hết hạn được làm mới trước.
+        // HTTPS remote on a signed-in GitLab host (gitlab.com, self-hosted GitLab): token via its own helper, and an
+        // OAuth token about to expire is renewed first.
         if let gitlab, !credentialURLs.isEmpty {
             let credential = await gitlab.accounts.credential(forURLs: credentialURLs)
             let extra = GitLabCredentialInjection.additions(for: credential, helperPath: gitlab.helperPath)
@@ -116,8 +118,9 @@ public struct GitRunner: Sendable {
         var variables = environment.variables
         for (key, value) in credentials.environment { variables[key] = value }
         for (key, value) in extra { variables[key] = value }
-        // Lệnh chạm remote SSH và có khoá SSH của Thaigit: ssh-agent tạm chỉ cho lệnh này (khoá đi từ Keychain vào agent,
-        // không ghi file). Agent lỗi thì chạy như thường với agent / khoá ~/.ssh của người dùng.
+        // The command touches an SSH remote and Thaigit has SSH keys: a temporary ssh-agent for this command only
+        // (keys go from the Keychain into the agent, nothing is written to a file). If the agent fails, the
+        // command runs as usual with the user's own agent / ~/.ssh keys.
         var agent: SSHAgentSession?
         if let ssh, credentialURLs.contains(where: SSHRemoteURL.isSSH) {
             let keys = ssh.privateKeys()
@@ -136,7 +139,7 @@ public struct GitRunner: Sendable {
             input: input,
             onStderrLine: onProgress
         )
-        // Lệnh bị dừng vì Task bị huỷ: báo huỷ thay vì lỗi git (mã thoát 15).
+        // The command was stopped because the Task was cancelled: report cancellation instead of a git error (exit code 15).
         try Task.checkCancellation()
         logger?(GitCommandRecord(
             arguments: arguments.map(Self.maskingUserInfo),
@@ -156,7 +159,7 @@ public struct GitRunner: Sendable {
         try await run(arguments, input: input, acceptExitCodes: acceptExitCodes, environment: extra, credentialURLs: credentialURLs).stdoutString
     }
 
-    /// Che "user:mật-khẩu@" (hoặc token đặt làm username) của mọi URL trong một tham số trước khi ghi nhật ký lệnh:
+    /// Hides the "user:password@" (or a token placed as the username) of every URL in an argument before it reaches the command log:
     /// "https://ten:mk@git.vd.vn/a.git" → "https://***@git.vd.vn/a.git".
     static func maskingUserInfo(_ argument: String) -> String {
         guard argument.contains("://") else { return argument }
@@ -178,7 +181,7 @@ public struct GitRunner: Sendable {
 }
 
 extension Array where Element == String {
-    /// Danh sách đường dẫn ngăn cách bằng NUL, dùng với --pathspec-from-file=- --pathspec-file-nul.
+    /// A NUL-separated path list, used with --pathspec-from-file=- --pathspec-file-nul.
     var nulSeparatedData: Data {
         var data = Data()
         for path in self {

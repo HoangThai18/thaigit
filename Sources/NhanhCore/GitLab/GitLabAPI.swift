@@ -1,6 +1,6 @@
 import Foundation
 
-/// Lỗi khi nói chuyện với GitLab. Thông báo viết cho người dùng — không chứa token hay nội dung phản hồi thô.
+/// A failure while talking to GitLab. The message is written for the user — it never contains a token or the raw response body.
 public enum GitLabError: LocalizedError, Sendable, Equatable {
     case notConfigured
     case invalidHost
@@ -11,9 +11,9 @@ public enum GitLabError: LocalizedError, Sendable, Equatable {
     case badResponse(Int)
     case invalidResponse
     case keychain(Int32)
-    /// 404: project không tồn tại hoặc tài khoản không thấy được.
+    /// 404: the project doesn't exist or the account can't see it.
     case projectNotFound
-    /// 403: tài khoản / token không có quyền tạo Merge Request ở project này.
+    /// 403: the account / token may not create Merge Requests in this project.
     case forbidden
     case mergeRequestRejected(MergeRequestRejection)
 
@@ -45,7 +45,7 @@ public enum GitLabError: LocalizedError, Sendable, Equatable {
     }
 }
 
-/// Người dùng GitLab (`GET /api/v4/user`).
+/// A GitLab user (`GET /api/v4/user`).
 public struct GitLabUser: Codable, Sendable, Equatable {
     public let id: Int
     public let username: String
@@ -65,7 +65,7 @@ public struct GitLabUser: Codable, Sendable, Equatable {
     }
 }
 
-/// Token GitLab: token OAuth (sống ~2 giờ, làm mới bằng refresh token) hoặc personal access token do người dùng dán.
+/// A GitLab token: an OAuth token (~2 hour lifetime, renewed with the refresh token) or a personal access token the user pasted.
 public struct GitLabToken: Codable, Sendable, Equatable, CustomStringConvertible {
     public let accessToken: String
     public let refreshToken: String?
@@ -77,10 +77,10 @@ public struct GitLabToken: Codable, Sendable, Equatable, CustomStringConvertible
         self.expiresAt = expiresAt
     }
 
-    /// Token OAuth (có refresh token) — git dùng username "oauth2".
+    /// OAuth token (with a refresh token) — git uses the username "oauth2".
     public var isOAuth: Bool { refreshToken != nil }
 
-    /// Sắp hết hạn (còn dưới 2 phút) thì làm mới trước khi dùng.
+    /// Renew when it's about to expire (under 2 minutes left) and before use.
     public func needsRefresh(now: Date = Date()) -> Bool {
         guard let expiresAt, refreshToken != nil else { return false }
         return expiresAt.timeIntervalSince(now) < 120
@@ -89,7 +89,7 @@ public struct GitLabToken: Codable, Sendable, Equatable, CustomStringConvertible
     public var description: String { "GitLabToken(<ẩn>)" }
 }
 
-/// Mã đăng nhập của device flow.
+/// The sign-in code of the device flow.
 public struct GitLabDeviceCode: Sendable, Equatable {
     public let deviceCode: String
     public let userCode: String
@@ -98,8 +98,8 @@ public struct GitLabDeviceCode: Sendable, Equatable {
     public let interval: Int
 }
 
-/// API GitLab (gitlab.com hoặc tự host): device flow OAuth (public client, không client secret), làm mới token, người
-/// dùng hiện tại, thêm khoá SSH. Mọi request chỉ tới `https://<host>` của chính tài khoản.
+/// The GitLab API (gitlab.com or self-hosted): OAuth device flow (public client, no client secret), token renewal, the
+/// current user, adding SSH keys. Every request goes only to that account's own `https://<host>`.
 public struct GitLabAPI: Sendable {
     public typealias Transport = @Sendable (URLRequest) async throws -> (Data, HTTPURLResponse)
 
@@ -118,7 +118,7 @@ public struct GitLabAPI: Sendable {
         self.sleep = sleep ?? { try await Task.sleep(for: $0) }
     }
 
-    /// "gitlab.com", "https://gitlab.cong-ty.vn/" → host viết thường; nil nếu không hợp lệ.
+    /// "gitlab.com", "https://gitlab.cong-ty.vn/" → the lowercased host; nil when invalid.
     public static func normalizedHost(_ text: String) -> String? {
         var value = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if let scheme = value.range(of: "://") { value = String(value[scheme.upperBound...]) }
@@ -150,7 +150,7 @@ public struct GitLabAPI: Sendable {
         )
     }
 
-    /// Hỏi token theo `interval` cho tới khi người dùng xác nhận.
+    /// Poll for the token every `interval` until the user confirms.
     public func pollForToken(host: String, clientID: String, code: GitLabDeviceCode, now: @Sendable () -> Date = Date.init) async throws -> GitLabToken {
         var interval = code.interval
         var waited = 0
@@ -178,7 +178,7 @@ public struct GitLabAPI: Sendable {
         }
     }
 
-    /// Làm mới token OAuth (public client: chỉ cần client ID). Refresh token cũ hết hiệu lực sau lần này.
+    /// Renew an OAuth token (public client: only the client ID is needed). The old refresh token is invalidated by this call.
     public func refresh(host: String, clientID: String, token: GitLabToken, now: Date = Date()) async throws -> GitLabToken {
         guard let refreshToken = token.refreshToken else { return token }
         let (data, response) = try await send(Self.formRequest(host: host, path: "/oauth/token", [
@@ -201,7 +201,7 @@ public struct GitLabAPI: Sendable {
         return user
     }
 
-    /// Tạo Merge Request; trả về MR vừa tạo (có số và đường dẫn). Token chỉ đi tới `https://<host của project>`.
+    /// Create a Merge Request; returns the newly created MR (with its number and path). The token only ever goes to `https://<the project's host>`.
     public func createMergeRequest(_ new: NewMergeRequest, in project: GitLabProjectRef, token: String) async throws -> GitLabMergeRequest {
         var request = Self.apiRequest(host: project.host, path: "/api/v4/projects/\(project.encodedPath)/merge_requests", token: token)
         request.httpMethod = "POST"
@@ -227,7 +227,7 @@ public struct GitLabAPI: Sendable {
         }
     }
 
-    /// Nhánh mặc định của project (nhánh đích gợi ý khi tạo MR).
+    /// The project's default branch (suggested as the MR target).
     public func defaultBranch(of project: GitLabProjectRef, token: String?) async throws -> String {
         var request = Self.apiRequest(host: project.host, path: "/api/v4/projects/\(project.encodedPath)", token: token ?? "")
         if token == nil { request.setValue(nil, forHTTPHeaderField: "Authorization") }
@@ -245,7 +245,7 @@ public struct GitLabAPI: Sendable {
         case added, alreadyExists, missingScope
     }
 
-    /// Thêm khoá SSH công khai (`POST /api/v4/user/keys`, cần scope `api`).
+    /// Add an SSH public key (`POST /api/v4/user/keys`, needs the `api` scope).
     public func addSSHKey(host: String, token: String, title: String, publicKey: String) async throws -> SSHKeyUpload {
         var request = Self.apiRequest(host: host, path: "/api/v4/user/keys", token: token)
         request.httpMethod = "POST"
@@ -265,9 +265,9 @@ public struct GitLabAPI: Sendable {
         }
     }
 
-    // MARK: - Nội bộ
+    // MARK: - Internal
 
-    /// Lý do GitLab từ chối MR, đoán từ câu `message` (chuỗi hoặc mảng chuỗi) — không đưa nguyên văn lên giao diện.
+    /// Why GitLab rejected the MR, guessed from the `message` field (a string or an array of strings) — never shown verbatim in the UI.
     static func rejection(from data: Data) -> GitLabError.MergeRequestRejection {
         var text = String(decoding: data, as: UTF8.self).lowercased()
         if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let message = object["message"] {
@@ -279,7 +279,7 @@ public struct GitLabAPI: Sendable {
         return .other
     }
 
-    /// Chỉ nhận đường dẫn https trên đúng host của project.
+    /// Only accepts an https path on the project's exact host.
     static func trustedWebURL(_ text: String?, host: String) -> URL? {
         guard let text, let url = URL(string: text), url.scheme == "https",
               let urlHost = url.host?.lowercased(), urlHost == GitLabProjectRef.stripPort(host) else { return nil }
@@ -335,7 +335,7 @@ public struct GitLabAPI: Sendable {
         }
     }
 
-    /// Chỉ mở trang xác nhận https trên đúng host đó.
+    /// Only opens the https confirmation page on that exact host.
     static func sameHostPage(_ text: String?, host: String) -> URL {
         let fallback = URL(string: "https://\(host)/oauth/device")!
         guard let text, let url = URL(string: text), url.scheme == "https", url.host?.lowercased() == host.split(separator: ":").first.map(String.init)

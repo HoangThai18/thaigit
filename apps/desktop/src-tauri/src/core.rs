@@ -1,5 +1,5 @@
-//! Lõi không phụ thuộc Tauri: gom các hệ con (sổ repo, khoá, bảng op, watcher, định vị git) và thực thi `git_exec`.
-//! Lớp lệnh IPC (`commands.rs`) chỉ gọi vào đây nên toàn bộ logic kiểm thử được bằng `cargo test` không cần cửa sổ.
+//! Tauri-independent core: it holds the subsystems (repo registry, keys, op table, watcher, git location) and runs
+//! `git_exec`. The IPC command layer (`commands.rs`) only calls in here, so all logic is testable with `cargo test` and no window.
 
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
@@ -25,13 +25,13 @@ use crate::registry::{ConfigFingerprint, OpenSource, OpenedRepo, RepoEntry, Regi
 use crate::trust::{self, Restrictions};
 use crate::watcher::{RepoChangedEvent, Watchers};
 
-/// Sự kiện đẩy sang webview (Tauri `emit_to`) — tách ra để test không cần cửa sổ.
+/// Event pushed to the webview (Tauri `emit_to`) — factored out so tests need no window.
 pub trait EventSink: Send + Sync + 'static {
     fn repo_changed(&self, window: &str, event: &RepoChangedEvent);
     fn git_env_changed(&self);
 }
 
-/// Bỏ qua mọi sự kiện (test).
+/// Drops every event (for tests).
 pub struct NullEvents;
 
 impl EventSink for NullEvents {
@@ -39,7 +39,7 @@ impl EventSink for NullEvents {
     fn git_env_changed(&self) {}
 }
 
-/// Tham số `git_exec` (JSON từ webview, khớp `GitExecRequest` trong `packages/contracts/src/ipc.ts`).
+/// `git_exec` parameters (JSON from the webview, matching `GitExecRequest` in `packages/contracts/src/ipc.ts`).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitExecRequest {
@@ -53,18 +53,19 @@ pub struct GitExecRequest {
     pub profile: Option<EnvProfile>,
 }
 
-/// Kích thước tối đa của stdin sau khi giải base64 (patch, danh sách path — luôn nhỏ).
+/// Max size of stdin after base64 decoding (patches, path lists — always small).
 pub const MAX_STDIN_BYTES: usize = 64 * 1024 * 1024;
 
-/// Tổng output (stdout + stderr) tối đa của MỘT lệnh `git_exec`/`git_clone`. Webview không báo nhận frame nên không có backpressure
-/// thật; đây là chặn trên cho hàng đợi IPC của Tauri khi webview treo hoặc bị chiếm quyền. Rộng hơn mọi dùng thật (log nghìn commit
-/// vài MB, blob vài chục MB) nhưng đủ nhỏ để một lệnh không làm app hết bộ nhớ. Vượt → dừng lệnh và trả lỗi `io` rõ ràng.
+/// Max total output (stdout + stderr) of ONE `git_exec`/`git_clone` command. The webview does not acknowledge frames, so there is
+/// no real backpressure; this is an upper bound on Tauri's IPC queue when the webview hangs or is busy. Far larger than any
+/// real use (a log of thousands of commits is a few MB, a blob tens of MB) but small enough that one command cannot exhaust
+/// memory. Past it: stop the command and return a clear `io` error.
 pub const MAX_EXEC_OUTPUT_BYTES: u64 = 256 * 1024 * 1024;
 
-/// Output tối đa mà lệnh git NỘI BỘ (`run_git`: khám phá repo, quét cấu hình, kiểm track…) được gom vào bộ nhớ.
+/// Max output an INTERNAL git command (`run_git`: repo discovery, config scanning, tracked-file checks…) collects in memory.
 pub const MAX_INTERNAL_OUTPUT_BYTES: u64 = 64 * 1024 * 1024;
 
-/// Op đang chạy hoặc đang xếp hàng.
+/// An operation running or queued.
 pub struct OpEntry {
     pub id: String,
     pub window: String,
@@ -72,7 +73,7 @@ pub struct OpEntry {
     pub repo_id: Option<String>,
     pub common_key: Option<String>,
     pub cancel: Arc<CancelToken>,
-    /// Webview đã tải lại/đóng: bỏ frame, không gửi nữa.
+    /// The webview reloaded or closed: drop frames, send nothing more.
     pub detached: Arc<AtomicBool>,
 }
 
@@ -81,7 +82,7 @@ pub struct Ops {
     map: Mutex<HashMap<String, Arc<OpEntry>>>,
 }
 
-/// Gỡ op khỏi bảng khi xong (kể cả lỗi).
+/// Remove an op from the table when it finishes (including on error).
 pub struct OpGuard {
     ops: Arc<Ops>,
     id: String,
@@ -112,7 +113,7 @@ impl Ops {
         self.map.lock().unwrap_or_else(|p| p.into_inner()).values().filter(|o| o.window == window).cloned().collect()
     }
 
-    /// Repo (theo `commonDir`) còn tiến trình git do app chạy không?
+    /// Does the repo (by `commonDir`) still have git processes started by the app?
     pub fn has_repo_ops(&self, common_key: &str) -> bool {
         self.map.lock().unwrap_or_else(|p| p.into_inner()).values().any(|o| o.common_key.as_deref() == Some(common_key))
     }
@@ -128,7 +129,7 @@ impl Ops {
 
 pub struct Core {
     pub data_dir: PathBuf,
-    /// Thư mục rỗng dùng làm `core.hooksPath` ở chế độ hạn chế.
+    /// Empty directory used as `core.hooksPath` in restricted mode.
     pub empty_hooks_dir: PathBuf,
     pub locator: Arc<Locator>,
     pub registry: Registry,
@@ -136,30 +137,30 @@ pub struct Core {
     pub ops: Arc<Ops>,
     pub watchers: Watchers,
     pub events: Arc<dyn EventSink>,
-    /// Chương trình trả lời "từ chối" cho `GIT_ASKPASS`/`SSH_ASKPASS` của hồ sơ background.
+    /// The "deny" program for `GIT_ASKPASS`/`SSH_ASKPASS` of the background profile.
     pub askpass_deny: Option<OsString>,
-    /// Máy chủ askpass tương tác (hỏi mật khẩu trong app) — có sau `askpass::init`; chưa có thì lệnh interactive không hỏi được.
+    /// Interactive askpass server (asks for a password in-app) — present after `askpass::init`; without it an interactive command cannot ask.
     pub askpass: std::sync::OnceLock<Arc<crate::askpass::AskpassServer>>,
-    /// Tài khoản + token của các máy chủ git (token trong kho bí mật của hệ điều hành).
+    /// Accounts + tokens of the git hosts (tokens in the OS keystore).
     pub accounts: Arc<Accounts>,
-    /// Credential helper trả lời `git credential` — có sau `credential::init`; chưa có thì lệnh mạng không dùng token của app.
+    /// Credential helper answering `git credential` — present after `credential::init`; without it a network command does not use the app's tokens.
     pub credential: std::sync::OnceLock<Arc<CredentialServer>>,
-    /// Khoá SSH riêng của Thaigit (khoá bí mật trong kho bí mật của hệ điều hành) — nạp vào ssh-agent tạm cho lệnh chạm remote SSH.
+    /// Thaigit's own SSH keys (secret in the OS keystore) — loaded into a temporary ssh-agent for commands touching an SSH remote.
     pub ssh_keys: Arc<crate::ssh_keys::SshKeys>,
-    /// Ảnh đại diện người commit tải + cache trên đĩa (chung cho mọi cửa sổ repo).
+    /// Commit-author avatars downloaded + cached on disk (shared by every repo window).
     pub avatars: Arc<crate::avatars::Avatars>,
     pub timing: CancelTiming,
-    /// Giới hạn output của `git_exec`/`git_clone` (xem `MAX_EXEC_OUTPUT_BYTES`).
+    /// Output limit of `git_exec`/`git_clone` (see `MAX_EXEC_OUTPUT_BYTES`).
     pub exec_output_limit: u64,
-    /// Giới hạn output gom trong bộ nhớ của `run_git` (xem `MAX_INTERNAL_OUTPUT_BYTES`).
+    /// Output limit collected in memory by `run_git` (see `MAX_INTERNAL_OUTPUT_BYTES`).
     pub internal_output_limit: u64,
-    /// Env gốc cố định (test); `None` = env của tiến trình.
+    /// Fixed base environment (for tests); `None` = the process environment.
     base_env: Option<EnvMap>,
 }
 
 impl Core {
-    /// Data URL ảnh đại diện của người commit (`repo` = repo GitHub của repo đang mở, nếu có). Rust tự chọn
-    /// token GitHub theo owner và tự dựng URL — webview chỉ đưa tên owner/repo. `None` khi không có ảnh.
+    /// Data URL of a commit author's avatar (`repo` = the opened repo's GitHub repository, if any). Rust picks the
+    /// GitHub token by owner and builds the URL itself — the webview only supplies owner/repo names. `None` when there is no image.
     pub async fn avatar(&self, email: &str, repo: Option<crate::avatars::GitHubRepo>) -> Option<String> {
         let token = repo
             .as_ref()
@@ -168,7 +169,7 @@ impl Core {
     }
 }
 
-/// Kết quả chạy một lệnh git nội bộ.
+/// Result of running one internal git command.
 pub struct GitOutput {
     pub exit: ExitInfo,
     pub collected: Collected,
@@ -188,7 +189,7 @@ impl GitOutput {
     }
 }
 
-/// Tham số dựng tiến trình git.
+/// Parameters for spawning a git process.
 pub struct SpawnOptions<'a> {
     pub cwd: &'a Path,
     pub sub: &'a str,
@@ -204,7 +205,7 @@ pub(crate) fn validate_op_id(id: &str) -> Result<()> {
     if ok { Ok(()) } else { Err(AppError::policy("opId chỉ gồm chữ, số, `-`, `_` (tối đa 64 ký tự)")) }
 }
 
-/// `GIT_INDEX_FILE` do frontend gửi: đường dẫn tuyệt đối, tên file đơn, nằm trong git dir của repo.
+/// `GIT_INDEX_FILE` sent by the frontend: an absolute path, a single filename, inside the repo's git dir.
 fn check_index_file(value: &str, entry: &RepoEntry) -> Result<()> {
     let path = Path::new(value);
     let inside = path.is_absolute()
@@ -216,7 +217,7 @@ fn check_index_file(value: &str, entry: &RepoEntry) -> Result<()> {
     if inside { Ok(()) } else { Err(AppError::policy("GIT_INDEX_FILE phải là đường dẫn tuyệt đối nằm trong git dir của repo")) }
 }
 
-/// Tên dịch vụ trong kho bí mật của hệ điều hành (Keychain / Credential Manager) — mỗi mục là token của một tài khoản.
+/// Service name in the OS keystore (Keychain / Credential Manager) — each entry is one account's token.
 pub const KEYCHAIN_SERVICE: &str = "Thaigit";
 
 impl Core {
@@ -226,7 +227,7 @@ impl Core {
         Self::with_accounts(data_dir, events, askpass_deny, accounts, ssh_keys)
     }
 
-    /// Như `new` nhưng dùng kho tài khoản cho sẵn (test).
+    /// Like `new` but with a ready-made account store (for tests).
     pub fn with_accounts(
         data_dir: PathBuf,
         events: Arc<dyn EventSink>,
@@ -258,7 +259,7 @@ impl Core {
         })
     }
 
-    /// Dựng cho test: git cố định, env gốc cố định (cô lập khỏi cấu hình git/askpass của máy), thời gian huỷ ngắn.
+    /// Built for tests: fixed git, fixed base environment (isolated from the machine's git config / askpass), short cancel timeout.
     #[cfg(test)]
     pub async fn for_tests(data_dir: &Path, base_env: EnvMap) -> Arc<Self> {
         Self::for_tests_with(data_dir, base_env, Some(OsString::from("/test/askpass-deny"))).await
@@ -269,14 +270,14 @@ impl Core {
         Self::for_tests_limited(data_dir, base_env, askpass_deny, (MAX_EXEC_OUTPUT_BYTES, MAX_INTERNAL_OUTPUT_BYTES)).await
     }
 
-    /// Như `for_tests_with` nhưng đặt giới hạn output `(git_exec, lệnh nội bộ)`.
+    /// Like `for_tests_with` but sets the output limits `(git_exec, internal commands)`.
     #[cfg(test)]
     pub async fn for_tests_limited(data_dir: &Path, base_env: EnvMap, askpass_deny: Option<OsString>, limits: (u64, u64)) -> Arc<Self> {
         let accounts = Accounts::load(data_dir, Arc::new(crate::accounts::MemoryStore::default()));
         Self::for_tests_full(data_dir, base_env, askpass_deny, limits, accounts).await
     }
 
-    /// Như `for_tests_limited` nhưng dùng kho tài khoản cho sẵn (test credential / tài khoản).
+    /// Like `for_tests_limited` but with a ready-made account store (for credential / account tests).
     #[cfg(test)]
     pub async fn for_tests_with_accounts(
         data_dir: &Path,
@@ -334,13 +335,13 @@ impl Core {
         env
     }
 
-    /// Dựng tiến trình git: argv (`-c` cứng + sub + args), env chuẩn của chính sách, ghi đè chế độ hạn chế.
+    /// Spawn a git process: argv (hard-coded `-c` flags + sub + args), the policy's standard env, plus restricted-mode overrides.
     pub fn build_spec(&self, git: &GitInfo, options: SpawnOptions<'_>) -> ProcessSpec {
         self.build_spec_with(git, options, None, None)
     }
 
-    /// Như `build_spec`, kèm phiên askpass tương tác của lệnh (chỉ có tác dụng với hồ sơ `interactive`) và phiên credential
-    /// (đưa token của tài khoản cho lệnh mạng chạm remote HTTPS của host đã đăng nhập).
+    /// Like `build_spec`, plus the command's interactive askpass session (only relevant for the `interactive` profile) and its
+    /// credential session (handing the account's token to a network command touching a signed-in host's HTTPS remote).
     pub fn build_spec_with(
         &self,
         git: &GitInfo,
@@ -359,7 +360,7 @@ impl Core {
         }
         let mut argv = policy.build_argv(options.sub, options.args);
         if let Some(session) = credential {
-            // `-c` của helper phải nằm TRƯỚC subcommand (chính sách chèn cờ ở đúng vị trí đó).
+            // A helper's `-c` flags must come BEFORE the subcommand (the policy inserts flags at exactly that position).
             let sub_position = argv.iter().position(|arg| arg == options.sub).unwrap_or(argv.len());
             let mut extra_args: Vec<String> = Vec::new();
             for host in session.hosts() {
@@ -386,22 +387,22 @@ impl Core {
         }
     }
 
-    /// Làm mới token OAuth sắp hết hạn (GitLab) của các host mà lệnh mạng sắp chạm — trước khi git hỏi credential.
+    /// Refresh OAuth tokens about to expire (GitLab) for the hosts a network command is about to touch — before git asks for credentials.
     pub async fn refresh_tokens_for(&self, urls: &[String]) {
         for host in crate::credential::helper_hosts(urls, &self.accounts) {
             self.accounts.refresh_due(&host).await;
         }
     }
 
-    /// Phiên credential cho một lệnh mạng chạm các URL `urls`: chỉ tạo khi URL đó có remote HTTPS của host đã đăng nhập.
+    /// Credential session for a network command touching these `urls`: only created when a URL has a signed-in host's HTTPS remote.
     pub fn credential_session(&self, urls: &[String]) -> Option<crate::credential::CredentialSession> {
         let server = self.credential.get()?;
         let hosts = crate::credential::helper_hosts(urls, &self.accounts);
         (!hosts.is_empty()).then(|| server.session(hosts))
     }
 
-    /// ssh-agent tạm cho một lệnh mạng chạm `urls`: chỉ dựng khi có remote SSH và có khoá SSH của Thaigit đang bật. Agent
-    /// lỗi (không tìm thấy ssh-agent…) thì lệnh chạy như thường với agent / khoá ~/.ssh của người dùng.
+    /// Temporary ssh-agent for a network command touching `urls`: only built when there is an SSH remote and a Thaigit SSH key is
+    /// enabled. A failing agent (ssh-agent not found…) means the command runs as usual with the user's agent / ~/.ssh keys.
     pub async fn ssh_agent_for(&self, urls: &[String], git: &GitInfo, spec: &mut ProcessSpec) -> Option<crate::ssh_keys::SshAgent> {
         if !urls.iter().any(|url| crate::ssh_keys::is_ssh_url(url)) || !self.ssh_keys.has_keys() {
             return None;
@@ -420,7 +421,7 @@ impl Core {
         Some(session)
     }
 
-    /// Đăng ký op vào bảng (huỷ được theo `opId`, gắn nhãn cửa sổ).
+    /// Register an op in the table (cancellable by `opId`, tagged with its window).
     pub(crate) fn register_op(&self, entry: OpEntry) -> Result<(Arc<OpEntry>, OpGuard)> {
         self.ops.register(entry)
     }
@@ -436,14 +437,14 @@ impl Core {
         Ok(git)
     }
 
-    /// Chạy một lệnh git nội bộ (mã của chính app, không qua `validate`) và gom toàn bộ output.
+    /// Run one internal git command (the app's own code, not through `validate`) and collect all output.
     pub async fn run_git(&self, options: SpawnOptions<'_>, timeout: Option<Duration>) -> Result<GitOutput> {
         let git = self.require_git(options.sub)?;
         let spec = self.build_spec(&git, options);
         self.run_spec(spec, timeout).await
     }
 
-    /// Chạy một tiến trình git đã dựng và gom toàn bộ output (giới hạn bộ nhớ + thời gian chờ).
+    /// Run an already-built git process and collect all output (memory limit + timeout).
     pub(crate) async fn run_spec(&self, spec: ProcessSpec, timeout: Option<Duration>) -> Result<GitOutput> {
         let sink = Arc::new(CollectSink::default());
         let cancel = CancelToken::new();
@@ -471,7 +472,7 @@ impl Core {
         Ok(GitOutput { exit, collected })
     }
 
-    /// Lệnh git đọc ngắn trong một thư mục (khám phá repo, quét cấu hình…).
+    /// A short read-only git command in a directory (repo discovery, config scanning…).
     pub async fn git_plain(&self, cwd: &Path, sub: &str, args: &[&str], restrictions: Option<&Restrictions>) -> Result<GitOutput> {
         let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
         self.run_git(
@@ -489,9 +490,9 @@ impl Core {
         .await
     }
 
-    // --- mở repo ---------------------------------------------------------------------------------------------------
+    // MARK: - opening a repo
 
-    /// `open_repo`: chuẩn hoá đường dẫn, tìm gốc/gitDir/commonDir bằng `git rev-parse`, quét khoá chạy lệnh + hook.
+    /// `open_repo`: normalise the path, find root/gitDir/commonDir with `git rev-parse`, scan for command-running keys and hooks.
     pub async fn open_repo(&self, source: OpenSource) -> Result<OpenedRepo> {
         let (picked, recent_id) = match source {
             OpenSource::Picked { token } => (self.registry.take_grant(&token)?, None),
@@ -510,7 +511,7 @@ impl Core {
                 Ok(entry.opened())
             }
             Err(error) => {
-                // Thư mục đã bị xoá/di chuyển: bỏ khỏi danh sách gần đây.
+                // The directory was deleted or moved: drop it from the recent list.
                 if let Some(id) = recent_id
                     && error.code() == "not-found"
                 {
@@ -521,7 +522,7 @@ impl Core {
         }
     }
 
-    /// Mở thư mục thành repo (đã đáng tin nếu `trusted`: repo do app tạo/clone).
+    /// Open a directory as a repo (already trusted when `trusted`: a repo the app created or cloned).
     pub async fn open_path(&self, dir: &Path, trusted: bool) -> Result<Arc<RepoEntry>> {
         let canonical_dir = canonical(dir).map_err(|e| AppError::io("Mở thư mục", &e))?;
         if !canonical_dir.is_dir() {
@@ -552,7 +553,7 @@ impl Core {
         };
         let resolve = |text: &str| canonical(Path::new(text)).map_err(|e| AppError::io("Chuẩn hoá đường dẫn repo", &e));
         let (root, git_dir, common_dir) = (resolve(top)?, resolve(git_dir)?, resolve(common)?);
-        // Gốc working tree phải chứa thư mục đã chọn; nếu không (vd. `core.worktree` trỏ đi nơi khác) thì từ chối.
+        // The working-tree root must contain the selected directory; if not (e.g. `core.worktree` points elsewhere) reject.
         if relative_to(&canonical_dir, &root).is_none() {
             return Err(AppError::OutOfScope("Working tree của repo nằm ngoài thư mục đã chọn".into()));
         }
@@ -561,7 +562,7 @@ impl Core {
     }
 
     async fn scan_repo(&self, root: PathBuf, git_dir: PathBuf, common_dir: PathBuf, force_trusted: bool) -> Result<RepoEntry> {
-        // Chụp dấu các file cấu hình chắc chắn có TRƯỚC khi quét: một lần ghi xen vào giữa làm dấu sau khác dấu trước.
+        // Snapshot the config files that definitely existed BEFORE scanning: a write interleaved in between would make the "after" fingerprint differ from the "before" one.
         let before = ConfigFingerprint::capture(ConfigFingerprint::base_paths(&git_dir, &common_dir));
         let output = self.git_plain(&root, "config", &["--list", "--show-scope", "--show-origin", "-z"], None).await?;
         if !output.ok() {
@@ -569,7 +570,7 @@ impl Core {
         }
         let entries = trust::parse_config_list(&output.collected.stdout);
         let hooks = trust::read_hooks(&common_dir);
-        // Theo dõi mọi file mà lần quét đã đọc (origin `file:`) + đích include + HEAD, không chỉ `.git/config`.
+        // Track every file the scan read (origin `file:`) plus include targets and HEAD, not just `.git/config`.
         let mut watched = ConfigFingerprint::base_paths(&git_dir, &common_dir);
         watched.extend(trust::config_files(&entries, &root));
         let mut fingerprint = ConfigFingerprint::capture(watched);
@@ -577,16 +578,16 @@ impl Core {
             fingerprint = fingerprint.into_volatile();
         }
         if force_trusted {
-            // Repo do app tạo/clone: ghi nhận tin cậy theo tập khoá hiện có (kể cả hook từ `init.templateDir` của người dùng).
+            // A repo the app created/cloned: record trust per the existing key set (including hooks from the user's `init.templateDir`).
             let hash = trust::findings_hash(&entries, &hooks);
             self.registry.trust.trust(&crate::pathutil::path_key(&root), &hash)?;
         }
         Ok(self.registry.build_entry(root, git_dir, common_dir, entries, &hooks, &self.empty_hooks_dir, force_trusted, fingerprint))
     }
 
-    /// `trust_repo`: ghi nhận tin tưởng (realpath + băm tập khoá chạy lệnh) — nhưng CHỈ cho tập khoá mà người dùng đã được xem
-    /// (kết quả `open_repo`/`trust_repo` gần nhất). Cấu hình có thể đổi sau đó (chuyển nhánh kéo vào file `include` khác…): quét
-    /// lại thấy tập khác thì không tin tưởng, trả repo vẫn `unknown` kèm danh sách MỚI để người dùng xem rồi bấm lại.
+    /// `trust_repo`: record trust (realpath + hash of the command-running key set) — but ONLY for the key set the user has
+    /// already been shown (the most recent `open_repo`/`trust_repo` result). Config can change afterwards (a branch switch pulling in
+    /// a different `include` file…): a rescan that finds a different set is not trusted, and the repo stays `unknown` with a NEW list
     pub async fn trust_repo(&self, repo_id: &str) -> Result<OpenedRepo> {
         let entry = self.registry.get(repo_id)?;
         if entry.trusted {
@@ -605,8 +606,8 @@ impl Core {
         Ok(trusted.opened())
     }
 
-    /// Repo chưa tin cậy mà một file cấu hình (kể cả file `include`) hoặc HEAD đã đổi → quét lại để ghi đè luôn đúng với cấu
-    /// hình hiện tại. Phần còn thiếu của việc này (file ta không theo dõi được) do `Restrictions::fail_closed` bù.
+    /// An untrusted repo whose config file (including an `include` file) or HEAD changed → rescan, so the overrides always match the
+    /// current config. What this cannot cover (files we do not track) is handled by `Restrictions::fail_closed`.
     pub async fn fresh_entry(&self, entry: Arc<RepoEntry>) -> Result<Arc<RepoEntry>> {
         if entry.trusted || entry.fingerprint.unchanged() {
             return Ok(entry);
@@ -615,10 +616,10 @@ impl Core {
         Ok(self.registry.insert(rescanned))
     }
 
-    // --- git_exec --------------------------------------------------------------------------------------------------
+    // MARK: - git_exec
 
-    /// `git_exec`: kiểm chính sách → xếp hàng khoá theo repo → spawn → stream frame → frame `exit` cuối cùng.
-    /// Lỗi trước khi spawn trả `Err` (invoke reject); từ lúc spawn mọi kết quả nằm trong frame `exit`.
+    /// `git_exec`: check policy → queue on the per-repo lock → spawn → stream frames → final `exit` frame.
+    /// Errors before the spawn return `Err` (the invoke rejects); from the spawn onwards every outcome is inside the `exit` frame.
     pub async fn exec_git(
         self: &Arc<Self>,
         window: &str,
@@ -643,8 +644,8 @@ impl Core {
         let git = self.require_git(&request.sub)?;
         let entry = self.fresh_entry(entry).await?;
         let profile = request.profile.unwrap_or_default();
-        // Repo chưa tin cậy mà cấu hình hiệu lực có thể đổi sau lần quét (`include` tới file đã track, `includeIf onbranch:`): ghi đè
-        // dựng từ lần quét có thể đã cũ nên chỉ cho chạy lệnh đọc thuần tuý, không thể chạy lệnh do cấu hình chỉ định.
+        // In an untrusted repo the effective config can change after the scan (an `include` pointing at a tracked file,
+        // `includeIf onbranch:`), so overrides built from that scan may already be stale: only purely read-only commands may run,
         if let Some(restrictions) = &entry.restrictions
             && restrictions.fail_closed
             && !policy.is_exec_free(&request.sub, &request.args)
@@ -654,13 +655,13 @@ impl Core {
                 request.sub
             )));
         }
-        // git-lfs tự cài hook vào thư mục hook hiệu lực — với repo chưa tin cậy đó là thư mục hook rỗng DÙNG CHUNG của app. Chỉ
-        // `lfs version` (không cài gì) được chạy trước khi tin tưởng.
+        // git-lfs installs its hook into the effective hooks directory — for an untrusted repo that is the app's SHARED empty hooks
+        // directory. Before trusting, only `lfs version` (which installs nothing) may run.
         if entry.restrictions.is_some() && request.sub == "lfs" && request.args.first().map(String::as_str) != Some("version") {
             return Err(AppError::Untrusted("Repo chưa được tin cậy nên chưa dùng được Git LFS. Hãy tin tưởng repo để tiếp tục.".into()));
         }
-        // `remote prune|set-head|show` (và `submodule update`) cũng liên lạc với máy chủ nên bị coi như lệnh mạng khi có khoá
-        // không vô hiệu hoá được (`submodule update` clone / fetch theo `.gitmodules` của repo).
+        // `remote prune|set-head|show` (and `submodule update`) also talk to a server, so they count as network commands when the
+        // lock cannot be disabled (`submodule update` clones / fetches per the repo's `.gitmodules`).
         let contacts_remote = kind == ExecKind::Network
             || (request.sub == "remote" && matches!(request.args.first().map(String::as_str), Some("prune" | "set-head" | "show")))
             || (request.sub == "submodule" && request.args.first().map(String::as_str) == Some("update"));
@@ -685,12 +686,12 @@ impl Core {
                 Some(bytes)
             }
         };
-        // Lệnh mạng do người dùng bấm: git/ssh hỏi tên đăng nhập / mật khẩu / passphrase thì hiện hộp thoại trong cửa sổ này.
+        // A network command the user started: when git/ssh asks for a username / password / passphrase, show the dialog in this window.
         let askpass = (profile == EnvProfile::Interactive && kind == ExecKind::Network)
             .then(|| self.askpass.get().map(|server| server.session(window, &request.op_id, &format!("git {}", request.sub))))
             .flatten();
-        // Lệnh mạng chạm remote HTTPS của host đã đăng nhập: git hỏi credential thì app trả token của tài khoản đúng owner.
-        // Cả hồ sơ background (tự fetch) cũng dùng được — không bao giờ mở hộp thoại, chỉ trả token đã lưu.
+        // A network command touching a signed-in host's HTTPS remote: when git asks for credentials the app returns the right owner's token.
+        // The background profile (autofetch) benefits too — never a dialog, only an already-stored token.
         let urls = if kind == ExecKind::Network { self.remote_urls(&entry.id).await.unwrap_or_default() } else { Vec::new() };
         if kind == ExecKind::Network {
             self.refresh_tokens_for(&urls).await;
@@ -710,7 +711,7 @@ impl Core {
             askpass.as_ref(),
             credential.as_ref(),
         );
-        // Remote SSH + khoá SSH của Thaigit: agent tạm sống tới khi lệnh xong (drop = dừng agent, xoá socket).
+        // SSH remote + Thaigit SSH key: the temporary agent lives until the command ends (drop = stop agent, remove socket).
         let _ssh_agent = self.ssh_agent_for(&urls, &git, &mut spec).await;
 
         let cancel = CancelToken::new();
@@ -723,18 +724,18 @@ impl Core {
             cancel: cancel.clone(),
             detached: detached.clone(),
         })?;
-        // Giới hạn đứng TRƯỚC bộ tách rời: op đã bị tách (webview tải lại) không còn frame nào vào hàng đợi nên không tính.
+        // The limit applies BEFORE detaching: an op that was already detached (the webview reloaded) has no frames entering the queue, so it does not count.
         let limited = Arc::new(LimitedSink::new(sink, self.exec_output_limit, cancel.clone()));
         let sink: Arc<dyn FrameSink> = Arc::new(DetachableSink { inner: limited.clone(), detached });
 
         let lock = self.locks.for_key(&entry.common_key);
-        // `diff --no-index` đọc thẳng qua hệ thống file nên kiểm toán hạng rồi mới chạy là cửa sổ TOCTOU: giữ khoá độc quyền để
-        // không lệnh ghi nào của app (apply/checkout/…) kịp đặt symlink vào giữa lúc kiểm và lúc git đọc.
+        // `diff --no-index` reads straight through the file system, so checking the operand and only then running git leaves a TOCTOU
+        // window: keep the exclusive lock so no write command of the app (apply/checkout/…) can slip a symlink in between.
         let guard = if kind == ExecKind::Read && !is_no_index_diff(&request.sub, &request.args) {
             None
         } else {
             let holder = Holder { op_id: request.op_id.clone(), background: profile == EnvProfile::Background && kind == ExecKind::Network, cancel: cancel.clone() };
-            // Lệnh ghi nền (snapshot: index tạm + ref per-worktree) chỉ chạy khi rảnh, không bị chen và không tắt tiếng watcher.
+            // A background write command (snapshots: temporary index + per-worktree ref) only runs when idle, is never interrupted and does not mute the watcher.
             let quiet = profile == EnvProfile::Background && kind == ExecKind::Write;
             let acquired = if holder.background {
                 lock.try_acquire_background(holder).map_err(AppError::from)
@@ -746,7 +747,7 @@ impl Core {
             match acquired {
                 Ok(guard) => Some(guard),
                 Err(AppError::Busy(_)) if cancel.is_cancelled() => {
-                    // Huỷ khi còn xếp hàng: chưa chạy gì.
+                    // Cancelled while queued: nothing has run.
                     sink.send(exit_frame(-1, true));
                     return Ok(());
                 }
@@ -775,7 +776,7 @@ impl Core {
         Ok(())
     }
 
-    /// `git_cancel`: chỉ huỷ lệnh `network` của chính cửa sổ gọi.
+    /// `git_cancel`: cancels only `network` commands, and only those of the calling window.
     pub fn cancel_op(&self, window: &str, op_id: &str) -> Result<bool> {
         let Some(op) = self.ops.get(op_id).filter(|o| o.window == window) else {
             return Ok(false);
@@ -787,7 +788,7 @@ impl Core {
         Ok(true)
     }
 
-    /// `session_reset`: webview tải lại/đóng — huỷ op đọc/mạng, tách op ghi (để git tự xong, không giết giữa chừng) và bỏ watcher.
+    /// `session_reset`: the webview reloaded or closed — cancel read/network ops, detach write ops (letting git finish instead of killing it mid-way) and drop the watcher.
     pub fn reset_window(&self, window: &str) {
         for op in self.ops.of_window(window) {
             op.detached.store(true, Ordering::SeqCst);
@@ -799,7 +800,7 @@ impl Core {
     }
 }
 
-/// Bỏ frame khi webview đã tải lại (tránh `eval` vào trang mới).
+/// Drop frames once the webview has reloaded (avoids `eval` into the new page).
 struct DetachableSink {
     inner: Arc<dyn FrameSink>,
     detached: Arc<AtomicBool>,
@@ -860,13 +861,13 @@ mod tests {
         let (result, sink) = run(&core, "main", req).await;
         result.unwrap();
         assert_eq!(sink.collect().stdout_text().trim(), "ce013625030ba8dba906f756967f9e9ca394464a");
-        // lỗi git (ref không tồn tại) → exit != 0 nằm trong frame, lệnh vẫn Ok
+        // a git error (missing ref) → non-zero exit inside the frame, the command still Ok
         let (result, sink) = run(&core, "main", request(&opened.repo_id, "op-bad", ExecKind::Read, "rev-parse", &["--verify", "refs/heads/khong-co"])).await;
         result.unwrap();
         let out = sink.collect();
         assert_ne!(out.exit.unwrap().code, 0);
         assert!(!out.stderr_text().is_empty() || out.stdout.is_empty());
-        // stdin sai base64 / quá lớn bị từ chối trước khi spawn
+        // stdin not valid base64 / too large → rejected before the spawn
         let mut bad = request(&opened.repo_id, "op-b64", ExecKind::Write, "hash-object", &["--stdin"]);
         bad.stdin = Some("***không-phải-base64***".into());
         assert_eq!(run(&core, "main", bad).await.0.unwrap_err().code(), "policy");
@@ -920,17 +921,17 @@ mod tests {
         let (core, _data) = core_with(&repo).await;
         let opened = open(&core, &repo).await;
         let id = opened.repo_id.as_str();
-        // kind yếu hơn chính sách → từ chối; network chỉ cho subcommand network
+        // a kind weaker than the policy → rejected; network only for a network subcommand
         assert_eq!(run(&core, "main", request(id, "k1", ExecKind::Read, "commit", &["--allow-empty", "-m", "x"])).await.0.unwrap_err().code(), "policy");
         assert_eq!(run(&core, "main", request(id, "k2", ExecKind::Network, "status", &[])).await.0.unwrap_err().code(), "policy");
         assert_eq!(run(&core, "main", request(id, "k3", ExecKind::Write, "fetch", &["--all"])).await.0.unwrap_err().code(), "policy");
-        // opId xấu
+        // a malformed opId
         for bad in ["", "a b", "../x", &"x".repeat(65), "a;b"] {
             assert_eq!(run(&core, "main", request(id, bad, ExecKind::Read, "status", &[])).await.0.unwrap_err().code(), "policy", "{bad:?}");
         }
-        // repo lạ
+        // an untrusted repo
         assert_eq!(run(&core, "main", request("khong-co", "k4", ExecKind::Read, "status", &[])).await.0.unwrap_err().code(), "not-found");
-        // GIT_INDEX_FILE chỉ trong git dir
+        // GIT_INDEX_FILE only inside the git dir
         let mut req = request(id, "k5", ExecKind::Read, "status", &[]);
         req.env = Some([("GIT_INDEX_FILE".to_string(), "/tmp/evil-index".to_string())].into());
         assert_eq!(run(&core, "main", req).await.0.unwrap_err().code(), "policy");
@@ -944,7 +945,7 @@ mod tests {
         assert_eq!(run(&core, "main", req).await.0.unwrap_err().code(), "policy");
     }
 
-    // Dùng script `#!/bin/sh` làm hook: chỉ chạy trên Unix (Windows kiểm ở CI Windows ở Phase 9).
+    // Use a `#!/bin/sh` script as the hook: Unix only (Windows is covered by the phase 9 Windows CI).
     #[cfg(unix)]
     #[tokio::test]
     async fn duplicate_op_ids_conflict_while_the_first_is_running() {
@@ -953,7 +954,7 @@ mod tests {
         repo.commit_all("init");
         let (core, _data) = core_with(&repo).await;
         let opened = open(&core, &repo).await;
-        // op 1 giữ khoá ghi: commit có hook chậm (repo phải được tin cậy để hook chạy).
+        // op 1 holds the write lock: a commit with a slow hook (the repo must be trusted for hooks to run).
         core.trust_repo(&opened.repo_id).await.unwrap();
         let slow = repo.tmp().join("slow-hook.sh");
         std::fs::write(&slow, "#!/bin/sh\nsleep 1\n").unwrap();
@@ -970,7 +971,7 @@ mod tests {
         assert_eq!(sink.collect().exit.unwrap().code, 0);
     }
 
-    // Dùng script `#!/bin/sh` làm hook: chỉ chạy trên Unix (Windows kiểm ở CI Windows ở Phase 9).
+    // Use a `#!/bin/sh` script as the hook: Unix only (Windows is covered by the phase 9 Windows CI).
     #[cfg(unix)]
     #[tokio::test]
     async fn write_ops_are_exclusive_but_reads_never_wait() {
@@ -994,7 +995,7 @@ mod tests {
         let second = spawn_commit("w2");
         tokio::time::sleep(Duration::from_millis(250)).await;
 
-        // đọc trong lúc hai lệnh ghi đang chạy/chờ: không bị chặn
+        // reading while two write commands run/queue: not blocked
         let started = Instant::now();
         let (status, sink) = run(&core, "main", request(&opened.repo_id, "r1", ExecKind::Read, "status", &["--porcelain=v2"])).await;
         status.unwrap();
@@ -1006,12 +1007,12 @@ mod tests {
             result.unwrap();
             assert_eq!(sink.collect().exit.unwrap().code, 0);
         }
-        // hook chạy tuần tự: start/end xen kẽ, không chồng nhau
+        // hooks run sequentially: start/end alternate, never overlap
         let order: Vec<String> = std::fs::read_to_string(&log).unwrap().lines().map(String::from).collect();
         assert_eq!(order, ["start", "end", "start", "end"]);
     }
 
-    // Dùng script `#!/bin/sh` làm hook: chỉ chạy trên Unix (Windows kiểm ở CI Windows ở Phase 9).
+    // Use a `#!/bin/sh` script as the hook: Unix only (Windows is covered by the phase 9 Windows CI).
     #[cfg(unix)]
     #[tokio::test]
     async fn queued_network_op_can_be_cancelled_before_it_ever_starts() {
@@ -1045,7 +1046,7 @@ mod tests {
         result.unwrap();
     }
 
-    // Dùng script `#!/bin/sh` làm hook: chỉ chạy trên Unix (Windows kiểm ở CI Windows ở Phase 9).
+    // Use a `#!/bin/sh` script as the hook: Unix only (Windows is covered by the phase 9 Windows CI).
     #[cfg(unix)]
     #[tokio::test]
     async fn only_network_ops_of_the_calling_window_can_be_cancelled() {
@@ -1063,9 +1064,9 @@ mod tests {
             tokio::spawn(async move { run(&core, "win-a", request(&id, "writing", ExecKind::Write, "commit", &["--allow-empty", "-m", "w"])).await })
         };
         tokio::time::sleep(Duration::from_millis(300)).await;
-        // lệnh ghi không có nút huỷ, không timeout
+        // a write command has no Cancel button and no timeout
         assert_eq!(core.cancel_op("win-a", "writing").unwrap_err().code(), "policy");
-        // op của cửa sổ khác / op không tồn tại → false
+        // an op of another window / a non-existent op → false
         assert!(!core.cancel_op("win-b", "writing").unwrap());
         assert!(!core.cancel_op("win-a", "khong-co").unwrap());
         let (result, sink) = writer.await.unwrap();
@@ -1083,7 +1084,7 @@ mod tests {
         let (core, _data) = core_with(&repo).await;
         let bare = repo.tmp().join("remote.git");
         repo.git(&["clone", "-q", "--bare", &repo.root().to_string_lossy(), &bare.to_string_lossy()]);
-        // upload-pack giả: ghi pid rồi ngủ lâu (chạy như tiến trình con của git fetch)
+        // a fake upload-pack: writes its pid and then sleeps (runs as a child of git fetch)
         let pid_file = repo.tmp().join("uploadpack.pid");
         let script = repo.tmp().join("slow-upload-pack.sh");
         std::fs::write(&script, format!("#!/bin/sh\necho $$ > '{}'\nsleep 60\n", pid_file.display())).unwrap();
@@ -1123,7 +1124,7 @@ mod tests {
         }
         assert!(gone, "không tiến trình mồ côi: upload-pack {pid} phải chết cùng git");
         assert!(core.ops.is_empty());
-        // khoá của repo đã được thả: lệnh ghi kế tiếp chạy được ngay
+        // the repo's lock was already released: the next write command runs immediately
         let (result, sink) = run(&core, "main", request(&opened.repo_id, "after", ExecKind::Write, "config", &["--get", "user.name"])).await;
         result.unwrap();
         assert!(sink.collect().exit.is_some());
@@ -1135,7 +1136,7 @@ mod tests {
         let repo = TestRepo::new();
         repo.write("a.txt", "1");
         repo.commit_all("init");
-        // `git add` giữ `.git/index.lock` suốt lúc chạy bộ lọc clean → chỗ chắc chắn để giết git khi đang giữ khoá.
+        // `git add` holds `.git/index.lock` the whole time it runs the clean filters — a reliable place to kill git while it holds the lock.
         let pgid_file = repo.tmp().join("filter.pgid");
         let pass_flag = repo.tmp().join("let-it-pass");
         let filter = repo.tmp().join("slow-clean.sh");
@@ -1166,7 +1167,7 @@ mod tests {
         let pgid: i32 = std::fs::read_to_string(&pgid_file).unwrap().trim().parse().unwrap();
         let lock = repo.canonical_root().join(".git/index.lock");
         assert!(lock.exists(), "git add đang giữ index.lock khi chạy bộ lọc");
-        // giết cứng cả nhóm (mô phỏng crash / kill -9)
+        // hard kill the whole group (simulating a crash / kill -9)
         nix::sys::signal::killpg(nix::unistd::Pid::from_raw(pgid), nix::sys::signal::Signal::SIGKILL).unwrap();
         let (result, sink) = task.await.unwrap();
         result.unwrap();
@@ -1177,7 +1178,7 @@ mod tests {
         let (_, sink) = run(&core, "main", request(&opened.repo_id, "next", ExecKind::Write, "add", &["--", "a.txt"])).await;
         assert!(sink.collect().stderr_text().contains("index.lock"), "lệnh ghi kế tiếp thất bại vì khoá");
 
-        // khoá mới tạo chưa bị coi là mồ côi (có thể là git bên ngoài) → làm cũ đi
+        // a newly created lock is not yet treated as orphaned (it may be an outside git) → age it
         assert!(core.repo_health(&opened.repo_id).unwrap().stale_locks.is_empty());
         let file = std::fs::OpenOptions::new().write(true).open(&lock).unwrap();
         file.set_modified(std::time::SystemTime::now() - Duration::from_secs(60)).unwrap();
@@ -1191,7 +1192,7 @@ mod tests {
         assert_eq!(sink.collect().exit.unwrap().code, 0, "sau khi gỡ khoá, repo dùng lại bình thường");
     }
 
-    // Dùng script `#!/bin/sh` làm hook: chỉ chạy trên Unix (Windows kiểm ở CI Windows ở Phase 9).
+    // Use a `#!/bin/sh` script as the hook: Unix only (Windows is covered by the phase 9 Windows CI).
     #[cfg(unix)]
     #[tokio::test]
     async fn background_fetch_is_refused_when_busy_and_preempted_by_normal_ops() {
@@ -1273,7 +1274,7 @@ mod tests {
         let with_index: BTreeMap<String, String> = [("GIT_INDEX_FILE".to_string(), index.clone())].into();
         let stdout = |sink: &Arc<CollectSink>| String::from_utf8(sink.collect().stdout).unwrap().trim().to_string();
 
-        // Index tạm chưa có: `add -A` dựng nó từ đầu (không cần `read-tree`).
+        // No temporary index yet: `add -A` builds it from scratch (no need for `read-tree`).
         let (result, sink) = run(&core, "main", step("s2", "add", &["-A"], with_index.clone(), None)).await;
         result.unwrap();
         assert_eq!(sink.collect().exit.unwrap().code, 0);
@@ -1310,14 +1311,14 @@ mod tests {
             env.set("LANG", locale);
             let core = Core::for_tests(data.path(), env).await;
             let opened = open(&core, &repo).await;
-            // Env dựng ra: không còn LC_ALL, ép thông báo tiếng Anh.
+            // The built env: no more LC_ALL, English messages forced.
             let git = core.locator.current().unwrap();
             let spec = core.build_spec(&git, SpawnOptions { cwd: repo.root(), sub: "status", args: &[], stdin: None, profile: EnvProfile::Background, caller_env: BTreeMap::new(), restrictions: None });
             let env: BTreeMap<String, String> = spec.env.iter().map(|(k, v)| (k.to_string_lossy().into_owned(), v.to_string_lossy().into_owned())).collect();
             assert!(!env.contains_key("LC_ALL"), "{locale}");
             assert_eq!(env["LANGUAGE"], "en");
             assert_eq!(env["LC_MESSAGES"], "C");
-            // Thông báo lỗi thật của git (7 chỗ toast khôi phục so khớp chuỗi tiếng Anh).
+            // git's real error messages (the 7 recovery toast spots match English strings).
             let (result, sink) = run(&core, "main", request(&opened.repo_id, &format!("loc-{index}"), ExecKind::Write, "checkout", &["nhanh-khong-ton-tai"])).await;
             result.unwrap();
             let out = sink.collect();
@@ -1327,7 +1328,7 @@ mod tests {
         }
     }
 
-    // Dùng script `#!/bin/sh` làm hook: chỉ chạy trên Unix (Windows kiểm ở CI Windows ở Phase 9).
+    // Use a `#!/bin/sh` script as the hook: Unix only (Windows is covered by the phase 9 Windows CI).
     #[cfg(unix)]
     #[tokio::test]
     async fn session_reset_cancels_network_and_read_ops_but_lets_writes_finish_detached() {
@@ -1359,7 +1360,7 @@ mod tests {
     #[tokio::test]
     async fn git_log_of_thirty_thousand_commits_streams_quickly() {
         let repo = TestRepo::new();
-        // 30k commit bằng fast-import (nhanh), ~6 MB output với định dạng như app dùng.
+        // 30k commits via fast-import (fast), ~6 MB of output in the same format the app uses.
         let mut stream = String::new();
         for index in 0..30_000u32 {
             let message = format!("Commit số {index} — thông điệp có tiếng Việt để đo byte");
@@ -1459,14 +1460,14 @@ mod tests {
         let log = std::fs::read_to_string(&called).expect("git gọi askpass từ chối của app");
         assert!(log.contains("--askpass-deny"), "script bọc gọi lại exe với cờ từ chối: {log}");
         std::fs::remove_file(&called).unwrap();
-        // Lệnh interactive không có phiên askpass (vd. lệnh nội bộ) → git không có chỗ nào để hỏi, thất bại nhanh
+        // An interactive command without an askpass session (e.g. an internal command) → git has nowhere to ask and fails fast
         let output = run_credential(EnvProfile::Interactive).await;
         assert_ne!(output.exit.code, 0);
         assert!(!called.exists());
     }
 
-    /// Askpass tương tác đầu-cuối với git thật: `git credential fill` (không helper nào) hỏi tên rồi mật khẩu qua askpass;
-    /// "tiến trình askpass" là script bash nói đúng giao thức của `askpass::run_client` qua /dev/tcp.
+    /// End-to-end interactive askpass with real git: `git credential fill` (with no helper) asks for a username and then a
+    /// password via askpass; the "askpass process" is a bash script speaking exactly the protocol of `askpass::run_client` over /dev/tcp.
     #[cfg(unix)]
     #[tokio::test]
     async fn interactive_askpass_answers_git_credential_prompts_through_the_window() {
@@ -1523,10 +1524,10 @@ mod tests {
         drop(session);
     }
 
-    // --- `diff --no-index` qua symlink do chính repo tạo ra ----------------------------------------------------------------
+    // --- `diff --no-index` through a symlink the repo itself created ---------------------------------------
 
-    /// Repo + một thư mục NGOÀI repo chứa `passwd`, và symlink `linkdir` (→ thư mục ngoài) / `linkfile` (→ file ngoài) được tạo
-    /// bằng `apply` với patch mode 120000 — đúng cách mô tả trong báo cáo đánh giá.
+    /// A repo plus a directory OUTSIDE it containing `passwd`, with symlinks `linkdir` (→ the outside directory) and
+    /// `linkfile` (→ the outside file) created via `apply` with mode 120000 — exactly as described in the audit report.
     #[cfg(unix)]
     async fn repo_with_outside_symlinks() -> (TestRepo, Arc<Core>, tempfile::TempDir, String) {
         let repo = TestRepo::new();
@@ -1556,7 +1557,7 @@ mod tests {
     #[tokio::test]
     async fn diff_no_index_cannot_read_outside_files_through_a_symlink_the_repo_created() {
         let (repo, core, _data, id) = repo_with_outside_symlinks().await;
-        // đối chứng: git trần đọc được file ngoài repo qua symlink (cả hai dạng)
+        // control: plain git reads the outside file through the symlink (both forms)
         let (_, through_parent, _) = repo.git_raw(&["diff", "--no-index", "--", "base", "linkdir/passwd"]);
         assert!(through_parent.contains("TOP-SECRET-OUTSIDE"), "đối chứng: {through_parent}");
         let (_, through_leaf, _) = repo.git_raw(&["diff", "--no-index", "--", "passwd", "linkdir"]);
@@ -1566,16 +1567,16 @@ mod tests {
             vec!["--no-index", "--", "base", "linkdir/passwd"],
             vec!["--no-index", "--", "/dev/null", "linkdir/passwd"],
             vec!["--no-color", "-U3", "--no-index", "--", "linkdir/passwd", "base"],
-            // phần tử cuối là symlink tới THƯ MỤC: git `stat` (đi theo) khi ghép thư mục với file có cùng tên `passwd`
+            // the last element is a symlink to a DIRECTORY: git `stat`s (follows) it when joining the directory with a file also named `passwd`
             vec!["--no-index", "--", "passwd", "linkdir"],
             vec!["--no-index", "--", "passwd", "linkdir/"],
             vec!["--no-index", "--", "linkdir", "passwd"],
-            // thư mục cha không tồn tại phía sau symlink vẫn đi qua symlink
+            // a parent directory that does not exist behind the symlink is still followed
             vec!["--no-index", "--", "base", "linkdir/not/there"],
-            // .git không đọc được qua đường diff
+            // .git is not readable through the diff path
             vec!["--no-index", "--", "/dev/null", ".git/config"],
             vec!["--no-index", "--", "/dev/null", ".GIT/config"],
-            // diff thường cũng không đi qua symlink của repo
+            // a normal diff does not follow the repo's symlink either
             vec!["--", "linkdir/passwd"],
         ]
         .into_iter()
@@ -1588,7 +1589,7 @@ mod tests {
         }
         assert!(core.ops.is_empty());
 
-        // Dùng hợp lệ vẫn chạy: file chưa track so với /dev/null (như app), và symlink tới FILE ngoài chỉ cho thấy chuỗi đích.
+        // Valid use still runs: an untracked file against /dev/null (like the app), and a symlink to an outside FILE only reveals the target string.
         for (op, args) in [
             ("ok-1", vec!["--no-index", "--no-color", "--", "/dev/null", "base"]),
             ("ok-2", vec!["--no-index", "--no-color", "--", "/dev/null", "linkfile"]),
@@ -1602,16 +1603,16 @@ mod tests {
         }
         let (_, sink) = run(&core, "main", request(&id, "ok-4", ExecKind::Read, "diff", &["--no-index", "--no-color", "--", "/dev/null", "linkfile"])).await;
         assert!(sink.collect().stdout_text().contains("passwd"), "symlink tới file hiện chuỗi đích, không phải nội dung");
-        // diff thường theo pathspec bình thường
+        // a normal diff with an ordinary pathspec
         let (result, _) = run(&core, "main", request(&id, "ok-5", ExecKind::Read, "diff", &["--cached", "--", "base"])).await;
         result.unwrap();
-        // revision không bị coi nhầm là đường dẫn vượt phạm vi
+        // a revision is not mistaken for an out-of-scope path
         let (result, sink) = run(&core, "main", request(&id, "ok-6", ExecKind::Read, "diff", &["HEAD~0", "HEAD", "--", "base"])).await;
         result.unwrap();
         assert_eq!(sink.collect().exit.unwrap().code, 0);
     }
 
-    // Dùng hook `#!/bin/sh` chậm để giữ khoá ghi: chỉ chạy trên Unix.
+    // Use a slow `#!/bin/sh` hook to hold the write lock: Unix only.
     #[cfg(unix)]
     #[tokio::test]
     async fn diff_no_index_takes_the_repo_lock_so_no_write_can_plant_a_symlink_between_check_and_read() {
@@ -1629,11 +1630,11 @@ mod tests {
             tokio::spawn(async move { run(&core, "main", request(&id, "writer", ExecKind::Write, "commit", &["--allow-empty", "-m", "w"])).await })
         };
         tokio::time::sleep(Duration::from_millis(300)).await;
-        // diff thường là lệnh đọc: không chờ (xong khi lệnh ghi — giữ khoá ≥ 1 s — còn đang chạy)
+        // a normal diff is a read command: it does not wait (it finishes while a write command — holding the lock ≥ 1 s — is still running)
         let (result, _) = run(&core, "main", request(&opened.repo_id, "d-plain", ExecKind::Read, "diff", &["--cached", "--", "a.txt"])).await;
         result.unwrap();
         assert!(!writer.is_finished(), "diff thường không chờ khoá của lệnh ghi");
-        // `--no-index` đọc qua hệ thống file nên xếp hàng sau lệnh ghi đang chạy
+        // `--no-index` reads through the file system, so it queues behind a running write command
         let started = Instant::now();
         let (result, sink) = run(&core, "main", request(&opened.repo_id, "d-no-index", ExecKind::Read, "diff", &["--no-index", "--no-color", "--", "/dev/null", "a.txt"])).await;
         result.unwrap();
@@ -1642,7 +1643,7 @@ mod tests {
         writer.await.unwrap().0.unwrap();
     }
 
-    // --- giới hạn output (không có backpressure thật từ webview) ----------------------------------------------------------
+    // --- output limits (no real backpressure from the webview) -------------------------------------------------
 
     #[tokio::test]
     async fn output_past_the_limit_stops_the_command_with_a_clear_error_and_no_orphan() {
@@ -1662,12 +1663,12 @@ mod tests {
         assert!(out.stdout.len() as u64 <= limit, "phần vượt giới hạn bị bỏ: {} byte", out.stdout.len());
         assert!(out.exit.is_none(), "không có frame exit — lệnh trả lỗi");
         assert!(core.ops.is_empty());
-        // lệnh dưới giới hạn vẫn chạy bình thường, khoá không bị kẹt
+        // a command under the limit runs normally and the lock is not stuck
         let (result, sink) = run(&core, "main", request(&opened.repo_id, "small", ExecKind::Write, "rev-parse", &["--git-dir"])).await;
         result.unwrap();
         assert_eq!(sink.collect().exit.unwrap().code, 0);
 
-        // bộ gom của lệnh git nội bộ cũng có trần
+        // an internal git command's collector is capped too
         let entry = core.registry.get(&opened.repo_id).unwrap();
         let args = vec!["blob".to_string(), sha.clone()];
         let internal = core
@@ -1678,7 +1679,7 @@ mod tests {
             .await;
         let error = internal.err().expect("trần của bộ gom nội bộ");
         assert_eq!((error.code(), error.to_string().contains("vượt giới hạn")), ("io", true), "{error}");
-        // dưới trần thì gom đủ
+        // under the limit everything is collected
         let small = core.git_plain(&entry.root, "rev-parse", &["--git-dir"], None).await.unwrap();
         assert_eq!(small.stdout().trim(), ".git");
     }

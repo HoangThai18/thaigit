@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import NhanhCore
 
-/// Quy tắc của app: giao diện không bao giờ hiện lỗi thô (stderr của git, mô tả lỗi hệ thống, mã lỗi, exception).
+/// App rule: the UI never surfaces a raw error (git's stderr, a system error description, an error code, an exception).
 @Suite("Thông báo lỗi thân thiện")
 struct FriendlyErrorTests {
     private func git(_ stderr: String) -> GitError {

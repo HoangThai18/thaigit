@@ -1,6 +1,6 @@
 import Foundation
 
-/// Một yêu cầu tải ảnh đại diện: email người commit + repo GitHub (nếu có) để hỏi API commit.
+/// One avatar download request: the commit author's email plus the GitHub repo (if known) to query the commits API with.
 public struct AvatarRequest: Sendable, Equatable {
     public let email: String
     public let repo: GitHubRepoRef?
@@ -11,12 +11,15 @@ public struct AvatarRequest: Sendable, Equatable {
     }
 }
 
-/// Hàng đợi tải ảnh đại diện trong RAM của app (khoá = hash email): ai đang chờ, ai đang tải, ai không có ảnh, ai lỗi tạm.
-/// Không phụ thuộc AppKit để test được; app giữ ảnh đã tải riêng (NSCache).
+/// Queue of avatar downloads kept in the app's RAM (keyed by an email hash): who is waiting, who is
+/// downloading, who has no avatar and who failed temporarily.
+/// Free of AppKit so it can be tested; the app keeps downloaded images separately (NSCache).
 ///
-/// - Hỏi lại khi đang chờ thì đưa lên đầu hàng (dòng đang hiện trên màn hình được tải trước) — O(1), không quét hàng.
-/// - Hàng có giới hạn: quá `maxQueued` thì bỏ các yêu cầu cũ nhất (dòng đã cuộn qua; hỏi lại thì xếp lại).
-/// - "Không có ảnh" nhớ suốt phiên; lỗi tạm (mạng, hết lượt API, token hết hạn) cho thử lại sau `retryInterval`.
+/// - Re-requesting a key that is waiting moves it to the front (rows on screen download first) — O(1), no queue scan.
+/// - The queue is bounded: past `maxQueued` the oldest requests are dropped (rows already scrolled past;
+///   requesting again re-queues).
+/// - "No avatar" is remembered for the whole session; a temporary failure (network, API rate limit, expired
+///   token) may be retried after `retryInterval`.
 public struct AvatarQueue: Sendable {
     public enum Outcome: Sendable, Equatable {
         case found
@@ -27,11 +30,11 @@ public struct AvatarQueue: Sendable {
     public let maxConcurrent: Int
     public let maxQueued: Int
     public let retryInterval: TimeInterval
-    /// Số khoá "không có ảnh" tối đa nhớ trong RAM (cache trên đĩa vẫn giữ, hỏi lại không gửi gì ra mạng).
+    /// Max "no avatar" keys remembered in RAM (the on-disk cache still holds, so re-checking sends nothing over the network).
     public let maxRemembered: Int
 
     private var queued: [String: (request: AvatarRequest, ticket: Int)] = [:]
-    /// Ngăn xếp (mới nhất ở cuối); mục cũ của khoá đã hỏi lại / đã lấy ra bị bỏ qua khi lấy, dọn khi quá dài.
+    /// A stack (newest last); stale entries of a key that was re-requested / taken out are skipped when taking, and trimmed when it grows too long.
     private var stack: [(key: String, ticket: Int)] = []
     private var nextTicket = 0
     private var inFlight: Set<String> = []
@@ -48,8 +51,9 @@ public struct AvatarQueue: Sendable {
     public var queuedCount: Int { queued.count }
     public var inFlightCount: Int { inFlight.count }
 
-    /// Xếp `key` vào hàng (hoặc đưa lên đầu nếu đang chờ). Không xếp nếu đang tải, đã biết là không có ảnh, hoặc vừa lỗi
-    /// tạm chưa tới lúc thử lại. Yêu cầu có repo GitHub thắng yêu cầu không có repo của cùng khoá.
+    /// Queue `key` (or move it to the front when it is waiting). Not queued when it is already downloading,
+    /// already known to have no avatar, or a temporary failure hasn't reached its retry time yet. A request
+    /// carrying a GitHub repo outranks one without, for the same key.
     public mutating func enqueue(_ key: String, _ request: AvatarRequest, now: Date = Date()) {
         guard !inFlight.contains(key), !missing.contains(key) else { return }
         if let retry = retryAt[key] {
@@ -63,7 +67,7 @@ public struct AvatarQueue: Sendable {
         stack.append((key, nextTicket))
         if queued.count > maxQueued {
             compact()
-            // Bỏ các yêu cầu cũ nhất, chừa chỗ để không phải dọn ở mỗi lần hỏi.
+            // Drop the oldest requests so we don't have to prune on every enqueue.
             let drop = queued.count - maxQueued * 3 / 4
             for item in stack.prefix(drop) { queued[item.key] = nil }
             stack.removeFirst(drop)
@@ -72,7 +76,7 @@ public struct AvatarQueue: Sendable {
         }
     }
 
-    /// Việc kế tiếp được phép bắt đầu (chưa đủ `maxConcurrent` việc đang chạy): yêu cầu mới nhất trước.
+    /// The next job allowed to start (fewer than `maxConcurrent` running): newest request first.
     public mutating func next() -> (key: String, request: AvatarRequest)? {
         guard inFlight.count < maxConcurrent else { return nil }
         while let item = stack.popLast() {
@@ -84,7 +88,7 @@ public struct AvatarQueue: Sendable {
         return nil
     }
 
-    /// Kết thúc một việc đang tải.
+    /// Finish a running download.
     public mutating func finish(_ key: String, _ outcome: Outcome, now: Date = Date()) {
         inFlight.remove(key)
         switch outcome {
@@ -99,7 +103,7 @@ public struct AvatarQueue: Sendable {
         }
     }
 
-    /// Bỏ mọi yêu cầu đang chờ (tắt "Ảnh đại diện thật"); việc đang tải chạy nốt nhưng không bắt đầu việc mới.
+    /// Drop every waiting request ("Real avatars" turned off); a running download finishes but no new job starts.
     public mutating func removeAllQueued() {
         queued.removeAll()
         stack.removeAll()

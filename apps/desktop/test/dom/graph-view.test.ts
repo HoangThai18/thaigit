@@ -1,5 +1,5 @@
-// GraphView dựng bằng Svelte thật trong happy-dom (canvas graph được thay bằng bản giả: happy-dom không có canvas 2D, và không có
-// layout nên `stubLayout` cấp kích thước cho khung nhìn).
+// GraphView built with real Svelte in happy-dom (the graph canvas is replaced by a fake: happy-dom has no
+// 2D canvas and no layout, so `stubLayout` feeds it viewport sizes).
 import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import GraphView from '../../src/lib/graph/GraphView.svelte';
@@ -72,7 +72,7 @@ describe('GraphView: phím trên thanh đổi rộng cột (M4)', () => {
       press(resizer, key);
       expect(repo.store.selection, `phím ${key} trên thanh đổi rộng`).toEqual(selected);
     }
-    // Trên chính listbox thì các phím này vẫn điều hướng hàng.
+    // On the listbox itself these keys still navigate rows.
     press(listboxOf(root), 'End');
     expect(repo.store.selectedRow).toBe(repo.store.entries.length - 1);
     press(listboxOf(root), 'Home');

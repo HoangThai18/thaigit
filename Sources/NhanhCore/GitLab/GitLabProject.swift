@@ -1,10 +1,10 @@
 import Foundation
 
-/// Project trên GitLab (gitlab.com hoặc máy chủ tự host), tách từ URL remote: https://, ssh://, git@host:nhom/du-an.git.
+/// A project on GitLab (gitlab.com or a self-hosted server), parsed from a remote URL: https://, ssh://, git@host:group/project.git.
 public struct GitLabProjectRef: Sendable, Hashable {
-    /// Host dùng cho API: "gitlab.com", hoặc "gitlab.cong-ty.vn:8443" khi remote HTTPS có cổng.
+    /// The host to use for API calls: "gitlab.com", or "gitlab.cong-ty.vn:8443" when the HTTPS remote has a port.
     public let host: String
-    /// Đường dẫn đầy đủ của project: "nhom/du-an" hoặc "nhom/nhom-con/du-an".
+    /// The project's full path: "group/project" or "group/subgroup/project".
     public let path: String
 
     public init(host: String, path: String) {
@@ -12,13 +12,13 @@ public struct GitLabProjectRef: Sendable, Hashable {
         self.path = path
     }
 
-    /// "gitlab.com/nhom/du-an" — để hiển thị.
+    /// "gitlab.com/group/project" — for display.
     public var displayName: String { "\(host)/\(path)" }
 
-    /// Host không kèm cổng ("gitlab.cong-ty.vn:8443" → "gitlab.cong-ty.vn").
+    /// The host without its port ("gitlab.cong-ty.vn:8443" → "gitlab.cong-ty.vn").
     public var hostWithoutPort: String { Self.stripPort(host) }
 
-    /// Nhận GitLab khi host là gitlab.com, có tên chứa "gitlab", hoặc là host của một tài khoản GitLab đã thêm (`knownHosts`).
+    /// Whether a host is GitLab: it is gitlab.com, its name contains "gitlab", or it is the host of an already added GitLab account (`knownHosts`).
     public static func parse(remoteURL: String, knownHosts: Set<String> = []) -> GitLabProjectRef? {
         var text = remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
         var keepsPort = false
@@ -65,20 +65,20 @@ public struct GitLabProjectRef: Sendable, Hashable {
         }
     }
 
-    /// Đường dẫn project dạng dùng trong URL API: "nhom%2Fdu-an".
+    /// The project path as used in API URLs: "group%2Fproject".
     var encodedPath: String {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
         return path.addingPercentEncoding(withAllowedCharacters: allowed) ?? path
     }
 }
 
-/// Nội dung một Merge Request mới (`POST /api/v4/projects/:id/merge_requests`).
+/// The body of a new Merge Request (`POST /api/v4/projects/:id/merge_requests`).
 public struct NewMergeRequest: Sendable, Equatable {
     public var title: String
     public var description: String
     public var sourceBranch: String
     public var targetBranch: String
-    /// GitLab đánh dấu nháp bằng tiền tố "Draft: " trong tiêu đề.
+    /// GitLab marks a draft with a "Draft: " prefix in the title.
     public var draft: Bool
 
     public init(title: String, description: String, sourceBranch: String, targetBranch: String, draft: Bool) {
@@ -89,7 +89,7 @@ public struct NewMergeRequest: Sendable, Equatable {
         self.draft = draft
     }
 
-    /// Tiêu đề gửi đi: thêm "Draft: " khi là nháp và chưa có.
+    /// The title to send: "Draft: " is prepended when it's a draft and doesn't have it yet.
     var submittedTitle: String {
         guard draft else { return title }
         let lower = title.lowercased()
@@ -97,9 +97,9 @@ public struct NewMergeRequest: Sendable, Equatable {
     }
 }
 
-/// Merge Request vừa tạo.
+/// A newly created Merge Request.
 public struct GitLabMergeRequest: Sendable, Equatable {
-    /// Số của MR trong project (`iid`, hiện dạng !12).
+    /// The MR's number within the project (`iid`, shown as !12).
     public let iid: Int
     public let title: String
     public let webURL: URL?

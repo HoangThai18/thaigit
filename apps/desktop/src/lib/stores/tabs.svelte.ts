@@ -1,18 +1,18 @@
 /**
- * Tab của một cửa sổ (như GitKraken): mỗi tab giữ một màn hình riêng (màn hình chào, hỏi tin tưởng, hoặc một repo đang mở).
- * Chỉ tab đang chọn được vẽ; repo ở tab nền vẫn sống (watcher, tự fetch) nên chuyển tab là thấy ngay. Store này chỉ lo danh
- * sách + tab đang chọn — mở / đóng repo do App.svelte làm.
+ * A window's tabs (like GitKraken): each tab holds its own screen (the welcome screen, the trust prompt, or one open repo).
+ * Only the selected tab is drawn; a repo in a background tab stays alive (watcher, autofetch), so switching tabs shows it
+ * immediately. This store only manages the list plus the selected tab — opening / closing repos is App.svelte's job.
  */
 export interface Tab<V> {
   readonly id: number;
   readonly view: V;
 }
 
-/** Một tab trên thanh tab (đã dựng sẵn chữ để hiển thị). */
+/** One tab on the tab bar (its label is pre-rendered for display). */
 export interface TabItem {
   readonly id: number;
   readonly title: string;
-  /** Dòng chú thích khi rê chuột (đường dẫn repo…). */
+  /** The tooltip line on hover (a repo path…). */
   readonly tooltip: string;
 }
 
@@ -33,7 +33,7 @@ export class TabsStore<V> {
     return this.tabs.find((tab) => tab.id === id);
   }
 
-  /** Thêm tab ngay sau tab đang chọn (hoặc cuối danh sách); mặc định chọn luôn. Trả id. */
+  /** Add a tab right after the selected one (or at the end); selected by default. Returns its id. */
   add(view: V, options: { activate?: boolean } = {}): number {
     const tab: Tab<V> = { id: this.nextId++, view };
     const index = this.activeIndex;
@@ -44,13 +44,13 @@ export class TabsStore<V> {
     return tab.id;
   }
 
-  /** Đổi màn hình của một tab (tab đã đóng thì bỏ qua). */
+  /** Change a tab's screen (ignored when the tab is gone). */
   set(id: number, view: V): void {
     if (!this.get(id)) return;
     this.tabs = this.tabs.map((tab) => (tab.id === id ? { id, view } : tab));
   }
 
-  /** Bỏ tab khỏi danh sách; đang chọn thì chọn tab bên phải (hết thì bên trái). Trả tab đã bỏ. */
+  /** Remove a tab from the list; when it was selected, select the one to its right (or the left one at the end). Returns the removed tab. */
   remove(id: number): Tab<V> | undefined {
     const index = this.tabs.findIndex((tab) => tab.id === id);
     if (index < 0) return undefined;
@@ -66,13 +66,13 @@ export class TabsStore<V> {
     if (this.get(id)) this.activeId = id;
   }
 
-  /** Chọn tab theo vị trí (Ctrl + 1…8); `-1` = tab cuối (Ctrl + 9, như trình duyệt). */
+  /** Select a tab by position (Ctrl + 1…8); `-1` = the last tab (Ctrl + 9, like a browser). */
   activateIndex(index: number): void {
     const tab = index === -1 ? this.tabs.at(-1) : this.tabs[index];
     if (tab) this.activeId = tab.id;
   }
 
-  /** Tab kế / trước, vòng quanh (Ctrl + Tab / Ctrl + Shift + Tab). */
+  /** Next / previous tab, wrapping around (Ctrl + Tab / Ctrl + Shift + Tab). */
   cycle(delta: 1 | -1): void {
     const count = this.tabs.length;
     if (count < 2) return;
@@ -80,7 +80,7 @@ export class TabsStore<V> {
     this.activeId = this.tabs[(index + delta + count) % count]?.id ?? this.activeId;
   }
 
-  /** Kéo tab `id` tới vị trí `index`. */
+  /** Drag tab `id` to position `index`. */
   move(id: number, index: number): void {
     const from = this.tabs.findIndex((tab) => tab.id === id);
     if (from < 0) return;

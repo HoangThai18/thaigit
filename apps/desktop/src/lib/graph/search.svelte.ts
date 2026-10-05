@@ -1,11 +1,11 @@
-// Tìm commit trên graph (port tìm kiếm của RepoModel.swift): khớp tiêu đề, tác giả, email, tiền tố SHA, tên nhánh / tag —
-// không phân biệt hoa thường và dấu ("dang nhap" khớp "Đăng nhập"). Chỉ trong các commit đã tải.
+// Commit search over the graph (port of the search in RepoModel.swift): matches subject, author, email,
+// SHA prefix, branch / tag name — case- and diacritic-insensitive ("dang nhap" matches "Đăng nhập"). Only the already loaded commits are searched.
 
 import { isWorkingTreeCommit } from '@thaigit/core';
 import { containsFolded, foldText } from '../format/natural.ts';
 import type { GraphEntry, RepoStore } from '../stores/repo.svelte.ts';
 
-/** Chỉ số các hàng khớp `query` (bỏ dòng WIP). */
+/** Indices of rows matching `query` (the WIP row is excluded). */
 export function findMatches(entries: readonly GraphEntry[], query: string): number[] {
   const trimmed = query.trim();
   if (trimmed === '') return [];
@@ -52,7 +52,7 @@ export class GraphSearch {
     this.query = '';
   }
 
-  /** Chọn hàng khớp kế tiếp (hoặc trước đó) tính từ hàng đang chọn, vòng lại khi hết. */
+  /** Select the next (or previous) matching row relative to the current selection, wrapping around. */
   next(backward = false): void {
     const matches = this.matches;
     if (matches.length === 0) return;

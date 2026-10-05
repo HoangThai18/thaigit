@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Revert: commit ngay hoặc để stage (git thật)")
 struct RevertTests {
-    /// Repo có hai commit "init" và "Đổi dòng 2" (sửa a.txt); trả về SHA của commit thứ hai.
+    /// A repo with the two commits "init" and "Đổi dòng 2" (editing a.txt); returns the second commit's SHA.
     private func makeRepo() async throws -> (TestRepo, String) {
         let t = try await TestRepo.make()
         try t.write("a.txt", "1\n2\n3\n")
@@ -23,7 +23,7 @@ struct RevertTests {
         defer { t.cleanup() }
         try await t.repo.revert(sha, commit: false)
 
-        // Git để lại trạng thái "đang revert" + message gợi ý: app hiện banner và điền sẵn ô commit.
+        // Git leaves the "reverting" state + a suggested message behind: the app shows the banner and prefills the commit box.
         #expect(t.repo.operationState() == .reverting)
         let revertHead = try String(contentsOf: t.repo.gitDir.appendingPathComponent("REVERT_HEAD"), encoding: .utf8)
         #expect(revertHead.trimmingCharacters(in: .whitespacesAndNewlines) == sha)
@@ -31,7 +31,7 @@ struct RevertTests {
         #expect(mergeMessage == "Revert \"Đổi dòng 2\"\n\nThis reverts commit \(sha).\n")
         #expect(t.repo.pendingCommitMessage() == "Revert \"Đổi dòng 2\"\n\nThis reverts commit \(sha).")
 
-        // Thay đổi đảo ngược đã stage, chưa có commit mới.
+        // The reverse changes are staged, with no new commit yet.
         let status = try await t.repo.status()
         #expect(status.staged == [FileChange(path: "a.txt", kind: .modified)])
         #expect(status.unstaged.isEmpty)
@@ -39,7 +39,7 @@ struct RevertTests {
         #expect(try t.read("a.txt") == "1\n2\n3\n")
         #expect(try await t.repo.resolveCommit("HEAD") == sha)
 
-        // "Tiếp tục" (revert --continue) tạo commit bằng message gợi ý và kết thúc thao tác.
+        // "Continue" (revert --continue) commits with the suggested message and ends the operation.
         try await t.repo.continueOperation(.reverting)
         #expect(t.repo.operationState() == nil)
         #expect(!exists(t, gitFile: "REVERT_HEAD"))
@@ -56,7 +56,7 @@ struct RevertTests {
         try await t.repo.revert(sha, commit: false)
         let suggested = try #require(t.repo.pendingCommitMessage())
 
-        // Bấm "Hoàn tất revert" trong ô commit: commit thường với message đã sửa.
+        // Pressing "Finish revert" in the commit box: an ordinary commit with the edited message.
         try await t.repo.commit(message: suggested + "\n\nLý do: gây lỗi trên production", amend: false)
         #expect(t.repo.operationState() == nil)
         #expect(!exists(t, gitFile: "REVERT_HEAD"))
@@ -73,7 +73,7 @@ struct RevertTests {
         defer { t.cleanup() }
         try await t.repo.revert(sha, commit: false)
 
-        // Người dùng sửa message gợi ý trong ô commit rồi bấm "Tiếp tục" trên banner.
+        // The user edits the suggested message in the commit box, then presses "Continue" on the banner.
         try t.repo.setPendingCommitMessage("Revert dòng 2 vì lỗi hiển thị\n\nThis reverts commit \(sha).")
         #expect(t.repo.pendingCommitMessage() == "Revert dòng 2 vì lỗi hiển thị\n\nThis reverts commit \(sha).")
         try await t.repo.continueOperation(.reverting)
@@ -89,7 +89,7 @@ struct RevertTests {
         try t.write("ghi-chu.txt", "chưa track\n")
         try await t.repo.revert(sha, commit: false)
 
-        // "Hoàn tác" trên thông báo = revert --abort.
+        // "Undo" on the notification = revert --abort.
         try await t.repo.abort(.reverting)
         #expect(t.repo.operationState() == nil)
         #expect(!exists(t, gitFile: "REVERT_HEAD"))
@@ -117,13 +117,13 @@ struct RevertTests {
         let merge = try await t.repo.resolveCommit("HEAD")
         let firstParent = try await t.repo.resolveCommit("HEAD^1")
 
-        // Commit merge mà không chỉ cha: git từ chối, không để lại trạng thái dở.
+        // A merge commit without a mainline: git refuses and leaves no unfinished state.
         await #expect(throws: GitError.self) { try await t.repo.revert(merge, commit: false) }
         #expect(t.repo.operationState() == nil)
 
         try await t.repo.revert(merge, mainline: 1, commit: false)
         #expect(t.repo.operationState() == .reverting)
-        // So với cha thứ nhất (main): bỏ phần feature mang vào, giữ phần của main.
+        // Against the first parent (main): drop what feature brought in, keep main's part.
         #expect(try await t.repo.status().staged == [FileChange(path: "b.txt", kind: .deleted)])
         #expect(try t.read("c.txt") == "từ main\n")
         let message = try #require(t.repo.pendingCommitMessage())
@@ -132,7 +132,7 @@ struct RevertTests {
         try await t.repo.abort(.reverting)
         #expect(FileManager.default.fileExists(atPath: t.url.appendingPathComponent("b.txt").path))
 
-        // Mặc định (commit: true) vẫn tạo commit revert ngay như trước.
+        // The default (commit: true) still creates the revert commit immediately, as before.
         try await t.repo.revert(merge, mainline: 1)
         #expect(t.repo.operationState() == nil)
         let log = try await t.repo.log(limit: 1, order: .topo, includeHEAD: true)
@@ -142,8 +142,9 @@ struct RevertTests {
         #expect(try await t.repo.status().isClean)
     }
 
-    /// "Revert, chưa commit" với commit đã được đảo ngược từ trước: git không stage gì mà vẫn để REVERT_HEAD — nút
-    /// "Stage tất cả & commit" sẽ commit luôn thay đổi đang làm dở với message revert. Phải dừng và không để lại trạng thái.
+    /// "Revert, don't commit" for a commit that was already reverted beforehand: git stages nothing yet still leaves
+    /// REVERT_HEAD — the "Stage all & commit" button would commit the in-progress change with the revert message. It
+    /// has to stop and leave no state behind.
     @Test func revertingAlreadyRevertedCommitLeavesNoRevertState() async throws {
         let (t, sha) = try await makeRepo()
         defer { t.cleanup() }
@@ -161,9 +162,9 @@ struct RevertTests {
         #expect(try await t.repo.resolveCommit("HEAD") == head)
     }
 
-    /// Hoàn tất revert có message đã sửa: `revert --continue` luôn dùng `--cleanup=strip` nên dòng bắt đầu bằng "#"
-    /// (#123, #hotfix) bị mất; commit thường (`--cleanup=whitespace`, như nút "Tiếp tục" của app khi ô commit có message)
-    /// giữ nguyên và kết thúc revert.
+    /// Finishing a revert with an edited message: `revert --continue` always uses `--cleanup=strip`, so a line starting
+    /// with "#" (#123, #hotfix) would be lost; an ordinary commit (`--cleanup=whitespace`, like the app's "Continue"
+    /// button when the commit box holds a message) keeps it and ends the revert.
     @Test func finishingRevertByCommitKeepsHashLines() async throws {
         let (t, sha) = try await makeRepo()
         defer { t.cleanup() }

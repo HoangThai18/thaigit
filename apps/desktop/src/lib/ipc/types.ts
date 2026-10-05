@@ -1,28 +1,28 @@
-// Hình dạng dữ liệu Rust trả về mà `@thaigit/contracts` chưa mô tả (serde camelCase). Giữ khớp với `src-tauri/src`.
+// Rust return shapes that `@thaigit/contracts` doesn't describe yet (serde camelCase). Keep in sync with `src-tauri/src`.
 
-/** Thư mục do hộp thoại native chọn: chỉ có `token` là thứ Rust chấp nhận lại; `path` chỉ để hiển thị. */
+/** Folder picked by the native dialog: only `token` is something Rust accepts back; `path` is display-only. */
 export interface PickedFolder {
   token: string;
   name: string;
   path: string;
 }
 
-/** Nguồn mở repo: token từ hộp thoại/"Mở bằng"/thả file native, hoặc id trong danh sách gần đây do Rust lưu. */
+/** Where a repo was opened from: a token from the dialog / "Open With" / native file drop, or an id in the recent list Rust stores. */
 export type OpenSource = { kind: 'picked'; token: string } | { kind: 'recent'; id: string };
 
 export interface RecentRepo {
   id: string;
   name: string;
-  /** Chỉ để hiển thị. */
+  /** Display only. */
   path: string;
-  /** Mili giây kể từ epoch. */
+  /** Milliseconds since the epoch. */
   lastOpened: number;
 }
 
 export interface LockFile {
-  /** Đường dẫn tuyệt đối theo kiểu của hệ điều hành — cũng là định danh để gỡ (`removeStaleLock`). */
+  /** Absolute path in the OS's own form — also the identity used to remove it (`removeStaleLock`). */
   path: string;
-  /** Tương đối so với thư mục git chứa khoá (`index.lock`, `refs/heads/main.lock`), luôn dùng `/` (cả trên Windows). */
+  /** Relative to the git directory holding the lock (`index.lock`, `refs/heads/main.lock`), always using `/` (even on Windows). */
   relativePath: string;
   ageSecs: number;
 }
@@ -30,7 +30,7 @@ export interface LockFile {
 export type RepoOperationKind = 'merge' | 'rebase' | 'cherry-pick' | 'revert' | 'am' | 'bisect';
 
 export interface RepoHealth {
-  /** Khoá nghi mồ côi; rỗng khi app còn lệnh git chạy trên repo (`busy`). */
+  /** Orphaned lock; empty while the app still has a git command running on the repo (`busy`). */
   staleLocks: LockFile[];
   operation: RepoOperationKind | null;
   busy: boolean;
@@ -38,18 +38,18 @@ export interface RepoHealth {
 
 export interface GitInfo {
   path: string;
-  /** Nguyên văn `git --version`. */
+  /** `git --version` verbatim. */
   version: string;
   versionTuple: [number, number, number];
   source: 'setting' | 'path' | 'fallback' | 'where';
-  /** Dưới 2.35: thiếu tính năng cần dùng, mọi lệnh bị từ chối. */
+  /** Below 2.35: a needed feature is missing, every command is refused. */
   tooOld: boolean;
-  /** Dưới sàn bảo mật: clone/fetch/pull bị chặn. */
+  /** Below the security floor: clone/fetch/pull are blocked. */
   belowSecurityFloor: boolean;
   minimumVersion: string | null;
   warning: string | null;
   loginShellPathLoaded: boolean;
-  /** Các git Rust tìm thấy — `setGitPath` chỉ nhận một trong số này. */
+  /** The git binaries Rust found — `setGitPath` only accepts one of these. */
   candidates: string[];
 }
 

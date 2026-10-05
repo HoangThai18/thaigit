@@ -1,12 +1,12 @@
 import Foundation
 
-/// Parse output của các lệnh git plumbing/porcelain có định dạng máy đọc được.
+/// Parsers for the machine-readable output of git's plumbing / porcelain commands.
 public enum GitParsers {
     static let unitSeparator: Character = "\u{1f}"
 
     // MARK: - Log
 
-    /// Dùng với `git log -z --format=...`: mỗi commit kết thúc bằng NUL, các trường ngăn bởi \x1f.
+    /// Used with `git log -z --format=...`: every commit ends with a NUL, fields separated by \x1f.
     public static let logFormat = "%H%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%cn%x1f%ce%x1f%ct%x1f%s"
 
     public static func parseLog(_ data: Data) -> [Commit] {
@@ -35,7 +35,7 @@ public enum GitParsers {
 
     // MARK: - Refs
 
-    /// Dùng với `git for-each-ref --format=...`: %1f là ký tự \x1f.
+    /// Used with `git for-each-ref --format=...`: %1f is the character \x1f.
     public static let refFormat = "%(refname)%1f%(objectname)%1f%(*objectname)%1f%(upstream:short)%1f%(upstream:track,nobracket)%1f%(HEAD)%1f%(symref)%1f%(creatordate:unix)"
 
     public static func parseRefs(_ text: String) -> [GitRef] {
@@ -44,7 +44,7 @@ public enum GitParsers {
             let f = line.split(separator: unitSeparator, omittingEmptySubsequences: false).map(String.init)
             guard f.count >= 7 else { continue }
             let fullName = f[0]
-            // Bỏ các symref như refs/remotes/origin/HEAD.
+            // Skip symrefs like refs/remotes/origin/HEAD.
             if !f[6].isEmpty { continue }
             let kind: RefKind
             if fullName.hasPrefix("refs/heads/") {
@@ -270,7 +270,7 @@ public enum GitParsers {
 
     // MARK: - Progress
 
-    /// Rút phần trăm từ dòng tiến độ của git ("Receiving objects:  45% (450/1000)").
+    /// Extract the percentage from a git progress line ("Receiving objects:  45% (450/1000)").
     public static func progressFraction(_ line: String) -> Double? {
         guard let percent = line.firstIndex(of: "%") else { return nil }
         var start = percent
@@ -284,7 +284,7 @@ public enum GitParsers {
 }
 
 extension String {
-    /// Giải mã đường dẫn bị git đặt trong ngoặc kép kiểu C ("a\tb\"c", "\303\251").
+    /// Decode a path git C-quoted ("a\tb\"c", "\303\251").
     var unquotedGitPath: String {
         guard hasPrefix("\""), hasSuffix("\""), count >= 2 else { return self }
         let inner = Array(dropFirst().dropLast().utf8)

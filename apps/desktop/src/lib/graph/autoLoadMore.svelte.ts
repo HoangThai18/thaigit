@@ -1,9 +1,11 @@
 /**
- * Tải thêm lịch sử khi cuộn gần cuối graph (như Swift: còn ≤ 30 hàng). Phải gọi lúc khởi tạo component (dùng `$effect`).
+ * Load more history when scrolling near the end of the graph (like Swift: ≤ 30 rows left). Must be called
+ * during component initialisation (use `$effect`).
  *
- * Chỉ yêu cầu MỘT lần cho mỗi độ dài danh sách: tải thêm hỏng (hoặc không thêm được hàng nào) thì `entries.length` không đổi,
- * nếu không có chốt này thì mỗi lần `isLoadingHistory` tắt effect lại chạy và gọi `git log` lần nữa — vô tận. Danh sách dài
- * ra (tải thành công) mới được yêu cầu tiếp. Store còn tự chặn thêm bằng `loadMoreFailed` (chỉ người dùng mới thử lại được).
+ * Only ONE request per list length: a failed load (or one that adds no rows) leaves `entries.length`
+ * unchanged, so without this guard every time `isLoadingHistory` flips the effect would run again and
+ * invoke `git log` once more — forever. Only a list that actually grew (a successful load) may ask
+ * again. The store also blocks further attempts itself via `loadMoreFailed` (only a user action retries).
  */
 import { untrack } from 'svelte';
 import type { RepoStore } from '../stores/repo.svelte.ts';

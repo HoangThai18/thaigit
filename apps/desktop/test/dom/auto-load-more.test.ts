@@ -1,4 +1,4 @@
-// Effect "tải thêm khi cuộn gần cuối" của GraphView, chạy với RepoStore thật trên repo git thật.
+// GraphView's "load more when scrolling near the end" effect, running against a real RepoStore on a real git repo.
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ExecRequest, ExecResult } from '@thaigit/core';
 import type { RepoPort } from '../../src/lib/platform/host.ts';
@@ -53,7 +53,7 @@ describe('GraphView: tải thêm tự động khi cuộn gần cuối', () => {
     expect(store.entries).toHaveLength(200);
     flaky.failLog = true;
     const before = flaky.logs.length;
-    const stop = mountAutoLoadMore(store, () => 200); // người dùng đang ở cuối danh sách
+    const stop = mountAutoLoadMore(store, () => 200); // the user is sitting at the end of the list
     cleanups.push(stop);
     await sleep(700);
 
@@ -70,7 +70,7 @@ describe('GraphView: tải thêm tự động khi cuộn gần cuối', () => {
     cleanups.push(stop);
     await sleep(300);
     expect(store.calls).toBe(1);
-    // Danh sách dài thêm (tải xong) và người dùng vẫn ở cuối: được yêu cầu tiếp đúng một lần nữa.
+    // The list grew (a successful load) and the user is still at the end: exactly one more request is allowed.
     end = 400;
     store.entries = Array.from({ length: 400 }, () => undefined as never);
     await sleep(300);

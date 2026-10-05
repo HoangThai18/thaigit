@@ -82,7 +82,7 @@ struct UpdateTests {
         try UpdateInstaller.install(staged, replacing: installed)
         let info = try UpdateInstaller.infoDictionary(of: installed)
         #expect(info["CFBundleShortVersionString"] as? String == "1.1.0")
-        // Không để lại app cũ hay thư mục chờ cài.
+        // Neither the old app nor the pending-install directory is left behind.
         let leftovers = try FileManager.default.contentsOfDirectory(atPath: installed.deletingLastPathComponent().path)
         #expect(leftovers == ["Thaigit.app"])
         #expect(!FileManager.default.fileExists(atPath: staged.appURL.deletingLastPathComponent().path))
@@ -93,24 +93,24 @@ struct UpdateTests {
         defer { fixture.cleanup() }
         let installer = fixture.installer()
 
-        // Một byte bị sửa sau khi ký.
+        // A single byte tampered with after signing.
         let tampered = try fixture.makeRelease(version: "1.1.0")
         var bytes = try Data(contentsOf: tampered.archive)
         bytes[bytes.count / 2] ^= 0xFF
         try bytes.write(to: tampered.archive)
         await #expect(throws: UpdateError.checksumMismatch) { try await installer.stage(archive: tampered.archive, manifest: tampered.manifest) }
 
-        // Ký bằng khoá khác (checksum vẫn đúng).
+        // Signed with a different key (the checksum is still correct).
         let foreign = try fixture.makeRelease(version: "1.2.0", signingKey: Curve25519.Signing.PrivateKey())
         await #expect(throws: UpdateError.badSignature) { try await installer.stage(archive: foreign.archive, manifest: foreign.manifest) }
 
-        // Gói của app khác.
+        // A package belonging to a different app.
         let otherApp = try fixture.makeRelease(version: "1.3.0", bundleIdentifier: "com.example.other")
         await #expect(throws: UpdateError.invalidBundle("mã ứng dụng không khớp")) {
             try await installer.stage(archive: otherApp.archive, manifest: otherApp.manifest)
         }
 
-        // update.json nói 9.9.9 nhưng gói bên trong là 1.4.0 (chặn ép cài bản cũ bằng số phiên bản giả).
+        // update.json says 9.9.9 but the package inside is 1.4.0 (blocks forcing an older build with a faked version).
         let mislabeled = try fixture.makeRelease(version: "1.4.0", manifestVersion: "9.9.9")
         await #expect(throws: UpdateError.invalidBundle("phiên bản trong gói khác thông tin phát hành")) {
             try await installer.stage(archive: mislabeled.archive, manifest: mislabeled.manifest)
@@ -118,7 +118,7 @@ struct UpdateTests {
     }
 }
 
-/// Dựng app giả (có mã thực thi ký ad-hoc), file zip, update.json đã ký trong thư mục tạm.
+/// Builds a fake app (with an ad-hoc signing identity), a zip file and a signed update.json in a temp directory.
 private struct UpdateFixture {
     static let bundleIdentifier = "com.phanthai.thaigit"
     let root: URL

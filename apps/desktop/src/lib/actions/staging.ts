@@ -1,7 +1,7 @@
-// Stage / bỏ stage / huỷ thay đổi — theo file, hunk hoặc từng dòng (port phần stage của RepoModel+Actions.swift).
-// Mọi thao tác ghi đi qua `store.perform` (hàng đợi tuần tự, tự làm mới). Huỷ thay đổi luôn hỏi trước và có "Hoàn tác":
-// file đã track được chụp lại bằng `stash create` (commit lơ lửng) rồi khôi phục bằng `restore --source`; file mới được dời
-// vào thùng rác của app rồi trả lại.
+// Stage / unstage / discard changes — by file, hunk or individual line (a port of the staging part of RepoModel+Actions.swift).
+// Every write operation goes through `store.perform` (a sequential queue that refreshes automatically). Discarding always asks
+// first and offers "Undo": a tracked file is captured with `stash create` (a dangling commit) and restored via `restore --source`; a new file is moved to
+// the app's trash and can be brought back.
 
 import {
   fileChangeAllPaths,
@@ -53,8 +53,8 @@ export function unstageAll(store: RepoStore): Promise<void> {
 }
 
 /**
- * Huỷ mọi thay đổi chưa stage của các file (hỏi trước). File đã track: khôi phục từ index; file mới: dời vào thùng rác của
- * app. Xong hiện "Hoàn tác".
+ * Discard every unstaged change of the files (asks first). Tracked files: restored from the index; new files: moved to the
+ * app's trash. Shows "Undo" when done.
  */
 export async function discardFiles(
   store: RepoStore,
@@ -113,8 +113,8 @@ export async function discardFiles(
 }
 
 /**
- * Patch cho `action` từ diff đang xem: `hunkId` cho cả một hunk, không thì các dòng đang chọn. `null` khi không có gì để áp
- * (không chọn dòng nào, hoặc file không hỗ trợ stage từng phần).
+ * The patch for `action` built from the diff being viewed: `hunkId` for a whole hunk, otherwise the selected lines. `null` when
+ * there is nothing to apply (no line selected, or the file does not support partial staging).
  */
 export function buildPatch(
   diff: FileDiff,
@@ -128,14 +128,14 @@ export function buildPatch(
     if (!hunk) return null;
     chosen = selectionForWholeHunk(hunk);
   }
-  // Stage: diff index→worktree áp xuôi vào index. Bỏ stage: diff HEAD→index áp ngược vào index. Huỷ: diff index→worktree
-  // áp ngược vào worktree.
+  // Stage: the index→worktree diff applied forward into the index. Unstage: the HEAD→index diff applied in reverse into the index. Discard: the index→worktree
+  // diff applied in reverse into the working tree.
   return makePatch(diff, chosen, action !== 'stage');
 }
 
 /**
- * Stage / bỏ stage / huỷ một hunk (`hunkId`) hoặc các dòng đang chọn của file đang xem. Huỷ thì hỏi trước và chụp lại file
- * để "Hoàn tác".
+ * Stage / unstage / discard one hunk (`hunkId`) or the selected lines of the file being viewed. Discarding asks first and
+ * captures the file so "Undo" is possible.
  */
 export async function applyToSelection(
   store: RepoStore,

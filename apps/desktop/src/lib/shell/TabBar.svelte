@@ -22,7 +22,7 @@
   let { items, activeId, onactivate, onclose, onnew, onmove, menu }: Props = $props();
 
   let bar = $state<HTMLElement | undefined>();
-  /** Tab đang kéo (đổi chỗ) — chỉ coi là kéo khi chuột đã đi quá vài px. */
+  /** The tab being dragged (to reorder) — only counts as a drag once the pointer has moved a few px. */
   let dragging: { id: number; x: number; moved: boolean } | null = null;
 
   function focusTab(index: number): void {

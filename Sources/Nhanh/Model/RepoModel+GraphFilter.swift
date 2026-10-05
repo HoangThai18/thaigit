@@ -1,17 +1,17 @@
 import Foundation
 import NhanhCore
 
-/// Nhánh trên graph: hiện bình thường, đang ẩn, hoặc nằm trong nhóm "chỉ hiện" (solo).
+/// A branch on the graph: shown normally, currently hidden, or part of a "show only" (solo) group.
 enum GraphVisibility {
     case normal
     case hidden
     case solo
-    /// Có nhóm solo mà nhánh này không thuộc nhóm đó.
+    /// There is a solo group this branch doesn't belong to.
     case outsideSolo
 }
 
 extension RepoModel {
-    // MARK: - Trạng thái
+    // MARK: - State
 
     func graphVisibility(of ref: GitRef) -> GraphVisibility {
         if graphFilter.solo.contains(ref.fullName) { return .solo }
@@ -19,8 +19,8 @@ extension RepoModel {
         return graphFilter.hidden.contains(ref.fullName) ? .hidden : .normal
     }
 
-    /// Ẩn / solo nhánh local thì nhánh upstream (nhánh trên remote nó theo dõi) đi cùng — không thì đường lịch sử
-    /// của nhánh vẫn còn trên graph qua nhánh remote.
+    /// Hiding / soloing a local branch also hides its upstream (the branch on the remote it tracks) — otherwise the
+    /// branch's history would still be on the graph through the remote branch.
     private func filterNames(for ref: GitRef) -> Set<String> {
         var names: Set<String> = [ref.fullName]
         if ref.kind == .localBranch, let upstream = ref.upstream,
@@ -30,8 +30,8 @@ extension RepoModel {
         return names
     }
 
-    /// Nhánh đang checkout (và nhánh remote nó theo dõi) luôn hiện — không cho ẩn. Chỉ đọc `refs`, không đọc `status`,
-    /// để sidebar không phải vẽ lại mỗi khi working tree đổi.
+    /// The checked-out branch (and the remote branch it tracks) is always shown — it can't be hidden. Only reads `refs`,
+    /// never `status`, so the sidebar doesn't repaint on every working tree change.
     func canHideOnGraph(_ ref: GitRef) -> Bool {
         switch ref.kind {
         case .tag: return false
@@ -60,7 +60,7 @@ extension RepoModel {
         }
     }
 
-    /// Thêm / bỏ nhánh khỏi nhóm "chỉ hiện" (solo): có nhóm solo thì graph chỉ còn các nhánh trong nhóm và nhánh đang checkout.
+    /// Add / remove a branch from the "show only" (solo) group: with a solo group the graph keeps only the branches in it plus the checked-out one.
     func toggleSolo(_ ref: GitRef) {
         guard ref.kind != .tag else { return }
         let names = filterNames(for: ref)
@@ -76,13 +76,13 @@ extension RepoModel {
         graphFilter = GraphRefFilter()
     }
 
-    /// Mô tả ngắn cho dải báo trên graph, nil khi không lọc gì.
+    /// A short description for the strip above the graph, nil when nothing is filtered.
     var graphFilterSummary: String? {
         let existing = Set(refs.map(\.fullName))
         let filter = graphFilter.keeping(existing)
         guard filter.isActive else { return nil }
         func count(_ names: Set<String>) -> Int {
-            // Đếm theo nhánh người dùng chọn: nhánh remote đi kèm nhánh local không đếm thêm.
+            // Counted per branch the user picked: a remote branch riding along with a local one isn't counted again.
             let locals = refs.filter { $0.kind == .localBranch && names.contains($0.fullName) }
             let paired = Set(locals.compactMap(\.upstream))
             return names.count - refs.filter { $0.kind == .remoteBranch && names.contains($0.fullName) && paired.contains($0.name) }.count
@@ -108,7 +108,7 @@ extension RepoModel {
         return items
     }
 
-    // MARK: - Lưu theo repo
+    // MARK: - Persisted per repo
 
     private var graphFilterKey: String { "graphFilter." + repository.root.path }
 

@@ -18,7 +18,7 @@
   function onwindowpointerdown(event: PointerEvent): void {
     if (!menu) return;
     if (event.target instanceof Node && root?.contains(event.target)) return;
-    // Bấm lại đúng nút đã mở menu: chỉ đóng (không để nút mở lại ngay).
+    // Clicking the same button again just closes the menu (it must not immediately reopen).
     if (event.target instanceof Node && menu.opener?.contains(event.target)) {
       event.stopPropagation();
       event.preventDefault();

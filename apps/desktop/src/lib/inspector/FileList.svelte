@@ -10,11 +10,11 @@
     files: readonly FileChange[];
     title: string;
     emptyText?: string;
-    /** Bấm / Enter vào file (mở diff). */
+    /** Click / Enter on a file (opens the diff). */
     onopen?: (change: FileChange) => void;
-    /** Đường dẫn file đang mở diff (tô hàng). */
+    /** Path of the file whose diff is open (highlights the row). */
     selectedPath?: string | null;
-    /** Chuột phải vào hàng. */
+    /** Right-click on a row. */
     onmenu?: (event: MouseEvent, change: FileChange) => void;
   }
 
@@ -156,7 +156,7 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* Cắt phần đầu đường dẫn (giữ thư mục gần file nhất), như `truncationMode(.head)`. */
+    /* Truncate the head of the path (keeping the directory nearest the file), like `truncationMode(.head)`. */
     direction: rtl;
     text-align: left;
     color: var(--text-secondary);

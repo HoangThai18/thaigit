@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Bảng commit + graph, dùng NSTableView để cuộn mượt với hàng chục nghìn commit.
+/// The commit table + graph, using NSTableView so scrolling stays smooth with tens of thousands of commits.
 struct CommitGraphView: View {
     @Bindable var model: RepoModel
 
@@ -88,8 +88,8 @@ private enum Column {
     static let date = NSUserInterfaceItemIdentifier("date")
     static let sha = NSUserInterfaceItemIdentifier("sha")
 
-    /// Cột phụ bật/tắt bằng chuột phải lên tiêu đề cột. Mặc định tắt cả, như GitKraken: tác giả là ảnh đại diện
-    /// trên graph, tên và thời gian xem ở panel bên phải.
+    /// Secondary columns toggled by right-clicking a column header. All off by default, like GitKraken: the author is the avatar
+    /// on the graph, the name and time are in the panel on the right.
     static let optional: [(id: NSUserInterfaceItemIdentifier, title: String)] = [(author, String(localized: "Tác giả")), (date, String(localized: "Thời gian")), (sha, "SHA")]
     static let enabledOptionalKey = "graphOptionalColumns"
 }
@@ -100,18 +100,18 @@ private struct CommitTable: NSViewRepresentable {
     let version: Int
     let graphWidth: Int
     let selectedRow: Int?
-    /// Hai dòng đang so sánh (giữ ⌘ bấm 2 commit) — khi đó bảng chọn cả hai dòng.
+    /// Two rows being compared (⌘-click two commits) — the table then selects both rows.
     let compareRows: IndexSet?
     let scrollRequest: ScrollRequest?
     let searchMatches: Set<Int>
     let isSearching: Bool
     let headOID: String?
     let workingTreeSummary: String
-    /// Số file chưa commit — badge "✎ N" trên viên nhánh đang checkout (0 = không có).
+    /// The uncommitted file count — an "✎ N" badge on the checked-out branch's pill (0 = none).
     let pendingCount: Int
-    /// HEAD tách rời thì không có nhánh để gắn số file, dòng WIP tự in tóm tắt thay vì im lặng.
+    /// With a detached HEAD there is no branch to hang the count on, so the WIP row prints its own summary instead of staying silent.
     let showsPendingOnWipRow: Bool
-    /// Email người đang commit — node dòng WIP vẽ avatar của chính người đó.
+    /// The current committer's email — the WIP row's node draws that person's avatar.
     let committerEmail: String?
     let isHidden: Bool
 
@@ -125,7 +125,7 @@ private struct CommitTable: NSViewRepresentable {
         table.rowHeight = GraphStyle.rowHeight
         table.intercellSpacing = NSSize(width: 0, height: 0)
         table.gridStyleMask = []
-        // Giữ ⌘ bấm commit thứ hai để so sánh hai commit (như GitKraken).
+        // Keep the ⌘-clicked second commit to compare two commits (like GitKraken).
         table.allowsMultipleSelection = true
         table.allowsColumnReordering = true
         table.allowsColumnResizing = true
@@ -167,7 +167,7 @@ private struct CommitTable: NSViewRepresentable {
         table.headerView?.menu = headerMenu
         table.onReturn = { [weak coordinator = context.coordinator] in coordinator?.activateSelectedRow() }
         table.overflowMenu = { [weak coordinator = context.coordinator] row in coordinator?.overflowMenu(row: row) }
-        // Kéo nhãn nhánh thả lên nhánh khác để merge/rebase/push (giống GitKraken).
+        // Drag a branch label onto another branch to merge / rebase / push (like GitKraken).
         table.registerForDraggedTypes([.string])
         table.setDraggingSourceOperationMask([.move, .copy, .generic], forLocal: true)
         table.setDraggingSourceOperationMask(.copy, forLocal: false)
@@ -186,8 +186,8 @@ private struct CommitTable: NSViewRepresentable {
         return scrollView
     }
 
-    /// Số file chưa commit đổi thì vẽ lại đúng hai hàng liên quan: dòng WIP (tóm tắt khi HEAD tách rời) và
-    /// hàng đang mang nhãn nhánh hiện tại (badge "✎ N").
+    /// When the uncommitted file count changes, repaint exactly the two related rows: the WIP row (the summary when HEAD is
+    /// detached) and the row carrying the current branch's label (the "✎ N" badge).
     private func reloadPendingRows(_ table: NSTableView, entries: [GraphEntry]) {
         var rows = IndexSet()
         if let first = entries.firstIndex(where: { $0.commit.isWorkingTree }) { rows.insert(first) }
@@ -206,8 +206,8 @@ private struct CommitTable: NSViewRepresentable {
         coordinator.pendingCount = pendingCount
         coordinator.committerEmail = committerEmail
         coordinator.showsPendingOnWipRow = showsPendingOnWipRow
-        // `user.email` đọc bất đồng bộ: lần vẽ đầu dòng WIP chưa có email nên chưa hỏi được ảnh. Đọc xong thì vẽ lại
-        // cột graph của các dòng đang hiện để node WIP có avatar.
+        // `user.email` is read asynchronously: the WIP row's first paint has no email yet so it can't ask for an image. Once it
+        // arrives, repaint the graph column of the visible rows so the WIP node gets its avatar.
         if coordinator.lastCommitterEmail != committerEmail {
             coordinator.lastCommitterEmail = committerEmail
             coordinator.refreshAvatars()
@@ -222,7 +222,7 @@ private struct CommitTable: NSViewRepresentable {
                 let width = min(max(GraphStyle.width(forLanes: min(graphWidth, 40)), 64), 640)
                 if abs(graphColumn.width - width) > 1 {
                     graphColumn.width = width
-                    // Cột Commit co giãn bù lại để bảng vẫn vừa khung (không đẩy cột SHA ra ngoài).
+                    // The Commit column shrinks to compensate so the table still fits (no column pushed outside).
                     if coordinator.didInitialSizing { coordinator.scheduleColumnFit() }
                 }
             }
@@ -284,40 +284,40 @@ private struct CommitTable: NSViewRepresentable {
         var headOID: String?
         var workingTreeSummary = ""
         var lastWorkingTreeSummary = ""
-        /// Số file chưa commit (đổi theo status): badge ở viên nhánh đang checkout.
+        /// The uncommitted file count (changes with the status): a badge on the checked-out branch's pill.
         var pendingCount = 0
         var lastPendingCount = -1
-        /// Email người đang commit — node dòng WIP vẽ avatar của chính người đó.
+        /// The current committer's email — the WIP row's node draws that person's avatar.
         var committerEmail: String?
-        /// HEAD tách rời: không có nhánh để gắn số file, dòng WIP tự in tóm tắt.
+        /// Detached HEAD: there's no branch to hang the count on, so the WIP row prints its own summary.
         var showsPendingOnWipRow = false
-        /// Email commit lần trước đã vẽ — đổi thì vẽ lại cột graph (ảnh WIP phải hỏi lại store).
+        /// The commit email of the previous paint — when it changes the graph column is repainted (the WIP avatar has to be asked for again).
         var lastCommitterEmail: String?
         var isUpdatingSelection = false
         var didInitialSizing = false
-        /// Dòng người dùng vừa chọn nhưng chưa báo cho model (báo ở vòng lặp sau để tránh gọi lồng vào NSTableView).
+        /// The row the user just selected but not yet reported to the model (reported on the next loop iteration to avoid re-entering NSTableView).
         var pendingSelection: String?
         var lastScrollRequest: ScrollRequest?
         private var scrollObserver: NSObjectProtocol?
         private var frameObserver: NSObjectProtocol?
-        /// Độ rộng người dùng muốn cho các cột phụ; bị co tạm khi thiếu chỗ, nới lại khi đủ chỗ.
+        /// The widths the user wants for the secondary columns; temporarily shrunk when space is short, restored when there's room.
         private var preferredWidths: [NSUserInterfaceItemIdentifier: CGFloat] = [:]
         private var isFittingColumns = false
         private var fitScheduled = false
-        /// Cột phụ người dùng đã bật; cột chưa bật luôn ẩn.
+        /// The secondary columns the user enabled; a disabled one is always hidden.
         private var enabledOptional: Set<NSUserInterfaceItemIdentifier>
         let headerMenu = NSMenu()
-        /// Repo GitHub của remote mặc định — giúp tìm ảnh đại diện qua API commit.
+        /// The default remote's GitHub repo — helps find avatars via the commits API.
         var githubRepo: GitHubRepoRef?
-        /// Gỡ khi coordinator bị huỷ (đóng tab / repo) — observer kiểu block không tự gỡ. `nonisolated(unsafe)` để deinit
-        /// (không chạy trên MainActor) đọc được; chỉ ghi một lần trong init.
+        /// Removed when the coordinator is cancelled (tab / repo closed) — a block-style observer doesn't unregister itself. `nonisolated(unsafe)` so
+        /// deinit (which doesn't run on the MainActor) can read it; it's only written once, in init.
         nonisolated(unsafe) private var avatarObserver: NSObjectProtocol?
 
         private static let messageFont = NSFont.systemFont(ofSize: 13)
         private static let secondaryFont = NSFont.systemFont(ofSize: 12)
         private static let shaFont = NSFont.monospacedSystemFont(ofSize: 11.5, weight: .regular)
 
-        /// Độ rộng do người dùng kéo được lưu riêng: autosave của NSTableView sẽ lưu cả độ rộng đang bị co tạm.
+        /// User-dragged column widths are stored separately: NSTableView's autosave would also store the temporarily shrunk width.
         private static let preferredWidthsKey = "graphColumnWidths"
         private static let defaultWidths: [NSUserInterfaceItemIdentifier: CGFloat] = [
             Column.refs: 190, Column.author: 130, Column.date: 122,
@@ -341,7 +341,7 @@ private struct CommitTable: NSViewRepresentable {
             if let avatarObserver { NotificationCenter.default.removeObserver(avatarObserver) }
         }
 
-        /// Ảnh đại diện vừa tải xong: vẽ lại cột graph của các dòng đang hiện.
+        /// An avatar just finished downloading: repaint the graph column of the visible rows.
         func refreshAvatars() {
             guard let table, let column = table.tableColumns.firstIndex(where: { $0.identifier == Column.graph }) else { return }
             let visible = table.rows(in: table.visibleRect)
@@ -384,7 +384,7 @@ private struct CommitTable: NSViewRepresentable {
             }
         }
 
-        /// Gom nhiều lần đổi kích thước thành một lần tính lại, sau vòng layout hiện tại.
+        /// Coalesces several resize notifications into one recalculation, after the current layout pass.
         func scheduleColumnFit() {
             guard !fitScheduled else { return }
             fitScheduled = true
@@ -396,8 +396,8 @@ private struct CommitTable: NSViewRepresentable {
             }
         }
 
-        /// Cột Commit lấp phần còn lại. Thiếu chỗ thì co tạm các cột phụ, hẹp quá nữa thì ẩn bớt
-        /// SHA → Thời gian → Tác giả (hiện lại khi cửa sổ rộng ra) thay vì bắt cuộn ngang. Cột phụ chưa bật thì luôn ẩn.
+        /// The Commit column takes the remaining space. When space is short the secondary columns shrink; when it's still too
+        /// narrow some are hidden (SHA → Date → Author, reappearing as the window widens) instead of scrolling horizontally. A disabled column stays hidden.
         private func fitColumns() {
             guard let table, let clip = table.enclosingScrollView?.contentView, clip.bounds.width > 0,
                   let message = table.tableColumn(withIdentifier: Column.message) else { return }
@@ -439,7 +439,7 @@ private struct CommitTable: NSViewRepresentable {
         }
 
         func tableViewColumnDidResize(_ notification: Notification) {
-            // Chỉ ghi nhớ khi chính người dùng đang kéo mép cột (không phải do tự co giãn).
+            // Only remember it while the user is actually dragging a column edge (not when it shrank automatically).
             guard !isFittingColumns, let table, let header = table.headerView, header.resizedColumn >= 0,
                   header.resizedColumn < table.tableColumns.count,
                   let column = notification.userInfo?["NSTableColumn"] as? NSTableColumn,
@@ -464,7 +464,7 @@ private struct CommitTable: NSViewRepresentable {
             entries.count
         }
 
-        /// Email để tìm ảnh đại diện: dòng WIP là người đang commit, còn lại là tác giả của commit.
+        /// The email used to find an avatar: the WIP row is the current committer, every other row is the commit's author.
         private func avatarEmail(for commit: Commit) -> String {
             commit.isWorkingTree ? (committerEmail ?? "") : commit.authorEmail
         }
@@ -483,7 +483,7 @@ private struct CommitTable: NSViewRepresentable {
                 cell.laneColor = GraphStyle.color(entry.row.color)
                 cell.dimmed = dimmed
                 cell.labels = entry.labels
-                // Badge "✎ N" chỉ ở viên của nhánh đang checkout: số file chưa commit thuộc nhánh đó.
+                // The "✎ N" badge only sits on the checked-out branch's pill: those uncommitted files belong to that branch.
                 cell.pendingCount = entry.labels.contains(where: \.isCurrentBranch) ? pendingCount : 0
                 cell.pendingSummary = pendingCount > 0 ? workingTreeSummary : ""
                 return cell
@@ -495,7 +495,7 @@ private struct CommitTable: NSViewRepresentable {
                 }()
                 cell.isHead = entry.commit.id == headOID
                 cell.dimmed = dimmed
-                // Dòng WIP vẽ avatar của chính người đang commit; commit merge không có ảnh (node tròn xám).
+                // The WIP row draws the avatar of the current committer; a merge commit has no image (grey round node).
                 cell.avatar = entry.commit.isMerge ? nil : AvatarStore.shared.image(email: avatarEmail(for: entry.commit),
                                                                                       repo: githubRepo)
                 cell.entry = entry
@@ -510,7 +510,7 @@ private struct CommitTable: NSViewRepresentable {
                         .foregroundColor: NSColor.secondaryLabelColor,
                         .paragraphStyle: paragraph,
                     ])
-                    // Có nhánh đang đứng thì số file đã nằm trên viên nhánh; chỉ HEAD tách rời mới in ở đây.
+                    // With a checked-out branch the count already sits on the branch pill; only a detached HEAD prints it here.
                     if showsPendingOnWipRow, !workingTreeSummary.isEmpty {
                         text.append(NSAttributedString(string: "    " + workingTreeSummary, attributes: [
                             .font: Self.secondaryFont,
@@ -572,7 +572,7 @@ private struct CommitTable: NSViewRepresentable {
 
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !isUpdatingSelection, let table else { return }
-            // Chọn từ 2 commit trở lên: so sánh commit cũ nhất (dưới) với commit mới nhất (trên).
+            // Selecting 2 or more commits: compare the oldest (below) with the newest (above).
             let commits = table.selectedRowIndexes.filter { entries.indices.contains($0) && !entries[$0].commit.isWorkingTree }
             if commits.count >= 2, let newest = commits.min(), let oldest = commits.max() {
                 let from = entries[oldest].commit.id
@@ -608,7 +608,7 @@ private struct CommitTable: NSViewRepresentable {
 
         @objc func doubleClicked(_ sender: Any?) {
             guard let table, entries.indices.contains(table.clickedRow) else { return }
-            // Nhấp đúp lên một nhãn: checkout đúng nhánh đó (như GitKraken), không phải nhánh đầu dòng.
+            // Double-clicking a label checks out exactly that branch (like GitKraken), not the topmost one.
             if let point = (table as? CommitNSTableView)?.lastMouseDownPoint,
                let label = label(at: point, row: table.clickedRow), !label.isDetachedHead {
                 if let local = label.localRef {
@@ -632,7 +632,7 @@ private struct CommitTable: NSViewRepresentable {
             activate(entries[table.selectedRow])
         }
 
-        /// Double-click: checkout nhánh trên dòng đó (như GitKraken); dòng WIP thì không làm gì.
+        /// Double-click: check out the branch on that row (like GitKraken); the WIP row does nothing.
         private func activate(_ entry: GraphEntry) {
             guard !entry.commit.isWorkingTree else { return }
             let current = model.currentBranch
@@ -645,7 +645,7 @@ private struct CommitTable: NSViewRepresentable {
             }
         }
 
-        /// Menu của viên "+N": mọi nhánh / tag trên commit, mỗi cái một menu con (Checkout, Merge, Push…).
+        /// The "+N" pill's menu: every branch / tag on the commit, each with a submenu (Checkout, Merge, Push…).
         func overflowMenu(row: Int) -> NSMenu? {
             guard entries.indices.contains(row) else { return nil }
             let refs = entries[row].labels.filter { !$0.isDetachedHead }.flatMap(\.refs)
@@ -662,11 +662,11 @@ private struct CommitTable: NSViewRepresentable {
             return menu
         }
 
-        // MARK: Kéo-thả nhánh
+        // MARK: Branch drag and drop
 
         private var draggingRef: GitRef?
 
-        /// Nhãn dưới điểm `point` (toạ độ bảng) ở dòng `row`, chỉ khi điểm nằm trong cột nhãn.
+        /// The label under `point` (table coordinates) on row `row`, only when the point is inside the label column.
         private func label(at point: NSPoint, row: Int) -> RefLabel? {
             guard let table else { return nil }
             let column = table.column(at: point)
@@ -711,7 +711,7 @@ private struct CommitTable: NSViewRepresentable {
             return model.refs.first { $0.fullName == name }
         }
 
-        /// Nhánh đích: nhãn dưới con trỏ, hoặc nhánh đầu tiên trên dòng (ưu tiên nhánh local).
+        /// The target branch: the label under the cursor, or the first branch on the row (a local branch preferred).
         private func targetRef(for info: any NSDraggingInfo, row: Int, source: GitRef) -> GitRef? {
             guard let table, entries.indices.contains(row) else { return nil }
             let point = table.convert(info.draggingLocation, from: nil)
@@ -791,12 +791,12 @@ private struct CommitTable: NSViewRepresentable {
     }
 }
 
-/// NSTableView chấp nhận phím Return để kích hoạt dòng đang chọn.
+/// NSTableView accepts the Return key to activate the selected row.
 final class CommitNSTableView: NSTableView {
     var onReturn: (() -> Void)?
-    /// Menu khi bấm viên "+N" ở cột nhãn của dòng `row` (chọn một trong các nhánh / tag đang bị gom lại).
+    /// The menu shown when clicking the "+N" pill in row `row`'s label column (picking one of the folded-in branches / tags).
     var overflowMenu: ((Int) -> NSMenu?)?
-    /// Vị trí bấm chuột gần nhất (toạ độ bảng) — để biết người dùng bắt đầu kéo từ nhãn nào.
+    /// The most recent click position (table coordinates) — so a drag knows which label it started from.
     private(set) var lastMouseDownPoint: NSPoint?
 
     override func mouseDown(with event: NSEvent) {
@@ -822,7 +822,7 @@ final class CommitNSTableView: NSTableView {
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
-        // Chọn luôn dòng được bấm chuột phải cho rõ ràng.
+        // Always select the right-clicked row for clarity.
         let point = convert(event.locationInWindow, from: nil)
         let row = self.row(at: point)
         if row >= 0, !selectedRowIndexes.contains(row) {
@@ -841,7 +841,7 @@ final class CommitRowView: NSTableRowView {
     }
 }
 
-/// Đích nhận action của NSMenuItem để gọi closure (được giữ trong `representedObject`).
+/// A target that receives an NSMenuItem's action to call a closure (kept in `representedObject`).
 final class MenuActionTarget: NSObject {
     private let handler: () -> Void
 

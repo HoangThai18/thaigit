@@ -1,8 +1,8 @@
 import NhanhCore
 import SwiftUI
 
-/// Panel bên phải khi so sánh hai commit / hai nhánh (như GitKraken): hai đầu so sánh, các commit ở giữa, và các file
-/// khác nhau — bấm file để xem diff ở giữa màn hình.
+/// The right-hand panel while comparing two commits / two branches (like GitKraken): both ends of the comparison, the
+/// commits in between, and the files that differ — click a file to see its diff in the centre.
 struct ComparisonView: View {
     @Bindable var model: RepoModel
     let from: String
@@ -74,13 +74,13 @@ struct ComparisonView: View {
     }
 }
 
-/// Phần chung của màn so sánh và màn review PR / MR: các commit ở giữa và danh sách file khác nhau (bấm file để xem diff).
+/// What the comparison screen and the PR / MR review screen share: the commits in between and the list of differing files (click a file to see its diff).
 struct ComparisonContent: View {
     @Bindable var model: RepoModel
     let comparison: Comparison
     let from: String
     let to: String
-    /// Bấm commit để nhảy tới nó trên graph. Tắt ở panel review: nhảy tới commit là rời phép so sánh, panel review sẽ đóng.
+    /// Clicking a commit jumps to it on the graph. Off in the review panel: jumping to a commit leaves the comparison and closes the review panel.
     var revealsCommits = true
     @State private var showCommits = true
 

@@ -1,16 +1,16 @@
 import AppKit
 import Foundation
 
-/// Ngôn ngữ giao diện (Cài đặt → Chung). Chuỗi gốc trong code là tiếng Việt; bản tiếng Anh nằm trong
-/// `Resources/en.lproj` của gói app. macOS chọn bản dịch MỘT LẦN lúc mở app theo `AppleLanguages` của riêng app, nên đổi
-/// ngôn ngữ thì app khởi động lại.
+/// The UI language (Settings → General). The source strings in code are Vietnamese; the English version lives in the
+/// app bundle's `Resources/en.lproj`. macOS picks the translation ONCE at launch from the bundle's own
+/// `AppleLanguages`, so changing the language restarts the app.
 enum AppLanguage: String, CaseIterable, Identifiable {
     case vietnamese = "vi"
     case english = "en"
 
     var id: String { rawValue }
 
-    /// Tên viết bằng chính ngôn ngữ đó (không dịch).
+    /// The name written in that language itself (not translated).
     var name: String {
         switch self {
         case .vietnamese: return "Tiếng Việt"
@@ -20,21 +20,21 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 
     private static let key = "AppleLanguages"
 
-    /// Ngôn ngữ của lần chạy này (theo bản dịch macOS đã chọn cho gói app).
+    /// This launch's language (from the translation macOS picked for the app bundle).
     static var current: AppLanguage {
         let preferred = Bundle.main.preferredLocalizations.first ?? "vi"
         return preferred.hasPrefix("en") ? .english : .vietnamese
     }
 
-    /// Chưa từng chọn thì cố định tiếng Việt — máy cài macOS tiếng Anh vẫn mở Thaigit bằng tiếng Việt như trước. Gọi sớm nhất
-    /// có thể (`NhanhApp.init`), trước khi đọc chuỗi nào.
+    /// Never chosen before → pin Vietnamese, so a machine with an English macOS still opens Thaigit in Vietnamese as
+    /// before. Called as early as possible (`NhanhApp.init`), before any string is read.
     static func applyDefault() {
         let defaults = UserDefaults.standard
         guard let domain = Bundle.main.bundleIdentifier, defaults.persistentDomain(forName: domain)?[key] == nil else { return }
         defaults.set([AppLanguage.vietnamese.rawValue], forKey: key)
     }
 
-    /// Lưu lựa chọn rồi mở lại app (chạy ngoài gói .app — `swift run` — thì chỉ lưu, lần mở sau có tác dụng).
+    /// Store the choice then relaunch the app (running outside a .app bundle — `swift run` — only stores it; it takes effect on the next launch).
     static func switchTo(_ language: AppLanguage) {
         UserDefaults.standard.set([language.rawValue], forKey: key)
         UserDefaults.standard.synchronize()
@@ -42,7 +42,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     }
 }
 
-/// Mở lại chính app: chờ tiến trình này thoát hẳn rồi `open` gói .app (dùng khi đổi ngôn ngữ, cài bản cập nhật).
+/// Relaunch the app itself: wait for this process to fully exit, then `open` the .app bundle (used when changing language or installing an update).
 enum AppRelauncher {
     static func relaunch() {
         let app = Bundle.main.bundleURL

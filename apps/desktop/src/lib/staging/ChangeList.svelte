@@ -28,27 +28,27 @@
   interface Props {
     files: readonly FileChange[];
     title: string;
-    /** Nút ở tiêu đề (Stage tất cả / Bỏ stage tất cả). */
+    /** Button in the header (Stage all / Unstage all). */
     headerAction?: { title: string; icon: IconName; run: (event: MouseEvent) => void; tip?: string } | null;
-    /** Nút hiện khi rê chuột vào hàng. */
+    /** Button shown while hovering a row. */
     actions?: readonly RowAction[];
-    /** Đường dẫn file đang mở diff (tô đậm hàng). */
+    /** Path of the file whose diff is open (row shown in bold). */
     selectedPath?: string | null;
     emptyText?: string;
     onopen?: (change: FileChange, event?: MouseEvent) => void;
-    /** Đường dẫn đang được chọn để xử lý nhiều file một lần (tô nền). */
+    /** Currently selected paths, to handle several files at once (row background). */
     markedPaths?: ReadonlySet<string>;
-    /** Chữ phụ cạnh tên file (vd. "2 đoạn" xung đột). */
+    /** Secondary text next to the file name (e.g. "2 hunks" for a conflict). */
     badges?: ReadonlyMap<string, string>;
-    /** Nhấp đúp (stage / bỏ stage nhanh). */
+    /** Double-click (quick stage / unstage). */
     onprimary?: (change: FileChange) => void;
-    /** Chuột phải vào hàng. */
+    /** Right-click on a row. */
     onmenu?: (event: MouseEvent, change: FileChange) => void;
-    /** Kéo file ra khỏi danh sách này (stage / bỏ stage bằng kéo-thả). */
+    /** Drag a file out of this list (stage / unstage by drag and drop). */
     dragFrom?: 'unstaged' | 'staged';
-    /** Danh sách này nhận file thả vào. */
+    /** This list accepts dropped files. */
     dropZone?: 'unstaged' | 'staged';
-    /** Dạng cây: nút trên hàng thư mục (Stage / Bỏ stage cả thư mục). */
+    /** Tree layout: the button on a folder row (Stage / Unstage the whole folder). */
     folderAction?: { title: string; icon: IconName; run: (changes: readonly FileChange[]) => void } | null;
   }
 
@@ -69,7 +69,7 @@
     badges,
   }: Props = $props();
 
-  /** Path / Tree như GitKraken (cài đặt chung cho mọi danh sách file). */
+  /** Path / Tree switch like GitKraken (a setting shared by every file list). */
   const tree = $derived(prefs.value.fileListTree);
   let collapsed = $state<ReadonlySet<string>>(new Set());
   const rows = $derived<readonly FileTreeRow[]>(

@@ -1,4 +1,4 @@
-// happy-dom không có layout: mọi kích thước là 0. Cho các test cần khung nhìn "có kích thước" (danh sách ảo hoá, cột đổi rộng).
+// happy-dom has no layout: every measurement is 0. For tests that need a viewport "with size" (virtualised lists, resizable columns).
 export function stubLayout(size: { width: number; height: number }): () => void {
   const originals = new Map<string, PropertyDescriptor | undefined>();
   const define = (name: string, value: number): void => {

@@ -1,9 +1,9 @@
-// Cầu nối để test (file `.test.ts` không biên dịch được rune) chạy `$effect` ngoài component: dùng trong dự án `dom`, nơi Svelte
-// nạp bản client nên rune có phản ứng thật.
+// Lets tests (a `.test.ts` file can't compile runes) run `$effect` outside a component: used by the `dom`
+// suite, where Svelte loads the client build so the runes really are reactive.
 import { flushSync } from 'svelte';
 import { autoLoadMore, type LoadMoreSource } from '../../src/lib/graph/autoLoadMore.svelte.ts';
 
-/** Gắn effect "tải thêm khi cuộn gần cuối" của GraphView với `rangeEnd` do test điều khiển; trả hàm gỡ. */
+/** Wire GraphView's "load more when scrolling near the end" effect to a `rangeEnd` the test controls; returns a teardown function. */
 export function mountAutoLoadMore(store: LoadMoreSource, rangeEnd: () => number): () => void {
   const stop = $effect.root(() => {
     autoLoadMore(() => store, rangeEnd);
@@ -13,8 +13,9 @@ export function mountAutoLoadMore(store: LoadMoreSource, rangeEnd: () => number)
 }
 
 /**
- * Store giả "ngây thơ": mỗi lần `loadMoreHistory()` chỉ bật rồi tắt `isLoadingHistory`, danh sách không đổi (như một lần tải thêm
- * hỏng mà store không tự chặn). Effect của GraphView phải tự không gọi lại cho cùng một độ dài danh sách.
+ * A deliberately "naive" fake store: each `loadMoreHistory()` just flips `isLoadingHistory` on then off and
+ * the list never changes (like a failed load where the store doesn't block itself). GraphView's effect must
+ * not call it again for the same list length.
  */
 export class NaiveLoadMoreStore implements LoadMoreSource {
   mayHaveMoreCommits = $state(true);
@@ -30,7 +31,7 @@ export class NaiveLoadMoreStore implements LoadMoreSource {
   }
 }
 
-/** Đếm số lần một `$derived` đọc `prefs.value.sidebarSections` / `columns` / `scheme` báo "đã đổi" (effect phụ thuộc chạy lại). */
+/** Count how many times a `$derived` reading `prefs.value.sidebarSections` / `columns` / `scheme` reports "changed" (dependent effects re-running). */
 export function watchPrefs(prefs: {
   value: { sidebarSections: unknown; columns: unknown; scheme: unknown };
 }) {

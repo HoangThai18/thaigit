@@ -23,7 +23,7 @@ export function testConfig(extra: Record<string, string> = {}): Config {
   });
 }
 
-/** Chunk SSE kiểu OpenAI. */
+/** An OpenAI-style SSE chunk. */
 export function openAiChunk(content: string): string {
   return `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
 }
@@ -34,11 +34,11 @@ export function openAiUsage(prompt: number, completion: number): string {
 
 export interface FakeHermes {
   fetch: typeof fetch;
-  /** Body JSON các request đã nhận. */
+  /** JSON bodies of the requests received. */
   requests: unknown[];
 }
 
-/** Hermes giả: `script` trả các đoạn SSE (có thể chậm), hoặc ném lỗi / trả HTTP lỗi. */
+/** Fake Hermes: `script` yields SSE chunks (possibly slowly), or throws / returns an HTTP error. */
 export function fakeHermes(
   script: (body: unknown) => { status?: number; chunks?: string[]; delayMs?: number; hang?: boolean },
 ): FakeHermes {
@@ -126,7 +126,7 @@ export const COMMIT_BODY = {
   options: { language: 'auto', conventional: false, length: 'normal' },
 };
 
-/** Đọc toàn bộ SSE thành danh sách {event, data}. */
+/** Read a whole SSE body into a list of {event, data}. */
 export async function readSse(response: Response): Promise<{ event: string; data: unknown }[]> {
   const text = await response.text();
   return text

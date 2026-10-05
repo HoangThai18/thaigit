@@ -1,10 +1,11 @@
 import Foundation
 
-/// Nhánh ẩn / chỉ hiện ("solo") trên graph, như GitKraken. Ref ghi bằng tên đầy đủ (`refs/heads/x`, `refs/remotes/origin/x`).
-/// Ẩn một nhánh chỉ bỏ nó khỏi các điểm bắt đầu của lịch sử: commit chung với nhánh khác vẫn hiện.
+/// Hidden / show-only ("solo") branches on the graph, like GitKraken. Refs are written with their full name
+/// (`refs/heads/x`, `refs/remotes/origin/x`).
+/// Hiding a branch only removes it from the history starting points: commits shared with another branch stay visible.
 public struct GraphRefFilter: Sendable, Equatable, Codable {
     public var hidden: Set<String>
-    /// Khác rỗng: graph chỉ gồm lịch sử của các ref này.
+    /// Non-empty: the graph contains only the history of these refs.
     public var solo: Set<String>
 
     public init(hidden: Set<String> = [], solo: Set<String> = []) {
@@ -14,21 +15,22 @@ public struct GraphRefFilter: Sendable, Equatable, Codable {
 
     public var isActive: Bool { !hidden.isEmpty || !solo.isEmpty }
 
-    /// Ref có được vẽ (nhãn, lịch sử riêng) trên graph không. Tag luôn hiện khi không solo.
+    /// Whether a ref is drawn on the graph (label, own history). Tags are always shown when not solo.
     public func isVisible(_ fullName: String) -> Bool {
         if !solo.isEmpty { return solo.contains(fullName) }
         return !hidden.contains(fullName)
     }
 
-    /// Bỏ các ref không còn tồn tại (nhánh đã xoá).
+    /// Drops refs that no longer exist (a deleted branch).
     public func keeping(_ existing: Set<String>) -> GraphRefFilter {
         GraphRefFilter(hidden: hidden.intersection(existing), solo: solo.intersection(existing))
     }
 
-    /// Các đối số chọn điểm bắt đầu cho `git log` (thay cho `--branches --remotes --tags HEAD`).
-    /// - solo: đúng các ref đó, kèm HEAD (nhánh đang checkout và dòng WIP luôn hiện).
-    /// - ẩn: `--exclude=<mẫu>` đặt ngay trước `--branches` / `--remotes` (mẫu không có tiền tố refs/heads/, refs/remotes/
-    ///   và được thoát ký tự glob — git coi mẫu --exclude là glob).
+    /// The arguments choosing the starting points for `git log` (instead of `--branches --remotes --tags HEAD`).
+    /// - solo: exactly those refs, plus HEAD (the checked-out branch and the WIP row are always shown).
+    /// - hide: `--exclude=<pattern>` placed right before `--branches` / `--remotes` (patterns carry no
+    ///   `refs/heads/` or `refs/remotes/` prefix and get their glob characters escaped — git treats an
+    ///   --exclude pattern as a glob).
     public func revisionArguments(includeHEAD: Bool, includeRemotes: Bool, includeTags: Bool) -> [String] {
         if !solo.isEmpty {
             var args = solo.filter { $0.hasPrefix("refs/") }.sorted()

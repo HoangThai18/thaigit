@@ -1,14 +1,14 @@
 import Foundation
 
-/// Tô màu cú pháp cho diff (như GitKraken): bộ tách token gọn theo từng dòng — từ khoá, chuỗi, comment, số. Diff chỉ có các
-/// hunk rời nên chuỗi / comment nhiều dòng có thể tô chưa đúng; chấp nhận được, như phần lớn công cụ diff. Không phụ thuộc
-/// thư viện ngoài, không chạy gì của repo.
+/// Syntax highlighting for diffs (like GitKraken): a small per-line tokenizer — keywords, strings, comments,
+/// numbers. A diff only has disjoint hunks, so multi-line strings / comments may highlight imperfectly;
+/// acceptable, and true of most diff tools. No third-party dependency, and nothing from the repo is run.
 public struct SyntaxLanguage: Sendable, Equatable {
     public let lineComments: [String]
     public let blockComment: (open: String, close: String)?
     public let quotes: Set<Character>
     public let keywords: Set<String>
-    /// Ngôn ngữ phân biệt hoa / thường của từ khoá (SQL thì không).
+    /// Whether the language's keywords are case-sensitive (SQL's aren't).
     public let caseSensitive: Bool
 
     public static func == (lhs: SyntaxLanguage, rhs: SyntaxLanguage) -> Bool {
@@ -16,7 +16,7 @@ public struct SyntaxLanguage: Sendable, Equatable {
             && lhs.quotes == rhs.quotes && lhs.keywords == rhs.keywords
     }
 
-    /// Ngôn ngữ theo phần mở rộng của đường dẫn; `nil` khi không biết (vẽ chữ thường).
+    /// Language by file extension; `nil` when unknown (drawn as plain text).
     public static func forPath(_ path: String) -> SyntaxLanguage? {
         let name = (path as NSString).lastPathComponent.lowercased()
         if name == "dockerfile" || name.hasPrefix("dockerfile.") { return shell }
@@ -143,13 +143,13 @@ public enum SyntaxTokenKind: Sendable, Equatable {
 }
 
 public struct SyntaxToken: Sendable, Equatable {
-    /// Vị trí theo Character trong dòng.
+    /// Positions are Character-based within the line.
     public let range: Range<Int>
     public let kind: SyntaxTokenKind
 }
 
 public enum SyntaxHighlighter {
-    /// Dòng dài hơn chừng này ký tự thì không tô (file minified) để diff vẫn mượt.
+    /// Lines longer than roughly this many characters aren't highlighted (minified files) so the diff stays smooth.
     public static let maxLineLength = 2000
 
     public static func tokens(_ line: String, language: SyntaxLanguage) -> [SyntaxToken] {

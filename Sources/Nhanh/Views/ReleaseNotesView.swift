@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Tab "Có gì mới" như Release Notes của GitKraken: đọc CHANGELOG.md đi kèm app.
+/// The "What's New" tab, like GitKraken's Release Notes: reads the CHANGELOG.md shipped with the app.
 struct ReleaseNotesView: View {
     private let notes = Self.load()
     private let currentVersion = AppUpdater.shared.currentVersion
@@ -95,7 +95,7 @@ private struct ReleaseSectionCard: View {
             .background(tint.opacity(0.15), in: Capsule())
     }
 
-    /// Markdown inline (**đậm**, `code`, link); lỗi cú pháp thì hiện nguyên văn.
+    /// Inline Markdown (**bold**, `code`, links); a syntax error falls back to the raw text.
     private static func markdown(_ text: String) -> AttributedString {
         (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
             ?? AttributedString(text)

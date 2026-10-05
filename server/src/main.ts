@@ -1,5 +1,5 @@
-// Điểm chạy: `node --disable-warning=ExperimentalWarning src/main.ts` (Node 24 chạy thẳng TypeScript).
-// API công khai trên HOST:PORT (đặt sau nginx/Caddy), trang admin chỉ-đọc trên ADMIN_HOST:ADMIN_PORT (127.0.0.1).
+// Entry point: `node --disable-warning=ExperimentalWarning src/main.ts` (Node 24 runs TypeScript directly).
+// Public API on HOST:PORT (behind nginx/Caddy); read-only admin page on ADMIN_HOST:ADMIN_PORT (127.0.0.1).
 
 import { join } from 'node:path';
 import { getConnInfo } from '@hono/node-server/conninfo';
@@ -60,7 +60,7 @@ const server = serve({ fetch: app.fetch, hostname: config.host, port: config.por
 const admin = serve({ fetch: createAdminApp(db).fetch, hostname: config.adminHost, port: config.adminPort });
 log(`API http://${config.host}:${config.port} · admin http://${config.adminHost}:${config.adminPort}`);
 
-// Tắt êm: ngừng nhận kết nối mới, chờ các stream AI đang chạy xong (tối đa 100 s, compose cho 120 s).
+// Graceful shutdown: stop accepting connections and wait for in-flight AI streams (up to 100 s; compose allows 120 s).
 let stopping = false;
 const shutdown = async (signal: string) => {
   if (stopping) return;

@@ -1,6 +1,7 @@
-// Hỏi tên đăng nhập / mật khẩu / passphrase trong app khi git/ssh cần (askpass tương tác). Mỗi câu hỏi là một hộp thoại form;
-// nhiều câu hỏi thì lần lượt. Lệnh xong / bị huỷ trước khi trả lời thì Rust báo `askpass-closed` → đóng hộp thoại, không trả
-// lời nữa. Không bao giờ log câu hỏi / câu trả lời; câu trả lời giữ nguyên (không cắt khoảng trắng — mật khẩu có thể có).
+// Asks for a username / password / passphrase inside the app when git/ssh needs one (interactive askpass). Each question is
+// a form dialog; several questions appear one after another. When the command finishes (or is cancelled) before an
+// answer, Rust reports `askpass-closed` → close the dialog and stop answering. Questions and answers are never logged; an
+// answer is kept exactly as typed (no trimming — a password may contain spaces).
 
 import type { AskpassClosedEvent, AskpassRequestEvent } from '@thaigit/contracts';
 import { vi } from '../strings.vi.ts';
@@ -37,7 +38,7 @@ function describe(request: AskpassRequestEvent): { title: string; message: strin
         field: { kind: 'password', id: 'answer', label: vi.remote.askpassPassphraseLabel, value: '' },
       };
     case 'other':
-      // Câu hỏi khác của ssh (vd. xác nhận khoá của máy chủ lần đầu): phải đọc nguyên văn để quyết định.
+      // Other ssh questions (e.g. confirming the server's key on first use): read verbatim to decide what to do.
       return {
         title: vi.remote.askpassOtherTitle,
         message: `${parts[0]}\n\n${request.prompt}`,
@@ -50,7 +51,7 @@ export class AskpassStore {
   private port: AskpassPort | null = null;
   private readonly dialogs: DialogStore;
   private queue: AskpassRequestEvent[] = [];
-  /** Câu hỏi đang hiện: id yêu cầu + id hộp thoại. */
+  /** The question on screen: request id + dialog id. */
   private showing: { requestId: string; dialogId: number | null } | null = null;
   private expired = new Set<string>();
   private stops: (() => void)[] = [];
@@ -102,7 +103,7 @@ export class AskpassStore {
     }
     const raw = values?.['answer'];
     const answer = typeof raw === 'string' ? raw : null;
-    // Câu hỏi có thể vừa hết hiệu lực phía Rust: lỗi "không còn hiệu lực" là bình thường, bỏ qua.
+    // The question may have just expired on Rust's side: a "no longer valid" error is normal, ignore it.
     await this.port?.reply(request.requestId, answer).catch(() => undefined);
     void this.next();
   }

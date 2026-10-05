@@ -42,16 +42,16 @@
     if (entry) void resolveWhole(store, entry, useOurs);
   }
 
-  /** File xung đột đang chọn (Ctrl/⌘-click, Shift-click) để xử lý nhiều file một lần. */
+  /** The selected conflicting files (Ctrl/⌘-click, Shift-click) so several can be handled at once. */
   let marked = $state.raw<ReadonlySet<string>>(new Set());
-  /** Số đoạn xung đột của từng file → chữ "2 đoạn" cạnh tên. */
+  /** Number of conflict hunks per file → the "2 hunks" text next to the name. */
   let counts = $state.raw<ReadonlyMap<string, string>>(new Map());
   const conflictKey = $derived(status.conflicts.map((entry) => `${entry.kind}:${entry.path}`).join('\n'));
 
   $effect(() => {
     void conflictKey;
     const entries = status.conflicts.filter((entry) => conflictHasMarkers(entry.kind));
-    // `untrack`: đọc rồi ghi `marked` trong effect sẽ tự kích hoạt lại vô tận.
+    // `untrack`: reading and then writing `marked` inside an effect would self-trigger forever.
     untrack(() => {
       marked = new Set([...marked].filter((path) => status.conflicts.some((entry) => entry.path === path)));
     });
@@ -67,7 +67,7 @@
             next.set(entry.path, vi.branches.conflictCount(parsed.file.blocks.length));
           }
         } catch {
-          // Không đọc được (file lớn / bị khoá): chỉ không hiện số đoạn.
+          // Unreadable (file too large / locked): just don't show a hunk count.
         }
       }
       if (!cancelled) counts = next;

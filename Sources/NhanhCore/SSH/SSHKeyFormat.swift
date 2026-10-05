@@ -1,15 +1,15 @@
 import CryptoKit
 import Foundation
 
-/// Lỗi của khoá SSH. Thông báo viết cho người dùng — không chứa nội dung khoá.
+/// An SSH key error. The message is written for the user — it never contains key material.
 public enum SSHKeyError: LocalizedError, Sendable, Equatable {
-    /// File không phải khoá bí mật SSH mà Thaigit đọc được.
+    /// The file is not an SSH private key Thaigit can read.
     case unsupportedFormat
-    /// Khoá này đã có trong Thaigit.
+    /// This key is already in Thaigit.
     case duplicate
-    /// Đọc / ghi Keychain lỗi (mã OSStatus chỉ ghi nhật ký).
+    /// Keychain read / write failed (the OSStatus code only goes to the log).
     case keychain(Int32)
-    /// Không chạy được ssh-agent / ssh-add trên máy.
+    /// ssh-agent / ssh-add cannot run on this machine.
     case agentUnavailable
 
     public var errorDescription: String? {
@@ -26,12 +26,12 @@ public enum SSHKeyError: LocalizedError, Sendable, Equatable {
     }
 }
 
-/// Khoá SSH dạng OpenSSH: tạo khoá Ed25519 ngay trong app (CryptoKit, không ghi file tạm) và đọc khoá công khai từ khoá bí
-/// mật có sẵn. Định dạng "openssh-key-v1" để khoá công khai KHÔNG mã hoá ngay đầu file, nên đọc được cả khi khoá có
-/// passphrase.
+/// An OpenSSH-format SSH key: generate Ed25519 keys right inside the app (CryptoKit, no temp files) and read
+/// the public key back from the stored secret. The "openssh-key-v1" format leaves the public key
+/// UNENCRYPTED at the start of the file, so it can be read even from a passphrase-protected key.
 public enum SSHKeyFormat {
     public struct Generated: Sendable {
-        /// Khoá bí mật dạng PEM "OPENSSH PRIVATE KEY" (không passphrase — được Keychain bảo vệ).
+        /// PEM "OPENSSH PRIVATE KEY" secret (no passphrase — the Keychain protects it). */
         public let privateKey: Data
         public let publicKey: SSHPublicKey
     }
@@ -40,7 +40,7 @@ public enum SSHKeyFormat {
     private static let beginMarker = "-----BEGIN OPENSSH PRIVATE KEY-----"
     private static let endMarker = "-----END OPENSSH PRIVATE KEY-----"
 
-    /// Tạo khoá Ed25519 mới. `comment` thường là email hoặc "thaigit@<tên máy>".
+    /// Generate a new Ed25519 key. `comment` is usually an email or "thaigit@<machine name>". */
     public static func generateEd25519(comment: String) -> Generated {
         let key = Curve25519.Signing.PrivateKey()
         let seed = key.rawRepresentation
@@ -74,7 +74,7 @@ public enum SSHKeyFormat {
         return Generated(privateKey: Data(pem.utf8), publicKey: SSHPublicKey(blob: publicBlob, comment: comment))
     }
 
-    /// Khoá công khai + khoá có passphrase không, đọc từ khoá bí mật dạng OpenSSH. nil nếu không phải dạng này.
+    /// The public key, plus whether the secret has a passphrase, read from an OpenSSH-format secret. nil when it isn't in that format.
     public static func inspectOpenSSH(_ privateKey: Data) -> (publicKey: SSHPublicKey, encrypted: Bool)? {
         guard let text = String(data: privateKey, encoding: .utf8),
               let start = text.range(of: beginMarker), let end = text.range(of: endMarker, range: start.upperBound..<text.endIndex)
@@ -89,7 +89,7 @@ public enum SSHKeyFormat {
         return (SSHPublicKey(blob: blob, comment: ""), String(decoding: cipher, as: UTF8.self) != "none")
     }
 
-    /// Có dạng khoá bí mật PEM nào đó (OpenSSH, RSA/EC/DSA kiểu cũ, PKCS#8) — để từ chối sớm file không phải khoá.
+    /// Whether the file looks like ANY PEM private key (OpenSSH, older RSA/EC/DSA, PKCS#8) — to reject non-key files early.
     public static func looksLikePrivateKey(_ data: Data) -> Bool {
         guard data.count < 64 * 1024, let text = String(data: data, encoding: .utf8) else { return false }
         return text.contains("-----BEGIN ") && text.contains(" PRIVATE KEY-----")
@@ -149,7 +149,7 @@ public enum SSHKeyFormat {
     }
 }
 
-/// Khoá công khai SSH (blob nhị phân theo RFC 4253).
+/// An SSH public key (binary blob per RFC 4253).
 public struct SSHPublicKey: Sendable, Equatable {
     public let blob: Data
     public let comment: String
@@ -159,7 +159,7 @@ public struct SSHPublicKey: Sendable, Equatable {
         self.comment = comment
     }
 
-    /// Đọc dòng "ssh-ed25519 AAAA… comment" (nội dung file .pub hoặc output `ssh-keygen -y`).
+    /// Parse the line "ssh-ed25519 AAAA… comment" (the content of a .pub file or `ssh-keygen -y` output).
     public init?(line: String) {
         let parts = line.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: " ", maxSplits: 2)
         guard parts.count >= 2, let blob = Data(base64Encoded: String(parts[1])) else { return nil }
@@ -167,7 +167,7 @@ public struct SSHPublicKey: Sendable, Equatable {
         guard let type, type == String(parts[0]) else { return nil }
     }
 
-    /// Loại khoá ghi trong blob ("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-nistp256"…). nil nếu blob hỏng.
+    /// The key type recorded in the blob ("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-nistp256"…). nil when the blob is corrupt.
     public var type: String? {
         var reader = SSHKeyFormat.Reader(blob)
         guard let name = reader.string(), !name.isEmpty, name.count < 64,
@@ -176,7 +176,7 @@ public struct SSHPublicKey: Sendable, Equatable {
         return text
     }
 
-    /// Tên ngắn cho giao diện: "Ed25519", "RSA", "ECDSA"…
+    /// Short name for the UI: "Ed25519", "RSA", "ECDSA"…
     public var displayType: String {
         switch type ?? "" {
         case "ssh-ed25519": return "Ed25519"
@@ -188,13 +188,13 @@ public struct SSHPublicKey: Sendable, Equatable {
         }
     }
 
-    /// Dòng để dán vào GitHub / GitLab: "<loại> <base64> <comment>".
+    /// The line to paste into GitHub / GitLab: "<type> <base64> <comment>".
     public var line: String {
         let base = "\(type ?? "ssh") \(blob.base64EncodedString())"
         return comment.isEmpty ? base : base + " " + comment
     }
 
-    /// Dấu vân tay như `ssh-keygen -l`: "SHA256:<base64 không padding>".
+    /// A fingerprint like `ssh-keygen -l` prints it: "SHA256:<base64 without padding>".
     public var fingerprint: String {
         let digest = Data(SHA256.hash(data: blob)).base64EncodedString()
         return "SHA256:" + digest.replacingOccurrences(of: "=", with: "")

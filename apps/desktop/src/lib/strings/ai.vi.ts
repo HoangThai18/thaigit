@@ -1,5 +1,5 @@
 /**
- * Chuỗi của phần AI (viết commit, giải thích commit, mô tả PR). Truy cập qua `vi.ai.*`.
+ * Strings for the AI features (write commit, explain commit, describe PR). Reached through `vi.ai.*`.
  */
 export const ai = {
   write: 'Viết bằng AI',

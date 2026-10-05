@@ -1,5 +1,5 @@
-// Quản lý remote (sidebar → REMOTE, như GitKraken): thêm, fetch riêng một remote, sửa địa chỉ, đổi tên, xoá (có Hoàn tác).
-// Địa chỉ đi qua lệnh có kiểu (`remoteAdd` / `remoteSetUrl`) nên phía Rust kiểm URL — webview không tự ghép lệnh `remote add`.
+// Remote management (sidebar → REMOTE, like GitKraken): add, fetch one remote, edit the address, rename, delete (with Undo).
+// Addresses go through the typed commands (`remoteAdd` / `remoteSetUrl`) so Rust validates the URL — the webview never assembles a `remote add` command itself.
 
 import { isValidRemoteName, type Remote } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
@@ -24,7 +24,7 @@ function remoteBranchCount(store: RepoStore, name: string): number {
   return store.remoteBranches.filter((ref) => ref.fullName.startsWith(`refs/remotes/${name}/`)).length;
 }
 
-/** Menu chuột phải của một remote ở sidebar. */
+/** A remote's context menu in the sidebar. */
 export function remoteMenu(store: RepoStore, remote: Remote): MenuItem[] {
   return tidyMenu([
     {
@@ -100,7 +100,7 @@ export async function addRemote(
   if (added && fetchAfter) await fetchRemote(store, name);
 }
 
-/** Fetch riêng một remote (menu của remote ở sidebar). */
+/** Fetch a single remote (from the remote's sidebar menu). */
 export function fetchRemote(store: RepoStore, name: string): Promise<void> {
   const progress = store.progressReporter();
   const prune = store.preferences.fetchPrune;
@@ -174,7 +174,7 @@ export async function beginRenameRemote(
   );
 }
 
-/** Xoá remote (hỏi trước). Hoàn tác thêm lại remote cùng địa chỉ; nhánh của nó về lại sau lần fetch kế. */
+/** Delete a remote (asks first). Undo adds the remote back with the same address; its branches return after the next fetch. */
 export async function removeRemote(store: RepoStore, remote: Remote, dialogs?: DialogStore): Promise<void> {
   const confirmed = await (dialogs ?? globalDialogs).confirm({
     title: vi.remote.removeRemoteTitle(remote.name),
@@ -196,7 +196,7 @@ export async function removeRemote(store: RepoStore, remote: Remote, dialogs?: D
 }
 
 async function restoreRemote(store: RepoStore, remote: Remote): Promise<void> {
-  // Chỉ khôi phục địa chỉ fetch (cũng là địa chỉ push, như phần lớn remote): `set-url --push` là lệnh có kiểu chưa mở ra webview.
+  // Only the fetch address is restored (for most remotes that is also the push address): `set-url --push` is a typed command not yet exposed to the webview.
   await store.perform(
     vi.remote.addRemoteRunning(remote.name),
     (git) => git.addRemote(remote.name, remote.fetchUrl),

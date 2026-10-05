@@ -27,7 +27,7 @@
     onshowlog: () => void;
     onsearch?: () => void;
     onpalette?: () => void;
-    /** Bật / tắt panel terminal; không truyền thì không có nút. */
+    /** Show / hide the terminal panel; omit to get no button. */
     onterminal?: () => void;
     terminalVisible?: boolean;
   }
@@ -269,7 +269,7 @@
     width: 8px;
   }
 
-  /* Nút như GitKraken: nền sáng, viền mảnh; màu nằm ở biểu tượng (mỗi thao tác một màu) để dễ nhận ra. */
+  /* GitKraken-like button: light background, thin border; the colour lives on the icon (one colour per action) so it is recognisable at a glance. */
   .action {
     display: inline-flex;
     align-items: center;
@@ -379,7 +379,7 @@
     text-align: center;
   }
 
-  /* Cửa sổ hẹp: bỏ chữ, giữ biểu tượng (+ số commit trước/sau dạng huy hiệu). */
+  /* Narrow window: drop the label, keep the icon (plus the before/after commit counts as a badge). */
   @media (max-width: 1180px) {
     .label {
       display: none;

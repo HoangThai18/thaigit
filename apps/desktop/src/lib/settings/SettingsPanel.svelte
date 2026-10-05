@@ -36,7 +36,7 @@
     ai?: AiStore;
     telemetry?: TelemetryStore;
     setChannel?: (channel: UpdateChannel) => Promise<void>;
-    /** Đổi ngôn ngữ: lưu, báo Rust rồi tải lại cửa sổ (test thay bằng hàm giả). */
+    /** Change the language: store it, tell Rust, then reload the window (tests substitute a fake). */
     changeLocale?: (next: Locale) => void;
   }
 
@@ -62,12 +62,12 @@
     if (settings.isOpen && doneButton) doneButton.focus();
   });
 
-  // Danh sách tài khoản nạp khi mở Cài đặt (Rust là nguồn sự thật; lỗi thì giữ danh sách cũ).
+  // The account list is loaded when Settings is opened (Rust is the source of truth; on failure the old list is kept).
   $effect(() => {
     if (settings.isOpen) void defaultAccounts.refresh().catch(() => undefined);
   });
 
-  // Mở từ nút "Tài khoản" ở trang chủ: cuộn thẳng tới mục Tài khoản.
+  // Opened from the home screen's "Accounts" button: scroll straight to the Accounts section.
   let accountsAnchor = $state<HTMLElement | null>(null);
   $effect(() => {
     if (!settings.isOpen || settings.focus !== 'accounts' || !accountsAnchor) return;
@@ -79,7 +79,7 @@
     const input = event.currentTarget as HTMLInputElement;
     const parsed = Number(input.value);
     if (input.value.trim() !== '' && Number.isFinite(parsed)) apply(parsed);
-    // Giá trị đã kẹp (vd. nhập 5 cho số commit → 200): hiện lại đúng giá trị đang dùng.
+    // Value already clamped (e.g. the user typed 5 for the commit count → 200): display the value actually in use.
     queueMicrotask(() => {
       input.value = String(input.dataset.current ?? input.value);
     });

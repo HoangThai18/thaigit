@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `staging.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `stagin.vi.ts` (same keys, same parameters). */
 import type { staging as source } from './staging.vi.ts';
 import type { Translation } from './types.ts';
 

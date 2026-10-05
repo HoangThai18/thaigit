@@ -1,4 +1,4 @@
-// API công khai của diff/patch/conflict (theo byte). Phần giải mã hiển thị nằm riêng ở `presentation`/`inline-diff`.
+// Public API of the byte-oriented diff/patch/conflict code. Display decoding lives separately in `presentation`/`inline-diff`.
 
 export type { DiffHunk, DiffLine, DiffLineKind, FileDiff, HunkHeader } from './diff.ts';
 export {

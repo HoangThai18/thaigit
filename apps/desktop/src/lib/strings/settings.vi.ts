@@ -1,5 +1,5 @@
 /**
- * Chuỗi của màn Cài đặt và thẻ hỏi thống kê. Truy cập qua `vi.settings.*`.
+ * Strings for the Settings screen and the usage question card. Reached through `vi.settings.*`.
  */
 export const settings = {
   title: 'Cài đặt',
@@ -31,7 +31,7 @@ export const settings = {
   pullRebase: 'Rebase',
   pullFastForward: 'Chỉ fast-forward',
   fetchPrune: 'Dọn nhánh remote đã bị xoá khi fetch (--prune)',
-  /** Node graph vẽ ảnh đại diện thật của người commit. */
+  /** Graph nodes draw the real avatar of each commit author. */
   showAvatars: 'Ảnh đại diện thật trên graph',
   showAvatarsTip: 'Tắt thì graph không tải ảnh nào, chỉ vẽ chữ cái đầu (tên người commit không rời máy)',
   autoFetch: 'Tự fetch mỗi (phút, 0 = tắt)',

@@ -1,28 +1,29 @@
-// Xếp commit vào các làn của graph (port GraphLayout.swift, kết quả giống hệt). Hàm thuần: chạy được trong Web Worker.
+// Lays commits out into graph lanes (port of GraphLayout.swift, same result). Pure functions, so this can run in a
+// Web Worker.
 //
-// Đầu vào là các commit đã sắp con trước cha (như `git log --date-order/--topo-order`). Mỗi làn chờ một commit cha.
-// Nhánh giữ nguyên làn cho tới điểm rẽ nhánh, rồi uốn cong vào node cha (giống GitKraken), nên các đường thẳng và ít
-// cắt nhau. Màu theo cột (làn): làn 0 luôn một màu, hai làn cạnh nhau luôn khác màu, và màu không nhảy lung tung khi
-// lịch sử thay đổi.
+// Input is commits already ordered children-before-parents (as `git log --date-order/--topo-order` gives). Each lane
+// waits for one parent commit. A branch keeps its lane until it forks, then curves into its parent node (like
+// GitKraken), which keeps straight lines uncrossed as much as possible. Colour follows the column (lane): lane 0 is
+// always the same colour, adjacent lanes always differ, and colours do not jump around as history changes.
 
 import { WORKING_TREE_ID, type Commit } from '../git/models.ts';
 
-/** Màu của đường nét đứt từ node WIP xuống HEAD. */
+/** Colour of the dashed line from the WIP node to HEAD. */
 export const WORKING_TREE_COLOR = -1;
 
 export type GraphLineKind =
-  /** Đường đi thẳng qua cả hàng trong làn `lane`. */
+  /** Straight segment crossing the whole row in lane `lane`. */
   | 'pass'
-  /** Nửa trên: từ đỉnh làn `lane` đi vào node của hàng. */
+  /** Upper half: from the lane top into the row's node. */
   | 'toNode'
-  /** Nửa dưới: từ node đi xuống đáy làn `lane`. */
+  /** Lower half: from the node down to the lane bottom. */
   | 'fromNode';
 
-/** Một đoạn đường cần vẽ trong một hàng. Bất biến và được dùng chung giữa các hàng (structured clone giữ nguyên chia sẻ). */
+/** One line segment to draw in a row. Immutable and shared between rows (structured clone preserves the sharing). */
 export interface GraphLine {
   readonly kind: GraphLineKind;
   readonly lane: number;
-  /** Chỉ số màu; `WORKING_TREE_COLOR` là đường nét đứt của WIP. */
+  /** Colour index; `WORKING_TREE_COLOR` is the WIP dashed line. */
   readonly color: number;
 }
 
@@ -30,30 +31,30 @@ export interface GraphRow {
   readonly lane: number;
   readonly color: number;
   readonly lines: readonly GraphLine[];
-  /** Số làn cần để vẽ hàng này. */
+  /** Number of lanes this row needs. */
   readonly width: number;
 }
 
-/** Phần của commit mà layout cần. */
+/** The parts of a commit the layout needs. */
 export type GraphCommit = Pick<Commit, 'id' | 'parents'>;
 
 interface Lane {
   sha: string;
-  /** Đường nét đứt từ node WIP xuống HEAD. */
+  /** Dashed line from the WIP node to HEAD. */
   isWorkingTree: boolean;
 }
 
 const KIND_INDEX: Record<GraphLineKind, number> = { pass: 0, toNode: 1, fromNode: 2 };
 
-/** Đọc một lần: truy cập export của module trong vòng lặp nóng có thể chậm khi chạy dưới bộ nạp module của test. */
+/** Read once: touching a module export inside a hot loop can be slow under a test module loader. */
 const WIP_ID = WORKING_TREE_ID;
 
-/** Hàng chục nghìn commit × hàng chục làn → hàng triệu đường; chỉ có vài trăm bộ (kind, lane, color) khác nhau nên dùng chung đối tượng. */
+/** Tens of thousands of commits × tens of lanes → millions of segments, but only a few hundred distinct (kind, lane, colour) triples, so the objects are shared. */
 class LineCache {
   private readonly lines = new Map<number, GraphLine>();
 
   get(kind: GraphLineKind, lane: number, color: number): GraphLine {
-    // lane, color + 1 < 2^20 trong mọi repo thực tế; khoá còn nằm trong số nguyên an toàn của JS.
+    // lane, colour + 1 stays under 2^20 for every real repo, so the key fits in a JS safe integer.
     const key = (lane * 1_048_576 + (color + 1)) * 3 + KIND_INDEX[kind];
     let line = this.lines.get(key);
     if (line === undefined) {
@@ -91,7 +92,7 @@ export function computeGraphLayout(commits: readonly GraphCommit[]): GraphRow[] 
     const nodeColor = isWorkingTree ? WORKING_TREE_COLOR : nodeLane;
     let maxLane = nodeLane;
 
-    // Nửa trên của hàng.
+    // Upper half of the row.
     for (let index = 0; index < lanes.length; index++) {
       const lane = lanes[index];
       if (!lane) continue;
@@ -100,7 +101,7 @@ export function computeGraphLayout(commits: readonly GraphCommit[]): GraphRow[] 
     }
     for (const index of targets) lanes[index] = null;
 
-    // Nửa dưới: nối tới các commit cha.
+    // Lower half: connecting up to the parent commits.
     for (let parentIndex = 0; parentIndex < commit.parents.length; parentIndex++) {
       const parent = commit.parents[parentIndex];
       if (parent === undefined) continue;

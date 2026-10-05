@@ -1,6 +1,7 @@
-// Trạng thái AI của app: đã đồng ý chưa, mã cài đặt AI (`aiInstallId` — chỉ tạo SAU khi đồng ý, tách hẳn khỏi mã thống kê),
-// token, tuỳ chọn viết commit, lượt còn lại hôm nay. Chưa đồng ý → không có request nào tới /v1/ai/* và không có mã cài đặt.
-// Lưu ở localStorage của webview (token chỉ dùng để gắn quota, không cấp quyền gì khác).
+// The app's AI state: consent, the AI install id (`aiInstallId` — created only AFTER consent, kept strictly apart from the
+// analytics id), the token, commit-writing options, and today's remaining quota. Without consent no request reaches /v1/ai/*
+// and no install id exists.
+// Kept in the webview's localStorage (the token is only used to attach the quota; it grants nothing).
 
 import {
   AI_LANGUAGES,
@@ -17,7 +18,7 @@ import { AiClient, AiFailure, DEFAULT_API_URL, type AiIdentity } from '../ai/cli
 import { browserStorage, type KeyValueStorage } from './prefs.svelte.ts';
 
 export const AI_STORAGE_KEY = 'thaigit.ai.v1';
-/** Token bị máy chủ từ chối thì đăng ký lại, tối đa ngần này lần mỗi ngày (tránh vòng lặp khi máy chủ lỗi). */
+/** A token the server rejected triggers one re-registration, at most this many times per day (avoids a loop while the server is failing). */
 const MAX_REGISTRATIONS_PER_DAY = 3;
 
 interface AiSaved {
@@ -51,7 +52,7 @@ function sanitize(raw: unknown): AiSaved {
   const consented = value.consented === true;
   return {
     consented,
-    // Chưa đồng ý thì không giữ mã cài đặt nào.
+    // Without consent, keep no install id at all.
     installId: consented && typeof value.installId === 'string' ? value.installId : null,
     token: consented && typeof value.token === 'string' ? value.token : null,
     options: {
@@ -70,7 +71,7 @@ function sanitize(raw: unknown): AiSaved {
   };
 }
 
-/** Dữ liệu hiện trong "Xem dữ liệu sẽ gửi" — đúng những gì nằm trong body request. */
+/** What "View the data that will be sent" shows — exactly what goes into the request body. */
 export interface AiPreview {
   feature: AiFeature;
   branch: string | null;
@@ -82,7 +83,7 @@ export interface AiPreview {
 
 export interface PendingConsent {
   id: number;
-  /** `consent`: hỏi đồng ý trước lần dùng đầu; `preview`: chỉ xem dữ liệu. */
+  /** `consent`: ask before the first use; `preview`: just show the data. */
   mode: 'consent' | 'preview';
   preview: AiPreview;
   resolve: (accepted: boolean) => void;
@@ -134,19 +135,19 @@ export class AiStore {
     return this.saved.consented;
   }
 
-  /** Lượt còn lại hôm nay của một tính năng (`null` khi chưa biết). */
+  /** A feature's remaining quota today (`null` while unknown). */
   remaining(feature: AiFeature): number | null {
     const entry = this.quota?.features[feature];
     return entry === undefined ? null : Math.max(0, entry.limit - entry.used);
   }
 
-  /** Đã đồng ý → `true` ngay; chưa → hiện hộp đồng ý (kèm dữ liệu sẽ gửi) và chờ người dùng chọn. */
+  /** Already consented → `true` right away; otherwise show the consent dialog (with the data that will be sent) and wait for the user's choice. */
   askConsent(preview: AiPreview): Promise<boolean> {
     if (this.saved.consented) return Promise.resolve(true);
     return this.#open('consent', preview);
   }
 
-  /** Chỉ xem dữ liệu sẽ gửi (không gửi gì). */
+  /** Just view the data that will be sent (send nothing). */
   showPreview(preview: AiPreview): void {
     void this.#open('preview', preview);
   }
@@ -174,7 +175,7 @@ export class AiStore {
     this.#save();
   }
 
-  /** Tắt AI: xoá đồng ý, mã cài đặt và token (lần sau dùng lại phải đồng ý lại, mã mới). */
+  /** Turn AI off: delete the consent, the install id and the token (using it again later requires new consent and a new id). */
   disable(): void {
     this.saved.consented = false;
     this.saved.installId = null;
@@ -183,7 +184,7 @@ export class AiStore {
     this.#save();
   }
 
-  /** Mã cài đặt + token; tạo / đăng ký lười ở lần dùng đầu sau khi đồng ý. */
+  /** Install id + token; created / registered lazily on first use after consent. */
   async identity(): Promise<AiIdentity> {
     if (!this.saved.consented) throw new AiFailure('cancelled');
     const { installId, token } = this.saved;
@@ -218,11 +219,11 @@ export class AiStore {
     try {
       this.quota = await this.client.quota(await this.identity());
     } catch {
-      // Lượt còn lại chỉ để hiển thị: không đọc được thì thôi.
+      // The remaining quota is display-only: if it cannot be read, so be it.
     }
   }
 
-  /** Gửi một yêu cầu AI; token bị từ chối thì đăng ký lại một lần rồi gửi lại. */
+  /** Send one AI request; a rejected token triggers one re-registration and a retry. */
   async *run<F extends AiFeature>(
     feature: F,
     body: AiRequestByFeature[F],
@@ -246,7 +247,7 @@ export class AiStore {
     try {
       this.#storage?.setItem(AI_STORAGE_KEY, JSON.stringify($state.snapshot(this.saved)));
     } catch {
-      // Bị chặn / hết chỗ: chỉ sống trong phiên này.
+      // Blocked / out of quota: only remembered for this session.
     }
   }
 }

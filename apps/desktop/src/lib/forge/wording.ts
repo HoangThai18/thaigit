@@ -11,9 +11,9 @@ export interface RequestWording {
   buttonLabel: string;
   buttonTip: (branch: string) => string;
   buttonNoBranch: string;
-  /** Tiêu đề panel review: `Pull Request #12` / `Merge Request !12`. */
+  /** Review panel title: `Pull Request #12` / `Merge Request !12`. */
   reviewHeading: (number: string) => string;
-  /** Số hiệu ngắn: `#12` (GitLab: `!12`). */
+  /** Short identifier: `#12` (GitLab: `!12`). */
   reviewRef: (number: string) => string;
 }
 

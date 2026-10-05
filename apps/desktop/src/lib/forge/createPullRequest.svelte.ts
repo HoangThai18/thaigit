@@ -1,5 +1,5 @@
-// Hộp thoại tạo Pull Request / Merge Request: nhánh đích, tiêu đề, mô tả (có nút viết bằng AI), nháp. Một hộp tại một
-// thời điểm; mọi chữ do máy chủ trả về đều hiển thị dạng text.
+// Create Pull Request / Merge Request dialog: target branch, title, description (with a write-with-AI
+// button) and a draft flag. One dialog at a time; every string returned by a host is rendered as text.
 
 import type { ForgeMergeRequest, ForgeProvider } from '@thaigit/contracts';
 import { finalizeMarkdown, refName, stripThinking } from '@thaigit/core';
@@ -16,7 +16,7 @@ import { requestWording } from './wording.ts';
 
 const text = vi.pullRequests;
 
-/** Nhánh đích mặc định: main / master / develop / dev nếu có, không thì nhánh đầu tiên. */
+/** Default target branch: main / master / develop / dev when one exists, otherwise the first branch. */
 export function defaultBase(names: readonly string[]): string | null {
   for (const candidate of ['main', 'master', 'develop', 'dev']) {
     if (names.includes(candidate)) return candidate;
@@ -24,7 +24,7 @@ export function defaultBase(names: readonly string[]): string | null {
   return names[0] ?? null;
 }
 
-/** Tên các nhánh trên `remote` (bỏ tiền tố `remote/` và `HEAD`). */
+/** Branch names on `remote` (the `remote/` prefix and `HEAD` are stripped). */
 export function branchesOnRemote(store: RepoStore, remote: string): string[] {
   const prefix = `${remote}/`;
   return store.remoteBranches
@@ -35,8 +35,9 @@ export function branchesOnRemote(store: RepoStore, remote: string): string[] {
 }
 
 /**
- * Tên nhánh `local` trên `remote` (đầu PR phải là nhánh đã push): upstream của nó nếu upstream nằm ở remote đó, không thì
- * nhánh cùng tên; `null` = chưa push.
+ * Name of the local branch `local` has on `remote` (the PR head must already be pushed): its upstream
+ * when that upstream lives on this remote, otherwise the branch with the same name; `null` = never
+ * pushed.
  */
 export function pushedName(store: RepoStore, remote: string, local: string): string | null {
   const ref = store.localBranches.find((branch) => refName(branch) === local);
@@ -48,10 +49,10 @@ export function pushedName(store: RepoStore, remote: string, local: string): str
 
 export interface CreateState {
   store: RepoStore;
-  /** Remote chứa repo trên máy chủ (`origin`…) — dùng để so diff với nhánh đích khi viết mô tả. */
+  /** Remote holding the repo on the host (`origin`…) — used to diff against the target branch while writing the description. */
   remote: string;
   provider: ForgeProvider | null;
-  /** Nhánh nguồn trên remote. */
+  /** Source branch on the remote. */
   sourceBranch: string;
   bases: readonly string[];
   base: string;
@@ -64,7 +65,7 @@ export interface CreateState {
 }
 
 export class CreatePullRequestStore {
-  // `$state` sâu: hộp thoại sửa từng trường (tiêu đề, mô tả đang viết dần…) và giao diện phải thấy ngay.
+  // Deep `$state`: the dialog edits each field (title, description as it is being written…) and the UI must see it immediately.
   current = $state<CreateState | null>(null);
   readonly #ai: AiStore;
   #writing: AbortController | null = null;
@@ -80,8 +81,9 @@ export class CreatePullRequestStore {
   }
 
   /**
-   * Mở hộp tạo PR từ nhánh local `head`. `false` (kèm thông báo) khi repo không nói chuyện với máy chủ app nhận ra, nhánh
-   * chưa push, hoặc remote không có nhánh đích nào khác.
+   * Open the create-PR dialog for local branch `head`. Returns `false` (with a message) when the repo doesn't
+   * talk to a host the app recognises, the branch has never been pushed, or the remote has no other
+   * candidate target branch.
    */
   async open(store: RepoStore, head: string): Promise<boolean> {
     const target = targetOf(store);
@@ -139,7 +141,7 @@ export class CreatePullRequestStore {
     if (this.current !== null) this.current.draft = draft;
   }
 
-  /** Mô tả bằng AI từ diff + commit giữa nhánh đích và nhánh nguồn (trên remote); hỏi đồng ý nếu chưa đồng ý. */
+  /** AI-written description from the diff plus commits between the target and source branches (on the remote); asks for consent if not given yet. */
   async writeDescription(): Promise<void> {
     const current = this.current;
     if (current === null || current.writing) return;
@@ -163,7 +165,7 @@ export class CreatePullRequestStore {
       for await (const frame of this.#ai.run('pr', prepared.request, controller.signal)) {
         if (frame.type === 'delta') {
           raw += frame.text;
-          // Chữ hiện dần trong ô mô tả (chỉ hiển thị, không gửi gì khi chưa bấm Tạo).
+          // Text streaming into the description field (display only; nothing is submitted before Create is pressed).
           current.body = stripThinking(raw).trimStart();
         } else if (frame.type === 'done') {
           current.body = finalizeMarkdown(raw);
@@ -179,7 +181,7 @@ export class CreatePullRequestStore {
     }
   }
 
-  /** Gửi tạo PR; đóng hộp khi thành công, giữ hộp khi lỗi để người dùng sửa. */
+  /** Submit the PR creation; close the dialog on success, keep it open on error so the user can fix it. */
   async submit(onCreated?: (item: ForgeMergeRequest) => void): Promise<void> {
     const current = this.current;
     if (current === null || current.submitting) return;

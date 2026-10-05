@@ -30,7 +30,7 @@ describe('Graph layout (port GraphLayoutTests.swift)', () => {
   });
 
   it('mergeOpensSecondLaneAndJoinsAtForkPoint', () => {
-    // M = merge(A, F); F trên nhánh feature tách từ A.
+    // M = merge(A, F); F sits on a feature branch that forked from A.
     const rows = computeGraphLayout([
       commit('M', ['A', 'F']),
       commit('F', ['A']),
@@ -41,7 +41,7 @@ describe('Graph layout (port GraphLayoutTests.swift)', () => {
     expect(rows[0]?.lines).toEqual([line('fromNode', 0, 0), line('fromNode', 1, 1)]);
     expect(rows[1]?.color).toBe(1);
     expect(rows[1]?.lines).toEqual([line('pass', 0, 0), line('toNode', 1, 1), line('fromNode', 1, 1)]);
-    // A nhận cả hai làn (điểm rẽ nhánh), sau đó chỉ còn một làn.
+    // A receives both lanes (the fork point), after which only one lane remains.
     expect(rows[2]?.lines).toEqual([line('toNode', 0, 0), line('toNode', 1, 1), line('fromNode', 0, 0)]);
     expect(rows[2]?.width).toBe(2);
     expect(rows[3]?.width).toBe(1);
@@ -68,7 +68,7 @@ describe('Graph layout (port GraphLayoutTests.swift)', () => {
   });
 
   it('reusesFreedLanes', () => {
-    // Nhánh b kết thúc (gặp cha) rồi nhánh c mới mở lại dùng làn trống.
+    // Branch b ends (it meets a parent), then branch c opens again reusing the free lane.
     const rows = computeGraphLayout([
       commit('a2', ['a1']),
       commit('b1', ['a1']),
@@ -159,7 +159,7 @@ describe('Graph layout: kiểm bổ sung', () => {
   });
 });
 
-/** Lịch sử giả như `git log --date-order`: nhánh chính tuyến tính, cứ 50 commit lại có một nhánh phụ merge vào. */
+/** Fake history shaped like `git log --date-order`: a linear main, with a side branch merged in every 50 commits. */
 function syntheticHistory(count: number): Commit[] {
   const commits: Commit[] = [];
   for (let i = count; i > 0; i--) {
@@ -170,7 +170,7 @@ function syntheticHistory(count: number): Commit[] {
   return commits;
 }
 
-/** Sinh ngẫu nhiên (xác định theo seed): cha luôn đứng SAU con trong danh sách, thỉnh thoảng có commit gốc rời rạc và WIP. */
+/** Deterministic pseudo-random generator: a parent is always AFTER its children in the list, with the occasional root commit and WIP. */
 function randomHistory(seed: number, count: number): Commit[] {
   let state = seed * 2654435761;
   const random = () => {
@@ -194,7 +194,7 @@ function randomHistory(seed: number, count: number): Commit[] {
   return commits;
 }
 
-/** Bản dịch thẳng GraphLayout.swift (không dùng chung đối tượng, không tối ưu) để đối chiếu. */
+/** A direct translation of GraphLayout.swift (no object sharing, no optimisation) used as a cross-check. */
 function referenceLayout(commits: readonly Commit[]): GraphRow[] {
   type Lane = { sha: string; isWorkingTree: boolean } | null;
   const lanes: Lane[] = [];

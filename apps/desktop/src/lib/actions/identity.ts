@@ -1,5 +1,5 @@
-// Tên / email Git dùng để commit (Profile trên thanh công cụ, như GitKraken): đọc cấu hình đang có hiệu lực của repo và đổi —
-// cho riêng repo này (local) hoặc mọi repo trên máy (global). Ghi qua lệnh có kiểu `git_config_set` (khoá thuộc allowlist).
+// The Git name / email used for commits (the toolbar Profile, like GitKraken): read the repo's currently effective config and
+// change it — for this repo alone (local) or for every repo on the machine (global). Written through the typed command `git_config_set` (the key is in the allowlist).
 
 import { vi } from '../strings.vi.ts';
 import { dialogs as globalDialogs, textValue, type DialogStore } from '../stores/dialogs.svelte.ts';
@@ -20,7 +20,7 @@ export async function loadIdentity(store: RepoStore): Promise<GitIdentity> {
 
 const EMAIL = /^[^\s@]+@[^\s@]+$/;
 
-/** Hộp đổi tên & email Git. Trả `true` khi đã ghi. */
+/** The dialog for changing the Git name & email. `true` when it was saved. */
 export async function editIdentity(
   store: RepoStore,
   current: GitIdentity,

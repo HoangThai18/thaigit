@@ -1,13 +1,13 @@
-//! Frame Raw của `git_exec` (khớp `FrameTag` / `encodeExitFrame` trong `packages/contracts/src/ipc.ts`).
+//! Raw frames of `git_exec` (matching `FrameTag` / `encodeExitFrame` in `packages/contracts/src/ipc.ts`).
 //!
-//! Byte đầu là tag: `1` khối stdout (≤ 64 KB), `2` một dòng stderr (tách `\r`/`\n`, giữ nguyên byte),
-//! `3` exit = i32 little-endian + 1 byte `cancelled`. Exit luôn là frame cuối.
+//! The first byte is the tag: `1` = one stdout chunk (≤ 64 KB), `2` = one stderr line (split on `\r`/`\n`, bytes
+//! preserved), `3` = exit = little-endian i32 + 1 `cancelled` byte. Exit is always the last frame.
 
 pub const TAG_STDOUT: u8 = 1;
 pub const TAG_STDERR_LINE: u8 = 2;
 pub const TAG_EXIT: u8 = 3;
 pub const MAX_STDOUT_FRAME: usize = 64 * 1024;
-/// Dòng stderr dài vô tận (không có `\r`/`\n`) bị cắt thành nhiều frame cỡ này.
+/// An endless stderr line (no `\r`/`\n`) is cut into several frames of this size.
 pub const MAX_STDERR_LINE: usize = 64 * 1024;
 
 pub fn exit_frame(code: i32, cancelled: bool) -> Vec<u8> {
@@ -33,7 +33,7 @@ pub fn stderr_frame(line: &[u8]) -> Vec<u8> {
     frame
 }
 
-/// Tách dòng stderr theo `\r` hoặc `\n` (git dùng `\r` cho dòng tiến độ). `\r\n` tính là một dấu tách.
+/// Split stderr into lines on `\r` or `\n` (git uses `\r` for the progress line). `\r\n` counts as one separator.
 #[derive(Debug, Default)]
 pub struct LineSplitter {
     pending: Vec<u8>,
@@ -66,7 +66,7 @@ impl LineSplitter {
         }
     }
 
-    /// Dòng cuối không có ký tự kết thúc.
+    /// The last line has no terminator.
     pub fn finish(&mut self, emit: &mut impl FnMut(Vec<u8>)) {
         if !self.pending.is_empty() {
             emit(std::mem::take(&mut self.pending));

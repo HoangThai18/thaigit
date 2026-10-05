@@ -1,12 +1,13 @@
 /**
- * Bộ chuyển Tauri cho các port của `@thaigit/core`: `Exec`, `RepoFs`, `GitHost`, `TypedGit` — tất cả đi qua lõi Rust,
- * nơi kiểm chính sách (cờ `-c`, env, allowlist, phạm vi đường dẫn). Webview không bao giờ đặt đường dẫn/cờ/env tuỳ ý.
+ * Tauri adapters for the `@thaigit/core` ports: `Exec`, `RepoFs`, `GitHost`, `TypedGit` — all of them go
+ * through the Rust core, which is where the policy is enforced (`-c` flags, env, allowlist, path scope).
+ * The webview never sets arbitrary paths, flags or env vars.
  *
- * Cách dùng:
+ * Usage:
  * ```ts
- * const folder = await pickRepoFolder();                       // hộp thoại native → token
+ * const folder = await pickRepoFolder();                       // native dialog → token
  * const repo = await openRepo({ kind: 'picked', token: folder.token });
- * while (repo.info.trust === 'unknown') { … hiện repo.info.findings, hỏi người dùng … repo = await repo.trust(); }
+ * while (repo.info.trust === 'unknown') { … show repo.info.findings, ask the user … repo = await repo.trust(); }
  * const result = await repo.exec.run({ kind: 'read', sub: 'status', args: ['--porcelain=v2', '-z'] });
  * const bytes = await repo.fs.readWorktreeFile('src/a.ts');
  * ```
@@ -64,27 +65,28 @@ export {
   takeLaunchFolders,
 } from './ipc/index.ts';
 
-/** Một repo đã mở trong lõi Rust, gắn sẵn các port. */
+/** A repo opened in the Rust core, with its ports already wired up. */
 export interface TauriRepo {
   readonly info: OpenedRepo;
-  /** `Exec` của repo: `kind` read/write/network, khoá theo repo, huỷ theo bậc cho `network`. */
+  /** The repo's `Exec`: `kind` read/write/network, serialised per repo, soft → hard cancellation for `network`. */
   readonly exec: Exec;
   readonly fs: RepoFs;
   /**
-   * Lệnh git có kiểu: `configSet` (khoá trong allowlist), `remoteAdd`/`remoteSetUrl` (URL đã kiểm), `rebaseInteractive`
-   * (kế hoạch có cấu trúc).
+   * Typed git commands: `configSet` (key must be in the allowlist), `remoteAdd`/`remoteSetUrl` (validated
+   * URL), `rebaseInteractive` (a structured plan).
    */
   readonly typedGit: TypedGit;
-  /** Theo dõi thay đổi (đã debounce/lọc gitignore ở Rust). Trả hàm dừng. */
+  /** Watch for changes (debounced and gitignore-filtered in Rust). Returns a stop function. */
   watch(onChange: (event: RepoChangedEvent) => void): Promise<() => Promise<void>>;
   health(): Promise<RepoHealth>;
-  /** Chỉ gọi sau khi người dùng xác nhận gỡ khoá do `health()` báo. */
+  /** Only call after the user confirms removing a lock reported by `health()`. */
   removeStaleLock(path: string): Promise<void>;
   /**
-   * Ghi nhận tin tưởng (repo có khoá cấu hình/hook chạy lệnh) — CHỈ cho danh sách `info.findings` mà người dùng đã thấy. Nếu cấu
-   * hình hiệu lực đã đổi kể từ đó (vd. chuyển nhánh ở terminal kéo vào file `include` khác) thì repo trả về VẪN `unknown` và
-   * `info.findings` là danh sách MỚI: hiện lại cho người dùng rồi gọi `trust()` lần nữa. Khi chưa tin cậy, lệnh có thể chạy lệnh
-   * do cấu hình chỉ định bị từ chối với mã `untrusted` (UI → "Tin tưởng repo để tiếp tục").
+   * Record trust (the repo has config/hook locks that can run commands) — ONLY for the `info.findings` list
+   * the user has already seen. If the effective config changed since (e.g. a branch switch in a terminal
+   * pulled in a different `include` file) the returned repo is STILL `unknown` and `info.findings` is a NEW
+   * list: show it again and call `trust()` once more. While untrusted, commands the config would run are
+   *   refused with code `untrusted` (UI → "Trust repo to continue").
    */
   trust(): Promise<TauriRepo>;
   openInTerminal(): Promise<void>;
@@ -93,7 +95,7 @@ export interface TauriRepo {
   openRelated(kind: 'worktree' | 'submodule', path: string): Promise<void>;
 }
 
-/** `TypedGit` của một repo. */
+/** A repo's `TypedGit`. */
 export function createTypedGit(repoId: string): TypedGit {
   return {
     configSet: (key, value, scope) => configSet(repoId, key, value, scope),
@@ -105,7 +107,7 @@ export function createTypedGit(repoId: string): TypedGit {
   };
 }
 
-/** Gắn các port vào kết quả `open_repo`. */
+/** Attach the ports to an `open_repo` result. */
 export function bindRepo(info: OpenedRepo): TauriRepo {
   const { repoId } = info;
   return {
@@ -124,22 +126,22 @@ export function bindRepo(info: OpenedRepo): TauriRepo {
   };
 }
 
-/** Mở repo từ token (hộp thoại/"Mở bằng"/thả file native) hoặc danh sách gần đây do Rust lưu. */
+/** Open a repo from a token (dialog / "Open With" / native file drop) or from the recent list Rust stores. */
 export async function openRepo(source: OpenSource): Promise<TauriRepo> {
   return bindRepo(await openRepoInfo(source));
 }
 
-/** Hộp thoại chọn thư mục rồi mở luôn. `null` = người dùng bấm Huỷ. */
+/** Pick a folder then open it right away. `null` = the user hit Cancel. */
 export async function pickAndOpenRepo(): Promise<TauriRepo | null> {
   const folder = await pickRepoFolder();
   return folder ? openRepo({ kind: 'picked', token: folder.token }) : null;
 }
 
-/** `GitHost` trên Tauri; `destination` là mã thư mục native (`token`) hoặc `token/tên-thư-mục-con`. */
+/** `GitHost` on Tauri; `destination` is the native folder token (`token`) or `token/subfolder-name`. */
 export interface TauriGitHost extends GitHost {
-  /** Như `clone` nhưng trả repo đã mở (tin sẵn) thay vì `void`. */
+  /** Like `clone` but returns the opened repo (trusted) instead of `void`. */
   cloneRepo(url: string, destination: string, options?: CloneOptions): Promise<TauriRepo>;
-  /** Như `init` nhưng trả repo đã mở (tin sẵn). */
+  /** Like `init` but returns the opened repo (trusted). */
   initRepo(destination: string): Promise<TauriRepo>;
 }
 

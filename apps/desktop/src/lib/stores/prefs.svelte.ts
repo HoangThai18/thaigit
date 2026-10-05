@@ -1,6 +1,7 @@
 /**
- * Cài đặt người dùng lưu ở localStorage (webview). Hôm nay chỉ vài giá trị mà graph/sidebar/bố cục cần; màn Cài đặt (4b)
- * sẽ sửa chính các trường này. Dữ liệu đọc ra luôn qua `sanitizePrefs` (localStorage có thể bị sửa/hỏng).
+ * User preferences kept in localStorage (the webview). For now only the few values the graph / sidebar / layout need; the
+ * Settings screen (4b) edits exactly these fields. Data read back always goes through `sanitizePrefs` (localStorage can be
+ * edited or corrupt).
  */
 import { snapshotSpec } from '@thaigit/contracts';
 import type { LogOrder } from '@thaigit/core';
@@ -11,20 +12,20 @@ export const PREFS_KEY = 'thaigit.prefs.v1';
 
 export type ColorScheme = 'system' | 'light' | 'dark';
 
-/** Kiểu pull mặc định (cài đặt). `ff-only` ↔ `PullMode` `'fastForwardOnly'` của core (ánh xạ ở `actions/remote.ts`). */
+/** The default pull style (a preference). `ff-only` ↔ core's `PullMode` `'fastForwardOnly'` (mapped in `actions/remote.ts`). */
 export type PullModePref = 'merge' | 'rebase' | 'ff-only';
 export type DiffLayout = 'unified' | 'split';
 const PULL_MODES: readonly PullModePref[] = ['merge', 'rebase', 'ff-only'];
 
 export interface PrefsData {
-  /** Số commit tải mỗi lần (Swift: mặc định 2000, tối thiểu 200). */
+  /** How many commits to load at a time (Swift: default 2000, minimum 200). */
   commitLimit: number;
   logOrder: LogOrder;
   showRemoteBranches: boolean;
   showTags: boolean;
   relativeDates: boolean;
   scheme: ColorScheme;
-  /** `false` → lớp `no-glass`: nền đặc thay cho kính. */
+  /** `false` → the `no-glass` class: a solid background instead of the blurred one. */
   glass: boolean;
   showSidebar: boolean;
   showInspector: boolean;
@@ -41,33 +42,33 @@ export interface PrefsData {
     lfs: boolean;
   };
   columns: PreferredWidths;
-  /** Kiểu pull của nút Pull (mặc định `merge`). */
+  /** The Pull button's pull style (default `merge`). */
   pullMode: PullModePref;
-  /** `fetch --prune`: dọn nhánh remote đã bị xoá (mặc định bật). */
+  /** `fetch --prune`: drop remote branches deleted on the server (on by default). */
   fetchPrune: boolean;
-  /** Chu kỳ tự fetch (phút); 0 = tắt. */
+  /** The autofetch interval in minutes; 0 = off. */
   autoFetchMinutes: number;
-  /** Số dòng ngữ cảnh quanh mỗi hunk khi xem diff (`-U<n>`). */
+  /** Context lines around each hunk when viewing a diff (`-U<n>`). */
   diffContext: number;
-  /** Diff gộp (một cột) hay tách đôi (cũ | mới). */
+  /** Unified diff (one column) or split (old | new). */
   diffLayout: DiffLayout;
-  /** Danh sách file thay đổi dạng cây thư mục (Path / Tree như GitKraken). */
+  /** Show the changed files as a folder tree (Path / Tree, like GitKraken). */
   fileListTree: boolean;
-  /** Ảnh đại diện thật trên node graph. Tắt thì không tải ảnh nào (Swift: `AvatarStore.enabledKey`). */
+  /** Real avatars on graph nodes. Off means no image is downloaded at all (Swift: `AvatarStore.enabledKey`). */
   showAvatars: boolean;
-  /** Diff bỏ qua thay đổi chỉ về khoảng trắng (`--ignore-all-space`). */
+  /** Ignore whitespace-only changes in diffs (`--ignore-all-space`). */
   diffIgnoreWhitespace: boolean;
-  /** Tự lưu snapshot thư mục làm việc khi file đổi (Dòng thời gian). */
+  /** Automatically snapshot the working folder when files change (the timeline). */
   snapshotsEnabled: boolean;
   snapshotKeepDays: number;
   snapshotKeepCount: number;
-  /** Gốc repo (đường dẫn) đã tắt tự lưu riêng. */
+  /** A repo root (path) where autosave is disabled on its own. */
   snapshotsDisabledRepos: string[];
-  /** Đã hiện thông báo giải thích lần đầu tự lưu. */
+  /** The first-run explanation of autosave has been shown. */
   snapshotNoticeShown: boolean;
-  /** Repo đang mở ở các tab của cửa sổ chính (id trong danh sách gần đây) — mở lại khi khởi động app. */
+  /** Repos open in the main window's tabs (ids from the recent list) — reopened when the app starts. */
   openTabs: string[];
-  /** Vị trí tab đang chọn trong `openTabs`. */
+  /** The selected tab's position in `openTabs`. */
   activeTab: number;
 }
 
@@ -75,12 +76,12 @@ export const SIDEBAR_LIMITS = { min: 210, max: 440, ideal: 260 } as const;
 export const INSPECTOR_LIMITS = { min: 300, max: 640, ideal: 380 } as const;
 export const COMMIT_LIMIT_MIN = 200;
 export const COMMIT_LIMIT_MAX = 200_000;
-/** 0 = tắt tự fetch; trần 24 giờ. */
+/** 0 = autofetch off; cap 24 hours. */
 export const AUTO_FETCH_MINUTES_MAX = 1440;
 export const DIFF_CONTEXT_MAX = 100;
 export const SNAPSHOT_KEEP_DAYS = { min: 1, max: 90 } as const;
 export const SNAPSHOT_KEEP_COUNT = { min: 20, max: 2000 } as const;
-/** Trần số repo trong danh sách tắt tự lưu (localStorage không phình mãi). */
+/** Cap on how many repos stay in the autosave-disabled list (localStorage cannot grow forever). */
 const SNAPSHOT_DISABLED_MAX = 500;
 const OPEN_TABS_MAX = 20;
 
@@ -142,7 +143,7 @@ function clamp(value: unknown, min: number, max: number, fallback: number): numb
     : fallback;
 }
 
-/** Biến dữ liệu thô (đã `JSON.parse`) thành `PrefsData` hợp lệ: trường thiếu/sai kiểu lấy mặc định, số bị kẹp. */
+/** Turn raw stored data (already `JSON.parse`d) into a valid `PrefsData`: a missing or mistyped field falls back to its default, numbers are clamped. */
 export function sanitizePrefs(raw: unknown): PrefsData {
   const base = defaultPrefs();
   if (typeof raw !== 'object' || raw === null) return base;
@@ -212,7 +213,7 @@ export interface KeyValueStorage {
   setItem(key: string, value: string): void;
 }
 
-/** localStorage nếu dùng được (có thể ném lỗi khi bị chặn), không thì `null`. */
+/** localStorage when it is usable (it can throw when blocked), otherwise `null`. */
 export function browserStorage(): KeyValueStorage | null {
   try {
     return typeof localStorage === 'undefined' ? null : localStorage;
@@ -224,7 +225,7 @@ export function browserStorage(): KeyValueStorage | null {
 const SAVE_DELAY_MS = 250;
 
 export class PrefsStore {
-  /** Proxy phản ứng sâu: đọc `prefs.value.showTags` chỉ phụ thuộc đúng trường đó. */
+  /** A deeply reactive proxy: reading `prefs.value.showTags` depends on exactly that one field. */
   value = $state<PrefsData>(defaultPrefs());
   private timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -240,9 +241,10 @@ export class PrefsStore {
   }
 
   /**
-   * Gộp `patch` (kẹp lại cho hợp lệ) rồi ghi xuống kho sau một nhịp (kéo thanh chia đôi gọi liên tục). Chỉ gán khoá THẬT SỰ đổi
-   * (so sánh theo nội dung): gán object con mới cho `sidebarSections`/`columns` mỗi lần sẽ làm mọi giá trị dẫn xuất từ chúng
-   * (cây nhánh, bố cục cột) tính lại dù chỉ đổi `sidebarWidth`.
+   * Merge `patch` (clamped to valid values), then write it to storage after a short delay (dragging the splitter calls it repeatedly).
+   * Only keys that REALLY changed are written (compared by content): assigning a fresh child object to
+   * `sidebarSections`/`columns` every time would recompute everything derived from them (the branch tree, the column layout) even
+   * when only `sidebarWidth` changed.
    */
   update(patch: Partial<PrefsData>): void {
     const current = $state.snapshot(this.value) as PrefsData;
@@ -254,14 +256,14 @@ export class PrefsStore {
     this.scheduleSave();
   }
 
-  /** Ghi ngay (khi đóng cửa sổ hoặc test). */
+  /** Write immediately (on window close or in tests). */
   flush(): void {
     clearTimeout(this.timer);
     this.timer = undefined;
     try {
       this.storage?.setItem(PREFS_KEY, JSON.stringify($state.snapshot(this.value)));
     } catch {
-      // Hết dung lượng / bị chặn: cài đặt chỉ sống trong phiên này.
+      // Out of quota / blocked: the preferences only live for this session.
     }
   }
 

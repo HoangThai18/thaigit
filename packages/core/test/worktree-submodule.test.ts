@@ -1,4 +1,4 @@
-// Worktree / submodule: parser thuần và thao tác trên git thật (qua NodeExec + chính sách).
+// Worktrees / submodules: the pure parsers plus operations on real git (through NodeExec and the policy).
 import { realpathSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -36,7 +36,7 @@ describe('parser', () => {
   });
 });
 
-/** Cùng một thư mục? Git trên Windows in `C:/…/x` (gạch xuôi), `path.join` cho `C:\\…\\x` — so qua realpath. */
+/** The same directory? Git on Windows prints `C:/…/x` (forward slashes) while `path.join` gives `C:\\…\\x` — compare via realpath. */
 const samePath = (a: string | undefined, b: string): boolean =>
   a !== undefined && realpathSync(a) === realpathSync(b);
 
@@ -55,7 +55,7 @@ describe('worktree trên git thật', () => {
       await expect(t.repo.addWorktree(parent, 'x', '--detach', false)).rejects.toThrow();
 
       await t.repo.removeWorktree(added, false);
-      // Thư mục worktree bị xoá ngoài app: git đánh dấu prunable, `worktree prune` dọn.
+      // The worktree directory was deleted outside the app: git marks it prunable, `worktree prune` cleans it up.
       const existingPath = list.find((item) => item.branch === 'co-san')?.path;
       expect(samePath(existingPath, existing)).toBe(true);
       await rm(existing, { recursive: true, force: true });
@@ -87,14 +87,14 @@ describe('submodule trên git thật', () => {
         ['vendor/lib', 'ok'],
       ]);
 
-      // Bản clone của repo cha: submodule chưa được khởi tạo.
+      // The parent repo's clone: the submodule is not initialised yet.
       const cloneDir = join(dir, 'ban-sao');
       rawGit(dir, ['clone', '-q', appDir, cloneDir], app.config);
       const { openRepository } = await import('../src/node/index.ts');
       const clone = await openRepository(cloneDir, { ...app.config });
       expect((await clone.submodules()).map((item) => item.state)).toEqual(['uninitialized']);
-      // URL của submodule là đường dẫn cục bộ: chính sách chặn file:// cho submodule (protocol.file.allow=user)
-      // nên update phải báo lỗi — đúng hành vi an toàn với repo lạ.
+      // The submodule URL is a local path: the policy blocks file:// for submodules (protocol.file.allow=user)
+      // so update must fail — the correct safe behaviour for an untrusted repo.
       await expect(clone.updateSubmodules(null)).rejects.toThrow();
       await clone.syncSubmodules();
     }));

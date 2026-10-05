@@ -1,7 +1,8 @@
 /**
- * Chuỗi giao diện "khung" (cửa sổ repo, graph, sidebar, inspector, thời gian, lỗi, toast, hộp thoại/menu dùng chung). Mỗi gói
- * tính năng có file riêng (`staging`, `branches`, `remote`, `update`) và được `strings.vi.ts` gộp lại — xem file đó.
- * Hàm nhận tham số cho chuỗi có số/tên. Văn phong bám theo app Swift (`Sources/Nhanh`).
+ * Strings for the app "shell" (repo window, graph, sidebar, inspector, time, errors, toasts, shared
+ * dialogs/menus). Each feature area has its own file (`staging`, `branches`, `remote`, `update`) and they
+ * are merged by `strings.vi.ts` — see that file. Parameterised functions produce strings that embed
+ * numbers or names. Wording follows the Swift app (`Sources/Nhanh`).
  */
 export const shell = {
   appName: 'Thaigit',
@@ -111,7 +112,7 @@ export const shell = {
     emptyTitle: 'Chưa có commit nào',
     emptyHint: 'Thêm file vào thư mục repository, sau đó stage và tạo commit đầu tiên ở panel bên phải.',
     wip: '// WIP',
-    /** Badge số file chưa commit, đứng cạnh tên nhánh đang checkout. */
+    /** Badge with the uncommitted file count, next to the checked-out branch name. */
     pillPending: (count: number) => `✎ ${count}`,
     wipTooltip: 'Thay đổi chưa commit — bấm để xem',
     ariaLabel: 'Lịch sử commit',
@@ -248,7 +249,7 @@ export const shell = {
       'Thaigit đã dừng phần giao diện bị lỗi để không ảnh hưởng tới repository của bạn. Dữ liệu không bị thay đổi.',
     crashRetry: 'Thử lại',
     crashHome: 'Về màn hình chính',
-    /** Câu thân thiện thay cho lỗi thô (errors/friendly.ts) — không bao giờ hiện stderr / message gốc / stack trace. */
+    /** Friendly wording in place of raw errors (errors/friendly.ts) — never shows stderr / the original message / a stack trace. */
     friendly: {
       unexpected: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
       cancelled: 'Thao tác đã được huỷ.',
@@ -297,25 +298,25 @@ export const shell = {
     collapse: 'Thu gọn',
   },
 
-  /** Vùng giữa của cửa sổ repo khi không phải graph (diff, trình giải conflict). */
+  /** Centre area of the repo window when it isn't the graph (diff, conflict resolver). */
   center: {
     backToGraph: 'Về graph',
   },
 
-  /** Hộp thoại dùng chung (ConfirmDialog, DialogPanel). */
+  /** Shared dialogs (ConfirmDialog, DialogPanel). */
   dialog: {
     confirm: 'Đồng ý',
     cancel: 'Huỷ',
     close: 'Đóng',
   },
 
-  /** Menu ngữ cảnh HTML (ContextMenu). */
+  /** HTML context menu (ContextMenu). */
   menu: {
     ariaLabel: 'Menu ngữ cảnh',
     actionFailed: 'Không thực hiện được thao tác',
   },
 
-  /** Thanh tiến độ thao tác (BusyBar). */
+  /** Operation progress bar (BusyBar). */
   busy: {
     cancel: 'Huỷ',
     cancelTip: 'Huỷ thao tác đang chạy',

@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Interactive rebase")
 struct InteractiveRebaseTests {
-    /// Repo có commit gốc + 4 commit "c1"…"c4" (mỗi commit một file riêng nên đổi thứ tự không xung đột).
+    /// A repo with a root commit + 4 commits "c1"…"c4" (one file each so reordering doesn't conflict).
     private func makeRepo() async throws -> (TestRepo, base: String, commits: [Commit]) {
         let t = try await TestRepo.make()
         try t.write("goc.txt", "gốc\n")
@@ -34,7 +34,7 @@ struct InteractiveRebaseTests {
     @Test func reordersSquashesRewordsAndDrops() async throws {
         let (t, base, commits) = try await makeRepo()
         defer { t.cleanup() }
-        // Kế hoạch (cũ → mới): c2 lên trước c1, c3 gộp vào c1 (nối lời), c4 bỏ; c2 sửa lời có dòng bắt đầu bằng #.
+        // Plan (old → new): c2 moves before c1, c3 is squashed into c1 (joining messages), c4 is dropped; c2 is reworded with a line starting with #.
         let steps = [
             RebaseStep(commit: commits[1], action: .reword, message: "c2 mới\n\n#123 vẫn giữ dòng này"),
             RebaseStep(commit: commits[0]),
@@ -46,7 +46,7 @@ struct InteractiveRebaseTests {
         #expect(result == .done)
         #expect(try await subjects(t) == ["c1", "c2 mới", "gốc"])
         #expect(try await t.repo.commitMessage("HEAD~1").contains("#123 vẫn giữ dòng này"))
-        // Squash nối lời của c1 và c3.
+        // A squash joins c1's and c3's messages.
         let squashed = try await t.repo.commitMessage("HEAD")
         #expect(squashed.contains("c1") && squashed.contains("c3"))
         #expect(!FileManager.default.fileExists(atPath: t.url.appendingPathComponent("f4.txt").path))
@@ -103,7 +103,7 @@ struct InteractiveRebaseTests {
         try t.write("f.txt", "2\n")
         try await t.commitAll("sửa f")
         let commits = try await t.repo.rebaseCommits(after: base)
-        // Đưa "sửa f" lên trước "thêm f" → xung đột.
+        // Moving "sửa f" before "thêm f" → a conflict.
         await #expect(throws: GitError.self) {
             try await t.repo.interactiveRebase(onto: base, steps: [RebaseStep(commit: commits[1]), RebaseStep(commit: commits[0])])
         }

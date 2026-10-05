@@ -1,6 +1,6 @@
-// Gọi API AI của máy chủ Thaigit (`server/`) bằng fetch của webview (máy chủ cho phép origin của app qua CORS; CSP
-// `connect-src` chỉ mở đúng tên miền này). Mọi lỗi quy về `AiFailure` với mã của contracts — giao diện đổi mã thành câu
-// tiếng Việt, không bao giờ hiện thông báo gốc.
+// Talks to Thaigit's AI API (`server/`) using the webview's own fetch (the server allows the app's origin
+// via CORS; the CSP `connect-src` only opens that one domain). Every failure becomes an `AiFailure` with a
+// contracts code — the UI turns codes into a friendly sentence and never shows the original message.
 
 import {
   AI_HEADERS,
@@ -15,14 +15,14 @@ import {
 } from '@thaigit/contracts';
 import { readAiFrames } from '@thaigit/core';
 
-/** Máy chủ mặc định; bản build thử có thể đổi bằng `VITE_THAIGIT_API_URL`. */
+/** Default server; a test build may override it with `VITE_THAIGIT_API_URL`. */
 export const DEFAULT_API_URL = 'https://git.thaipro.store';
 
 export type AiFailureCode = AiErrorCode | 'network' | 'cancelled' | 'empty';
 
 export class AiFailure extends Error {
   readonly code: AiFailureCode;
-  /** Giây nên chờ (từ `Retry-After`) với `ai_busy` / `ip_rate_limited`. */
+  /** Seconds to wait (from `Retry-After`) for `ai_busy` / `ip_rate_limited`. */
   readonly retryAfter: number | undefined;
 
   constructor(code: AiFailureCode, retryAfter?: number) {
@@ -79,7 +79,7 @@ export class AiClient {
     try {
       body = await response.json();
     } catch {
-      // Không phải JSON (proxy trả trang lỗi…): đoán theo mã HTTP.
+      // Not JSON (a proxy returned an error page…): fall back to guessing from the HTTP status.
     }
     const parsed = parseAiErrorBody(body);
     const header = Number(response.headers.get('Retry-After'));
@@ -92,7 +92,7 @@ export class AiClient {
     throw new AiFailure('bad_request');
   }
 
-  /** Đăng ký cài đặt (chỉ gọi sau khi người dùng đồng ý dùng AI) → token. */
+  /** Register this install (only called after the user opted in to AI) → token. */
   async register(installId: string): Promise<string> {
     const response = await this.#request('/v1/ai/install', {
       method: 'POST',
@@ -115,8 +115,8 @@ export class AiClient {
   }
 
   /**
-   * Gửi ngữ cảnh, trả các frame theo thời gian thực. Lỗi trước khi stream (HTTP 4xx/5xx) → ném `AiFailure`; lỗi trong
-   * stream đến dưới dạng frame `error`. Huỷ bằng `signal`.
+   * Send the context, return the frames in real time. A failure before the stream (HTTP 4xx/5xx) throws
+   * `AiFailure`; a failure inside the stream arrives as an `error` frame. Cancel with `signal`.
    */
   async *stream<F extends AiFeature>(
     identity: AiIdentity,

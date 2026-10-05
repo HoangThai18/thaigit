@@ -2,8 +2,8 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Kết nối Jira Cloud của app (dùng chung mọi repo): địa chỉ site và email trong UserDefaults, API token trong Keychain
-/// (service riêng `com.phanthai.thaigit.jira`). Token chỉ gửi tới đúng site đã nhập (xem `JiraClient`).
+/// The app's Jira Cloud connection (shared by every repo): the site address and email in UserDefaults, the API token in
+/// the Keychain (its own service `com.phanthai.thaigit.jira`). The token only ever goes to the configured site (see `JiraClient`).
 @Observable
 final class JiraConnection {
     static let shared = JiraConnection()
@@ -21,7 +21,7 @@ final class JiraConnection {
 
     private var account: String { "\(email)@\(site)" }
 
-    /// Kiểm tra email + token với Jira rồi mới lưu.
+    /// Validate the email + token against Jira, then store them.
     func connect(site: String, email: String, token: String) async throws {
         let client = try JiraClient(site: site, email: email, token: token)
         let name = try await client.myself()
@@ -48,7 +48,7 @@ final class JiraConnection {
         let account = account
         let site = site
         let email = email
-        // Keychain có thể hỏi quyền: đọc ngoài luồng chính.
+        // The Keychain may ask for permission: read it off the main actor.
         guard let token = try await Task.detached(operation: { try Self.tokens.readToken(account: account) }).value else {
             throw JiraError.unauthorized
         }
@@ -61,7 +61,7 @@ extension RepoModel {
 
     func loadGitHubIssues() async throws -> [GitHubIssue] {
         guard let repo = githubRemote?.repo else { return [] }
-        // Kịch bản chụp ảnh: dữ liệu mẫu, không gọi GitHub.
+        // Screenshot run: sample data, no GitHub call.
         if AutomationHarness.isActive {
             return [GitHubIssue(number: 42, title: String(localized: "Đăng nhập bị lỗi khi mật khẩu có dấu"), author: "ngoc-anh", labels: ["bug"]),
                     GitHubIssue(number: 38, title: String(localized: "Thêm mã giảm giá vào giỏ hàng"), author: "tuan-bui", labels: [String(localized: "tính năng")])]
@@ -74,7 +74,7 @@ extension RepoModel {
         }
     }
 
-    /// Tạo nhánh từ issue (tên gợi ý từ số / mã và tiêu đề) tại commit hiện tại rồi checkout.
+    /// Create a branch from an issue (name suggested from the number / key and the title) at the current commit, then check it out.
     func createBranch(forIssue key: String, title: String) {
         let name = BranchNameSuggester.branchName(key: key, title: title)
         if localBranches.contains(where: { $0.name == name }), let ref = localBranches.first(where: { $0.name == name }) {
@@ -84,7 +84,7 @@ extension RepoModel {
         createBranch(name: name, startPoint: headOID ?? "HEAD", checkout: true)
     }
 
-    /// Gắn issue vào commit message đang soạn: GitHub thêm "(#12)" cuối dòng tóm tắt, Jira thêm "WEB-12 " ở đầu.
+    /// Attach the issue to the commit message being composed: GitHub appends "(#12)" to the summary line, Jira prepends "WEB-12 ".
     func attachIssueToCommit(_ reference: String, isJira: Bool) {
         let summary = commitSummary.trimmingCharacters(in: .whitespaces)
         guard !summary.contains(reference) else { return }

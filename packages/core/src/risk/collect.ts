@@ -1,6 +1,6 @@
-// Gom đầu vào cho cờ rủi ro từ thay đổi chưa commit: một lần `git diff HEAD -U0` (chỉ các dòng thêm) cho file đã track, đọc
-// file mới (chưa track / mới stage) để biết kích thước và nội dung. Có trần để WIP khổng lồ không làm chậm giao diện: quá trần
-// thì chỉ xét theo đường dẫn.
+// Gathers the inputs for pre-commit risk flags from uncommitted changes: one `git diff HEAD -U0` (added lines only) for
+// tracked files, plus reading new files (untracked or newly staged) for their size and content. Capped so a huge WIP
+// cannot slow the UI: past the cap only paths are examined.
 
 import { decodeUtf8 } from '../git/bytes.ts';
 import { headOid, type FileChange, type WorkingTreeStatus } from '../git/models.ts';
@@ -8,9 +8,9 @@ import { unquoteGitPath } from '../git/parsers.ts';
 import type { GitRepository } from '../git/repository.ts';
 import { LARGE_FILE_BYTES, type RiskInput } from './risk-flags.ts';
 
-/** Quá chừng này byte output diff thì bỏ phần nội dung. */
+/** Beyond this many bytes of diff output, drop the content. */
 const MAX_DIFF_BYTES = 8 * 1024 * 1024;
-/** Số file mới tối đa được đọc. */
+/** Maximum number of new files read. */
 const MAX_NEW_FILES = 100;
 
 function statusOf(change: FileChange): RiskInput['status'] {
@@ -19,7 +19,7 @@ function statusOf(change: FileChange): RiskInput['status'] {
   return 'modified';
 }
 
-/** `git diff -U0` → các dòng được thêm theo đường dẫn mới. */
+/** `git diff -U0` → added lines keyed by the new path. */
 export function addedLinesByPath(patch: string): Map<string, string[]> {
   const result = new Map<string, string[]>();
   let current: string | null = null;
@@ -58,7 +58,7 @@ export async function collectRiskInputs(
   status: WorkingTreeStatus,
 ): Promise<RiskInput[]> {
   const files = new Map<string, { status: RiskInput['status']; addedLines: string[]; size: number | null }>();
-  // Working tree là thứ sẽ được commit khi "Stage tất cả & commit": thay đổi chưa stage đè lên đã stage.
+  // The working tree is what "Stage all & commit" will commit: unstaged changes override already-staged ones.
   for (const change of [...status.staged, ...status.unstaged]) {
     files.set(change.path, { status: statusOf(change), addedLines: [], size: null });
   }
@@ -74,14 +74,14 @@ export async function collectRiskInputs(
     }
   }
 
-  // File mới: kích thước, và nội dung khi `diff HEAD` không có (chưa track / repo chưa có commit).
+  // New files: the size, and the content when `diff HEAD` has none (untracked, or the repo has no commits yet).
   const fresh = [...files].filter(([, entry]) => entry.status === 'added').slice(0, MAX_NEW_FILES);
   for (const [path, entry] of fresh) {
     let bytes: Uint8Array | null;
     try {
       bytes = await repo.fs.readWorktreeFile(path, LARGE_FILE_BYTES + 1);
     } catch {
-      // Không có API đo kích thước: bị từ chối khi đọc với trần LARGE_FILE_BYTES + 1 nghĩa là file vượt trần.
+      // No API to measure the size: a read rejected with LARGE_FILE_BYTES + 1 means the file exceeds the cap.
       entry.size = LARGE_FILE_BYTES + 1;
       continue;
     }

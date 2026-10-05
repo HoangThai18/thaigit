@@ -18,7 +18,7 @@
   let values = $state<Record<string, string | boolean>>({});
   let valuesFor = 0;
 
-  // Hộp mới: nạp giá trị ban đầu của các ô (theo id hộp, không chạy lại khi người dùng gõ).
+  // A new dialog: load each field's initial value (keyed by dialog id, so it doesn't re-run while the user types).
   $effect.pre(() => {
     const pending = current;
     if (!pending || pending.id === valuesFor) return;

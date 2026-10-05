@@ -1,7 +1,7 @@
 import NhanhCore
 import SwiftUI
 
-/// Panel "WIP": file chưa stage / đã stage / xung đột và ô soạn commit — giống GitKraken.
+/// The "WIP" panel: unstaged / staged / conflicted files and the commit composer — like GitKraken.
 struct StagingView: View {
     @Bindable var model: RepoModel
 
@@ -34,7 +34,7 @@ struct StagingView: View {
                     rowAction: { model.stage($0) },
                     emptyText: String(localized: "Không có thay đổi nào chưa stage")
                 )
-                // Danh sách trống thu nhỏ để danh sách kia hiện được nhiều file (như GitKraken).
+                // An empty list shrinks so the other one can show more files (like GitKraken).
                 .frame(minHeight: 90, maxHeight: model.status.unstaged.isEmpty && !model.status.staged.isEmpty ? 110 : .infinity)
                 FileSection(
                     model: model,
@@ -105,7 +105,7 @@ private struct FileSection: View {
     let rowAction: ([FileChange]) -> Void
     let emptyText: String
     @State private var isDropTargeted = false
-    /// Path / Tree như GitKraken: danh sách phẳng hay cây thư mục (dùng chung mọi danh sách file).
+    /// Path / Tree like GitKraken: a flat list or a directory tree (shared by every file list).
     @AppStorage("fileListTree") private var treeMode = false
     @State private var collapsed: Set<String> = []
 
@@ -113,7 +113,7 @@ private struct FileSection: View {
     private var sourceKey: String { source == .unstaged ? "unstaged" : "staged" }
     private var otherKey: String { source == .unstaged ? "staged" : "unstaged" }
 
-    /// Nội dung kéo: đường dẫn file (hoặc mọi file đang chọn nếu kéo từ một file trong vùng chọn).
+    /// The drag payload: a file path (or every selected file when dragging from within the selection).
     private func dragPayload(for change: FileChange) -> String {
         let paths = selection.contains(change.path) && selection.count > 1 ? Array(selection).sorted() : [change.path]
         return Self.dragPrefix + sourceKey + ":" + paths.joined(separator: "\n")
@@ -144,7 +144,7 @@ private struct FileSection: View {
             }
     }
 
-    /// Hàng thư mục của dạng cây: bấm để gập / mở, nút nhanh Stage / Bỏ stage cả thư mục.
+    /// A folder row in tree layout: click to collapse / expand, quick buttons to Stage / Unstage the whole folder.
     private func folderRow(path: String, name: String, depth: Int, count: Int) -> some View {
         let isCollapsed = collapsed.contains(path)
         return HStack(spacing: 5) {
@@ -242,7 +242,7 @@ private struct FileSection: View {
                         }
                     }
                 } primaryAction: { paths in
-                    // Double-click: chuyển file sang danh sách còn lại.
+                    // Double-click: move the file to the other list.
                     rowAction(files.filter { paths.contains($0.path) })
                 }
                 .onChange(of: selection) { _, newValue in
@@ -284,9 +284,9 @@ private struct FileSection: View {
 
 private struct ConflictList: View {
     @Bindable var model: RepoModel
-    /// File đang chọn (⌘-click / ⇧-click) để xử lý nhiều file một lần.
+    /// The selected files (⌘-click / ⇧-click) so several can be handled at once.
     @State private var selected: Set<String> = []
-    /// Số đoạn xung đột của từng file.
+    /// The number of conflict hunks per file.
     @State private var counts: [String: Int] = [:]
 
     private var targets: [ConflictEntry] {
@@ -367,7 +367,7 @@ private struct ConflictList: View {
         return entry.kind.description + " · " + String(localized: "\(count) đoạn")
     }
 
-    /// Bấm thường: mở file. ⌘-click: thêm / bỏ khỏi lựa chọn. ⇧-click: chọn liền một dải.
+    /// A plain click: open the file. ⌘-click: add / remove from the selection. ⇧-click: select a range.
     private func click(_ entry: ConflictEntry) {
         let flags = NSEvent.modifierFlags
         if flags.contains(.command) {
@@ -382,7 +382,7 @@ private struct ConflictList: View {
     }
 }
 
-/// Ô soạn commit: tóm tắt, mô tả, amend, nút commit lớn.
+/// The commit composer: summary, description, amend, the big commit button.
 struct CommitComposer: View {
     @Bindable var model: RepoModel
     @FocusState private var summaryFocused: Bool
@@ -398,7 +398,7 @@ struct CommitComposer: View {
         return count > 0 ? String(localized: "Commit \(count) file vào \(model.currentBranch ?? "HEAD")") : "Commit"
     }
 
-    /// ✨ Viết commit message bằng AI chạy trên máy (Apple Intelligence) từ thay đổi đã stage.
+    /// ✨ Write the commit message with on-device AI (Apple Intelligence) from the staged changes.
     @ViewBuilder
     private var aiButton: some View {
         let reason = CommitMessageAI.unavailableReason
@@ -422,13 +422,13 @@ struct CommitComposer: View {
         }
     }
 
-    /// Không gợi ý khi đang merge / revert…: "Stage tất cả & commit" sẽ gói luôn thay đổi đang làm dở vào commit hoàn tất
-    /// thao tác (với message của thao tác).
+    /// No suggestion while merging / reverting…: "Stage all & commit" would bundle the in-progress change into the
+    /// operation-completing commit (with the operation's message).
     private var suggestsStageAll: Bool {
         model.status.staged.isEmpty && !model.status.unstaged.isEmpty && !model.amendLastCommit && model.operation == nil
     }
 
-    /// Nút commit (và Commit & Push) bấm được chưa.
+    /// Whether the commit button (and Commit & Push) is enabled.
     private var canCommitNow: Bool {
         suggestsStageAll ? model.hasCommitMessage && model.status.conflicts.isEmpty : model.canCommit
     }
@@ -447,7 +447,7 @@ struct CommitComposer: View {
                 Toggle("Sửa commit trước (amend)", isOn: $model.amendLastCommit)
                     .toggleStyle(.checkbox)
                     .controlSize(.small)
-                    // Đang merge / revert…: commit là để hoàn tất thao tác, không sửa commit trước.
+                    // Mid merge / revert…: the commit completes the operation, it doesn't modify an earlier commit.
                     .disabled(model.headOID == nil || model.operation != nil)
                     .help("Amend thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó")
             }
@@ -483,7 +483,7 @@ struct CommitComposer: View {
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.1)))
 
             if let hint = model.commitIdentityHint {
-                // Gợi ý nhẹ: email commit khác tài khoản GitHub của owner repo này.
+                // A gentle hint: the commit email differs from the repo owner's GitHub account.
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Image(systemName: "person.crop.circle.badge.exclamationmark")
                         .foregroundStyle(.orange)
@@ -491,7 +491,7 @@ struct CommitComposer: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
-                    // Mở hộp "Tài khoản GitHub cho repo này" để xác nhận trước khi ghi config local.
+                    // Open the "GitHub account for this repo" dialog to confirm before writing the local config.
                     Button("Dùng của @\(hint.profile.login)…") { model.sheet = .githubAccount(owner: nil) }
                         .buttonStyle(.link)
                         .help("Ghi \(hint.profile.commitName) <\(hint.profile.commitEmail)> vào config local của repo này")
@@ -524,7 +524,7 @@ struct CommitComposer: View {
                     .keyboardShortcut(.return, modifiers: .command)
                 }
                 if model.canCommitAndPush {
-                    // Commit rồi push luôn (⌘⇧↩) — luồng hằng ngày "xong việc, đẩy lên".
+                    // Commit then push right away (⌘⇧↩) — the everyday "done, ship it" flow.
                     Button {
                         model.commit(stageAllFirst: suggestsStageAll, andPush: true)
                     } label: {
@@ -549,8 +549,8 @@ struct CommitComposer: View {
     }
 }
 
-/// Dải cảnh báo rủi ro (xoá / bỏ qua test, đổi thư viện, CI, file lớn, bí mật) kèm tên file — không bao giờ hiện nội dung bí
-/// mật. Chỉ là cảnh báo, không chặn commit.
+/// The risk warning strip (deletions / skipped tests, dependency changes, CI, large files, secrets) with the file names — it
+/// never shows secret contents. Warning only, never blocks a commit.
 private struct RiskBanner: View {
     let flags: [RiskFlag]
     let onDismiss: () -> Void

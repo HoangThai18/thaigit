@@ -1,5 +1,6 @@
-// API công khai (sau nginx/Caddy): /v1/ai/* (proxy tới Hermes), /v1/telemetry/ping, /v1/stats/downloads, /download/:asset, /healthz.
-// Không bao giờ ghi nội dung diff / message / IP / ID gốc vào DB hay log — chỉ số liệu kỹ thuật.
+// Public API (behind nginx/Caddy): /v1/ai/* (proxied to Hermes), /v1/telemetry/ping, /v1/stats/downloads, /download/:asset,
+// /healthz.
+// Diff content, messages, IPs and raw IDs never reach the database or the logs — only technical counters.
 
 import { existsSync } from 'node:fs';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -43,14 +44,14 @@ export interface AppDeps {
   db: Db;
   now?: () => number;
   fetch?: typeof fetch;
-  /** Địa chỉ socket của peer (test thay bằng giá trị giả). */
+  /** Peer socket address (tests substitute a fake value). */
   peer?: (c: Context) => string;
 }
 
 export interface AppState {
-  /** Kết quả kiểm model gần nhất (cập nhật bởi vòng health ở main.ts). */
+  /** Latest model health-check result (updated by the health loop in main.ts). */
   aiHealthy: boolean;
-  /** Số stream SSE đang mở (để xả khi tắt máy chủ). */
+  /** Number of open SSE streams (so shutdown can drain them). */
   activeStreams: number;
   admission: Admission;
 }
@@ -140,14 +141,14 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
     await next();
   };
 
-  // ── Sức khoẻ ──────────────────────────────────────────────────────────────────────────────────────────────────
+  // MARK: - Health
   app.get('/healthz', (c) => {
     const dbOk = pingDatabase(db);
     const ai = aiDisabled() ? 'disabled' : state.aiHealthy ? 'ok' : 'down';
     return c.json({ api: 'ok', db: dbOk ? 'ok' : 'down', ai }, dbOk ? 200 : 503);
   });
 
-  // ── AI: đăng ký cài đặt (chỉ gọi sau khi người dùng đồng ý dùng AI) ────────────────────────────────────────────
+  // MARK: - AI: install registration (only called after the user opts into AI)
   app.post(
     '/v1/ai/install',
     bodyLimit({ maxSize: 1024, onError: (c) => aiError(c, 'too_large') }),
@@ -180,7 +181,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
     return c.json(body);
   });
 
-  // ── AI: sinh chữ (SSE) ─────────────────────────────────────────────────────────────────────────────────────────
+  // MARK: - AI: text generation (SSE)
   const logRequest = (entry: {
     feature: AiFeature;
     appVersion: string | null;
@@ -209,7 +210,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
         entry.errorCode,
       );
     } catch {
-      // Số liệu kỹ thuật: mất một dòng không ảnh hưởng người dùng.
+      // Purely a technical counter: losing one row does not affect the user.
     }
   };
 
@@ -271,7 +272,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
           try {
             refundQuota(db, day, idHash, feature);
           } catch {
-            // Hiếm: lượt này bị tính dù không ra kết quả.
+            // Rare: this attempt is counted even though it produced no result.
           }
         };
         const ticket = state.admission.enter(info.veteran);
@@ -372,7 +373,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
             try {
               recordSuccess(db, idHash, day);
             } catch {
-              // Chỉ ảnh hưởng mức ưu tiên lần sau.
+              // Only affects the next attempt's priority.
             }
           } finally {
             ticket.release();
@@ -394,7 +395,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
     );
   }
 
-  // ── Thống kê ẩn danh (chỉ khi người dùng bật) ──────────────────────────────────────────────────────────────────
+  // MARK: - Anonymous analytics (only when the user enables it)
   app.post(
     '/v1/telemetry/ping',
     bodyLimit({ maxSize: 2048, onError: (c) => c.body(null, 413) }),
@@ -427,7 +428,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
     },
   );
 
-  // ── Đếm lượt tải: ghi một dòng (không IP) rồi chuyển tới file trên GitHub Releases ─────────────────────────────
+  // MARK: - Download counting: records one row (no IP) then redirects to the file on GitHub Releases
   const refreshVersion = async (asset: DownloadAsset, manifest: string) => {
     const cached = versions.get(asset);
     if (cached !== undefined && now() - cached.fetchedAt < 5 * 60_000) return;
@@ -439,7 +440,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
       if (version !== null && SEMVER_PATTERN.test(version))
         versions.set(asset, { version, fetchedAt: now() });
     } catch {
-      // Giữ phiên bản cũ; lần sau thử lại.
+      // Keep the previous version; retry next time.
     }
   };
 
@@ -457,13 +458,13 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
         uaFamily(c.req.header('User-Agent')),
       );
     } catch {
-      // Không đếm được vẫn cho tải.
+      // A failed count still allows the download.
     }
     c.header('Cache-Control', 'no-store');
     return c.redirect(target.url, 302);
   });
 
-  // ── Tổng lượt tải công khai cho trang chủ (bỏ lượt của bot / curl, nhớ 5 phút) ─────────────────────────────────
+  // MARK: - Public total download count for the homepage (ignores bots/curl, memoised for 5 minutes)
   app.get('/v1/stats/downloads', (c) => {
     if (downloadTotals === null || now() - downloadTotals.at >= 5 * 60_000) {
       try {

@@ -39,7 +39,7 @@
   );
 
   let showFullBody = $state(false);
-  /** Đang xem commit mà vẫn còn file chưa commit: nhắc ở đầu panel (như dòng WIP của GitKraken). */
+  /** Viewing a commit while there are still uncommitted files: remind at the top of the panel (like GitKraken's WIP line). */
   const uncommitted = $derived(
     new Set([
       ...store.status.staged.map((change) => change.path),

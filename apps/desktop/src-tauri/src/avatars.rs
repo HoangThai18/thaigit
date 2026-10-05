@@ -1,11 +1,12 @@
-//! Ảnh đại diện thật của người commit (như GitKraken), dùng cho node graph.
+//! Real commit-author avatars (like GitKraken), used for the graph nodes.
 //!
-//! Webview không tự gọi mạng được (CSP chỉ mở `ipc:`), nên Rust tải ảnh rồi trả về **data URL** — `img-src` có
-//! `data:` nên canvas vẽ được. Thứ tự nguồn giống app macOS (`AvatarFetcher` của NhanhCore): email ẩn GitHub →
-//! Gravatar; không nguồn nào có ảnh thì ghi một dấu "không có" để khỏi hỏi lại trong phiên.
+//! The webview cannot reach the network itself (the CSP only allows `ipc:`), so Rust downloads the image and returns a
+//! **data URL** — `img-src` allows `data:`, so the canvas can draw it. The source order matches the macOS app
+//! (`AvatarFetcher` in NhanhCore): GitHub's private email → Gravatar; when no source has an image, a "no avatar"
+//! marker is stored so the session does not ask again.
 //!
-//! Chỉ nhận ảnh PNG/JPEG/GIF/WebP (đoán từ byte đầu, không tin `Content-Type`): data URL của SVG có thể mang
-//! script, không để lọt vào webview dù CSP đã khoá.
+//! Only PNG/JPEG/GIF/WebP are accepted (guessed from the leading bytes, `Content-Type` is not trusted): a data URL of
+//! SVG could carry script, and must not reach the webview even though the CSP is locked down.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -15,28 +16,28 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use sha2::{Digest, Sha256};
 
-/// Cạnh ảnh tải về (px) — node graph nhỏ hơn nhiều, phần dư cho màn hình Retina.
+/// Edge length of a downloaded image (px) — graph nodes are much smaller; the rest covers Retina screens.
 pub const AVATAR_SIZE: u32 = 80;
-/// Ảnh tải về giữ một tuần; dấu "không có ảnh" giữ ba ngày (hết thì thử lại, thường là vừa đổi ảnh).
+/// A downloaded image is kept for a week; a "no avatar" marker for three days (after that we retry, often right after an avatar change).
 const IMAGE_LIFETIME: Duration = Duration::from_secs(7 * 24 * 3600);
 const MISSING_LIFETIME: Duration = Duration::from_secs(3 * 24 * 3600);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 const USER_AGENT: &str = "Thaigit";
-/// Trần kích thước ảnh (chấm trên graph nhỏ hơn nhiều; chặn máy chủ trả nhầm thứ quá lớn).
+/// Size cap (graph dots are much smaller; this stops a server from returning something huge by mistake).
 const MAX_IMAGE_BYTES: usize = 4 * 1024 * 1024;
 
-/// Email đã chuẩn hoá (bỏ khoảng trắng, lowercase) — khoá cache và mã Gravatar đều tính từ đây.
+/// Normalised email (whitespace trimmed, lowercased) — both the cache key and the Gravatar hash derive from it.
 pub fn normalize(email: &str) -> String {
     email.trim().to_lowercase()
 }
 
-/// SHA-256 của email đã chuẩn hoá, dạng hex: tên file cache và mã Gravatar (như `AvatarSource.hash` của Swift).
+/// SHA-256 of the normalised email as hex: the cache filename and the Gravatar hash (like Swift's `AvatarSource.hash`).
 pub fn hash(email: &str) -> String {
     let digest = Sha256::digest(normalize(email).as_bytes());
     digest.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-/// Email ẩn của GitHub: `12345+ten@users.noreply.github.com` → `(Some(12345), "ten")`;
+/// GitHub private email: `12345+ten@users.noreply.github.com` → `(Some(12345), "ten")`;
 /// `ten@users.noreply.github.com` → `(None, "ten")`.
 pub fn github_noreply(email: &str) -> Option<(Option<u64>, String)> {
     let normalized = normalize(email);
@@ -50,7 +51,7 @@ pub fn github_noreply(email: &str) -> Option<(Option<u64>, String)> {
     }
 }
 
-/// Ảnh trên `avatars.githubusercontent.com` (có id) hoặc trang hồ sơ (chỉ có login).
+/// The image on `avatars.githubusercontent.com` (with an id) or on the profile page (login only).
 pub fn github_avatar_url(id: Option<u64>, login: &str, size: u32) -> Option<String> {
     if let Some(id) = id {
         return Some(format!("https://avatars.githubusercontent.com/u/{id}?s={size}&v=4"));
@@ -62,7 +63,7 @@ pub fn github_avatar_url(id: Option<u64>, login: &str, size: u32) -> Option<Stri
     Some(format!("https://github.com/{encoded}.png?size={size}"))
 }
 
-/// `d=404`: không có ảnh thì máy chủ trả 404 (không trả ảnh mặc định) để app vẽ chữ viết tắt.
+/// `d=404`: the server answers 404 when there is no image (rather than a default one) so the app can draw initials.
 pub fn gravatar_url(email: &str, size: u32) -> Option<String> {
     if !normalize(email).contains('@') {
         return None;
@@ -70,7 +71,7 @@ pub fn gravatar_url(email: &str, size: u32) -> Option<String> {
     Some(format!("https://gravatar.com/avatar/{}?s={size}&d=404", hash(email)))
 }
 
-/// Repo trên github.com tách từ URL remote (`https://`, `ssh://`, `git@github.com:…`).
+/// A github.com repository derived from a remote URL (`https://`, `ssh://`, `git@github.com:…`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GitHubRepo {
     pub owner: String,
@@ -78,7 +79,7 @@ pub struct GitHubRepo {
 }
 
 impl GitHubRepo {
-    /// `nil` khi remote không phải github.com (kể cả host trông giống: chỉ đúng ba host của GitHub).
+    /// `None` when the remote is not github.com (including look-alikes: only GitHub's three canonical hosts count).
     pub fn parse(remote_url: &str) -> Option<Self> {
         let mut text: String = remote_url.trim().to_string();
         if let Some(scheme) = text.find("://") {
@@ -86,7 +87,7 @@ impl GitHubRepo {
         } else if let Some(colon) = text.find(':')
             && !text[..colon].contains('/')
         {
-            // Dạng scp: git@github.com:owner/repo.git
+            // scp style: git@github.com:owner/repo.git
             text = format!("{}/{}", &text[..colon], &text[colon + 1..]);
         } else {
             return None;
@@ -112,30 +113,30 @@ impl GitHubRepo {
     }
 }
 
-/// API commit gần nhất của tác giả trong repo: tài khoản GitHub gắn với email đó kèm `avatar_url`.
+/// The author's most recent commit in the repo via the API: the GitHub account behind that email, plus `avatar_url`.
 pub fn github_commits_url(repo: &GitHubRepo, email: &str) -> String {
     let normalized = normalize(email);
     let author = percent_encoding::utf8_percent_encode(&normalized, percent_encoding::NON_ALPHANUMERIC);
     format!("https://api.github.com/repos/{}/{}/commits?author={author}&per_page=1", repo.owner, repo.name)
 }
 
-/// `avatar_url` của `[0].author` trong kết quả API commit (`author` là null khi email không gắn với tài khoản nào).
+/// `avatar_url` of `[0].author` in the commit API result (`author` is null when the email belongs to no account).
 pub fn parse_commit_avatar(json: &serde_json::Value) -> Option<String> {
     let raw = json.get(0)?.get("author")?.get("avatar_url")?.as_str()?;
-    // Bỏ `?s=` cũ rồi ép cạnh theo `size` để không tải ảnh 460px vẽ vào chấm 17px.
+    // Drop the old `?s=` and force the edge from `size`, so a 460px image is not downloaded for a 17px dot.
     let base = raw.split('?').next().unwrap_or(raw);
     Some(format!("{base}?s={AVATAR_SIZE}&v=4"))
 }
 
-/// Repo GitHub do webview đưa (từ URL remote mà giao diện đã đọc). `None` khi thiếu hoặc ký tự không an toàn —
-/// webview không đưa URL nào vào đây, Rust tự dựng `https://api.github.com/...`.
+/// The GitHub repository supplied by the webview (taken from the remote URL the UI already read). `None` when missing or
+/// containing unsafe characters — the webview passes no URL here; Rust builds `https://api.github.com/…` itself.
 pub fn github_repo(owner: Option<&str>, repo: Option<&str>) -> Option<GitHubRepo> {
     let (owner, repo) = crate::forge::check_repo_path(owner?, repo?).ok()?;
     Some(GitHubRepo { owner, name: repo })
 }
 
-/// Nguồn ảnh theo thứ tự ưu tiên, như `AvatarFetcher` của app Swift: email ẩn GitHub → API GitHub của repo (nếu
-/// repo nằm trên GitHub) → Gravatar. Không nguồn nào có ảnh thì nhớ "không có" vài ngày cho khỏi hỏi lại.
+/// Image sources in priority order, like the Swift app's `AvatarFetcher`: GitHub private email → the repo's GitHub API
+/// (when the repo is on GitHub) → Gravatar. When no source has an image, remember "no avatar" for a few days.
 enum Source {
     Image(String),
     GitHubApi(GitHubRepo, String),
@@ -157,7 +158,7 @@ fn sources(email: &str, repo: Option<&GitHubRepo>) -> Vec<Source> {
     result
 }
 
-/// Định dạng ảnh đoán từ byte đầu. Không nhận SVG (mang script) hay định dạng lạ — bỏ thì vẽ chữ viết tắt.
+/// Image format guessed from the leading bytes. SVG (carries script) and unknown formats are rejected → draw initials.
 fn sniff_mime(data: &[u8]) -> Option<&'static str> {
     const PNG: &[u8] = &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
     const GIF: &[u8] = b"GIF87a";
@@ -175,18 +176,18 @@ fn sniff_mime(data: &[u8]) -> Option<&'static str> {
     }
 }
 
-/// Kết quả đọc cache đĩa cho một email.
+/// Result of reading the on-disk cache for one email.
 enum Cache {
     Image(Vec<u8>),
-    /// Cờ "đã hỏi cả hai nguồn, không có ảnh" (file rỗng).
+    /// The "asked every source, no image" flag (an empty file).
     Missing,
 }
 
-/// Tải và cache ảnh đại diện theo email. Một `Avatars` cho cả app, dùng chung cho mọi cửa sổ repo.
+/// Downloads and caches avatars by email. One `Avatars` for the whole app, shared by every repo window.
 pub struct Avatars {
     cache_dir: PathBuf,
     client: OnceLock<reqwest::Client>,
-    /// API GitHub hết lượt (60 lượt/giờ khi không đăng nhập): bỏ qua tới giờ reset.
+    /// GitHub API rate limit reached (60/hour when signed out): skip until the reset time.
     github_blocked_until: Mutex<Option<Instant>>,
 }
 
@@ -197,20 +198,21 @@ impl Avatars {
         Arc::new(Self { cache_dir, client: OnceLock::new(), github_blocked_until: Mutex::new(None) })
     }
 
-    /// Cache đĩa cho test: dùng thư mục riêng, không tạo HTTP client.
+    /// Disk cache for tests: its own directory, no HTTP client created.
     #[cfg(test)]
     pub fn with_cache_dir(cache_dir: PathBuf) -> Arc<Self> {
         let _ = std::fs::create_dir_all(&cache_dir);
         Arc::new(Self { cache_dir, client: OnceLock::new(), github_blocked_until: Mutex::new(None) })
     }
 
-    /// Data URL (`data:image/png;base64,…`) của ảnh, hoặc `None` khi không có ảnh / không tải được.
+    /// The image's data URL (`data:image/png;base64,…`), or `None` when there is no image or it cannot be fetched.
     ///
-    /// Lỗi mạng không được ghi vào cache: hết mạng thì lần sau vẫn thử lại. Webview chỉ cần biết "chưa có" để vẽ
-    /// chữ viết tắt, nên lỗi trả về `None` chứ không phải `Err` — không có gì để người dùng sửa.
+    /// A network error must not be cached: with no connectivity the next attempt should try again. The webview only needs
+    /// to know "not yet" so it can draw initials, so failures return `None` rather than `Err` — there is nothing for the
+    /// user to fix.
     ///
-    /// `repo` là repo trên GitHub của repo đang mở: nhờ vậy tìm được ảnh của người commit bằng email thật (không
-    /// phải email ẩn `@users.noreply`) — mà phần lớn người dùng GitHub đều commit bằng email Gmail.
+    /// `repo` is the opened repo's GitHub repository: thanks to it avatars are found by real email (not the private
+    /// `@users.noreply` one) — most GitHub users commit with a Gmail address.
     pub async fn data_url(&self, email: &str, repo: Option<&GitHubRepo>, token: Option<&str>) -> Option<String> {
         let email = email.trim();
         if !normalize(email).contains('@') {
@@ -272,9 +274,9 @@ impl Avatars {
         sniff_mime(&data).map(|_| data.to_vec())
     }
 
-    /// 401: token hết hạn / bị thu hồi — lỗi tạm (đăng nhập lại là hỏi được). 404/409/422: repo riêng tư chưa
-    /// đăng nhập, repo rỗng, email lạ — GitHub không có ảnh. 403/429 hoặc `X-RateLimit-Remaining: 0`: hết lượt,
-    /// chặn tới giờ reset.
+    /// 401: the token expired or was revoked — a transient error (signing in again fixes it). 404/409/422: a private repo
+    /// we are not signed in to, an empty repo, an unknown email — GitHub has no avatar. 403/429 or
+    /// `X-RateLimit-Remaining: 0`: rate limited until the reset time.
     async fn github_avatar(&self, repo: &GitHubRepo, email: &str, token: Option<&str>) -> Option<Vec<u8>> {
         {
             let blocked = self.github_blocked_until.lock().unwrap_or_else(|error| error.into_inner());
@@ -325,7 +327,7 @@ impl Avatars {
         if fresh(&self.cache_dir.join(format!("{key}.none")), MISSING_LIFETIME) {
             return Some(Cache::Missing);
         }
-        // Chưa hỏi API GitHub (repo không nằm trên GitHub): nhớ riêng để sau này có repo GitHub vẫn hỏi được.
+        // The GitHub API was not consulted (the repo is not on GitHub): remember it separately so a GitHub repo later can still ask.
         if !asked_github && fresh(&self.cache_dir.join(format!("{key}.nogithub.none")), MISSING_LIFETIME) {
             return Some(Cache::Missing);
         }
@@ -360,7 +362,7 @@ mod tests {
 
     #[test]
     fn hash_matches_sha256_of_normalized_email() {
-        // SHA-256("a@b.c") — cùng công thức với `AvatarSource.hash` của app Swift.
+        // SHA-256("a@b.c") — the same formula as the Swift app's `AvatarSource.hash`.
         assert_eq!(hash(" A@B.C "), hash("a@b.c"));
         assert_eq!(hash("a@b.c"), "d648b243a3e817eaa3309e00e183483f2867baadf522099f0c2121770536b25a");
     }
@@ -388,12 +390,12 @@ mod tests {
     #[test]
     fn sources_prefer_github_then_api_then_gravatar() {
         let repo = GitHubRepo::parse("https://github.com/acme/app.git").unwrap();
-        // Email ẩn GitHub không cần API: ảnh lấy thẳng từ avatars.githubusercontent.com.
+        // A GitHub private email needs no API: the image comes straight from avatars.githubusercontent.com.
         assert_eq!(image_urls("7+son@users.noreply.github.com", Some(&repo)), vec![
             "https://avatars.githubusercontent.com/u/7?s=80&v=4".to_string(),
             format!("https://gravatar.com/avatar/{}?s=80&d=404", hash("7+son@users.noreply.github.com")),
         ]);
-        // Email thật (không có Gravatar) chỉ còn API commit là cứu cánh — đúng như app Swift.
+        // A real email (with no Gravatar) leaves only the commit API — exactly as in the Swift app.
         assert_eq!(image_urls("son@example.com", Some(&repo)), vec![format!(
             "https://gravatar.com/avatar/{}?s=80&d=404",
             hash("son@example.com")
@@ -432,7 +434,7 @@ mod tests {
     fn webview_cannot_point_the_lookup_at_another_host() {
         let repo = github_repo(Some("acme"), Some("app")).unwrap();
         assert_eq!(repo, GitHubRepo { owner: "acme".to_string(), name: "app".to_string() });
-        // owner/repo sai ký tự hoặc thiếu một nửa thì bỏ qua nguồn API thay vì báo lỗi.
+        // An owner/repo with wrong characters or a missing half simply skips the API source instead of erroring.
         assert!(github_repo(Some("acme/../evil"), Some("app")).is_none());
         assert!(github_repo(Some("acme"), Some("app?x=1")).is_none());
         assert!(github_repo(Some("acme"), None).is_none());
@@ -455,7 +457,7 @@ mod tests {
             parse_commit_avatar(&json).as_deref(),
             Some(format!("https://avatars.githubusercontent.com/u/9321364?s={AVATAR_SIZE}&v=4").as_str())
         );
-        // `author` null = email không gắn với tài khoản GitHub nào → không có ảnh, đừng hỏi lại.
+        // A null `author` means the email belongs to no GitHub account → no image, and do not ask again.
         assert_eq!(parse_commit_avatar(&serde_json::json!([{ "author": null }])), None);
         assert_eq!(parse_commit_avatar(&serde_json::json!([])), None);
         assert_eq!(parse_commit_avatar(&serde_json::json!([{}])), None);
@@ -479,12 +481,12 @@ mod tests {
         let png = b"\x89PNG\r\n\x1a\nabc";
         avatars.store_image("k", png);
         assert!(matches!(avatars.cached("k", true), Some(Cache::Image(_))));
-        // Hết hạn thì coi như chưa có để tải lại.
+        // Once it expires, treat it as missing so the image is fetched again.
         let image = dir.join("k.img");
         let file = std::fs::OpenOptions::new().write(true).open(&image).unwrap();
         file.set_modified(SystemTime::now() - IMAGE_LIFETIME - Duration::from_secs(1)).unwrap();
         assert!(avatars.cached("k", true).is_none());
-        // "Không có ảnh" nhớ riêng cho repo không ở GitHub: sau này mở repo GitHub vẫn phải hỏi được.
+        // "No avatar" is remembered separately for a non-GitHub repo, so opening a GitHub repo later can still ask.
         avatars.store_missing("m", false);
         assert!(matches!(avatars.cached("m", false), Some(Cache::Missing)));
         assert!(avatars.cached("m", true).is_none(), "đã hỏi API GitHub thì phải hỏi lại được");

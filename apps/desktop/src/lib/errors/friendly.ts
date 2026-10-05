@@ -1,6 +1,7 @@
-// Chuyển MỌI lỗi (lõi Rust, git, core, exception của JS) thành một câu tiếng Việt dễ hiểu. Quy tắc của app: giao diện không bao
-// giờ hiện stderr của git, message gốc của Error, mã lỗi hệ điều hành hay stack trace — người dùng chỉ thấy câu ở đây. Chi tiết
-// kỹ thuật vẫn xem được trong "Nhật ký lệnh git" (người dùng tự mở).
+// Turns EVERY error (the Rust core, git, the core package, thrown JS exceptions) into one understandable
+// sentence. App rule: the UI never shows git's stderr, an Error's original message, an OS error code or a
+// stack trace — the user only ever sees a sentence from here. Technical detail remains available in
+// "git command log" (which the user opens themselves).
 
 import { CancelledError, GitError, RepositoryError } from '@thaigit/core';
 import { AiFailure } from '../ai/client.ts';
@@ -8,7 +9,7 @@ import { vi } from '../strings.vi.ts';
 
 const text = vi.errors.friendly;
 
-/** Mẫu lỗi git quen thuộc → câu thân thiện (theo thứ tự ưu tiên; so không phân biệt hoa thường). */
+/** Well-known git error patterns → friendly sentence (in priority order; matched case-insensitively). */
 const GIT_PATTERNS: readonly (readonly [readonly string[], string])[] = [
   [["'lfs' is not a git command", "'git-lfs' was not found"], text.lfsMissing],
   [['Please tell me who you are', 'empty ident', 'unable to auto-detect email address'], text.identity],
@@ -94,7 +95,7 @@ function friendlyGitError(error: GitError): string {
   return text.gitFailed;
 }
 
-/** Lỗi của máy chủ AI (mã trong contracts) → câu thân thiện. */
+/** AI server errors (codes from contracts) → friendly sentence. */
 function friendlyAiFailure(error: AiFailure): string {
   const ai = vi.ai.errors;
   const wait = error.retryAfter ?? 30;
@@ -124,7 +125,7 @@ function friendlyAiFailure(error: AiFailure): string {
   }
 }
 
-/** Câu thân thiện cho một lỗi bất kỳ. */
+/** A friendly sentence for any error. */
 export function friendlyError(error: unknown): string {
   if (error instanceof CancelledError) return text.cancelled;
   if (error instanceof AiFailure) return friendlyAiFailure(error);
@@ -139,7 +140,7 @@ export function friendlyError(error: unknown): string {
         return text.invalidName;
     }
   }
-  // Lỗi chuẩn hoá của lõi Rust (CommandFailure) và của bộ chuyển Node (AdapterError) đều có `code`.
+  // Both the Rust core's normalised error (CommandFailure) and the Node adapter's (AdapterError) carry a `code`.
   const code = (error as { code?: unknown } | null)?.code;
   if (typeof code === 'string' && code in CODE_TEXT) return CODE_TEXT[code] ?? text.unexpected;
   return text.unexpected;

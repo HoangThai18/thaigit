@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Vùng diff thay chỗ graph khi mở một file (giống GitKraken). Esc để quay lại graph.
+/// The diff area that replaces the graph when a file is opened (like GitKraken). Esc returns to the graph.
 struct DiffPane: View {
     @Bindable var model: RepoModel
     @AppStorage(Prefs.diffSplit) private var split = false
@@ -114,12 +114,12 @@ private struct DiffHeader: View {
                     .fixedSize()
             }
             .glassButtonStyle()
-            // Đang sửa file thì Esc không đóng (tránh mất chữ đang gõ).
+            // Esc doesn't close while editing a file (so text being typed isn't lost).
             .keyboardShortcut(editing ? nil : .cancelAction)
             .help(editing ? String(localized: "Quay lại graph") : String(localized: "Quay lại graph (Esc)"))
 
             ChangeIcon(kind: file.change.kind)
-            // Nhãn nguồn nằm ở dòng dưới cùng đường dẫn: khi pane hẹp, tên file vẫn còn chỗ thay vì bị nhãn chiếm hết.
+            // The source label sits on the line below the path: in a narrow pane the file name still has room instead of the label taking it all.
             VStack(alignment: .leading, spacing: 1) {
                 Text(file.change.fileName).font(.headline).lineLimit(1)
                 HStack(spacing: 6) {
@@ -140,7 +140,7 @@ private struct DiffHeader: View {
                         .help(file.change.oldPath.map { "\($0) → \(file.change.path)" } ?? file.change.path)
                 }
             }
-            // Tên + đường dẫn file được ưu tiên chỗ hơn các nút (đường dẫn không còn bị cắt còn "cd…ss").
+            // The file's name + path get priority over the buttons (the path is otherwise truncated to "cd…ss").
             .frame(minWidth: 180, alignment: .leading)
             .layoutPriority(1)
             Spacer(minLength: 8)
@@ -152,7 +152,7 @@ private struct DiffHeader: View {
             if editing, let session = model.fileEditor {
                 EditorControls(model: model, session: session)
             } else {
-                // Nút không bao giờ bị cắt chữ; thiếu chỗ thì đường dẫn file co lại (cắt giữa) trước.
+                // A button is never truncated; when space runs short the file path shrinks (truncating in the middle) first.
                 diffControls
                     .fixedSize()
             }
@@ -170,7 +170,7 @@ private struct DiffHeader: View {
         .background(.bar)
     }
 
-    /// ↑ 2/5 ↓: chuyển file trong cùng danh sách (chưa stage / đã stage / xung đột) — ⇧⌥⌘↑ / ⇧⌥⌘↓.
+    /// ↑ 2/5 ↓: move between files of the same list (unstaged / staged / conflicted) — ⇧⌥⌘↑ / ⇧⌥⌘↓.
     private func fileNavigator(_ place: (index: Int, total: Int)) -> some View {
         HStack(spacing: 2) {
             Button { model.stepOpenFile(-1) } label: { Image(systemName: "chevron.up") }
@@ -258,7 +258,7 @@ private struct DiffHeader: View {
     }
 }
 
-/// Nút khi đang sửa file: trạng thái, Thôi, Lưu (⌘S).
+/// The buttons shown while editing a file: state, Revert, Save (⌘S).
 private struct EditorControls: View {
     let model: RepoModel
     let session: FileEditorSession
@@ -315,7 +315,7 @@ private struct LineSelectionBar: View {
     }
 }
 
-/// Thông số chữ đơn cách để tính độ rộng nội dung (cuộn ngang thay vì xuống dòng).
+/// The monospaced font's metrics, used to compute the content width (scroll horizontally instead of wrapping).
 private struct DiffMetrics {
     static let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
     static let charWidth: CGFloat = {
@@ -339,7 +339,7 @@ private struct DiffTextView: View {
     let presentation: DiffPresentation
     let split: Bool
     let wrap: Bool
-    /// Hunk vừa nhảy tới bằng ⌥⌘↓ / ⌥⌘↑ (−1: chưa nhảy, đang ở đầu file).
+    /// The hunk just jumped to with ⌥⌘↓ / ⌥⌘↑ (−1: no jump yet, sitting at the top of the file).
     @State private var hunkCursor = -1
 
     var body: some View {
@@ -351,7 +351,7 @@ private struct DiffTextView: View {
         .onChange(of: model.openFile) { hunkCursor = -1 }
     }
 
-    /// Phím nhảy giữa các hunk (nút ẩn — chỉ để gắn phím tắt).
+    /// The keys that jump between hunks (the buttons are hidden — they only carry the shortcut).
     private func hunkShortcuts(_ reader: ScrollViewProxy) -> some View {
         HStack {
             Button("Hunk sau") { jumpHunk(1, reader) }
@@ -377,7 +377,7 @@ private struct DiffTextView: View {
         let selectable = model.canSelectLines
         return GeometryReader { proxy in
             if split {
-                // Hai cột bằng nhau, dòng dài tự xuống dòng — không cần cuộn ngang.
+                // Two equal columns, long lines wrap — no horizontal scrolling needed.
                 let halfWidth = max(240, floor((proxy.size.width - 1) / 2))
                 ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 0) {
@@ -396,7 +396,7 @@ private struct DiffTextView: View {
                     .frame(width: halfWidth * 2 + 1, alignment: .leading)
                 }
             } else if wrap {
-                // Dòng dài tự xuống dòng trong bề rộng khung — đọc được hết, không phải cuộn ngang.
+                // Long lines wrap inside the pane's width — fully readable, no horizontal scroll.
                 ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(presentation.hunks) { hunk in
@@ -495,7 +495,7 @@ private struct HunkHeader: View {
     }
 }
 
-/// Thay chỗ nút hunk khi file có byte không phải UTF-8: stage/huỷ từng phần sẽ ghi U+FFFD thay các ký tự đó.
+/// Replaces the hunk buttons for a file with non-UTF-8 bytes: staging part of it would write U+FFFD over those characters.
 private struct NotUTF8Hint: View {
     let text: String
     let wholeFileAction: String
@@ -520,7 +520,7 @@ private enum DiffColors {
     static let gutterDeletion = Color.red.opacity(0.2)
 }
 
-/// Ngôn ngữ của file đang xem diff — để tô màu cú pháp từng dòng (đặt ở DiffTextView).
+/// The language of the file whose diff is on screen — for per-line syntax highlighting (set on DiffTextView).
 private struct SyntaxLanguageKey: EnvironmentKey {
     static let defaultValue: SyntaxLanguage? = nil
 }
@@ -729,7 +729,7 @@ private struct ImageBox: View {
             ZStack {
                 CheckerboardBackground()
                 if let image {
-                    // Không phóng to ảnh quá kích thước thật (tránh mờ); icon rất nhỏ thì phóng kiểu pixel.
+                    // Never scale an image beyond its real size (it would look blurry); a very small icon is scaled in pixel style.
                     let natural = image.size
                     Image(nsImage: image)
                         .resizable()
@@ -754,7 +754,7 @@ private struct ImageBox: View {
 }
 
 extension ImageBox {
-    /// Kích thước thật theo pixel (NSImage.size là point, ảnh @2x sẽ bị chia đôi).
+    /// The real pixel size (NSImage.size is in points, so an @2x image would be halved).
     static func pixelSize(of image: NSImage) -> String {
         let pixels = image.representations.map { ($0.pixelsWide, $0.pixelsHigh) }.max { $0.0 * $0.1 < $1.0 * $1.1 }
         if let (width, height) = pixels, width > 0, height > 0 { return "\(width) × \(height) px" }

@@ -1,14 +1,14 @@
 import type { AvatarImage } from './avatars.svelte.ts';
 import { GraphStyle, laneColor, laneX } from './style.ts';
 
-/** Một đoạn đường trong hàng (giống GraphLine.swift). */
+/** One line segment within a row (mirrors GraphLine.swift). */
 export interface PaintLine {
   kind: 'pass' | 'toNode' | 'fromNode';
   lane: number;
   color: number;
 }
 
-/** Những gì cần để vẽ một hàng graph. */
+/** Everything needed to paint one graph row. */
 export interface PaintRow {
   lane: number;
   color: number;
@@ -16,12 +16,12 @@ export interface PaintRow {
   isWorkingTree: boolean;
   isMerge: boolean;
   isHead: boolean;
-  /** Hàng có nhãn nhánh/tag ở cột trái → vẽ đường nối từ mép trái vào node. */
+  /** The row has branch/tag labels in the left column, so draw the connector from the left edge into the node. */
   hasLabels: boolean;
-  /** Mờ đi khi đang tìm kiếm mà hàng không khớp. */
+  /** Dimmed while a search is active and the row does not match. */
   dimmed: boolean;
   initials: string;
-  /** Email tác giả: dòng WIP dùng email người đang commit, còn lại là email của commit. */
+  /** Author email: the WIP row uses the current committer, every other row uses its commit author. */
   authorEmail: string;
 }
 
@@ -30,13 +30,14 @@ export interface PaintTheme {
   workingTreeColor: string;
   background: string;
   initialsColor: string;
-  /** Ảnh đại diện đã giải mã theo email; không có thì node vẽ chữ viết tắt. */
+  /** Avatar decoded per email; when missing the node draws initials instead. */
   avatar?: (email: string) => AvatarImage | null;
 }
 
 /**
- * Vẽ các hàng `first..<last` lên một canvas phủ cột Graph (chỉ phần đang thấy, theo devicePixelRatio).
- * `offsetY` là toạ độ đỉnh hàng `first` trong canvas (âm khi hàng đầu bị cuộn khuất một phần).
+ * Paint rows `first..<last` onto a canvas covering the Graph column (visible slice only, scaled by
+ * devicePixelRatio). `offsetY` is the canvas y of the top of row `first` (negative when the first
+ * visible row is scrolled part-way out).
  */
 export function paintGraph(
   context: CanvasRenderingContext2D,
@@ -56,7 +57,7 @@ export function paintGraph(
     const top = offsetY + (index - first) * height;
     paintRowLines(context, row, top, theme);
   }
-  // Node vẽ sau cùng để không bị đường của hàng kề đè lên.
+  // Nodes go last so neighbouring rows' lines cannot paint over them.
   for (let index = first; index < last; index++) {
     const row = rows(index);
     if (!row) continue;
@@ -76,7 +77,7 @@ function paintRowLines(
   const nodeX = laneX(row.lane);
   const alpha = row.dimmed ? 0.3 : 1;
 
-  // Đường nối từ nhãn nhánh (cột bên trái) tới node.
+  // Connector from the branch labels (left column) into the node.
   if (row.hasLabels) {
     context.globalAlpha = 0.55 * alpha;
     context.strokeStyle = laneColor(theme.laneColors, row.color, theme.workingTreeColor);
@@ -103,7 +104,7 @@ function paintRowLines(
           path.moveTo(x, top);
           path.lineTo(x, mid);
         } else {
-          // Đi thẳng xuống trong làn rồi bo góc rẽ ngang vào node.
+          // Straight down inside the lane, then a rounded corner turning horizontally into the node.
           const radius = Math.min(mid - top, Math.abs(nodeX - x));
           const direction = nodeX > x ? 1 : -1;
           path.moveTo(x, top);
@@ -117,7 +118,7 @@ function paintRowLines(
           path.moveTo(x, mid);
           path.lineTo(x, top + height);
         } else {
-          // Đi ngang khỏi node rồi bo góc rẽ xuống làn của commit cha.
+          // Horizontally away from the node, then a rounded corner turning down into the parent lane.
           const radius = Math.min(top + height - mid, Math.abs(x - nodeX));
           const direction = x > nodeX ? 1 : -1;
           path.moveTo(nodeX, mid);
@@ -131,7 +132,7 @@ function paintRowLines(
     if (isWorkingTree) {
       context.setLineDash([3, 3]);
     } else {
-      // Làn như ống kính: một lớp sáng mờ rộng bên dưới nét chính.
+      // Lens-like lane: a wide soft glow underneath the main stroke.
       context.setLineDash([]);
       context.globalAlpha = 0.16 * alpha;
       context.lineWidth = GraphStyle.lineWidth + 3;
@@ -163,7 +164,7 @@ function paintNode(context: CanvasRenderingContext2D, row: PaintRow, top: number
     context.setLineDash([2.5, 2]);
     context.stroke();
     context.setLineDash([]);
-    // Có avatar thì mặt người đủ nói "việc của bạn"; vòng đứt khoét đã nói "chưa commit". Không có avatar mới vẽ bút chì.
+    // With an avatar the face already says "your work"; the dashed ring says "not committed". The pencil is the fallback.
     const avatar = theme.avatar?.(row.authorEmail) ?? null;
     if (avatar) {
       context.save();
@@ -173,7 +174,7 @@ function paintNode(context: CanvasRenderingContext2D, row: PaintRow, top: number
       drawAvatarImage(context, avatar, x, mid, (radius - 2.5) * 2);
       context.restore();
     } else {
-      // Bút chì nhỏ: thay đổi đang làm.
+      // Small pencil: changes in progress.
       context.beginPath();
       context.moveTo(x - 3, mid + 3);
       context.lineTo(x + 3, mid - 3);
@@ -217,7 +218,7 @@ function paintNode(context: CanvasRenderingContext2D, row: PaintRow, top: number
   }
 }
 
-/** Vẽ ảnh vuông cạnh `size`×`size` quanh tâm (`x`, `y`): giữ nguyên tỉ lệ, canh giữa — như GitKraken. */
+/** Draw a square image of `size`x`size` centred on (`x`, `y`), preserving aspect ratio — as GitKraken does. */
 function drawAvatarImage(
   context: CanvasRenderingContext2D,
   image: AvatarImage,
@@ -231,7 +232,7 @@ function drawAvatarImage(
   context.drawImage(image, x - width / 2, y - height / 2, width, height);
 }
 
-/** Ảnh đại diện tròn trong viền màu của làn (như `drawAvatar` của app Swift). */
+/** Circular avatar inside the lane's coloured ring (mirrors the Swift app's `drawAvatar`). */
 function paintAvatarDisc(
   context: CanvasRenderingContext2D,
   image: AvatarImage,
@@ -259,7 +260,7 @@ function paintAvatarDisc(
   context.restore();
 }
 
-/** Node commit kiểu "viên ngọc kính" như logo: đậm dần xuống dưới, viền kính sáng, điểm phản chiếu. */
+/** Commit node as a "glass pearl" like the logo: darker towards the bottom, bright glass rim, specular highlight. */
 function paintGlassPearl(
   context: CanvasRenderingContext2D,
   x: number,
@@ -299,7 +300,7 @@ function paintGlassPearl(
   context.restore();
 }
 
-/** Trộn hai màu hex (#rrggbb) theo tỉ lệ `amount` của màu thứ hai. */
+/** Mix two #rrggbb hex colours by `amount` of the second one. */
 export function mix(base: string, other: string, amount: number): string {
   const parse = (hex: string) => {
     const value = Number.parseInt(hex.replace('#', '').slice(0, 6), 16);

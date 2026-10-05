@@ -1,4 +1,4 @@
-//! Lưu JSON nhỏ trong thư mục dữ liệu của app (danh sách gần đây, tin cậy repo, cài đặt git): ghi tạm rồi đổi tên.
+//! Small JSON files in the app's data directory (recent list, repo trust, git settings): written to a temp file then renamed.
 
 use std::io::Write;
 use std::path::Path;
@@ -8,13 +8,13 @@ use serde::de::DeserializeOwned;
 
 use crate::errors::{AppError, Result};
 
-/// Đọc JSON; file không có hoặc hỏng → `None` (trạng thái lưu không bao giờ chặn app khởi động).
+/// Read JSON; a missing or corrupt file yields `None` (a broken saved state must never block app startup).
 pub fn read_json<T: DeserializeOwned>(path: &Path) -> Option<T> {
     let bytes = std::fs::read(path).ok()?;
     serde_json::from_slice(&bytes).ok()
 }
 
-/// Ghi JSON nguyên tử: file tạm cùng thư mục → `fsync` → đổi tên đè.
+/// Atomic JSON write: temp file in the same directory → `fsync` → rename over.
 pub fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     let bytes = serde_json::to_vec_pretty(value)?;
     write_atomic(path, &bytes)

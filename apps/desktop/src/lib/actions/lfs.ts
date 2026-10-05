@@ -1,5 +1,5 @@
-// Git LFS (như GitKraken): mục GIT LFS ở sidebar (mẫu đang track, fetch / pull / prune), "Track bằng LFS" trong menu file, và
-// đẩy file LFS trước khi push. git-lfs tự cài hook nên Rust chỉ cho chạy `git lfs …` khi repo đã được tin tưởng.
+// Git LFS (like GitKraken): the GIT LFS sidebar section (tracked patterns, fetch / pull / prune), "Track with LFS" in the file menu, and
+// pushing LFS files before a push. git-lfs installs its own hooks, so Rust only allows `git lfs …` on a trusted repo.
 
 import type { FileChange, LfsPattern } from '@thaigit/core';
 import { dialogs as globalDialogs, textValue, type DialogStore } from '../stores/dialogs.svelte.ts';
@@ -8,12 +8,12 @@ import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { vi } from '../strings.vi.ts';
 import { handleNetworkError } from './errors.ts';
 
-/** Repo dùng LFS và máy có git-lfs: push phải đẩy file LFS trước. */
+/** The repo uses LFS and the machine has git-lfs: a push must upload the LFS files first. */
 export function usesLfs(store: RepoStore): boolean {
   return store.lfsPatterns.length > 0 && typeof store.lfsVersion === 'string';
 }
 
-/** Menu chung của mục GIT LFS (nút "…" ở tiêu đề và chuột phải vào một mẫu). */
+/** The shared menu of the GIT LFS section (the "…" button in its header and a right-click on a pattern). */
 function sectionItems(store: RepoStore): (MenuItem | false)[] {
   const installed = typeof store.lfsVersion === 'string';
   return [
@@ -41,7 +41,7 @@ export function lfsPatternMenu(store: RepoStore, pattern: LfsPattern): MenuItem[
   ]);
 }
 
-/** Mục "Git LFS" trong menu một file trên đĩa: track theo đuôi file hoặc riêng file đó. */
+/** The "Git LFS" item in one file's menu: track by extension or track just that file. */
 export function lfsFileItems(store: RepoStore, change: FileChange): MenuItem[] {
   if (typeof store.lfsVersion !== 'string') return [];
   const base = change.path.slice(change.path.lastIndexOf('/') + 1);
@@ -63,7 +63,7 @@ export function lfsFileItems(store: RepoStore, change: FileChange): MenuItem[] {
   ];
 }
 
-/** Hỏi mẫu (điền sẵn `initial`) rồi `git lfs track`. */
+/** Ask for a pattern (prefilled with `initial`), then run `git lfs track`. */
 export async function beginTrackLfs(store: RepoStore, initial = '', dialogs?: DialogStore): Promise<void> {
   const values = await (dialogs ?? globalDialogs).form({
     title: vi.lfs.trackTitle,
@@ -73,7 +73,7 @@ export async function beginTrackLfs(store: RepoStore, initial = '', dialogs?: Di
     validate: (current) => {
       const pattern = textValue(current, 'pattern');
       if (pattern === '') return vi.lfs.patternRequired;
-      // Đối số lệnh LFS không được mở đầu bằng `-` (chính sách chặn như URL remote).
+      // An LFS command argument must not start with `-` (the policy blocks it just like a remote URL).
       if (pattern.startsWith('-') || /[\r\n\u0000]/.test(pattern)) return vi.lfs.patternInvalid;
       return null;
     },
@@ -97,7 +97,7 @@ export function untrackLfs(store: RepoStore, pattern: LfsPattern): Promise<void>
   });
 }
 
-/** `git lfs fetch` (chỉ tải về bộ nhớ đệm) hoặc `git lfs pull` (tải và thay con trỏ trong working tree bằng file thật). */
+/** `git lfs fetch` (only download into the cache) or `git lfs pull` (download and replace the pointers in the working tree with the real files). */
 export function fetchLfs(store: RepoStore, pull: boolean): Promise<void> {
   const title = pull ? vi.lfs.pullRunning : vi.lfs.fetchRunning;
   const progress = store.progressReporter();

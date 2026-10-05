@@ -1,9 +1,9 @@
 import Foundation
 
-/// Danh sách file thay đổi dạng cây thư mục (nút Path / Tree như GitKraken): dựng thành các hàng phẳng có độ sâu để vẽ trong
-/// một List. Thư mục chỉ có đúng một thư mục con (và không có file) được gộp thành một hàng "src/app/views".
+/// Changed files as a directory tree (the Path / Tree switch like GitKraken): built into flat rows carrying a depth to draw in
+/// a List. A folder with exactly one subfolder and no files is merged into a single "src/app/views" row.
 public enum FileTreeRow: Sendable, Equatable, Identifiable {
-    /// `path`: đường dẫn đầy đủ của thư mục (khoá gập / mở), `name`: phần hiển thị (có thể gộp nhiều cấp), `count`: số file bên trong.
+    /// `path`: the folder's full path (the collapse / expand key), `name`: the display part (may merge several levels), `count`: how many files are inside.
     case folder(path: String, name: String, depth: Int, count: Int)
     case file(FileChange, depth: Int)
 
@@ -28,7 +28,7 @@ public enum FileTree {
         var count = 0
     }
 
-    /// Hàng của cây; thư mục có `path` trong `collapsed` thì ẩn phần bên trong. Thư mục trước file, mỗi nhóm xếp theo tên.
+    /// A tree row; a folder whose `path` is in `collapsed` hides its contents. Folders before files, each group sorted by name.
     public static func rows(_ changes: [FileChange], collapsed: Set<String> = []) -> [FileTreeRow] {
         let root = Node()
         for change in changes {
@@ -53,7 +53,7 @@ public enum FileTree {
             var folder = node.folders[name]!
             var display = name
             var path = prefix + name
-            // Gộp chuỗi thư mục chỉ có một thư mục con: "src" → "src/app" → "src/app/views".
+            // Merge runs of folders that have a single subfolder: "src" → "src/app" → "src/app/views".
             while folder.files.isEmpty, folder.folders.count == 1, let (childName, child) = folder.folders.first {
                 display += "/" + childName
                 path += "/" + childName

@@ -33,7 +33,7 @@
   let { store }: Props = $props();
 
   const text = vi.pullRequests;
-  /** Số PR hiện mặc định; thêm nút "+n" để xem hết (sidebar hẹp không chứa nhiều). */
+  /** PRs shown by default; a "+n" button reveals the rest (a narrow sidebar can't fit them all). */
   const SIDEBAR_LIMIT = 12;
   const EMPTY: MergeRequestState = { items: [], error: null, needsAccount: false };
   let prs: MergeRequestState = $state.raw(EMPTY);
@@ -43,7 +43,7 @@
   const sections = $derived(prefs.value.sidebarSections);
   const visible = $derived(sections.pullRequests);
   const target = $derived(targetOf(store));
-  /** Repo trên máy chủ mà danh sách đang hiện thuộc về (đổi repo / đổi remote thì nạp lại). */
+  /** The repo on the host the displayed list belongs to (reload when the repo or the remote changes). */
   const targetKey = $derived(target === null ? '' : `${target.host}/${target.owner}/${target.repo}`);
   const items = $derived(showAll ? prs.items : prs.items.slice(0, SIDEBAR_LIMIT));
   const head = $derived(store.currentBranchRef ? refName(store.currentBranchRef) : null);
@@ -52,7 +52,7 @@
     prefs.update({ sidebarSections: { ...sections, pullRequests: !sections.pullRequests } });
   }
 
-  /** Repo đã nạp gần nhất — biến thường, không phải `$state`, để effect bên dưới không tự kích hoạt lại. */
+  /** The most recently loaded repo — a plain variable, not `$state`, so the effect below doesn't self-trigger. */
   let loadedKey = '';
 
   async function refresh(): Promise<void> {
@@ -60,13 +60,13 @@
     loadedKey = key;
     loading = true;
     const next = await loadMergeRequests(store);
-    // Người dùng đã chuyển repo trong lúc chờ: bỏ kết quả cũ.
+    // The user switched repos while we were waiting: drop the stale result.
     if (key !== loadedKey) return;
     prs = next;
     loading = false;
   }
 
-  // Nạp khi mục mở ra và mỗi lần repo trên máy chủ đổi; kết quả rỗng / lỗi KHÔNG nạp lại (tránh gọi API liên tục).
+  // Load when the section is expanded and whenever the host repo changes; an empty / failed result is NOT retried (avoids hammering the API).
   $effect(() => {
     const key = visible ? targetKey : '';
     if (key === '' || key === loadedKey) return;
@@ -74,7 +74,7 @@
     untrack(() => void refresh());
   });
 
-  /** Số lần lưu người review / người được gán đã thấy: đổi thì nạp lại danh sách để mở lại review thấy đúng. */
+  /** Save generation of reviewer / assignee changes already seen: when it changes, reload the list so reopening the review shows the right data. */
   let seenPeopleVersion = 0;
   $effect(() => {
     const version = store.review.peopleVersion;

@@ -24,13 +24,13 @@ struct GitHubAuthTests {
             .json(200, #"{"access_token":"gho_thu123","token_type":"bearer","scope":"repo,workflow"}"#),
         ])
         let sleeps = SleepRecorder()
-        // Client ID đọc từ Info.plist có thể dính khoảng trắng / xuống dòng.
+        // A client ID read from Info.plist may carry whitespace / newlines.
         let auth = GitHubAuth(clientID: " Iv1.thu\n", transport: server.transport, sleep: sleeps.sleep)
 
         let code = try await auth.requestDeviceCode()
         #expect(code == Self.code)
         #expect(try await auth.pollForToken(code) == "gho_thu123")
-        // Chờ `interval` trước mỗi lần hỏi; slow_down tăng thêm 5 giây cho mọi lần sau.
+        // Wait `interval` before each poll; slow_down adds 5 more seconds for every one after it.
         #expect(sleeps.durations == [.seconds(5), .seconds(5), .seconds(10), .seconds(10)])
 
         let requests = server.requests
@@ -51,7 +51,7 @@ struct GitHubAuthTests {
         let auth = GitHubAuth(clientID: "Iv1.thu", transport: server.transport, sleep: SleepRecorder().sleep)
         await #expect(throws: GitHubError.expired) { try await auth.pollForToken(Self.code) }
 
-        // Người dùng bỏ đi không xác nhận: quá `expires_in` thì app tự dừng hỏi.
+        // The user walks away without confirming: past `expires_in` the app stops polling on its own.
         let pending = #"{"error":"authorization_pending"}"#
         let idle = FakeGitHub([.json(200, pending), .json(200, pending), .json(200, pending)])
         let sleeps = SleepRecorder()
@@ -75,7 +75,7 @@ struct GitHubAuthTests {
     }
 
     @Test func notConfiguredWithoutClientIDOrDeviceFlow() async throws {
-        // Info.plist để trống ThaigitGitHubClientID: không gửi request nào.
+        // Info.plist leaves ThaigitGitHubClientID empty: no request is sent at all.
         let server = FakeGitHub([])
         let auth = GitHubAuth(clientID: "  ", transport: server.transport, sleep: SleepRecorder().sleep)
         #expect(!auth.isConfigured)
@@ -85,7 +85,7 @@ struct GitHubAuthTests {
         #expect(server.requests.isEmpty)
         #expect(GitHubError.notConfigured(nil).errorDescription == "Chưa cấu hình (thiếu Client ID của GitHub OAuth App)")
 
-        // OAuth App chưa bật Device Flow, hoặc Client ID sai.
+        // The OAuth App hasn't enabled the Device Flow, or the client ID is wrong.
         let replies: [FakeGitHub.Reply] = [
             .json(400, #"{"error":"device_flow_disabled","error_description":"Device Flow must be explicitly enabled for this App"}"#),
             .json(200, #"{"error":"incorrect_client_credentials","error_description":"The client_id and/or client_secret passed are incorrect."}"#),
@@ -105,7 +105,7 @@ struct GitHubAuthTests {
                 #expect(!detail.isEmpty)
             }
         }
-        // GitHub cũng có thể báo Client ID sai ở bước hỏi token.
+        // GitHub may also report a wrong client ID at the token-polling step.
         let polling = FakeGitHub([.json(200, #"{"error":"incorrect_client_credentials"}"#)])
         await #expect(throws: GitHubError.notConfigured("Client ID không đúng")) {
             try await GitHubAuth(clientID: "Iv1.sai", transport: polling.transport, sleep: SleepRecorder().sleep).pollForToken(Self.code)
@@ -129,7 +129,7 @@ struct GitHubAuthTests {
         }
         #expect(offline.requests.count == 3)
 
-        // Lỗi mạng khi lấy mã: báo ngay.
+        // A network failure while getting the code: reported immediately.
         let down = FakeGitHub([.failure(.cannotFindHost)])
         do {
             _ = try await GitHubAuth(clientID: "Iv1.thu", transport: down.transport).requestDeviceCode()
@@ -144,8 +144,8 @@ struct GitHubAuthTests {
 
     @Test func cancellingStopsPolling() async throws {
         let server = FakeGitHub([])
-        // Task.sleep thật: huỷ phải dừng ngay, không chờ hết 60 giây. Chỉ huỷ khi Task đã thật sự vào lúc chờ (như người
-        // dùng đóng hộp đăng nhập) — không huỷ Task chưa kịp chạy.
+        // A real Task.sleep: cancelling must stop right away rather than after the full 60 seconds. Only cancel once the
+        // task really entered its wait (like the user closing the sign-in dialog) — never cancel a task that hasn't started.
         let (waiting, waitingSignal) = AsyncStream<Void>.makeStream()
         let auth = GitHubAuth(clientID: "Iv1.thu", transport: server.transport) { duration in
             waitingSignal.yield()
@@ -193,7 +193,7 @@ struct GitHubAuthTests {
         #expect(request.value(forHTTPHeaderField: "Accept") == "application/vnd.github+json")
         #expect(request.value(forHTTPHeaderField: "X-GitHub-Api-Version") == "2022-11-28")
 
-        // Token bị thu hồi.
+        // A revoked token.
         await #expect(throws: GitHubError.unauthorized) { try await auth.fetchUser(token: "gho_cu") }
     }
 
@@ -209,7 +209,7 @@ struct GitHubAuthTests {
         ])
         let repositories = try await GitHubAuth(clientID: nil, transport: server.transport).listRepositories(token: "gho_thu123")
 
-        // "web" bị đẩy sang trang 2 (vừa cập nhật) chỉ giữ một lần.
+        // "web" was pushed to page 2 (just updated) and is kept only once.
         #expect(repositories.map(\.fullName) == ["octocat/web", "octocat/rieng-api", "octocat/docs", "octocat/cu"])
         #expect(repositories.map(\.isPrivate) == [false, true, false, false])
         #expect(repositories[0].cloneURL == "https://github.com/octocat/web.git")
@@ -231,7 +231,7 @@ struct GitHubAuthTests {
         _ = try await GitHubAuth(clientID: nil, transport: endless.transport).listRepositories(token: "gho_thu123")
         #expect(endless.requests.count == GitHubAuth.maxRepositoryPages)
 
-        // Link trang sau trỏ sang host khác: không gửi token tới đó.
+        // The next-page link points at another host: the token is never sent there.
         let foreign = FakeGitHub([.json(200, repositoriesJSON(["web"]), headers: ["Link": #"<https://evil.example.com/steal>; rel="next""#])])
         let repositories = try await GitHubAuth(clientID: nil, transport: foreign.transport).listRepositories(token: "gho_thu123")
         #expect(repositories.count == 1)
@@ -251,14 +251,14 @@ struct GitHubAuthTests {
             .json(200, #"[{"login":"cong-ty-abc","id":10},{"login":"du-an-cu","id":12}]"#),
         ])
         let organizations = try await GitHubAuth(clientID: nil, transport: server.transport).listOrganizations(token: "gho_thu123")
-        // Trùng (khác hoa thường) chỉ giữ một lần.
+        // A duplicate (differing only in case) is kept only once.
         #expect(organizations == ["Cong-Ty-ABC", "nhom-mo", "du-an-cu"])
         #expect(server.requests.map { $0.url?.absoluteString } == [first, first + "&page=2"])
         #expect(server.requests.allSatisfy { $0.value(forHTTPHeaderField: "Authorization") == "Bearer gho_thu123" })
     }
 
     @Test func parsesLinkHeader() {
-        // URL có dấu phẩy trong query: không được tách sai.
+        // A URL with a comma in the query must not be split wrongly.
         let header = #"<https://api.github.com/user/repos?per_page=100&affiliation=owner,collaborator&page=2>; rel="next", <https://api.github.com/user/repos?per_page=100&affiliation=owner,collaborator&page=7>; rel="last""#
         #expect(GitHubAuth.nextPageURL(linkHeader: header)?.absoluteString
                 == "https://api.github.com/user/repos?per_page=100&affiliation=owner,collaborator&page=2")
@@ -271,9 +271,9 @@ struct GitHubAuthTests {
     }
 }
 
-// MARK: - Máy chủ GitHub giả
+// MARK: - Fake GitHub server
 
-/// Trả lần lượt các phản hồi đã xếp sẵn và ghi lại mọi request — không có kết nối mạng thật nào.
+/// Returns the queued responses in order and records every request — no real network connection anywhere.
 final class FakeGitHub: Sendable {
     enum Reply: Sendable {
         case json(Int, String, headers: [String: String] = [:])
@@ -312,7 +312,7 @@ final class FakeGitHub: Sendable {
     }
 }
 
-/// Ghi lại thời gian app muốn chờ giữa hai lần hỏi token, không chờ thật.
+/// Records the wait the app wants between two token polls, without actually waiting.
 final class SleepRecorder: Sendable {
     private let box = LockedBox([Duration]())
 
@@ -323,7 +323,7 @@ final class SleepRecorder: Sendable {
     }
 }
 
-/// Các trường của body `application/x-www-form-urlencoded`.
+/// The fields of an `application/x-www-form-urlencoded` body.
 func formFields(_ request: URLRequest) -> [String: String] {
     guard let body = request.httpBody, let text = String(data: body, encoding: .utf8) else { return [:] }
     var fields: [String: String] = [:]
@@ -334,7 +334,7 @@ func formFields(_ request: URLRequest) -> [String: String] {
     return fields
 }
 
-/// Một trang `GET /user/repos`: repo tên bắt đầu bằng "rieng" là riêng tư, repo "cu" không có mô tả.
+/// One page of `GET /user/repos`: a repo whose name starts with "rieng" is private, repo "cu" has no description.
 func repositoriesJSON(_ names: [String]) -> String {
     let items = names.map { name in
         let description = name == "cu" ? "null" : #""Mô tả \#(name)""#

@@ -1,18 +1,18 @@
-// Giải mã/mã hoá văn bản theo byte: UTF-8 chặt/lỏng, BOM, kiểu xuống dòng, đường dẫn git trong ngoặc kép.
-// Chạy được ở mọi nơi (Node, webview, worker): không import `node:`.
+// Byte-level text decoding/encoding: strict and lossy UTF-8, BOM, line terminators, and git's C-style quoted paths.
+// Runnable anywhere (Node, webview, worker): no `node:` imports.
 
 const lossyDecoder = new TextDecoder('utf-8', { fatal: false, ignoreBOM: true });
 const strictDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 const encoder = new TextEncoder();
 
-/** Giải mã lỏng (chỉ để hiển thị): byte sai thành U+FFFD, BOM giữ lại thành ký tự U+FEFF. Không bao giờ ném lỗi. */
+/** Lossy decode (display only): invalid bytes become U+FFFD, a BOM stays as U+FEFF. Never throws. */
 export function decodeUtf8Lossy(bytes: Uint8Array): string {
   return lossyDecoder.decode(bytes);
 }
 
 /**
- * Giải mã chặt: `null` nếu không phải UTF-8 hợp lệ (CP1252, CP1258, UTF-16…). BOM giữ lại thành U+FEFF.
- * Dùng để quyết định có được sửa file trong app hay không — file không qua được cửa này thì không bao giờ ghi lại.
+ * Strict decode: `null` when the bytes are not valid UTF-8 (CP1252, CP1258, UTF-16…). A BOM stays as U+FEFF.
+ * This is the gate for whether a file may be edited in-app — a file that fails it is never written back.
  */
 export function decodeUtf8Strict(bytes: Uint8Array): string | null {
   try {
@@ -38,12 +38,12 @@ export function hasUtf8Bom(bytes: Uint8Array): boolean {
   return bytes.length >= UTF8_BOM_LENGTH && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
 }
 
-// MARK: - Kiểu xuống dòng
+// MARK: - Line terminators
 
 export interface LineEndingCounts {
-  /** Số "\r\n". */
+  /** Count of "\r\n". */
   crlf: number;
-  /** Số "\n" đứng một mình (không có "\r" ngay trước). */
+  /** Count of bare "\n" (no "\r" right before it). */
   lf: number;
 }
 
@@ -61,7 +61,7 @@ export function countLineEndings(bytes: Uint8Array): LineEndingCounts {
 
 export type LineEnding = 'none' | 'lf' | 'crlf' | 'mixed';
 
-/** `none` = không có ký tự xuống dòng nào; `mixed` = có cả "\r\n" lẫn "\n" đơn. */
+/** `none` = no line terminators at all; `mixed` = both "\r\n" and bare "\n". */
 export function detectLineEnding(bytes: Uint8Array): LineEnding {
   const { crlf, lf } = countLineEndings(bytes);
   if (crlf === 0 && lf === 0) return 'none';
@@ -69,7 +69,7 @@ export function detectLineEnding(bytes: Uint8Array): LineEnding {
   return lf === 0 ? 'crlf' : 'mixed';
 }
 
-// MARK: - Ký tự hiển thị
+// MARK: - Display characters
 
 let segmenterCache: Intl.Segmenter | null | undefined;
 
@@ -84,8 +84,8 @@ function graphemeSegmenter(): Intl.Segmenter | null {
 }
 
 /**
- * `offset` (đơn vị UTF-16) có nằm đúng ranh giới ký tự hiển thị (grapheme) không — không cắt giữa cặp thay thế
- * hay giữa chữ cái và dấu kết hợp. Chữ dưới U+0300 không bao giờ dính vào chữ đứng trước (trừ "\r\n").
+ * Is `offset` (in UTF-16 units) exactly on a grapheme boundary — i.e. it never cuts a surrogate pair or separates a base
+ * character from its combining mark? Marks below U+0300 never join the preceding character (except after "\r\n").
  */
 export function isGraphemeBoundary(text: string, offset: number): boolean {
   if (offset <= 0 || offset >= text.length) return true;
@@ -94,11 +94,11 @@ export function isGraphemeBoundary(text: string, offset: number): boolean {
   if (right < 0x300 && left < 0x300) return !(left === 0x0d && right === 0x0a);
   const segmenter = graphemeSegmenter();
   if (segmenter) return segmenter.segment(text).containing(offset)?.index === offset;
-  // Không có Intl.Segmenter: chỉ tránh cắt giữa cặp thay thế.
+  // No Intl.Segmenter: at least avoid cutting surrogate pairs.
   return !(left >= 0xd800 && left <= 0xdbff && right >= 0xdc00 && right <= 0xdfff);
 }
 
-/** Số code point (xấp xỉ số ô hiển thị; nhanh hơn đếm grapheme). */
+/** Code point count (an approximation of display cells; faster than counting graphemes). */
 export function codePointLength(text: string): number {
   let count = 0;
   for (let i = 0; i < text.length; i++) {
@@ -112,7 +112,7 @@ export function codePointLength(text: string): number {
   return count;
 }
 
-/** Cắt còn tối đa `max` code point, lùi về ranh giới grapheme gần nhất để không xé ký tự. */
+/** Truncate to at most `max` code points, backing up to the nearest grapheme boundary so no character is split. */
 export function truncateCodePoints(text: string, max: number): string {
   if (text.length <= max) return text;
   let units = 0;
@@ -128,9 +128,9 @@ export function truncateCodePoints(text: string, max: number): string {
   return text.slice(0, units);
 }
 
-// MARK: - Đường dẫn git
+// MARK: - Git paths
 
-/** Giải mã đường dẫn bị git đặt trong ngoặc kép kiểu C ("a\tb\"c", "\303\251"). Không có ngoặc kép → trả nguyên. */
+/** Decode a git C-style quoted path ("a\tb\"c", "\303\251"). No quotes → returned unchanged. */
 export function unquoteGitPath(value: string): string {
   if (value.length < 2 || !value.startsWith('"') || !value.endsWith('"')) return value;
   const inner = encoder.encode(value.slice(1, -1));
@@ -183,7 +183,7 @@ export function unquoteGitPath(value: string): string {
         break; // \v
       default:
         if (n >= 0x30 && n <= 0x37) {
-          // Tối đa 3 chữ số bát phân; tràn byte thì lấy phần dư (giống git).
+          // At most 3 octal digits; a byte overflow keeps the remainder, matching git.
           let value = 0;
           let j = i + 1;
           let digits = 0;

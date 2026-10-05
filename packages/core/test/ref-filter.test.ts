@@ -1,4 +1,4 @@
-// Ẩn / solo nhánh trên graph: đối số git log và lịch sử thật.
+// Hiding branches on the graph / soloing them: `git log` args and real history.
 
 import { describe, expect, it } from 'vitest';
 import { escapeGlob, keepingRefs, refFilterRevisionArgs, refVisible } from '../src/graph/index.ts';

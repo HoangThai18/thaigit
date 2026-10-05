@@ -63,13 +63,13 @@ describe('Admission (hàng đợi ưu tiên)', () => {
       newcomers.push(ticket);
       ticket.wait(() => {}).catch(() => {});
     }
-    expect(admission.running).toBe(1); // người mới chỉ được ½ số slot
+    expect(admission.running).toBe(1); // a newcomer gets only half the slots
     expect(rejected).toBe(300 - 11);
     const veteran = admission.enter(true);
     expect(veteran).not.toBeNull();
-    await veteran?.wait(() => {}); // vẫn còn slot dành cho người quen → vào ngay
+    await veteran?.wait(() => {}); // a slot is still reserved for a familiar install → admitted right away
     expect(admission.running).toBe(2);
-    // Hàng đầy người mới: người quen tiếp theo đẩy người mới cuối hàng ra và đứng đầu hàng.
+    // Queue full of newcomers: the next familiar install pushes the last newcomer out and takes the head of the queue.
     const next = admission.enter(true);
     const positions: number[] = [];
     const waiting = next?.wait((position) => positions.push(position));
@@ -111,7 +111,7 @@ describe('cấu hình, thời gian, DB', () => {
   });
 
   it('ngày theo giờ Việt Nam', () => {
-    const at = Date.parse('2026-10-03T17:30:00Z'); // 00:30 ngày 4/10 giờ VN
+    const at = Date.parse('2026-10-03T17:30:00Z'); // 00:30 on 4 Oct, Vietnam time
     expect(vnDay(at)).toBe('2026-10-04');
     expect(nextVnMidnight(at)).toBe('2026-10-04T17:00:00.000Z');
   });

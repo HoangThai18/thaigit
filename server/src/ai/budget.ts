@@ -1,5 +1,6 @@
-// Máy chủ tự cắt thêm khi ngữ cảnh vượt `AI_MAX_INPUT_TOKENS` (app cũ hoặc ước lượng phía app lệch): bỏ nội dung các
-// file lớn nhất trước (chỉ còn tên). Cách ước lượng giống app (`packages/core/src/ai/token-estimate.ts`).
+// The server trims further when the context exceeds `AI_MAX_INPUT_TOKENS` (an older app, or the app-side estimate being
+// off): the largest files lose their content first (name only). The estimation matches the app
+// (`packages/core/src/ai/token-estimate.ts`).
 
 import type { AiDiffContext } from '@thaigit/contracts';
 import type { ChatMessage } from './upstream.ts';
@@ -19,8 +20,8 @@ export function messagesTokens(messages: readonly ChatMessage[]): number {
 }
 
 /**
- * Trả bản ngữ cảnh vừa ngân sách (hoặc `null` nếu bỏ hết nội dung vẫn không vừa → `too_large`). `measure` tính token
- * của toàn bộ prompt dựng từ ngữ cảnh.
+ * Returns a context trimmed to the budget, or `null` when even dropping all content does not fit (`too_large`). `measure`
+ * counts the tokens of the whole prompt built from the context.
  */
 export function fitContext<T extends AiDiffContext>(
   request: T,

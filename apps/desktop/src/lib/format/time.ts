@@ -1,6 +1,7 @@
 /**
- * Định dạng ngày giờ tiếng Việt dùng chung (port `VietnameseDate` + `CommitTable.format` của app Swift). Không dùng `Intl`:
- * kết quả không phụ thuộc dữ liệu ICU của máy (WebView cũ/Windows có thể thiếu locale `vi`). Thời điểm là GIÂY UNIX.
+ * Shared Vietnamese date/time formatting (a port of the Swift app's `VietnameseDate` + `CommitTable.format`).
+ * `Intl` is deliberately not used: its output depends on the machine's ICU data (older WebViews / Windows
+ * may lack the `vi` locale). Timestamps are UNIX SECONDS.
  */
 import { vi } from '../strings.vi.ts';
 
@@ -20,7 +21,7 @@ function unitLabel(seconds: number): string {
   return vi.time.years(Math.floor(seconds / YEAR));
 }
 
-/** "vừa xong", "3 giờ trước", "sau 2 ngày" (giờ máy lệch với commit tương lai). */
+/** "just now", "3 hours ago", "in 2 days" (when the machine clock is ahead of a future commit). */
 export function formatRelative(seconds: number, nowSeconds: number = Date.now() / 1000): string {
   const delta = nowSeconds - seconds;
   if (Math.abs(delta) < MINUTE) return vi.time.justNow;
@@ -31,15 +32,15 @@ function pad(value: number, width = 2): string {
   return String(value).padStart(width, '0');
 }
 
-/** "25/09/2024 21:13" theo múi giờ máy. */
+/** "25/09/2024 21:13" in the machine's time zone. */
 export function formatAbsolute(seconds: number): string {
   const date = new Date(seconds * 1000);
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${pad(date.getFullYear(), 4)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 /**
- * Cột "Thời gian" của graph: tương đối khi mới (dưới 7 ngày, không ở tương lai quá 1 phút) và người dùng bật tương đối,
- * còn lại tuyệt đối — đúng luật của bản Swift.
+ * The graph's "Date" column: relative when recent (under 7 days and not more than a minute in the
+ * future) and the user asked for relative dates, absolute otherwise — exactly the Swift rule.
  */
 export function formatCommitTime(
   seconds: number,
@@ -51,7 +52,7 @@ export function formatCommitTime(
   return formatAbsolute(seconds);
 }
 
-/** Giờ:phút:giây theo giờ máy (nhật ký lệnh) từ mili-giây epoch. */
+/** Hours:minutes:seconds in machine local time (git command log) from epoch milliseconds. */
 export function formatClock(milliseconds: number): string {
   const date = new Date(milliseconds);
   const pad = (value: number): string => String(value).padStart(2, '0');

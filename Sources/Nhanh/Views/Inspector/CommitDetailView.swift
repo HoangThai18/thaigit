@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Chi tiết commit: nút thao tác nhanh, message, tác giả, SHA, file thay đổi.
+/// Commit details: quick actions, the message, the author, the SHA, the changed files.
 struct CommitDetailView: View {
     @Bindable var model: RepoModel
 
@@ -23,8 +23,8 @@ struct CommitDetailView: View {
     }
 }
 
-/// Đang xem một commit mà vẫn còn file chưa commit: nhắc ngay đầu panel, kèm nút stage / về màn commit (như dòng WIP của
-/// GitKraken) — không phải tự tìm dòng "// WIP" trên graph.
+/// Viewing a commit while uncommitted files remain: remind at the top of the panel, with stage / go-to-commit buttons
+/// (like GitKraken's WIP line) — the user never has to hunt for the "// WIP" row on the graph.
 private struct UncommittedBanner: View {
     @Bindable var model: RepoModel
 
@@ -125,8 +125,8 @@ private struct DetailContent: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 actionBar(commit)
-                // Không dùng fixedSize dọc: khi SwiftUI đo chiều cao tối thiểu của cột ở bề rộng rất hẹp, chữ dài
-                // thành hàng trăm dòng → cả cửa sổ bị đẩy cao hơn màn hình và lệch lên dưới toolbar.
+                // No vertical fixedSize: when SwiftUI measures the column's minimum height at a very narrow width, long text
+                // becomes hundreds of lines → the whole window gets pushed taller than the screen and shifts down under the toolbar.
                 Text(details.summary)
                     .font(.title3.weight(.semibold))
                     .textSelection(.enabled)
@@ -173,7 +173,7 @@ private struct DetailContent: View {
                         }
                     }
                     if !commit.isWorkingTree {
-                        // id theo commit: chọn commit khác thì trạng thái (đã ký? đã xác minh?) làm lại từ đầu.
+                        // Identified by commit: picking another commit starts the state (signed? verified?) over from scratch.
                         SignatureRow(repository: model.repository, sha: commit.id)
                             .id(commit.id)
                     }
@@ -257,7 +257,7 @@ private struct QuickButton: View {
     }
 }
 
-/// Danh sách file của một commit/stash; bấm để mở diff.
+/// A commit's / stash's file list; click to open the diff.
 struct FileList: View {
     @Bindable var model: RepoModel
     let files: [FileChange]
@@ -315,8 +315,8 @@ struct FileList: View {
     }
 }
 
-/// Dòng "chữ ký" của commit: biết commit có ký hay không ngay (đọc object, không chạy chương trình ngoài); bấm
-/// "Xác minh" mới chạy gpg / ssh-keygen để kiểm.
+/// The commit's "signature" row: whether the commit is signed is known immediately (reads the object, runs no external
+/// program); only "Verify" actually runs gpg / ssh-keygen to check.
 private struct SignatureRow: View {
     let repository: GitRepository
     let sha: String

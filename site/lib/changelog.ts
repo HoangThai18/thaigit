@@ -116,7 +116,7 @@ export async function readChangelog(limit = 3): Promise<ChangelogLane[]> {
         .slice(0, limit);
       if (entries.length > 0) lanes.push({ platform, entries });
     } catch {
-      // Thiếu file thì bỏ qua bản đó.
+      // A missing file just skips that version.
     }
   }
   return lanes;

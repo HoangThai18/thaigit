@@ -1,5 +1,5 @@
-// Fetch / pull / push (port phần Remote của RepoModel+Actions.swift). Thao tác mạng hiện thanh bận có tiến độ và nút Huỷ;
-// lỗi quen thuộc (bị từ chối, tách nhánh, xung đột, đăng nhập) thành thông báo dễ hiểu kèm nút xử lý.
+// Fetch / pull / push (a port of the Remote part of RepoModel+Actions.swift). Network operations show the busy bar with progress and a Cancel
+// button; familiar errors (rejected, diverged, conflict, sign-in) become understandable notifications with a fix button.
 
 import { isValidRefName, refName, type GitRef, type PullMode } from '@thaigit/core';
 import { friendlyError } from '../errors/friendly.ts';
@@ -49,8 +49,9 @@ export function fetch(store: RepoStore): Promise<void> {
 }
 
 /**
- * "Fetch đầy đủ từ remote" (thanh báo khi repo thiếu nhánh / lịch sử): remote chỉ theo dõi vài nhánh thì thêm refspec mọi
- * nhánh (giữ refspec cũ), clone nông thì lấy nốt commit cũ, rồi fetch để các nhánh như `main` hiện ra.
+ * "Fetch everything from the remote" (the bar shown when the repo lacks branches / history): when the remote tracks only a few
+ * branches, add an all-branches refspec (keeping the old one); for a shallow clone fetch the older commits too, then fetch so
+ * branches like `main` show up.
  */
 export function completeHistory(store: RepoStore): Promise<void> {
   if (noRemote(store)) return Promise.resolve();
@@ -79,8 +80,8 @@ export function completeHistory(store: RepoStore): Promise<void> {
 }
 
 /**
- * Tự fetch nền (theo cài đặt): không thanh bận, không hộp đăng nhập (profile `background`), lỗi chỉ hiện MỘT cảnh báo
- * (tag cố định, lần sau thay lần trước) để mất mạng lâu không chồng thông báo.
+ * Background autofetch (per the preferences): no busy bar, no sign-in dialog (the `background` profile), and an error shows only
+ * ONE warning (a fixed tag, so the next one replaces the previous) so a long outage does not pile up notifications.
  */
 export function backgroundFetch(store: RepoStore): Promise<void> {
   if (store.remotes.length === 0 || store.busy !== null) return Promise.resolve();
@@ -104,7 +105,7 @@ export function backgroundFetch(store: RepoStore): Promise<void> {
   );
 }
 
-/** Pull nhánh hiện tại. Trả `true` khi pull xong không lỗi (để "Pull rồi Push" biết có push tiếp được không). */
+/** Pull the current branch. `true` when the pull finished without error (so "Pull then push" knows whether pushing makes sense). */
 export async function pull(store: RepoStore, mode?: PullMode): Promise<boolean> {
   const branch = store.currentBranchRef;
   if (!branch) {
@@ -171,8 +172,8 @@ export async function pull(store: RepoStore, mode?: PullMode): Promise<boolean> 
 }
 
 /**
- * Đồng bộ nhánh hiện tại: pull (kiểu trong cài đặt) rồi push nếu pull không lỗi — dùng cho "Pull rồi Push" khi push bị từ
- * chối và mục "Đồng bộ" ở menu Pull. Chưa có upstream thì chỉ push (đặt upstream).
+ * Sync the current branch: pull (in the configured style) then push when the pull did not fail — used by "Pull then push" after a
+ * rejected push and by the "Sync" item in the Pull menu. With no upstream it only pushes (setting the upstream).
  */
 export async function sync(store: RepoStore, dialogs?: DialogStore): Promise<void> {
   const branch = store.currentBranchRef;
@@ -183,7 +184,7 @@ export async function sync(store: RepoStore, dialogs?: DialogStore): Promise<voi
   if (await pull(store)) await push(store, { dialogs });
 }
 
-/** Push nhánh hiện tại (xem `pushBranch`). */
+/** Push the current branch (see `pushBranch`). */
 export function push(
   store: RepoStore,
   options: { force?: boolean; dialogs?: DialogStore } = {},
@@ -196,7 +197,7 @@ export function push(
   return pushBranch(store, branch, options);
 }
 
-/** Push một nhánh local: có upstream thì đẩy lên đó, chưa có thì hỏi remote + tên nhánh rồi đặt upstream. */
+/** Push a local branch: to its upstream when it has one, otherwise ask for a remote + branch name and set the upstream. */
 export async function pushBranch(
   store: RepoStore,
   branch: GitRef,
@@ -260,8 +261,8 @@ export function performPush(store: RepoStore, request: PushRequest, dialogs?: Di
   return store.perform(
     title,
     async (git, signal) => {
-      // Hook pre-push của git-lfs có thể không chạy (repo chưa có hook, hoặc hook bị tắt) → tự đẩy file LFS trước, nếu không
-      // remote chỉ nhận con trỏ mà thiếu nội dung.
+      // git-lfs's pre-push hook may not run (the repo has no hooks, or they are disabled) → upload the LFS files ourselves, otherwise
+      // the remote only receives pointers without their content.
       if (lfs) await git.lfsPush(request.remote, request.localBranch, { onProgress: progress, signal });
       await git.push({
         remote: request.remote,

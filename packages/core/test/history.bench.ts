@@ -1,8 +1,9 @@
-// Bench: parseLog + computeGraphLayout trên 30k commit (mục tiêu mỗi bước < 300 ms trên Node, M1).
-// Vitest 5: `bench` là fixture của test context. Chạy: `pnpm --filter @thaigit/core exec vitest bench --run`
-// (file `*.bench.ts` không nằm trong `include` của `pnpm test`).
-// Dữ liệu: nếu có `python3` + `git` thì sinh repo thật bằng fixtures/make-big-repo.py (30k commit, ~1.077 ref) rồi lấy
-// output `git log -z` thật; không thì dùng log tổng hợp cùng cấu trúc (nhánh chính + tối đa 12 nhánh feature mở cùng lúc).
+// Bench: parseLog + computeGraphLayout over 30k commits (target: each step < 300 ms on Node, M1).
+// Vitest 5: `bench` is a test-context fixture. Run: `pnpm --filter @thaigit/core exec vitest bench --run`
+// (`*.bench.ts` files are not in `pnpm test`'s `include`).
+// Data: when `python3` + `git` are available, generate a real repo with fixtures/make-big-repo.py (30k commits, ~1.077 refs)
+// and take real `git log -z` output; otherwise use a synthetic log with the same shape (linear main plus at most 12
+// feature branches open at once).
 
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -17,7 +18,7 @@ import { isolatedConfig, rawGit } from './helpers/test-repo.ts';
 const COMMITS = 30_000;
 const US = '\u001f';
 
-/** Log tổng hợp đúng định dạng `git log -z --format=LOG_FORMAT --date-order`: mới → cũ, con trước cha. */
+/** Synthetic log in exactly `git log -z --format=LOG_FORMAT --date-order` shape: newest → oldest, children before parents. */
 function syntheticLog(count: number): Uint8Array {
   let state = 7;
   const random = () => {
@@ -71,11 +72,11 @@ function syntheticLog(count: number): Uint8Array {
     }
     if (records.length > 0 && features.size === 0 && n % 1000 === 0) main = serial;
   }
-  // Mới → cũ (id tăng theo thời gian nên đảo ngược là thứ tự `--date-order`).
+  // Newest → oldest (ids increase over time, so reversing gives `--date-order`).
   return new TextEncoder().encode(`${records.reverse().join('\0')}\0`);
 }
 
-/** Repo thật 30k commit từ make-big-repo.py; null nếu thiếu python3/git hoặc lỗi. */
+/** Real 30k-commit repo from make-big-repo.py; null when python3/git is missing or it failed. */
 async function realLog(): Promise<Uint8Array | null> {
   const script = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'make-big-repo.py');
   const dir = await mkdtemp(join(tmpdir(), 'thaigit-bench-'));
@@ -123,7 +124,7 @@ test(`30k commit (${real ? 'repo thật' : 'tổng hợp'}): parse, layout, và 
     const { mean, p99 } = results.get(name).latency;
     console.log(`[bench] ${name}: mean ${mean.toFixed(1)} ms, p99 ${p99.toFixed(1)} ms`);
   }
-  // Ngân sách của phase 3: mỗi bước < 300 ms (trung bình).
+  // Phase 3 budget: each step < 300 ms on average.
   expect(results.get('parseLog').latency.mean).toBeLessThan(BUDGET_MS);
   expect(results.get('computeGraphLayout').latency.mean).toBeLessThan(BUDGET_MS);
 });

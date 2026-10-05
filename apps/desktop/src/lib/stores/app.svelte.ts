@@ -1,6 +1,6 @@
 /**
- * Trạng thái dùng chung toàn app (ngoài một repo cụ thể): host (Tauri / cầu nối dev) và danh sách repo gần đây.
- * Danh sách gần đây do Rust lưu (`list_recent_repos`) — webview không giữ bản của riêng mình.
+ * App-wide state outside any single repo: the host (Tauri / the dev bridge) and the recent-repo list.
+ * Rust stores the recent list (`list_recent_repos`) — the webview keeps no copy of its own.
  */
 import type { RecentRepo } from '../ipc/types.ts';
 import type { Host } from '../platform/host.ts';
@@ -9,15 +9,15 @@ import { toasts, type ToastStore } from './toasts.svelte.ts';
 
 export class AppStore {
   host = $state.raw<Host | null>(null);
-  /** Mới → cũ. */
+  /** Newest first. */
   recent = $state.raw<readonly RecentRepo[]>([]);
   recentLoaded = $state(false);
-  /** Mở tab mới trong cửa sổ này (App.svelte gắn vào; menu Thêm / command palette gọi). */
+  /** Open a new tab in this window (App.svelte wires it up; the Add menu / command palette call it). */
   newTab: (() => void) | null = null;
 
   constructor(private readonly notify: ToastStore = toasts) {}
 
-  /** `available: false` = không có lõi Rust để hỏi (chạy ngoài Tauri): bỏ qua việc nạp danh sách, khỏi báo lỗi lặp. */
+  /** `available: false` = no Rust core to ask (running outside Tauri): skip loading the list instead of reporting the same error repeatedly. */
   async init(host: Host, available = true): Promise<void> {
     this.host = host;
     if (available) await this.refreshRecent();

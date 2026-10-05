@@ -1,4 +1,4 @@
-// API công khai của `@thaigit/core` (không phụ thuộc giao diện). Bộ chuyển cho Node nằm ở `@thaigit/core/node`.
+// Public API of `@thaigit/core` (UI-independent). The Node adapter lives in `@thaigit/core/node`.
 
 export * from './ports/index.ts';
 export { AppVersion } from './version.ts';

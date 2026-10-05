@@ -3,12 +3,13 @@ import NhanhCore
 import SwiftTerm
 import SwiftUI
 
-/// Terminal thật dưới graph (như terminal tích hợp của GitKraken): shell đăng nhập của người dùng (zsh / bash…) chạy trong
-/// thư mục repo qua PTY, có màu, chạy được lệnh tương tác (vim, `git rebase -i`, ssh…). Nhiều tab; ẩn panel thì shell vẫn
-/// chạy, đóng tab / đóng repo thì shell bị dừng. Repo tự làm mới qua theo dõi file như khi sửa ở terminal ngoài.
+/// A real terminal below the graph (like GitKraken's integrated terminal): the user's login shell (zsh / bash…)
+/// runs in the repo directory over a PTY, with colours, and can run interactive commands (vim, `git rebase -i`,
+/// ssh…). Multiple tabs; hiding the panel keeps the shell running, closing a tab / closing the repo stops the
+/// shell. The repo refreshes itself through file watching, exactly as after an edit in an external terminal.
 @Observable
 final class TerminalSession {
-    /// Một tab terminal. Giữ nguyên `view` suốt đời tab để ẩn / hiện panel không mất nội dung.
+    /// A terminal tab. Its `view` is kept for the tab's whole lifetime so hiding / showing the panel doesn't lose the content.
     final class Tab: Identifiable {
         let id = UUID()
         var title: String
@@ -28,7 +29,7 @@ final class TerminalSession {
     var selectedID: UUID?
     var isVisible = false
     var height: CGFloat = 280
-    /// Bộ đếm tên tab: "Terminal", "Terminal 2"…
+    /// A tab-name counter: "Terminal", "Terminal 2"…
     @ObservationIgnored private var created = 0
     @ObservationIgnored private let environment: () -> [String: String]
 
@@ -39,14 +40,14 @@ final class TerminalSession {
 
     var selected: Tab? { tabs.first { $0.id == selectedID } ?? tabs.last }
 
-    /// Mở thêm một tab terminal ở thư mục repo.
+    /// Open another terminal tab in the repo directory.
     @discardableResult
     func newTab() -> Tab {
         created += 1
         let view = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 240))
         view.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         view.configureNativeColors()
-        // Option gõ được ký tự đặc biệt / tiếng Việt như Terminal.app thay vì làm phím Meta.
+        // Option types special characters / Vietnamese input like Terminal.app instead of acting as a Meta key.
         view.optionAsMetaKey = false
         let tab = Tab(title: created == 1 ? "Terminal" : "Terminal \(created)", view: view, delegate: Delegate())
         tab.delegate.onExit = { [weak self, weak tab] in
@@ -74,26 +75,27 @@ final class TerminalSession {
         if tabs.isEmpty { withAnimation(.snappy(duration: 0.2)) { isVisible = false } }
     }
 
-    /// Dừng mọi shell (đóng repo / đóng tab app).
+    /// Stop every shell (closing the repo / closing the app).
     func closeAll() {
         for tab in tabs where !tab.exited { tab.view.terminate() }
         tabs = []
         selectedID = nil
     }
 
-    /// Gõ một dòng vào tab đang chọn (dùng cho kiểm thử tự động).
+    /// Type a line into the selected tab (used by the automated tests).
     func send(_ line: String) {
         (selected ?? newTab()).view.send(txt: line + "\n")
     }
 
-    /// Shell đăng nhập của người dùng; không có thì zsh (mặc định của macOS).
+    /// The user's login shell; zsh (macOS's default) when there is none.
     static var shell: String {
         let value = ProcessInfo.processInfo.environment["SHELL"] ?? ""
         return !value.isEmpty && FileManager.default.isExecutableFile(atPath: value) ? value : "/bin/zsh"
     }
 
-    /// Môi trường của shell: như của app (PATH đầy đủ từ login shell), bỏ các biến app đặt riêng cho lệnh git nền (không mở
-    /// editor, không hỏi mật khẩu trong terminal, thông báo tiếng Anh…) để terminal chạy như Terminal.app.
+    /// The shell's environment: like the app's (full PATH from the login shell), minus the variables the app sets for
+    /// background git commands (no editor, no password prompts on the terminal, English messages…) so the terminal
+    /// behaves like Terminal.app.
     static func environmentList(_ base: [String: String]) -> [String] {
         var env = base
         for key in ["GIT_TERMINAL_PROMPT", "GIT_EDITOR", "GIT_MERGE_AUTOEDIT", "GIT_PAGER", "PAGER", "LC_MESSAGES", "LANGUAGE",
@@ -128,7 +130,7 @@ final class TerminalSession {
 }
 
 extension RepoModel {
-    /// Bật / tắt panel terminal (⌃`); lần đầu mở thì tạo một tab.
+    /// Show / hide the terminal panel (⌃`); the first time it opens, create one tab.
     func toggleTerminal() {
         if terminal == nil {
             let store = repository.runner.environmentStore

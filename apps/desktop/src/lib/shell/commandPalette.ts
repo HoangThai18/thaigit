@@ -1,5 +1,6 @@
-// Command palette (Ctrl/⌘ + P, port CommandPalette.swift): một ô gõ để tìm và chạy thao tác, checkout nhánh / tag, mở diff file
-// đang thay đổi. Tìm không phân biệt hoa / thường và dấu; mọi từ gõ phải có mặt, khớp từ đầu tiêu đề được xếp trước.
+// Command palette (Ctrl/⌘ + P, a port of CommandPalette.swift): one input to find and run actions, check out
+// branches / tags, and open the diff of a changed file. Search ignores case and diacritics; every typed
+// word must be present, and title-prefix matches rank first.
 
 import { fileChangeName, refName, type FileChange, type GitRef } from '@thaigit/core';
 import { foldText } from '../format/natural.ts';
@@ -11,11 +12,11 @@ export type PaletteGroup = 'action' | 'branch' | 'tag' | 'file';
 export interface PaletteItem {
   readonly group: PaletteGroup;
   readonly title: string;
-  /** Dòng phụ (đường dẫn, remote…) — cũng được tìm. */
+  /** Sub-line (path, remote…) — also searched. */
   readonly detail?: string;
   readonly icon: IconName;
   readonly shortcut?: string;
-  /** Chữ thêm để tìm (vd. tên lệnh git tiếng Anh) — không hiển thị. */
+  /** Extra searchable words (e.g. an English git command name) — not displayed. */
   readonly keywords?: string;
   readonly run: () => void;
 }
@@ -24,7 +25,7 @@ export const PALETTE_LIMIT = 80;
 
 const GROUP_ORDER: Readonly<Record<PaletteGroup, number>> = { action: 0, branch: 1, tag: 2, file: 3 };
 
-/** Mục menu (bỏ separator / tiêu đề / mục tắt; menu con trải phẳng thành "Cha › Con") → mục palette. */
+/** Menu items (separators / headers / disabled entries dropped; submenus flattened to "Parent › Child") → palette items. */
 export function menuToPalette(items: readonly MenuItem[], parent = ''): PaletteItem[] {
   const result: PaletteItem[] = [];
   for (const item of items) {
@@ -68,8 +69,9 @@ export function fileToPalette(change: FileChange, title: string, run: () => void
 }
 
 /**
- * Lọc + xếp hạng. Chưa gõ gì: chỉ các thao tác (đúng thứ tự khai báo). Có gõ: mọi từ phải nằm trong tiêu đề / dòng phụ / từ
- * khoá; tiêu đề bắt đầu bằng từ đầu tiên → hạng 0, một từ trong tiêu đề bắt đầu bằng nó → 1, còn lại → 2; rồi theo nhóm.
+ * Filter + rank. Nothing typed: only the actions, in declaration order. With input: every word must appear
+ * in the title / sub-line / keywords; a title starting with the first word → rank 0, a title containing it
+ * → 1, anything else → 2; then by group.
  */
 export function filterPalette(query: string, items: readonly PaletteItem[]): PaletteItem[] {
   const text = foldText(query.trim());

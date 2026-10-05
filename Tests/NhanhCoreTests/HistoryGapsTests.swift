@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import NhanhCore
 
-/// Repo thiếu nhánh / lịch sử của remote (clone `--single-branch` / `--depth`): phát hiện và lấy đủ — git thật.
+/// A repo missing remote branches / history (cloned with `--single-branch` / `--depth`): detection and fetching the rest — real git.
 @Suite("Thiếu nhánh / lịch sử của remote")
 struct HistoryGapsTests {
     @Test("Refspec lấy mọi nhánh / một nhánh / loại trừ")
@@ -37,7 +37,7 @@ struct HistoryGapsTests {
         let parent = FileManager.default.temporaryDirectory.appendingPathComponent("nhanh-gaps-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: parent) }
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
-        // `--depth` bị bỏ qua với đường dẫn cục bộ — phải dùng URL file://.
+        // `--depth` is ignored for a local path — a file:// URL is required.
         let runner = GitRunner(environmentStore: origin.store, workingDirectory: parent)
         try await runner.run(["clone", "-q", "--single-branch", "--branch", "main", "--depth", "1",
                               origin.url.absoluteURL.absoluteString, "ban-sao"])
@@ -53,7 +53,7 @@ struct HistoryGapsTests {
         #expect(await clone.historyGaps() == .none)
         #expect(try await clone.refs().map(\.fullName).contains("refs/remotes/origin/feature/x"))
         #expect(try await clone.log(limit: 50, order: .topo, includeHEAD: true).count == 4)
-        // Refspec cũ vẫn còn (chỉ THÊM refspec mọi nhánh).
+        // The old refspec is kept (the all-branches refspec is only ADDED).
         let specs = try await clone.runner.output(["config", "--get-all", "remote.origin.fetch"])
         #expect(specs.split(separator: "\n") == ["+refs/heads/main:refs/remotes/origin/main", "+refs/heads/*:refs/remotes/origin/*"])
     }

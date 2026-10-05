@@ -1,6 +1,6 @@
 import Foundation
 
-/// Định dạng ngày giờ tiếng Việt dùng chung (không phụ thuộc ngôn ngữ hệ thống).
+/// Shared Vietnamese date/time formatting (independent of the system locale).
 enum VietnameseDate {
     private static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
@@ -16,7 +16,7 @@ enum VietnameseDate {
         return formatter
     }()
 
-    /// "3 giờ trước", "vừa xong"
+    /// "3 hours ago", "just now"
     static func relative(_ date: Date, to now: Date = Date()) -> String {
         let interval = now.timeIntervalSince(date)
         if interval < 60, interval > -60 { return String(localized: "vừa xong") }

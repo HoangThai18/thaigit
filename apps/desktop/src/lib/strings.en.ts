@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của mọi chuỗi giao diện — cùng hình dạng với `strings.vi.ts` (kiểm bằng kiểu `Strings`). */
+/** English version of every UI string — same shape as `strings.vi.ts` (enforced by the `Strings` type). */
 import { accounts, pullRequests } from './strings/accounts.en.ts';
 import { ai } from './strings/ai.en.ts';
 import { branches } from './strings/branches.en.ts';

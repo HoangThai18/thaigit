@@ -27,7 +27,7 @@ function harness(overrides: Partial<SchedulerDeps> = {}) {
   return { scheduler, calls, state };
 }
 
-/** Chạy hết timer tới hạn và để promise bên trong (take/prune) hoàn tất. */
+/** Run every due timer to completion and let the inner promises (take / prune) finish. */
 async function advance(ms: number): Promise<void> {
   await vi.advanceTimersByTimeAsync(ms);
 }

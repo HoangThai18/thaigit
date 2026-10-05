@@ -1,4 +1,4 @@
-// Ẩn / "chỉ hiện" (solo) nhánh trên graph — chạy trên repo git thật.
+// Hiding / "show only" (solo) branches on the graph — on a real git repo.
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   graphFilterSummary,

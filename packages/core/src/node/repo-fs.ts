@@ -1,6 +1,8 @@
-// Bộ chuyển `RepoFs` cho Node: đọc/ghi file của repo THEO BYTE trong phạm vi repo, cùng luật với Rust (`repo_fs.rs`):
-// đường dẫn chỉ tương đối; realpath phải nằm trong gốc working tree (hoặc git dir); từ chối `..`, tuyệt đối, symlink trỏ
-// ra ngoài. Thêm một luật cứng hơn Rust: file working tree không bao giờ nằm trong `.git` (ghi `.git/hooks/*` = chạy lệnh).
+// Node adapter for `RepoFs`: reads/writes repo files BYTE-ORIENTED within the repo, under the same rules as Rust
+// (`repo_fs.rs`):
+// paths are always relative; the realpath must stay inside the working-tree root (or the git dir); `..`, absolute
+// paths and symlinks pointing outside are rejected. One rule is stricter than Rust: a working-tree file never lives in
+// `.git` (writing `.git/hooks/*` means running arbitrary commands).
 
 import { createHash, randomBytes } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
@@ -12,17 +14,17 @@ import type { RepoFs } from '../ports/index.ts';
 import { checkRelativePath, hasGitComponent, relativeTo } from '../support/paths.ts';
 
 export interface NodeRepoFsOptions {
-  /** Gốc working tree. */
+  /** Working-tree root. */
   root: string;
   gitDir: string;
   commonDir: string;
-  /** So sánh đường dẫn không phân biệt hoa thường (mặc định: chỉ Windows). */
+  /** Compare paths case-insensitively (default: Windows only). */
   caseInsensitive?: boolean;
-  /** Thùng rác giữ bao lâu trước khi dọn (mặc định 7 ngày). */
+  /** How long trashed files are kept before cleanup (default 7 days). */
   trashRetentionMs?: number;
 }
 
-/** File trong git dir mà `readGitFile` được phép đọc (ngoài `rebase-merge/*`, `rebase-apply/*`). */
+/** Files in the git dir that `readGitFile` may read (other than `rebase-merge/*`, `rebase-apply/*`). */
 const GIT_FILES = new Set([
   'MERGE_HEAD',
   'MERGE_MSG',
@@ -33,7 +35,7 @@ const GIT_FILES = new Set([
 ]);
 const GIT_DIR_PREFIXES = ['rebase-merge/', 'rebase-apply/'];
 
-/** Giới hạn đọc mặc định khi gọi `readWorktreeFile` không nêu `maxBytes`. */
+/** Default read limit when `readWorktreeFile` is called without `maxBytes`. */
 export const DEFAULT_MAX_READ_BYTES = 64 * 1024 * 1024;
 
 const DEFAULT_TRASH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -47,7 +49,7 @@ interface Roots {
 }
 
 interface Resolved {
-  /** Đường dẫn thật (đã giải symlink; file chưa có thì là thư mục cha thật + tên). */
+  /** Real path (symlinks resolved; for a file that does not exist yet, the real parent directory plus the name). */
   path: string;
   exists: boolean;
 }
@@ -55,7 +57,7 @@ interface Resolved {
 interface TrashManifest {
   version: 1;
   createdAt: string;
-  /** Đường dẫn tương đối (dùng `/`) của từng mục cấp cao đã dời. */
+  /** Relative path (using `/`) of each moved top-level entry. */
   items: string[];
 }
 
@@ -63,7 +65,7 @@ function sha256Hex(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-/** Bản sao thành `Uint8Array` thuần (Buffer của Node có thể nằm trong vùng nhớ dùng chung). */
+/** Plain `Uint8Array` copy (a Node Buffer may sit in shared memory). */
 function toBytes(buffer: Uint8Array): Uint8Array {
   return new Uint8Array(buffer);
 }
@@ -94,7 +96,7 @@ export class NodeRepoFs implements RepoFs {
     this.retentionMs = options.trashRetentionMs ?? DEFAULT_TRASH_RETENTION_MS;
   }
 
-  // MARK: - Đọc
+  // MARK: - Reading
 
   async readGitFile(relative: string): Promise<Uint8Array | null> {
     if (!GIT_FILES.has(relative) && !GIT_DIR_PREFIXES.some((prefix) => relative.startsWith(prefix))) {
@@ -129,7 +131,7 @@ export class NodeRepoFs implements RepoFs {
       if (stat.size > maxBytes)
         throw new AdapterError('io', `"${relative}" lớn hơn giới hạn đọc (${maxBytes} byte).`);
       const bytes = toBytes(await handle.readFile());
-      // File có thể lớn lên giữa lúc `stat` và lúc đọc.
+      // The file can grow between the `stat` and the read.
       if (bytes.length > maxBytes)
         throw new AdapterError('io', `"${relative}" lớn hơn giới hạn đọc (${maxBytes} byte).`);
       return bytes;
@@ -140,7 +142,7 @@ export class NodeRepoFs implements RepoFs {
     }
   }
 
-  // MARK: - Ghi
+  // MARK: - Writing
 
   async writeWorktreeFile(relative: string, bytes: Uint8Array, expectedSha256: string | null): Promise<void> {
     const resolved = await this.resolve('root', relative);
@@ -154,7 +156,7 @@ export class NodeRepoFs implements RepoFs {
       mode = stat.mode & 0o7777;
     }
 
-    // Ghi tạm cùng thư mục (cùng ổ → rename nguyên tử), kiểm CAS ngay trước khi rename để cửa sổ xung đột nhỏ nhất.
+    // Write a temp file in the same directory (same volume → atomic rename), with the CAS check right before the rename to keep the conflict window minimal.
     const temp = join(dirname(target), `.${basename(target)}.thaigit-${randomBytes(4).toString('hex')}.tmp`);
     let created = false;
     try {
@@ -177,7 +179,7 @@ export class NodeRepoFs implements RepoFs {
     }
   }
 
-  /** CAS: nội dung hiện tại phải đúng là bản mà người gọi đã đọc (`expectedSha256`), hoặc file phải chưa tồn tại (`null`). */
+  /** CAS: the current content must be exactly what the caller read (`expectedSha256`), or the file must not exist (`null`). */
   private async assertUnchanged(
     relative: string,
     target: string,
@@ -209,7 +211,7 @@ export class NodeRepoFs implements RepoFs {
       if (resolved.exists) {
         const existing = toBytes(await fsp.readFile(resolved.path));
         const firstNewline = existing.indexOf(0x0a);
-        // Giữ kiểu xuống dòng sẵn có (CRLF nếu dòng đầu kết thúc bằng \r\n); thêm xuống dòng cuối nếu file thiếu.
+        // Preserve the existing line terminator style (CRLF when the first line ends with \r\n); add a final terminator when the file lacks one.
         if (firstNewline > 0 && existing[firstNewline - 1] === 0x0d) eol = '\r\n';
         needsLeadingEol = existing.length > 0 && existing[existing.length - 1] !== 0x0a;
       }
@@ -219,7 +221,7 @@ export class NodeRepoFs implements RepoFs {
     }
   }
 
-  // MARK: - Thùng rác của app
+  // MARK: - App trash
 
   async trashUntracked(relatives: readonly string[]): Promise<string> {
     if (relatives.length === 0)
@@ -227,11 +229,11 @@ export class NodeRepoFs implements RepoFs {
     const roots = await this.roots();
     const trashRoot = join(roots.commonDir, 'thaigit', 'trash');
 
-    // Kiểm hết trước khi dời gì: một đường dẫn xấu thì không file nào bị đụng tới.
+    // Validate everything before moving anything: one bad path must leave every file untouched.
     const leaves = new Map<string, string>();
     for (const relative of relatives) leaves.set(relative, await this.resolveLeaf(roots.root, relative));
     const requested = [...leaves.keys()];
-    // Mục nằm trong một thư mục cũng được dời thì đi theo thư mục đó, không dời hai lần.
+    // An entry inside a directory that is also being moved travels with that directory instead of being moved twice.
     const items = requested.filter(
       (relative) => !requested.some((other) => other !== relative && relative.startsWith(`${other}/`)),
     );
@@ -252,7 +254,7 @@ export class NodeRepoFs implements RepoFs {
       const manifest: TrashManifest = { version: 1, createdAt: new Date().toISOString(), items };
       await fsp.writeFile(join(trashDir, 'manifest.json'), JSON.stringify(manifest));
     } catch (error) {
-      // Hoàn lại những gì đã dời để không mất file khi lỗi giữa chừng.
+      // Undo what was already moved so a mid-way failure cannot lose files.
       for (const entry of moved.reverse()) await moveEntry(entry.to, entry.from).catch(() => undefined);
       await fsp.rm(trashDir, { recursive: true, force: true }).catch(() => undefined);
       throw ioError('Không dời được file vào thùng rác', error);
@@ -286,7 +288,7 @@ export class NodeRepoFs implements RepoFs {
     const trashDir = join(roots.commonDir, 'thaigit', 'trash', token);
     const items = await this.readManifestItems(trashDir, token);
 
-    // Kiểm hết trước khi dời: không ghi đè file đang có, nguồn phải còn đủ.
+    // Validate before moving: never overwrite an existing file, and the source must still be complete.
     const plan: { from: string; to: string }[] = [];
     for (const relative of items) {
       const segments = relative.split('/');
@@ -326,7 +328,7 @@ export class NodeRepoFs implements RepoFs {
       throw new AdapterError('io', `Danh sách thùng rác "${token}" hỏng.`);
     }
     for (const item of items) {
-      // Manifest nằm trong git dir nhưng vẫn kiểm lại như đầu vào không tin cậy.
+      // The manifest lives in the git dir but is still validated as untrusted input.
       if (checkRelativePath(item, WINDOWS) !== null || hasGitComponent(item)) {
         throw new AdapterError('out-of-scope', `Đường dẫn "${item}" trong thùng rác không hợp lệ.`);
       }
@@ -334,7 +336,7 @@ export class NodeRepoFs implements RepoFs {
     return items;
   }
 
-  /** Dọn thùng rác cũ (best-effort: việc dọn nền không được làm hỏng thao tác của người dùng). */
+  /** Clean up old trash entries (best-effort: background cleanup must not break the user's operation). */
   private async pruneTrash(trashRoot: string): Promise<void> {
     const cutoff = Date.now() - this.retentionMs;
     let names: string[];
@@ -349,12 +351,12 @@ export class NodeRepoFs implements RepoFs {
         const stat = await fsp.stat(dir);
         if (stat.isDirectory() && stat.mtimeMs < cutoff) await fsp.rm(dir, { recursive: true, force: true });
       } catch {
-        // Bỏ qua: sẽ thử lại ở lần dọn sau.
+        // Ignore: the next cleanup pass retries.
       }
     }
   }
 
-  // MARK: - Phạm vi
+  // MARK: - Scope
 
   private roots(): Promise<Roots> {
     this.rootsPromise ??= (async () => {
@@ -372,7 +374,7 @@ export class NodeRepoFs implements RepoFs {
     return this.rootsPromise;
   }
 
-  /** Phân giải một đường dẫn tương đối trong gốc working tree hoặc git dir, kiểm phạm vi sau khi giải symlink. */
+  /** Resolve a relative path against the working-tree root or git dir, checking scope after symlink resolution. */
   private async resolve(baseKind: 'root' | 'gitDir', relative: string): Promise<Resolved> {
     const reason = checkRelativePath(relative, WINDOWS);
     if (reason !== null)
@@ -393,7 +395,7 @@ export class NodeRepoFs implements RepoFs {
         real = join(await fsp.realpath(dirname(joined)), basename(joined));
       } catch (parentError) {
         if (isMissing(parentError)) {
-          // Thư mục cha chưa có: đọc → "không có file", ghi/trash → báo không tìm thấy.
+          // Parent directory does not exist: reading yields "no such file"; writing/trashing reports not-found.
           return { path: joined, exists: false };
         }
         throw ioError(`Không phân giải được ${relative}`, parentError);
@@ -409,7 +411,7 @@ export class NodeRepoFs implements RepoFs {
     return { path: real, exists };
   }
 
-  /** Mục cần dời vào thùng rác: kiểm thư mục cha nằm trong repo, trả đường dẫn của CHÍNH mục đó (không theo symlink). */
+  /** Entry to move into the trash: verifies the parent directory is inside the repo and returns the path of THAT entry (no symlink following). */
   private async resolveLeaf(root: string, relative: string): Promise<string> {
     const reason = checkRelativePath(relative, WINDOWS);
     if (reason !== null)
@@ -440,7 +442,7 @@ export class NodeRepoFs implements RepoFs {
     return leaf;
   }
 
-  /** Tổ tiên tồn tại gần nhất của `directory` phải nằm trong gốc repo (trước khi tạo thư mục thiếu). */
+  /** The nearest existing ancestor of `directory` must be inside the repo root (checked before creating missing directories). */
   private async assertInsideRoot(root: string, directory: string, relative: string): Promise<void> {
     let probe = directory;
     for (;;) {
@@ -472,7 +474,7 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-/** Dời một mục (file/thư mục/symlink): cùng ổ → rename; khác ổ (EXDEV) → sao chép rồi xoá nguồn. */
+/** Move one entry (file/directory/symlink): same volume → rename; cross-volume (EXDEV) → copy then delete the source. */
 async function moveEntry(from: string, to: string): Promise<void> {
   try {
     await fsp.rename(from, to);

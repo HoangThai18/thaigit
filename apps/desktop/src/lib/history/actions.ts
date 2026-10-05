@@ -1,20 +1,20 @@
-// Lối vào Lịch sử file / Blame dùng chung cho menu file, panel lịch sử và khung blame.
+// Entry points into File history / Blame shared by the file menu, the history panel and the blame frame.
 
 import { prefs } from '../stores/prefs.svelte.ts';
 import type { RepoStore } from '../stores/repo.svelte.ts';
 
-/** Mở lịch sử file ở panel phải (hiện panel nếu người dùng đang ẩn). */
+/** Open file history in the right panel (showing it if the user has it hidden). */
 export function openFileHistory(store: RepoStore, path: string): void {
   if (!prefs.value.showInspector) prefs.update({ showInspector: true });
   store.fileHistory.open(path);
 }
 
-/** Blame `path` ở vùng giữa; `rev` null = bản đang sửa trong working tree. */
+/** Blame `path` in the centre area; a `null` `rev` means the version being edited in the working tree. */
 export function openBlame(store: RepoStore, path: string, rev: string | null): void {
   store.blame.open(path, rev);
 }
 
-/** Quay về graph và chọn commit `sha` (đóng blame — nếu không graph vẫn bị che). */
+/** Return to the graph and select commit `sha` (this closes blame — otherwise the graph stays covered). */
 export function showCommitInGraph(store: RepoStore, sha: string): void {
   store.diff.close();
   store.blame.close();

@@ -163,7 +163,7 @@ def demo_shop(base: Path) -> None:
     commit(repo, 'API /products', 'PT', 26, {'src/routes.js': "module.exports = (app) => app.get('/api/products', () => {});\n"})
     commit(repo, 'Thêm logo', 'LC', 25, {'public/favicon.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>\n'})
 
-    # Stash, rồi thay đổi đang làm.
+    # A stash, then work in progress.
     write(repo, 'src/promo.js', "exports.discount = (total) => total * 0.9;\n")
     git(repo, 'add', 'src/promo.js')
     git(repo, 'stash', 'push', '-q', '-m', 'Đang thử tính năng khuyến mãi', who='PT', age_hours=20)

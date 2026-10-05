@@ -2,15 +2,15 @@ import Foundation
 import Testing
 @testable import NhanhCore
 
-/// Token GitHub chỉ được đưa cho lệnh git thật sự chạm remote https://github.com của owner tương ứng — hook, filter,
-/// helper của host khác… của mọi lệnh khác không thấy token nào. Git thật trong thư mục tạm, không gọi mạng, không đụng
-/// Keychain (kho token trong bộ nhớ).
+/// A GitHub token may only be handed to a git command that really touches the matching owner's https://github.com
+/// remote — hooks, filters and other hosts' helpers of every other command see no token at all. Real git in a
+/// temp directory: no network, no real Keychain (the token store is the in-memory one).
 @Suite("Token GitHub chỉ cho đúng remote")
 struct GitHubTokenScopeTests {
     static let personal = GitHubAccount(id: 1, login: "alice", name: "Alice", avatarURL: nil)
     static let work = GitHubAccount(id: 2, login: "alice-work", name: "Alice (Work)", avatarURL: nil)
 
-    /// Tài khoản cá nhân (mặc định) và tài khoản công ty (thành viên tổ chức "acme").
+    /// A personal account (the default) and a work account (a member of the "acme" organisation).
     static func twoAccounts() -> (state: GitHubAccountsState, tokens: [String: String]) {
         var state = GitHubAccountsState()
         state.upsert(personal, organizations: [])
@@ -23,9 +23,9 @@ struct GitHubTokenScopeTests {
         return GitHubCredentialSet(helperPath: "/nonexistent/helper.sh", state: state, tokens: tokens)!
     }
 
-    // MARK: - A1: hook / lệnh không chạm github.com không thấy token
+    // MARK: - A1: a hook / a command that doesn't touch github.com sees no token
 
-    /// Hook của repo ghi tên mình và mọi biến THAIGIT_GITHUB_* nó thấy vào `dump`.
+    /// A repo hook that records its own name and every THAIGIT_GITHUB_* variable it can see into `dump`.
     private func installHook(_ name: String, in test: TestRepo, dump: URL) throws {
         let hook = test.repo.gitDir.appendingPathComponent("hooks/\(name)")
         try FileManager.default.createDirectory(at: hook.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -51,7 +51,7 @@ struct GitHubTokenScopeTests {
         try installHook("reference-transaction", in: test, dump: dump)
         test.store.githubCredentials = Self.credentialSet()
 
-        // Push / fetch --all tới remote là thư mục trên máy, fast-forward bằng `fetch .`: không lệnh nào chạm github.com.
+        // Pushing / fetch --all to a remote that is a local directory, fast-forwarded with `fetch .`: no command touches github.com.
         try await test.repo.push(remote: "origin", localBranch: "main", remoteBranch: "main", setUpstream: true, force: false)
         try await test.repo.fetch(remote: nil, prune: false)
         try await test.repo.fetch(remote: "origin", prune: false)
@@ -59,12 +59,13 @@ struct GitHubTokenScopeTests {
 
         let seen = try String(contentsOf: dump, encoding: .utf8)
         #expect(seen.contains("hook:pre-push") && seen.contains("hook:reference-transaction"))
-        #expect(!seen.contains("THAIGIT_GITHUB_"), "Hook thấy biến token:\n\(seen)")
+        #expect(!seen.contains("THAIGIT_GITHUB_"), "The hook saw a token variable:\n\(seen)")
         #expect(try await test.repo.resolveCommit("cu") == (try await test.repo.resolveCommit("main")))
     }
 
-    /// `git` giả: ghi tham số + biến THAIGIT_GITHUB_* của lệnh mạng (fetch / push / pull…) rồi thoát, mọi lệnh khác
-    /// (`remote -v`, `config`…) chuyển cho git thật — app đọc địa chỉ remote bằng git thật, lệnh mạng không gọi mạng.
+    /// A fake `git`: records the arguments + THAIGIT_GITHUB_* variables of network commands (fetch / push / pull…) then
+    /// exits; every other command (`remote -v`, `config`…) is handed to real git — the app reads the remote
+    /// addresses with real git, and the network commands never hit the network.
     private func wrappedRepository(_ test: TestRepo, log: URL) async throws -> GitRepository {
         let wrapper = test.url.appendingPathComponent(".git/fake-git.sh")
         try Data(#"""
@@ -101,7 +102,7 @@ struct GitHubTokenScopeTests {
         return try await GitRepository.open(at: test.url, environment: store)
     }
 
-    /// Lần gọi lệnh mạng cuối cùng mà git giả ghi lại: tham số + biến môi trường.
+    /// The last network command the fake git recorded: arguments + environment variables.
     private func lastCall(_ log: URL) throws -> (arguments: [String], variables: [String: String]) {
         let text = try String(contentsOf: log, encoding: .utf8)
         let block = text.components(separatedBy: "--- ").last ?? ""
@@ -135,7 +136,7 @@ struct GitHubTokenScopeTests {
         let log = test.url.appendingPathComponent(".git/fake-git.log")
         let repo = try await wrappedRepository(test, log: log)
 
-        // fetch remote của owner acme (tổ chức của tài khoản công ty): chỉ token công ty.
+        // fetch the acme owner's remote (the work account's organisation): only the work token.
         try await repo.fetch(remote: "origin", prune: false)
         var call = try lastCall(log)
         #expect(tokens(call.variables) == ["gho_WORK"])
@@ -143,17 +144,17 @@ struct GitHubTokenScopeTests {
         #expect(call.variables["THAIGIT_GITHUB_USER_0"] == "alice-work")
         #expect(call.arguments.contains("credential.https://github.com.useHttpPath=true"))
 
-        // pull: remote của nhánh hiện tại (origin).
+        // pull: the current branch's remote (origin).
         try await repo.pull(mode: .merge)
         call = try lastCall(log)
         #expect(tokens(call.variables) == ["gho_WORK"])
 
-        // push lên fork của chính tài khoản cá nhân: chỉ token cá nhân.
+        // Push to the personal account's own fork: only the personal token.
         try await repo.push(remote: "fork", localBranch: "main", remoteBranch: "main", setUpstream: false, force: false)
         call = try lastCall(log)
         #expect(tokens(call.variables) == ["gho_PERSONAL"])
 
-        // Remote không phải github.com, hoặc thư mục trên máy: không biến token, không thay credential helper.
+        // A remote that isn't github.com, or a local directory: no token variables, no credential helper replaced.
         for remote in ["backup", "local"] {
             try await repo.fetch(remote: remote, prune: false)
             call = try lastCall(log)
@@ -161,18 +162,18 @@ struct GitHubTokenScopeTests {
             #expect(!call.arguments.contains { $0.hasPrefix("credential.") }, "\(remote)")
         }
 
-        // fetch --all: đúng các tài khoản của các remote github.com (acme → công ty, Alice → cá nhân).
+        // fetch --all: exactly the accounts of the github.com remotes (acme → work, Alice → personal).
         try await repo.fetch(remote: nil, prune: false)
         call = try lastCall(log)
         #expect(tokens(call.variables) == ["gho_WORK", "gho_PERSONAL"])
 
-        // Chỉ còn remote github.com của owner acme: fetch --all không mang token cá nhân.
+        // Only the acme owner's github.com remote is left: fetch --all carries no personal token.
         try await test.git("remote", "remove", "fork")
         try await repo.fetch(remote: nil, prune: false)
         call = try lastCall(log)
         #expect(tokens(call.variables) == ["gho_WORK"])
 
-        // pushurl khác url: push dùng pushurl (owner Alice), fetch vẫn dùng url (acme).
+        // A pushurl different from url: push uses the pushurl (owner Alice), fetch still uses url (acme).
         try await test.git("config", "remote.origin.pushurl", "https://github.com/alice/mirror.git")
         try await repo.push(remote: "origin", localBranch: "main", remoteBranch: "main", setUpstream: false, force: false)
         call = try lastCall(log)
@@ -182,36 +183,36 @@ struct GitHubTokenScopeTests {
         #expect(tokens(call.variables) == ["gho_WORK"])
     }
 
-    // MARK: - A2: tài khoản thiếu token không bị thay bằng tài khoản khác
+    // MARK: - A2: an account without a token isn't substituted with another one
 
     @Test func ownerOfAccountWithoutTokenNeverGetsAnotherAccountsToken() {
         var (state, tokens) = Self.twoAccounts()
         state.assign(owner: "client-x", to: "alice-work")
-        tokens["alice-work"] = nil // Keychain đọc lỗi / người dùng bấm "Từ chối"
+        tokens["alice-work"] = nil // the Keychain read fails / the user clicks "Deny"
         let store = InMemoryTokenStore()
         for (login, token) in tokens { try? store.saveToken(token, account: login) }
         let provider = GitHubTokenProvider(state: state, tokenStore: store)
 
-        // Owner gán tay / tổ chức của tài khoản công ty: không có token (git báo lỗi, app gợi ý đăng nhập lại @alice-work).
+        // The work account's manually assigned owner / organisation: no token (git errors and the app suggests signing in again as @alice-work).
         #expect(provider.token(forOwner: "client-x") == nil)
         #expect(provider.token(forOwner: "acme") == nil)
         #expect(provider.token(forOwner: "alice") == "gho_PERSONAL")
         #expect(provider.token(forOwner: "nguoi-la") == "gho_PERSONAL")
 
-        // Tài khoản mặc định thiếu token: không tự nâng tài khoản còn lại lên làm mặc định.
+        // The default account has no token: it isn't promoted from the remaining account.
         state.setDefault(login: "alice-work")
         provider.update(state: state)
         #expect(provider.token(forOwner: "nguoi-la") == nil)
         #expect(provider.token(forOwner: "alice") == "gho_PERSONAL")
     }
 
-    // MARK: - A3: owner lấy từ dòng lỗi, không từ dòng "From …" của remote khác
+    // MARK: - A3: the owner comes from the error line, not from another remote's "From …" line
 
     @Test func authFailureOwnerComesFromTheFailingRemote() {
         func fetchAll(_ stderr: String) -> GitError {
             GitError(arguments: ["fetch", "--progress", "--all"], exitCode: 1, stdout: "", stderr: stderr)
         }
-        // fetch --all: remote "origin" (alice/fork) thành công trước, remote "upstream" (acme/private) bị từ chối.
+        // fetch --all: remote "origin" (alice/fork) succeeds first, remote "upstream" (acme/private) is refused.
         #expect(GitHubAuthFailure.detect(in: fetchAll("""
             Fetching origin
             From https://github.com/alice/fork
@@ -221,7 +222,7 @@ struct GitHubTokenScopeTests {
             fatal: repository 'https://github.com/acme/private.git/' not found
             error: could not fetch upstream
             """)) == GitHubAuthFailure(kind: .notFound, owner: "acme"))
-        // Remote hỏng là GitLab: không phải lỗi tài khoản GitHub dù output có URL github.com.
+        // The broken remote is GitLab: not a GitHub account problem even though the output contains a github.com URL.
         #expect(GitHubAuthFailure.detect(in: fetchAll("""
             Fetching origin
             From https://github.com/alice/fork
@@ -231,46 +232,46 @@ struct GitHubTokenScopeTests {
             fatal: Authentication failed for 'https://gitlab.com/team/x.git/'
             error: could not fetch backup
             """)) == nil)
-        // GitHub Enterprise (github.cong-ty.com) không phải github.com.
+        // GitHub Enterprise (github.cong-ty.com) is not github.com.
         #expect(GitHubAuthFailure.detect(in: fetchAll("""
             fatal: Authentication failed for 'https://github.cong-ty.com/team/x.git/'
             """)) == nil)
         #expect(GitHubAuthFailure.detect(in: fetchAll("""
             fatal: unable to access 'https://github.com.evil.vn/acme/x.git/': The requested URL returned error: 401
             """)) == nil)
-        // Push bị từ chối 403 vào remote thứ hai; dòng "To …" của remote đầu không tính.
+        // The push is refused with 403 on the second remote; the first remote's "To …" line doesn't count.
         #expect(GitHubAuthFailure.detect(in: fetchAll("""
             To https://github.com/alice/fork.git
                1111111..2222222  main -> main
             remote: Permission to acme/app.git denied to alice.
             fatal: unable to access 'https://github.com/acme/app.git/': The requested URL returned error: 403
             """)) == GitHubAuthFailure(kind: .forbidden, owner: "acme"))
-        // Username trong URL (git in ra khi hỏi mật khẩu).
+        // The username in the URL (git prints it when asking for a password).
         #expect(GitHubAuthFailure.detect(in: fetchAll("""
             fatal: could not read Password for 'https://alice@github.com': terminal prompts disabled
             """)) == GitHubAuthFailure(kind: .unauthenticated, owner: nil))
     }
 
-    // MARK: - A4: repo chọn trong hộp Clone dùng đúng tài khoản đã liệt kê nó
+    // MARK: - A4: a repo picked in the Clone dialog uses the very account that listed it
 
     @Test func pickedRepositoryOwnerFollowsTheListingAccount() {
         var (state, _) = Self.twoAccounts()
-        // acme là tổ chức của tài khoản công ty, nhưng người dùng chọn acme/app trong danh sách repo của tài khoản cá nhân:
-        // trước đây chỉ gán khi owner đang rơi về tài khoản mặc định, nên clone âm thầm dùng tài khoản công ty.
+        // acme is the work account's organisation, but the user picks acme/app from the personal account's repo list:
+        // it used to only assign when the owner fell back to the default account, so the clone silently used the work account.
         #expect(state.resolve(owner: "acme")?.profile.login == "alice-work")
         let assigned = state.assignOwnerForPickedRepository(owner: "Acme", login: "alice")
         #expect(assigned)
         #expect(state.resolve(owner: "acme") == GitHubAccountsState.Resolution(profile: state.profiles[0], match: .assigned))
-        // Owner đã dùng đúng tài khoản đó: không gán thêm.
+        // The owner already maps to that account: no extra assignment.
         let again = state.assignOwnerForPickedRepository(owner: "alice", login: "alice")
             || state.assignOwnerForPickedRepository(owner: "acme", login: "alice")
         #expect(!again)
         #expect(state.ownerAssignments == ["acme": "alice"])
     }
 
-    // MARK: - A5a + A2: script helper thật
+    // MARK: - A5a + A2: the real helper script
 
-    /// `git credential fill` với script helper thật và biến môi trường cho sẵn (không qua Keychain / cấu hình người dùng).
+    /// `git credential fill` with the real helper script and the environment variables supplied (no Keychain / user config involved).
     private func fill(path: String, username: String? = nil, variables: [String: String]) async throws -> String? {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("nhanh-helper-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -307,22 +308,22 @@ struct GitHubTokenScopeTests {
         ]
         var variables = accounts
         variables["THAIGIT_GITHUB_OWNERS"] = "acme:1,client-x:-"
-        // Owner trong bảng.
+        // The owner in the table.
         #expect(try await fill(path: "acme/app.git", variables: variables) == "Alice-Work:gho_WORK")
-        // https://alice@github.com/acme/app.git: username trùng login một tài khoản thì dùng tài khoản đó (không phân biệt hoa thường).
+        // https://alice@github.com/acme/app.git: a username matching an account's login wins (case-insensitively).
         #expect(try await fill(path: "acme/app.git", username: "alice", variables: variables) == "alice:gho_PERSONAL")
         #expect(try await fill(path: "alice/x.git", username: "ALICE-WORK", variables: variables) == "Alice-Work:gho_WORK")
-        // Username lạ: theo owner như thường (git dùng username helper trả về).
+        // An unknown username: by owner as usual (git uses the username the helper returned).
         #expect(try await fill(path: "acme/app.git", username: "nguoi-la", variables: variables) == "Alice-Work:gho_WORK")
-        // Owner của tài khoản thiếu token ("-"): helper không trả lời gì.
+        // The owner of an account without a token ("-"): the helper answers nothing.
         #expect(try await fill(path: "client-x/app.git", variables: variables) == nil)
-        // Owner ngoài bảng và không có tài khoản mặc định cho lệnh này: không trả lời (không đoán).
+        // An owner outside the table with no default account for this command: no answer (no guessing).
         #expect(try await fill(path: "nguoi-la/x.git", variables: variables) == nil)
         variables["THAIGIT_GITHUB_DEFAULT"] = "0"
         #expect(try await fill(path: "nguoi-la/x.git", variables: variables) == "alice:gho_PERSONAL")
     }
 
-    // MARK: - A5b: bảng owner không dựng lại mỗi lần hỏi token
+    // MARK: - A5b: the owner table isn't rebuilt on every token lookup
 
     @Test func tokenForOwnerIsCheapWithManyOrganizations() {
         var state = GitHubAccountsState()
@@ -333,8 +334,9 @@ struct GitHubTokenScopeTests {
         try? store.saveToken("gho_WORK", account: "alice-work")
         let provider = GitHubTokenProvider(state: state, tokenStore: store)
         #expect(provider.token(forOwner: "org-w-299") == "gho_WORK")
-        // Không so với số giây cố định (máy CI chậm / bận): so với chính thời gian dựng bảng một lần trên cùng máy. Dựng lại
-        // bảng mỗi lần hỏi thì 200 lần ≈ 200 lần dựng; có cache thì gần như không tốn gì.
+        // Not compared against a fixed number of seconds (a busy CI machine is slow): compare against the time to build the
+        // table once on the same machine. Rebuilding it on every lookup would make 200 lookups ≈ 200 builds;
+        // with the cache it costs essentially nothing.
         provider.update(state: state)
         let buildStart = Date()
         _ = provider.token(forOwner: "owner-dau")
@@ -342,9 +344,9 @@ struct GitHubTokenScopeTests {
         let start = Date()
         for index in 0..<200 { _ = provider.token(forOwner: "owner-\(index)") }
         let elapsed = Date().timeIntervalSince(start)
-        #expect(elapsed < oneBuild * 50, "200 lần token(forOwner:) mất \(elapsed) giây, dựng bảng một lần mất \(oneBuild) giây")
+        #expect(elapsed < oneBuild * 50, "200 token(forOwner:) lookups took \(elapsed)s, building the table once took \(oneBuild)s")
         #expect(provider.token(forOwner: "org-p-7") == "gho_PERSONAL")
-        // Đổi bảng: kết quả mới ngay.
+        // Table changed: the new result is immediate.
         state.assign(owner: "org-p-7", to: "alice-work")
         provider.update(state: state)
         #expect(provider.token(forOwner: "org-p-7") == "gho_WORK")
@@ -354,7 +356,7 @@ struct GitHubTokenScopeTests {
         #expect(provider.token(forOwner: "org-p-7") == "gho_WORK_MOI")
     }
 
-    // MARK: - A5f: token mồ côi khi login đổi
+    // MARK: - A5f: orphaned tokens when a login changes
 
     @Test func loginChangeDoesNotOrphanOldToken() throws {
         let tokens = InMemoryTokenStore()
@@ -362,12 +364,12 @@ struct GitHubTokenScopeTests {
         var state = try store.addAccount(GitHubAccount(id: 7, login: "Alice", name: nil, avatarURL: nil), token: "gho_OLD",
                                          organizations: [], to: GitHubAccountsState())
         state.assign(owner: "acme", to: "Alice")
-        // Đổi hoa/thường trên GitHub rồi đăng nhập lại.
+        // The GitHub login changed case, then signed in again.
         state = try store.addAccount(GitHubAccount(id: 7, login: "alice", name: nil, avatarURL: nil), token: "gho_NEW",
                                      organizations: [], to: state)
         #expect(state.profiles.map(\.login) == ["alice"])
         #expect(tokens.all == ["alice": "gho_NEW"])
-        // Đổi tên hẳn (cùng id): một tài khoản, owner đã gán và mặc định đi theo, token login cũ bị xoá.
+        // A real rename (same id): one account, the assigned owner and the default follow it, and the old login's token is deleted.
         state = try store.addAccount(GitHubAccount(id: 7, login: "alice-moi", name: nil, avatarURL: nil), token: "gho_RENAMED",
                                      organizations: nil, to: state)
         #expect(state.profiles.map(\.login) == ["alice-moi"])
@@ -378,13 +380,14 @@ struct GitHubTokenScopeTests {
         #expect(tokens.all.isEmpty)
     }
 
-    // MARK: - A5g: đọc Keychain ngoài khoá
+    // MARK: - A5g: reading the Keychain outside the lock
 
-    /// Không đo thời gian: kho token giả GIỮ lần đọc lại cho tới khi test cho phép. Các lệnh khác (publish trên luồng chính:
-    /// `hasToken`, `credentialSet`, `update`) phải chạy xong TRONG LÚC lần đọc vẫn đang bị giữ — nếu khoá chính bị giữ
-    /// trong lúc đọc, chúng chỉ xong được sau khi lần đọc được thả, tức là sau điểm kiểm tra. Timeout 30 giây chỉ để test
-    /// không treo khi có lỗi, không phải điều kiện đúng/sai. Dùng `Thread` riêng (không phải hàng đợi GCD dùng chung)
-    /// để máy CI bận không làm trễ việc bắt đầu đọc.
+    /// No timing: the fake token store KEEPS every read blocked until the test calls `release()`. The other
+    /// operations (the ones published on the main actor: `hasToken`, `credentialSet`, `update`) must complete
+    /// WHILE the read is still blocked — if the main lock were held during the read they'd only finish after
+    /// the read is released, i.e. after the checkpoint. The 30 second timeout only stops the test hanging on a
+    /// failure; it is not a pass/fail condition. A dedicated `Thread` (not the shared GCD queue) keeps a busy CI
+    /// machine from delaying the start of the read.
     @Test func readingKeychainDoesNotBlockOtherCallers() {
         let (state, tokens) = Self.twoAccounts()
         let store = SlowTokenStore(tokens)
@@ -392,12 +395,12 @@ struct GitHubTokenScopeTests {
         let readerFinished = DispatchSemaphore(value: 0)
         let result = LockedBox<String?>(nil)
         Thread {
-            // Hỏi token NGOÀI khoá của `result` (test đọc `result` trong lúc luồng này còn bị giữ).
+            // Ask for the token OUTSIDE `result`'s lock (the test reads `result` while this task is still blocked).
             let token = provider.token(forOwner: "acme")
             result.withValue { $0 = token }
             readerFinished.signal()
         }.start()
-        // Luồng đọc đã vào kho token và đang bị giữ.
+        // The reading task has entered the token store and is blocked.
         #expect(store.entered.wait(timeout: .now() + 30) == .success)
 
         let callersFinished = DispatchSemaphore(value: 0)
@@ -408,23 +411,23 @@ struct GitHubTokenScopeTests {
             callersFinished.signal()
         }.start()
         let callersDoneWhileReading = callersFinished.wait(timeout: .now() + 30) == .success
-        // Lần đọc vẫn đang bị giữ: luồng đọc chưa trả token.
+        // The read is still blocked: the reading task hasn't returned a token yet.
         let readerStillBlocked = result.current == nil && !store.isReleased
         store.release()
-        #expect(callersDoneWhileReading, "Lệnh khác phải chờ tới khi Keychain đọc xong")
+        #expect(callersDoneWhileReading, "Other operations must not wait for the Keychain read to finish")
         #expect(readerStillBlocked)
         #expect(readerFinished.wait(timeout: .now() + 30) == .success)
         if !callersDoneWhileReading { _ = callersFinished.wait(timeout: .now() + 30) }
         #expect(result.current == "gho_WORK")
-        // Đã nạp: không đọc lại.
+        // Already loaded: no second read.
         let reads = store.reads
         #expect(provider.token(forOwner: "alice") == "gho_PERSONAL")
         #expect(store.reads == reads)
     }
 }
 
-/// Kho token giả mà mỗi lần đọc bị giữ lại tới khi `release()` — như Keychain đang chờ người dùng bấm "Cho phép".
-/// Giữ tối đa 60 giây chỉ để không treo mãi nếu test quên thả.
+/// A fake token store that keeps every read blocked until `release()` — like the Keychain waiting for the user to
+/// click "Allow". Blocking for at most 60 seconds only stops it hanging forever if a test forgets to release.
 final class SlowTokenStore: GitHubTokenStore, @unchecked Sendable {
     let entered = DispatchSemaphore(value: 0)
     private let gate = DispatchSemaphore(value: 0)

@@ -1,6 +1,7 @@
-// Markdown của AI (giải thích commit, mô tả PR) → khối dữ liệu để Svelte vẽ dạng chữ. Chỉ cho phép một tập nhỏ: tiêu đề,
-// gạch đầu dòng, đoạn, khối code, **đậm**, *nghiêng*, `code`. Không HTML, không ảnh; link chỉ còn chữ (kèm địa chỉ dạng
-// chữ) — model có thể bị diff lạ dụ chèn link / HTML, nên không gì trong đây được thành phần tử bấm được hay markup.
+// AI markdown (commit explanations, PR descriptions) → the data Svelte renders as text. Only a tiny subset is
+// allowed: headings, bullet lists, paragraphs, code blocks, **bold**, *italic*, `code`. No HTML, no images;
+// links degrade to plain text (the address is appended) — a model can be prompt-injected by a hostile diff,
+// so nothing here becomes a clickable element or raw markup.
 
 export type Inline = { kind: 'text' | 'bold' | 'italic' | 'code'; text: string };
 
@@ -10,7 +11,7 @@ export type Block =
   | { kind: 'paragraph'; inlines: Inline[] }
   | { kind: 'code'; text: string };
 
-/** Link / ảnh → chữ thuần. */
+/** Links / images → plain text. */
 function flattenLinks(text: string): string {
   return text
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')

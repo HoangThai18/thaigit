@@ -11,11 +11,11 @@
 
   interface Props {
     items: readonly T[];
-    /** Danh từ trong "Hiện thêm 200 nhánh (còn 627)". */
+    /** The noun in "Show 200 more branches (627 left)". */
     noun: string;
     keyOf: (item: T) => string;
     row: Snippet<[T]>;
-    /** Thụt lề của nút "Hiện thêm" (px) cho khớp cấp cây. */
+    /** Indent of the "Show more" button (px) so it lines up with the tree level. */
     indent?: number;
   }
 

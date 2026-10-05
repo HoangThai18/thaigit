@@ -1,4 +1,4 @@
-// Bộ chuyển cho Node (test, công cụ dòng lệnh) — `@thaigit/core/node`. App desktop dùng bộ chuyển Tauri thay thế.
+// Node adapters (tests, CLI tools) — `@thaigit/core/node`. The desktop app uses the Tauri adapter instead.
 
 export { NodeExec, describePolicyViolation, type NodeExecOptions } from './exec.ts';
 export { NodeGitHost } from './git-host.ts';

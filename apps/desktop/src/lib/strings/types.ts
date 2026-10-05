@@ -1,6 +1,7 @@
 /**
- * Kiểu của một bản dịch: cùng hình dạng với bản tiếng Việt (`as const`) nhưng chữ là `string` thường — bản tiếng Anh
- * thiếu khoá, thừa khoá hay sai tham số của hàm đều là lỗi kiểu (`pnpm check`).
+ * Shape of a translation: identical to the Vietnamese source (which is `as const`) except the strings
+ * are plain `string` — so a missing key, an extra key or a wrong function parameter in the English
+ * version is a type error (`pnpm check`).
  */
 export type Translation<T> = T extends string
   ? string

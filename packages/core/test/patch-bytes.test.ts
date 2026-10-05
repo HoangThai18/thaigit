@@ -1,5 +1,6 @@
-// Patch dựng từ byte: kiểm tra nội dung patch (không chạy git) — kỳ vọng tính tay từ quy tắc, không lấy từ chính
-// bộ dựng. Phần áp patch bằng git thật nằm ở patch-bytes-git.test.ts và patch-bytes-matrix.test.ts.
+// Byte-built patches: checks the patch content itself (no git involved) — expectations derived by hand from the rules,
+// never taken from the builder under test. Applying the patches with real git is covered by patch-bytes-git.test.ts and
+// patch-bytes-matrix.test.ts.
 
 import { describe, expect, it } from 'vitest';
 import {
@@ -31,13 +32,13 @@ function fileOf(body: string | Uint8Array, header: string = HEADER): FileDiff {
 const select = (...entries: [number, number[]][]): LineSelection =>
   new Map(entries.map(([hunk, indices]) => [hunk, new Set(indices)]));
 
-/** Patch dưới dạng chuỗi (giữ "\r" thật) hoặc null. */
+/** Patch as a string (keeping real "\r") or null. */
 const patchText = (file: FileDiff, selection: LineSelection, reverse: boolean): string | null => {
   const patch = makePatch(file, selection, reverse);
   return patch === null ? null : decodeUtf8Lossy(patch);
 };
 
-// Hunk đầu của DiffTests.swift: ngữ cảnh, -a=1, +a=2, +b=3, ngữ cảnh, ngữ cảnh.
+// First hunk of DiffTests.swift: context, -a=1, +a=2, +b=3, context, context.
 const SAMPLE = lines(
   '@@ -1,4 +1,5 @@ struct App',
   ' import Foundation', // 0
@@ -144,7 +145,7 @@ describe('makePatch: chọn dòng trong một hunk', () => {
 });
 
 describe('makePatch: vị trí hunk khi bỏ qua/gộp nhiều hunk', () => {
-  // Hunk 0 chèn 1 dòng (lệch +1 cho phía mới), hunk 1 sửa một dòng.
+  // Hunk 0 inserts 1 line (new side shifted +1), hunk 1 edits one line.
   const file = fileOf(
     lines('@@ -2,3 +2,4 @@', ' a', '+INS', ' b', ' c', '@@ -20,3 +21,3 @@', ' x', '-old', '+new', ' z'),
   );
@@ -181,7 +182,7 @@ describe('makePatch: vị trí hunk khi bỏ qua/gộp nhiều hunk', () => {
   });
 
   it('hunk không có ngữ cảnh (-U0): khoảng rỗng thì start = số dòng đứng trước', () => {
-    // Chèn 2 dòng sau dòng 5, rồi xoá 2 dòng 10-11 (phía mới: sau dòng 11).
+    // Insert 2 lines after line 5, then delete lines 10-11 (new side: after line 11).
     const zero = fileOf(lines('@@ -5,0 +6,2 @@', '+a', '+b', '@@ -10,2 +11,0 @@', '-x', '-y'));
     expect(patchText(zero, select([0, [0, 1]], [1, [0, 1]]), false)).toBe(
       HEADER + lines('@@ -5,0 +6,2 @@', '+a', '+b', '@@ -10,2 +11,0 @@', '-x', '-y'),
@@ -309,7 +310,7 @@ describe('makePatch: byte nguyên vẹn (CRLF, không phải UTF-8)', () => {
     const file = fileOf(body);
     const patch = makePatch(file, select([0, [1, 2]]), false)!;
     expect([...patch.slice(-(body.length - 14))]).toEqual([...body.slice(14)]);
-    // Đối chứng: đi qua giải mã lỏng + mã hoá lại sẽ làm hỏng byte 0xE9.
+    // Control: going through a lossy decode and re-encoding would corrupt the 0xE9 byte.
     expect([...new TextEncoder().encode(new TextDecoder().decode(patch))]).not.toEqual([...patch]);
   });
 
@@ -364,7 +365,7 @@ describe('makePatch: "\\ No newline at end of file"', () => {
     );
   });
 
-  // "a\nb\nc" (không newline cuối) → "a\nB\nc\nd" (không newline cuối).
+  // "a\nb\nc" (no final newline) → "a\nB\nc\nd" (no final newline).
   const grow = fileOf(
     lines(
       '@@ -1,3 +1,4 @@',
@@ -403,7 +404,7 @@ describe('makePatch: "\\ No newline at end of file"', () => {
   });
 
   it('áp ngược: dòng ngữ cảnh thiếu newline là cuối phía mới nhưng không phải cuối phía cũ → -c / +c(không newline)', () => {
-    // Diff: "x1\nx2\n" → "y1" (không newline cuối). Áp ngược chỉ hai dòng xoá.
+    // Diff: "x1\nx2\n" → "y1" (no final newline). Applying in reverse covers only the two deleted lines.
     const file = fileOf(lines('@@ -1,2 +1 @@', '-x1', '-x2', '+y1', '\\ No newline at end of file'));
     expect(patchText(file, select([0, [0, 1]]), true)).toBe(
       HEADER + lines('@@ -1,3 +1,1 @@', '-x1', '-y1', '+y1', '\\ No newline at end of file', '-x2'),
@@ -417,7 +418,7 @@ describe('makePatch: "\\ No newline at end of file"', () => {
     );
   });
 
-  // Hỏng dữ liệu âm thầm ở bản Swift: git áp patch thành công nhưng nối hai dòng ("y1" + "x2" → "y1x2").
+  // Silent data corruption in the Swift version: git applies the patch successfully but joins two lines ("y1" + "x2" → "y1x2").
   it('stage riêng dòng thêm cuối-file-không-newline: dời xuống cuối khối, không đứng trước dòng ngữ cảnh', () => {
     const file = fileOf(lines('@@ -1,2 +1 @@', '-x1', '-x2', '+y1', '\\ No newline at end of file'));
     expect(patchText(file, select([0, [2]]), false)).toBe(
@@ -461,7 +462,7 @@ describe('makePatch: "\\ No newline at end of file"', () => {
 
 describe('makePatch: dòng vừa được thêm xuống dòng theo kiểu của file (CRLF)', () => {
   it('file CRLF: dòng cuối "c" không còn là dòng cuối phía mới → -c(không newline) / +c\\r, không để lọt "\\n" lẻ', () => {
-    // "a\r\nb\r\nc" → "a\r\nB\r\nc\r\nd" (cả hai không newline cuối).
+    // "a\r\nb\r\nc" → "a\r\nB\r\nc\r\nd" (neither side has a final newline).
     const file = fileOf(
       '@@ -1,3 +1,4 @@\n a\r\n-b\r\n+B\r\n-c\n\\ No newline at end of file\n+c\r\n+d\n\\ No newline at end of file\n',
     );
@@ -485,8 +486,8 @@ describe('makePatch: dòng vừa được thêm xuống dòng theo kiểu của 
     const alone = fileOf(
       '@@ -1 +1,2 @@\n-x\n\\ No newline at end of file\n+x\n+y\n\\ No newline at end of file\n',
     );
-    // Chỉ chọn "+y": "-x(không newline)" chưa chọn → ngữ cảnh cuối cũ, cần thêm newline; không có dòng lân cận
-    // nào có xuống dòng để học kiểu → mặc định LF.
+    // Only "+y" is selected: the unselected "-x (no newline)" needs a trailing newline as the last context line, and
+    // with no neighbouring line to copy the style from, LF is the default.
     expect(decodeUtf8Lossy(makePatch(alone, select([0, [3]]), false)!)).toBe(
       `${HEADER}@@ -1,1 +1,2 @@\n-x\n\\ No newline at end of file\n+x\n+y\n\\ No newline at end of file\n`,
     );

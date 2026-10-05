@@ -1,15 +1,16 @@
-// Dựng patch chỉ chứa các hunk/dòng được chọn, để stage/unstage/discard từng phần — THEO BYTE.
+// Builds a patch containing only the selected hunks/lines, for per-hunk and per-line stage/unstage/discard —
+// BYTE-ORIENTED.
 //
-// - Stage (diff index→worktree, áp xuôi vào index): `reverse = false`.
-// - Unstage (diff HEAD→index, áp ngược vào index) và Discard (diff index→worktree, áp ngược vào worktree):
-//   `reverse = true`.
+// - Stage (index→worktree diff, applied forward into the index): `reverse = false`.
+// - Unstage (HEAD→index diff, applied in reverse into the index) and Discard (index→worktree diff, applied in reverse
+//   into the worktree): `reverse = true`.
 //
-// Dòng không được chọn: khi áp xuôi, dòng xoá thành ngữ cảnh còn dòng thêm bị bỏ; khi áp ngược thì ngược lại.
-// Trong mỗi khối thay đổi, dòng xoá thứ k và dòng thêm thứ k được xen kẽ theo vị trí, để "sửa dòng 2 nhưng giữ
-// dòng 3" cho kết quả đúng thứ tự.
+// Unselected lines: when applying forward, deleted lines become context and added lines are dropped; when applying in
+// reverse it is the other way round. Within a change block the k-th deleted and k-th added line are interleaved by
+// position, so "edit line 2 but keep line 3" produces the right order.
 //
-// Nội dung từng dòng được chép nguyên byte từ diff (kể cả "\r"), nên `git apply` tái tạo đúng từng byte.
-// Gọi: `git apply --whitespace=nowarn --recount [--cached] [--reverse] -` với patch này làm stdin (không giải mã).
+// Each line's content is copied byte-for-byte from the diff ("\r" included), so `git apply` reproduces the file exactly.
+// Call with: `git apply --whitespace=nowarn --recount [--cached] [--reverse] -`, this patch as stdin (no decoding).
 
 import { asciiBytes, concatBytes, startsWithAscii } from './bytes.ts';
 import {
@@ -21,7 +22,7 @@ import {
   supportsPartialStaging,
 } from './diff.ts';
 
-/** id hunk → tập chỉ số dòng (trong `hunk.lines`) được chọn. */
+/** hunk id → set of selected line indices (within `hunk.lines`). */
 export type LineSelection = ReadonlyMap<number, ReadonlySet<number>>;
 
 type Marker = ' ' | '+' | '-';
@@ -49,7 +50,7 @@ const CR_BYTES = asciiBytes('\r');
 const NO_NEWLINE_LINE = asciiBytes('\\ No newline at end of file\n');
 
 /**
- * @returns nội dung patch (byte), hoặc null nếu không có thay đổi nào được chọn / file không hỗ trợ stage từng phần.
+ * @returns patch content (bytes), or null when nothing is selected or the file does not support partial staging.
  */
 export function makePatch(file: FileDiff, selection: LineSelection, reverse: boolean): Uint8Array | null {
   if (!supportsPartialStaging(file)) return null;
@@ -70,9 +71,9 @@ export function makePatch(file: FileDiff, selection: LineSelection, reverse: boo
     const oldCount = lines.filter((line) => line.marker !== '+').length;
     const newCount = lines.filter((line) => line.marker !== '-').length;
 
-    // "anchor" = số dòng đứng trước khoảng. Quy ước unified diff: khoảng rỗng thì start = anchor,
-    // khoảng có dòng thì start = anchor + 1. Phía được giữ nguyên (old khi stage, new khi áp ngược) có đúng các
-    // dòng như hunk gốc nên anchor của phía đó không đổi; phía còn lại lệch theo delta của các hunk trước.
+    // "anchor" = line count before the range. Unified diff convention: an empty range means start = anchor, a range
+    // with lines means start = anchor + 1. The kept side (old for stage, new when applying in reverse) has exactly the
+    // lines of the original hunk, so its anchor is unchanged; the other side shifts by the delta of earlier hunks.
     const originalOldAnchor = hunk.oldCount === 0 ? hunk.oldStart : hunk.oldStart - 1;
     const originalNewAnchor = hunk.newCount === 0 ? hunk.newStart : hunk.newStart - 1;
     const oldAnchor = reverse ? originalNewAnchor - delta : originalOldAnchor;
@@ -92,7 +93,7 @@ export function makePatch(file: FileDiff, selection: LineSelection, reverse: boo
   return emittedAny ? concatBytes(parts) : null;
 }
 
-/** Dòng header chỉ có ở đổi tên/sao chép: không được đưa vào patch nội dung. */
+/** Header line only present for renames/copies: must not end up in the patch body. */
 const RENAME_COPY_PREFIXES = [
   'similarity index ',
   'dissimilarity index ',
@@ -103,10 +104,11 @@ const RENAME_COPY_PREFIXES = [
 ];
 
 /**
- * Header của patch. Bỏ dòng đổi mode: stage một phần nội dung không nên kéo theo đổi quyền file.
- * File đổi tên/sao chép (diff --cached -M): patch có "rename from/to" khi áp ngược sẽ ĐỔI TÊN NGƯỢC lại trong index
- * (mất b.txt khỏi index, a.txt sống lại) chứ không chỉ bỏ vài dòng — nên viết lại header thành sửa nội dung một
- * đường dẫn: đường dẫn mới khi áp ngược (unstage), đường dẫn cũ khi áp xuôi. Không đọc được tên → null (từ chối).
+ * Patch header. The mode-change line is dropped: staging part of a file's content should not drag along a mode change.
+ * For renames/copies (`diff --cached -M`) the patch carries "rename from/to", and applying it in reverse would RENAME
+ * BACK in the index (b.txt leaves the index, a.txt comes back) instead of just dropping a few lines — so rewrite the
+ * header into a single-path content edit: the new path when applying in reverse (unstage), the old path when applying
+ * forward. Unparseable names → null (refuse).
  */
 function patchHeader(file: FileDiff, reverse: boolean): Uint8Array[] | null {
   const withoutMode = file.headerLines.filter(
@@ -140,15 +142,15 @@ function patchHeader(file: FileDiff, reverse: boolean): Uint8Array[] | null {
 }
 
 interface NameToken {
-  /** Git đặt tên trong ngoặc kép kiểu C ("a/t\303\240i.txt"). */
+  /** Git quotes names in C style ("a/t\303\240i.txt"). */
   readonly quoted: boolean;
-  /** Đường dẫn sau tiền tố "a/" hoặc "b/" (không gồm ngoặc kép), nguyên byte. */
+  /** Path after the "a/" or "b/" prefix (quotes stripped), raw bytes. */
   readonly path: Uint8Array;
-  /** Git thêm TAB cuối dòng ---/+++ khi đường dẫn có dấu cách. */
+  /** Git appends a TAB to ---/+++ lines when the path contains spaces. */
   readonly tab: boolean;
 }
 
-/** Tách phần tên của dòng "--- a/x" / "+++ b/x" (đã bỏ 4 ký tự đầu). */
+/** Extract the name part of a "--- a/x" / "+++ b/x" line (4 leading chars already removed). */
 function parseNameToken(rest: Uint8Array, side: 'a' | 'b'): NameToken | null {
   const tab = rest.length > 0 && rest[rest.length - 1] === 0x09;
   const text = tab ? rest.subarray(0, rest.length - 1) : rest;
@@ -163,13 +165,13 @@ function nameToken(side: 'a' | 'b', quoted: boolean, path: Uint8Array): Uint8Arr
   return concatBytes([quote, asciiBytes(`${side}/`), path, quote]);
 }
 
-/** Chọn toàn bộ dòng thay đổi của một hunk. */
+/** Select every change line of a hunk. */
 export function selectionForWholeHunk(hunk: DiffHunk): Map<number, Set<number>> {
   return new Map([[hunk.id, new Set(changeLineIndices(hunk))]]);
 }
 
 function buildLines(hunk: DiffHunk, selected: ReadonlySet<number>, reverse: boolean): Output[] | null {
-  // Gộp dấu "\ No newline" vào dòng đứng trước.
+  // Merge a trailing "\ No newline" marker into the preceding line.
   const items: Item[] = [];
   hunk.lines.forEach((line: DiffLine, index) => {
     if (line.kind === 'noNewline') {
@@ -227,10 +229,11 @@ function buildLines(hunk: DiffHunk, selected: ReadonlySet<number>, reverse: bool
 }
 
 /**
- * Dòng thêm/xoá đã chọn mà "không có newline cuối file" phải là dòng cuối của phía của nó. Ghép cặp xen kẽ có thể
- * đặt nó TRƯỚC các dòng ngữ cảnh (từ dòng chưa chọn) cùng khối; git vẫn áp patch và nối hai dòng lại thành một
- * ("y1" + "x2" → "y1x2") nên hỏng dữ liệu âm thầm. Dời dòng đó xuống cuối khối (chỉ đổi những khối vốn đã sai).
- * Bản Swift không xử lý chỗ này.
+ * A selected added/deleted line marked "no newline at end of file" must end up last on its own side. Interleaving can
+ * place it BEFORE unselected context lines of the same block; git then still applies the patch and joins the two lines
+ * into one ("y1" + "x2" → "y1x2"), silently corrupting data. Move such a line to the end of its block (only blocks
+ * that were already wrong are changed).
+ * The Swift version does not handle this.
  */
 function keepNoNewlineChangesLast(block: readonly Output[]): Output[] {
   let lastOld = -1;
@@ -250,7 +253,7 @@ function keepNoNewlineChangesLast(block: readonly Output[]): Output[] {
   return [...stay, ...moved];
 }
 
-/** Thêm "\r" cuối `text` nếu dòng gần nhất có xuống dòng (không phải dòng "không newline") kết thúc bằng "\r". */
+/** Append "\r" to `text` when the nearest preceding line (excluding a "no newline" line) ends with "\r". */
 function withNeighbourLineEnding(text: Uint8Array, lines: readonly Output[], index: number): Uint8Array {
   const usable = (line: Output | undefined): line is Output => line !== undefined && !line.noNewline;
   for (let distance = 1; distance < lines.length; distance++) {
@@ -263,9 +266,9 @@ function withNeighbourLineEnding(text: Uint8Array, lines: readonly Output[], ind
 }
 
 /**
- * Dòng ngữ cảnh "không có newline cuối file" chỉ hợp lệ khi là dòng cuối của cả hai phía.
- * Nếu không, tách thành cặp -/+ để mỗi phía có đúng ký tự xuống dòng. Phía vừa được thêm xuống dòng dùng kiểu
- * xuống dòng của dòng lân cận (file CRLF thì thêm "\r\n", không để lọt một "\n" lẻ như bản Swift).
+ * A "no newline at end of file" context line is only valid when it is the last line on both sides.
+ * Otherwise split it into a -/+ pair so each side gets its own terminator. The side that just gained a newline uses
+ * the neighbouring line's style (a CRLF file gets "\r\n", never a lone "\n" as in the Swift version).
  */
 function fixNoNewlineContext(lines: readonly Output[]): Output[] {
   let lastOld = -1;

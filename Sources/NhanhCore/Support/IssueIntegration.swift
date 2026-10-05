@@ -1,8 +1,8 @@
 import Foundation
 
-/// Gợi ý tên nhánh từ issue: "PROJ-12 Sửa lỗi đăng nhập" → "PROJ-12-sua-loi-dang-nhap".
+/// A branch name suggested from an issue: "PROJ-12 Sửa lỗi đăng nhập" → "PROJ-12-sua-loi-dang-nhap".
 public enum BranchNameSuggester {
-    /// Bỏ dấu tiếng Việt, chữ thường, ký tự lạ thành "-", tối đa `maxLength` ký tự (không cắt giữa chữ nếu tránh được).
+    /// Strips Vietnamese diacritics, lowercases, turns odd characters into "-", at most `maxLength` characters (avoiding cutting mid-word when possible).
     public static func slug(_ text: String, maxLength: Int = 40) -> String {
         let folded = text.replacingOccurrences(of: "đ", with: "d").replacingOccurrences(of: "Đ", with: "D")
             .folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US_POSIX"))
@@ -33,7 +33,7 @@ public enum BranchNameSuggester {
     }
 }
 
-/// Issue trên Jira Cloud (giao cho mình, chưa xong).
+/// An issue on Jira Cloud (assigned to me, not done).
 public struct JiraIssue: Sendable, Equatable, Identifiable {
     public let key: String
     public let summary: String
@@ -67,8 +67,8 @@ public enum JiraError: LocalizedError, Equatable, Sendable {
     }
 }
 
-/// Gọi REST API của Jira Cloud bằng email + API token (Basic auth). Token chỉ gửi tới đúng host https đã cấu hình;
-/// không theo chuyển hướng (redirect) sang host khác.
+/// Calls Jira Cloud's REST API with an email + API token (Basic auth). The token is only ever sent to the
+/// configured https host, and redirects to another host are not followed.
 public struct JiraClient: Sendable {
     public let site: URL
     private let email: String
@@ -96,7 +96,7 @@ public struct JiraClient: Sendable {
         return clean.url
     }
 
-    /// Tên hiển thị của tài khoản (kiểm tra kết nối).
+    /// The account's display name (used to check the connection).
     public func myself() async throws -> String {
         struct Me: Decodable { let displayName: String? ; let emailAddress: String? }
         let data = try await get("/rest/api/3/myself", query: [])
@@ -104,7 +104,7 @@ public struct JiraClient: Sendable {
         return me.displayName ?? me.emailAddress ?? email
     }
 
-    /// Issue giao cho mình, chưa xong, mới cập nhật trước.
+    /// Issues assigned to me, not done, most recently updated first.
     public func myOpenIssues(limit: Int = 50) async throws -> [JiraIssue] {
         let data = try await get("/rest/api/3/search/jql", query: [
             URLQueryItem(name: "jql", value: "assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC"),
@@ -131,7 +131,7 @@ public struct JiraClient: Sendable {
         }
     }
 
-    /// Trang của issue trên Jira.
+    /// The issue's page on Jira.
     public func browseURL(_ key: String) -> URL {
         site.appendingPathComponent("browse").appendingPathComponent(key)
     }
@@ -162,7 +162,7 @@ public struct JiraClient: Sendable {
         }
     }
 
-    /// Phiên mạng tạm, chặn mọi chuyển hướng (không để header Authorization đi theo sang chỗ khác).
+    /// A temporary network session that refuses every redirect (so the Authorization header never travels elsewhere).
     static func noRedirectTransport(host: String) -> GitHubHTTPTransport {
         let delegate = NoRedirectDelegate()
         let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
@@ -181,14 +181,14 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, Sendab
     }
 }
 
-/// Dựng lời nhắc cho AI viết commit message từ thay đổi đã stage.
+/// Builds the prompt asking the AI to write a commit message from the staged changes.
 public enum CommitPrompt {
-    /// Giới hạn ký tự của phần diff (model trên máy có cửa sổ ngữ cảnh nhỏ).
+    /// Character budget for the diff part (on-device models have a small context window).
     public static let maxPatchCharacters = 6000
 
     public static func build(stat: String, patch: String, recentSubjects: [String]) -> String {
-        // Chữ riêng của tiếng Việt (ă â đ ê ô ơ ư và các chữ có dấu thanh U+1EA0–U+1EF9), không tính chữ có dấu của
-        // tiếng Pháp / Đức…
+        // Vietnamese-only letters (ă â đ ê ô ơ ư and the tone-marked range U+1EA0–U+1EF9), excluding the accented
+        // letters of French / German…
         let vietnameseLetters = Set("ăâđêôơưĂÂĐÊÔƠƯ".unicodeScalars.map(\.value))
         let vietnamese = recentSubjects.contains { subject in
             subject.unicodeScalars.contains { vietnameseLetters.contains($0.value) || (0x1EA0...0x1EF9).contains($0.value) }
@@ -217,7 +217,7 @@ public enum CommitPrompt {
         return lines.joined(separator: "\n")
     }
 
-    /// Tách câu trả lời thành (tóm tắt, phần thân); bỏ ``` và dòng tiêu đề kiểu "Commit message:".
+    /// Splits the reply into (summary, body); strips ``` fences and a "Commit message:" style heading line.
     public static func parse(_ response: String) -> (summary: String, body: String) {
         var lines = response.replacingOccurrences(of: "\r\n", with: "\n").split(separator: "\n", omittingEmptySubsequences: false)
             .map(String.init)
@@ -234,7 +234,7 @@ public enum CommitPrompt {
 }
 
 extension GitRepository {
-    /// Thống kê và patch của thay đổi đã stage (byte thật, không chạy textconv / external diff của repo).
+    /// The stats and patch of the staged changes (real bytes — the repo's textconv / external diff never runs).
     public func stagedChangesForPrompt() async throws -> (stat: String, patch: String) {
         let common = ["--cached", "--no-color", "--no-ext-diff", "--no-textconv"]
         async let stat = runner.output(["diff"] + common + ["--stat=100"])
@@ -242,7 +242,7 @@ extension GitRepository {
         return (try await stat, try await patch)
     }
 
-    /// Tóm tắt các commit gần nhất của HEAD (để AI viết theo đúng phong cách / ngôn ngữ của repo).
+    /// A summary of HEAD's most recent commits (so the AI matches the repo's style / language).
     public func recentSubjects(_ count: Int = 8) async -> [String] {
         guard let output = try? await runner.output(["log", "-\(count)", "--format=%s", "HEAD", "--"]) else { return [] }
         return output.split(separator: "\n").map(String.init)

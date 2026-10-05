@@ -99,7 +99,7 @@ describe.skipIf(!HAS_LFS)('Git LFS trên git-lfs thật', () => {
     cleanups.push(() => rm(remote, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }));
     rawGit(remote, ['init', '-q', '--bare']);
     const { store, toasts } = await openStore((git, root) => {
-      // Bộ lọc LFS nhưng KHÔNG cài hook: chỉ lần `git lfs push` của app mới đẩy được file LFS.
+      // The LFS filter is configured but NO hook installed: only the app's own `git lfs push` can push LFS files.
       git('lfs', 'install', '--local', '--skip-repo');
       writeFileSync(join(root, '.gitattributes'), '*.bin filter=lfs diff=lfs merge=lfs -text\n');
       writeFileSync(join(root, 'a.bin'), 'nội dung LFS\n'.repeat(50));

@@ -1,7 +1,8 @@
-// Kéo-thả tự viết bằng pointer events (không dùng HTML5 DnD: WebView2 trên Windows hay nuốt sự kiện, và cần chạy giống
-// nhau trên 2 OS). Nguồn gọi `drag.begin(event, payload)` trong `onpointerdown`; đích chỉ cần thuộc tính `data-drop`
-// ("ref:<tên đầy đủ>", "remote:<tên>", "zone:staged" | "zone:unstaged"). Kéo quá 5 px mới tính là kéo — bấm / nhấp đúp
-// vẫn như cũ; sau khi thả, cú click đi kèm bị chặn để không chọn nhầm hàng.
+// Hand-rolled drag and drop on pointer events (no HTML5 DnD: WebView2 on Windows often swallows the
+// events, and it has to behave identically on both OSes). A source calls `drag.begin(event, payload)` in
+// `onpointerdown`; a target only needs a `data-drop` attribute ("ref:<full name>", "remote:<name>",
+// "zone:staged" | "zone:unstaged"). Moving more than 5 px starts the drag — clicks and double-clicks
+// still work as before; the click that follows a drop is suppressed so a row isn't selected by accident.
 
 import type { FileChange, GitRef } from '@thaigit/core';
 
@@ -24,7 +25,7 @@ export interface ActiveDrag {
   readonly x: number;
   readonly y: number;
   readonly target: DropTarget | null;
-  /** Đích hiện tại nhận được payload này không. */
+  /** Whether the current target accepts this payload. */
   readonly accepted: boolean;
 }
 
@@ -35,7 +36,7 @@ export interface DropHandler {
 
 const THRESHOLD = 5;
 
-/** Giá trị `data-drop` cho một ref / remote (mã hoá URI: tên do repo đặt có thể chứa ký tự điều khiển). */
+/** `data-drop` value for a ref / remote (URI-encoded: repo-supplied names may contain control characters). */
 export function dropAttr(kind: 'ref' | 'remote', name: string): string {
   return `${kind}:${encodeURIComponent(name)}`;
 }
@@ -65,8 +66,8 @@ export class DragStore {
   #cleanup: (() => void) | null = null;
 
   /**
-   * Bắt đầu theo dõi một lần nhấn trên nguồn kéo. `payload` chỉ được gọi khi thật sự kéo (quá ngưỡng); trả `null` = không
-   * cho kéo.
+   * Start tracking a press on the drag source. `payload` is only called once a real drag begins (past the
+   * threshold); `null` = dragging is not allowed.
    */
   begin(event: PointerEvent, payload: () => DragPayload | null): void {
     if (event.button !== 0 || this.#cleanup !== null) return;
@@ -91,7 +92,7 @@ export class DragStore {
       const drag = this.active;
       finish();
       if (started === null || drag === null) return;
-      // Cú click ngay sau khi thả không được chọn hàng / mở file.
+      // The click right after a drop must not select a row / open a file.
       const swallow = (clickEvent: MouseEvent) => {
         clickEvent.stopPropagation();
         clickEvent.preventDefault();
@@ -126,7 +127,7 @@ export class DragStore {
     this.#cleanup = finish;
   }
 
-  /** Huỷ lần kéo đang dở (vd. đóng repo). */
+  /** Cancel the in-flight drag (e.g. closing the repo). */
   cancel(): void {
     this.#cleanup?.();
   }

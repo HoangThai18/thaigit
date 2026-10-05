@@ -1,15 +1,15 @@
 import AppKit
 import NhanhCore
 
-/// Danh sách Merge Request đang mở của repo trên GitLab (remote ưu tiên), tải qua API.
+/// The repo's open Merge Requests on GitLab (preferred remote), loaded through the API.
 struct MergeRequestList: Equatable {
     enum State: Equatable {
         case idle
-        /// Repo không có remote GitLab — sidebar ẩn mục MERGE REQUESTS.
+        /// The repo has no GitLab remote — the sidebar hides the MERGE REQUESTS section.
         case notGitLab
         case loading
         case loaded
-        /// Chưa có tài khoản GitLab nào cho máy chủ này.
+        /// No GitLab account exists for this server yet.
         case needsAccount
         case failed(String)
     }
@@ -17,12 +17,12 @@ struct MergeRequestList: Equatable {
     var state: State = .idle
     var items: [ForgeRequest] = []
     var project: GitLabProjectRef?
-    /// Tên remote (trên máy) của project GitLab đó, ví dụ "origin".
+    /// The local remote name of that GitLab project, e.g. "origin".
     var remoteName: String?
     var loadedAt: Date?
 }
 
-/// Danh sách ứng viên để gán (người review / người xử lý) của PR / MR đang xem.
+/// The list of candidates assignable (reviewers / assignees) on the PR / MR being viewed.
 enum ReviewPeopleState: Equatable {
     case idle
     case loading
@@ -30,14 +30,15 @@ enum ReviewPeopleState: Equatable {
     case failed(String)
 }
 
-/// PR / MR đang xem ở panel review: nhánh đã lấy về máy, `from` là điểm tách khỏi nhánh đích và `to` là đầu của PR / MR
-/// (cũng chính là hai đầu của `RepoSelection.compare` đang chọn).
+/// The PR / MR open in the review panel: its branch is already fetched locally, `from` is the point where it
+/// diverged from the target branch and `to` is the tip of the PR / MR
+/// (which are also the two ends of the `RepoSelection.compare` currently selected).
 struct ReviewSession: Equatable {
     var request: ForgeRequest
     let from: String
     let to: String
     var people: ReviewPeopleState = .idle
-    /// Đang gửi thay đổi người review / người được gán lên máy chủ.
+    /// A reviewer / assignee change is being sent to the host.
     var isSaving = false
 }
 
@@ -47,8 +48,8 @@ enum ReviewPeopleRole {
 }
 
 extension RepoModel {
-    /// Remote PR / MR ứng với `request` (đúng loại máy chủ): repo có cả remote GitHub lẫn GitLab thì mỗi PR / MR dùng remote của
-    /// chính máy chủ đó. nil nếu repo không còn remote đó.
+    /// The remote matching `request` (matching host kind): a repo with both a GitHub and a GitLab remote uses each PR / MR's own
+    /// host's remote. nil when the repo no longer has that remote.
     func forgeRemoteMatching(_ request: ForgeRequest) -> ForgeRemote? {
         switch request.kind {
         case .github:
@@ -65,14 +66,14 @@ extension RepoModel {
 extension RepoModel {
     // MARK: - GitLab: danh sách Merge Request
 
-    /// Tải lại MR đang mở (sau khi mở repo, đổi remote, fetch). Không tải lại nếu vừa tải trong 20 giây, trừ khi `force`.
+    /// Reload the open MRs (after opening the repo, changing the remote, a fetch). Not reloaded if it ran less than 20 seconds ago, unless `force`.
     func loadMergeRequests(force: Bool = false) {
         guard let gitlab = gitlabRemote else {
             mergeRequestsTask?.cancel()
             if mergeRequests.state != .notGitLab { mergeRequests = MergeRequestList(state: .notGitLab) }
             return
         }
-        // Kịch bản chụp ảnh không gọi GitLab thật.
+        // A screenshot run never calls the real GitLab.
         if AutomationHarness.isActive { return }
         let project = gitlab.project, remoteName = gitlab.name
         if !force, mergeRequests.project == project, mergeRequests.state == .loading { return }
@@ -84,7 +85,7 @@ extension RepoModel {
         mergeRequests.state = .loading
         let accounts = GitLabAccountManager.shared.store
         mergeRequestsTask = Task {
-            // Token của tài khoản ứng với host (có thể phải đọc Keychain / làm mới token): lấy ngoài luồng chính.
+            // The token of the account matching the host (may require a Keychain read / a token renewal): fetched off the main actor.
             let token = await Task.detached { await accounts.apiToken(forHost: project.host) }.value
             guard let token else {
                 guard !Task.isCancelled, mergeRequests.project == project else { return }
@@ -104,10 +105,10 @@ extension RepoModel {
         }
     }
 
-    // MARK: - Mở / đóng review
+    // MARK: - Open / close the review
 
-    /// Mở review của PR / MR: lấy đầu PR / MR và nhánh đích về máy (một lần fetch), chọn "so sánh" từ điểm tách tới đầu PR / MR
-    /// để xem file thay đổi như tab "Files changed" trên web, kèm panel mô tả + người review / người được gán.
+    /// Open the review of a PR / MR: fetch its tip and the target branch (a single fetch), and select "compare" from the
+    /// divergence point to the tip so the changed files show like the web's "Files changed" tab, with the description panel plus reviewers / assignees.
     func openReview(_ request: ForgeRequest) {
         guard let forge = forgeRemoteMatching(request) else { return }
         let remote = forge.name
@@ -121,12 +122,12 @@ extension RepoModel {
             try await git.fetchRefspecs(refs.refspecs, remote: remote, onProgress: progress)
             let head = try await git.resolveCommit(refs.headRef)
             let base = try await git.resolveCommit(refs.baseRef)
-            // Hai nhánh không có lịch sử chung (hiếm): so thẳng với đầu nhánh đích.
+            // The two branches share no history (rare): diff directly against the target branch tip.
             let from = await git.mergeBase(base, head) ?? base
             range = (from: from, to: head)
         } onSuccess: { [weak self] in
             guard let self, let range else { return }
-            // Mở lại đúng PR / MR đang xem (Tải lại): giữ bản đã thấy (kể cả thay đổi vừa lưu) và danh sách người đã nạp.
+            // Reopening the same PR / MR (Reload): keep what was already shown (including a just-saved change) and the loaded people list.
             var shown = request
             var people = ReviewPeopleState.idle
             var saving = false
@@ -143,7 +144,7 @@ extension RepoModel {
         }
     }
 
-    /// "Tải lại" ở panel review: lấy lại nhánh về máy và nạp lại danh sách PR / MR (tiêu đề, mô tả, người review có thể đã đổi).
+    /// "Reload" in the review panel: fetch the branch again and reload the PR / MR list (the title, description and reviewers may have changed).
     func reloadReview(_ request: ForgeRequest) {
         openReview(request)
         reloadForgeLists(request.kind)
@@ -156,8 +157,8 @@ extension RepoModel {
         }
     }
 
-    /// Cập nhật review đang mở theo danh sách PR / MR vừa tải về (người khác có thể đã sửa tiêu đề, mô tả, người review).
-    /// `kind`: loại danh sách vừa tải — chỉ đồng bộ khi review đang mở cùng loại (danh sách của máy chủ kia không liên quan).
+    /// Sync the open review with the just-loaded PR / MR list (someone else may have changed the title, description or reviewers).
+    /// `kind`: which list was loaded — only synced when the open review is of the same kind (the other host's list is unrelated).
     func syncReviewWithLists(kind: ForgeRequest.Kind) {
         guard let current = review, current.request.kind == kind, !current.isSaving else { return }
         let items: [ForgeRequest]
@@ -169,7 +170,7 @@ extension RepoModel {
         review?.request = fresh
     }
 
-    /// Đóng panel review và quay về commit đang đứng.
+    /// Close the review panel and return to the selected commit.
     func closeReview() {
         review = nil
         if let head = headOID {
@@ -179,14 +180,14 @@ extension RepoModel {
         }
     }
 
-    /// Chọn sang mục khác (không còn là phép so sánh của review đang mở) thì bỏ phiên review.
+    /// Switching to a different selection (no longer the open review's comparison) drops the review session.
     func dropReviewIfLeft() {
         guard let review else { return }
         if case .compare(let from, let to) = selection, from == review.from, to == review.to { return }
         self.review = nil
     }
 
-    /// Checkout nhánh của PR / MR đang xem.
+    /// Check out the branch of the PR / MR being reviewed.
     func checkoutReview(_ request: ForgeRequest) {
         switch request.kind {
         case .github:
@@ -200,8 +201,8 @@ extension RepoModel {
         }
     }
 
-    /// Lấy MR về nhánh local `mr/N` (GitLab giữ đầu MR ở `refs/merge-requests/N/head`, kể cả MR từ fork) rồi chuyển sang nhánh đó.
-    /// Không ép: nhánh local đã có commit riêng thì git từ chối thay vì ghi đè.
+    /// Fetch the MR into local branch `mr/N` (GitLab keeps an MR's tip at `refs/merge-requests/N/head`, even for forked MRs), then switch to it.
+    /// No force: if the local branch has its own commits git refuses rather than overwriting.
     func checkoutMergeRequest(_ request: ForgeRequest) {
         guard request.kind == .gitlab, let forge = forgeRemoteMatching(request) else { return }
         let remote = forge.name
@@ -219,8 +220,8 @@ extension RepoModel {
         }
     }
 
-    /// Lấy PR về nhánh local `pr/N` (GitHub giữ đầu PR ở `refs/pull/N/head`, kể cả PR từ fork) rồi chuyển sang nhánh đó — dùng khi
-    /// PR chưa có trong danh sách ở sidebar (vừa tạo, chưa tải xong). Không ép: nhánh local đã có commit riêng thì git từ chối.
+    /// Fetch the PR into local branch `pr/N` (GitHub keeps a PR's tip at `refs/pull/N/head`, even for forked PRs), then switch to
+    /// it — used when the PR isn't in the sidebar list yet (just created, still loading). No force: if the local branch has its own commits git refuses.
     func checkoutPullRequestHead(_ request: ForgeRequest) {
         guard request.kind == .github, let github = githubRemote else { return }
         let remote = github.name
@@ -269,9 +270,9 @@ extension RepoModel {
         return items
     }
 
-    // MARK: - Người review / người được gán
+    // MARK: - Reviewers / assignees
 
-    /// Tải danh sách người có thể gán cho PR / MR đang xem (một lần cho mỗi phiên review).
+    /// Load the list of people assignable to the PR / MR being reviewed (once per review session).
     func loadReviewPeople() {
         guard let session = review, session.people == .idle, let forge = forgeRemoteMatching(session.request) else { return }
         let number = session.request.number
@@ -290,7 +291,7 @@ extension RepoModel {
         }
     }
 
-    /// Thử lại sau khi tải danh sách người bị lỗi.
+    /// Retry after loading the people list failed.
     func reloadReviewPeople() {
         guard review != nil else { return }
         review?.people = .idle
@@ -313,8 +314,8 @@ extension RepoModel {
         }
     }
 
-    /// Gửi danh sách người review / người được gán mới lên máy chủ; xong thì cập nhật panel và tải lại danh sách ở sidebar
-    /// (để mở lại review từ danh sách vẫn thấy đúng).
+    /// Send the new reviewer / assignee list to the host; on success update the panel and reload the sidebar list
+    /// (so reopening the review from the list still shows the right thing).
     func updateReviewPeople(_ role: ReviewPeopleRole, to people: [ForgePerson]) {
         guard let session = review, !session.isSaving, let forge = forgeRemoteMatching(session.request) else { return }
         let request = session.request
@@ -345,8 +346,8 @@ extension RepoModel {
                     showError(title, error)
                 }
             }
-            // Thành công hay lỗi đều nạp lại danh sách: máy chủ có thể đã áp dụng một phần (vd. GitHub bỏ người cũ xong mà thêm người mới
-            // lỗi) và sidebar cần khớp khi mở lại review.
+            // Reload the list on success AND on failure: the host may have applied part of it (e.g. GitHub removed the old reviewer
+            // but adding the new one failed) and the sidebar has to match when the review is reopened.
             reloadForgeLists(request.kind)
         }
     }

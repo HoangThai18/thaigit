@@ -1,5 +1,5 @@
-// Cấu hình máy chủ — chỉ đọc từ biến môi trường (một nguồn sự thật, không có form cài đặt trên web). Secret có thể đưa
-// qua file (`<TÊN>_FILE`, hợp với Docker secrets chmod 600) để không nằm trong compose / image.
+// Server configuration — read only from environment variables (one source of truth, no web settings form). Secrets may be
+// supplied via a file (`<NAME>_FILE`, which fits chmod 600 Docker secrets) so they stay out of compose files and images.
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -11,7 +11,7 @@ export interface Config {
   adminHost: string;
   adminPort: number;
   dataDir: string;
-  /** IP / dải CIDR của reverse proxy (nginx, Caddy) được tin để đọc `X-Real-IP`. */
+  /** IP / CIDR ranges of reverse proxies (nginx, Caddy) trusted to set `X-Real-IP`. */
   trustedProxies: string[];
   corsOrigins: string[];
   hermes: {
@@ -37,11 +37,11 @@ export interface Config {
     killSwitchFile: string;
   };
   telemetry: {
-    /** Số telemetryId mới tối đa mỗi ngày mỗi IP (chặn bơm số liệu giả). */
+    /** Maximum new telemetryIds per IP per day (stops fake metric inflation). */
     newIdsPerIpPerDay: number;
   };
   download: {
-    /** Repo GitHub chứa bản phát hành (chỉ chuyển hướng tới repo này). */
+    /** GitHub repo holding the release (redirects only ever target this repo). */
     repo: string;
   };
 }
@@ -76,7 +76,7 @@ function list(env: Env, name: string, fallback: string[]): string[] {
     .filter((item) => item !== '');
 }
 
-/** Secret: `<TÊN>_FILE` (đọc file) hoặc `<TÊN>`; tối thiểu 32 ký tự. */
+/** Secret: `<NAME>_FILE` (read the file) or `<NAME>`; at least 32 characters. */
 function secret(env: Env, name: string): string {
   const file = env[`${name}_FILE`]?.trim();
   const value = file ? readFileSync(file, 'utf8').trim() : env[name]?.trim();

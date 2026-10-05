@@ -1,5 +1,5 @@
-// Ước lượng số token mà không cần tokenizer của model: ký tự ASCII ≈ 3,5 ký tự/token; ký tự ngoài ASCII (tiếng Việt có
-// dấu, CJK, emoji) bị tách nhỏ hơn nhiều nên tính ≈ 1,2 ký tự/token. Cố ý ước lượng dư — máy chủ vẫn cắt thêm nếu cần.
+// Estimates token count without the model's tokenizer: ASCII ≈ 3.5 characters/token; non-ASCII (accented Vietnamese,
+// CJK, emoji) tokenizes far finer, so ≈ 1.2 characters/token. Deliberately over-estimates — the server still trims if needed.
 
 export function estimateTokens(text: string): number {
   let ascii = 0;

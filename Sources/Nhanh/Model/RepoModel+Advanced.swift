@@ -2,16 +2,16 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Submodule, worktree, Git Flow, LFS của repo — tải lại cùng các nhánh (lệnh đọc, không chạy gì của repo).
+/// The repo's submodules, worktrees, Git Flow and LFS — reloaded together with the branches (read-only commands, nothing from the repo runs).
 struct RepoExtras: Equatable {
     var submodules: [Submodule] = []
     var worktrees: [Worktree] = []
     var gitFlow: GitFlowConfig?
     var usesLFS = false
-    /// Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Fetch đầy đủ từ remote".
+    /// The repo only tracks a few remote branches / is a shallow clone → show the "Fetch everything from remote" bar.
     var historyGaps = HistoryGaps.none
 
-    /// Worktree phụ (không tính thư mục repo chính).
+    /// Extra worktrees (the main repo directory isn't counted).
     var linkedWorktrees: [Worktree] { worktrees.filter { !$0.isMain } }
 
     static func load(_ repo: GitRepository) async -> RepoExtras {
@@ -33,7 +33,7 @@ extension RepoModel {
         }
     }
 
-    /// Mở thư mục (submodule, worktree) thành tab mới trong cửa sổ đang dùng.
+    /// Open a directory (submodule, worktree) as a new tab in the current window.
     func openInNewTab(_ path: String) {
         AppState.shared.pendingOpenPaths.append(path)
     }
@@ -185,7 +185,7 @@ extension RepoModel {
         }
     }
 
-    /// Mục menu Git Flow cho một nhánh local có tiền tố feature / release / hotfix.
+    /// Git Flow menu items for a local branch with a feature / release / hotfix prefix.
     func gitFlowMenuItems(for ref: GitRef) -> [MenuItemSpec] {
         guard ref.kind == .localBranch, let config = extras.gitFlow, let flow = config.classify(ref.name) else { return [] }
         return [.action(String(localized: "Kết thúc \(flow.kind.title.lowercased()) \(flow.name) (Git Flow)…"), systemImage: "flag.checkered") {

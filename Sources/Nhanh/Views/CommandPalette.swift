@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Một lệnh trong bảng lệnh ⌘P.
+/// One command in the ⌘P command palette.
 struct PaletteCommand: Identifiable {
     let id: String
     let title: String
@@ -13,14 +13,14 @@ struct PaletteCommand: Identifiable {
 }
 
 enum PaletteSearch {
-    /// Bỏ dấu, chữ thường, "đ" → "d": gõ "nhanh" vẫn ra "nhánh".
+    /// Strips diacritics and lowercases, "đ" → "d": typing "nhanh" still finds "nhánh".
     static func fold(_ text: String) -> String {
         text.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "vi"))
             .replacingOccurrences(of: "đ", with: "d")
             .replacingOccurrences(of: "Đ", with: "d")
     }
 
-    /// Mọi từ gõ vào đều phải có trong tên lệnh (không theo thứ tự). Điểm thấp hơn = khớp tốt hơn: khớp từ đầu tên trước.
+    /// Every typed word must appear in the command name (order doesn't matter). A lower score = a better match: name-prefix matches rank first.
     static func score(_ command: PaletteCommand, query: String) -> Int? {
         let words = fold(query).split(separator: " ").map(String.init)
         guard !words.isEmpty else { return 0 }
@@ -33,7 +33,7 @@ enum PaletteSearch {
     }
 }
 
-/// Bảng lệnh ⌘P như GitKraken: gõ để tìm mọi thao tác, nhánh để checkout, tab và repo gần đây; ↑↓ chọn, ↩ chạy.
+/// The ⌘P command palette like GitKraken: type to find any action, branch to check out, tabs and recent repos; ↑↓ to select, ↩ to run.
 struct CommandPaletteSheet: View {
     let tabs: TabsModel
     let windowActions: WindowActions
@@ -136,11 +136,11 @@ struct CommandPaletteSheet: View {
     private func run(_ command: PaletteCommand?) {
         guard let command else { return }
         dismiss()
-        // Chạy sau khi bảng lệnh đóng hẳn (hết hiệu ứng đóng), để lệnh mở hộp thoại khác (tạo nhánh, stash…) không bị chặn.
+        // Run after the palette has fully closed (once the close animation ends), so a command opening another dialog (create branch, stash…) isn't blocked.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { command.action() }
     }
 
-    // MARK: - Danh sách lệnh
+    // MARK: - Command list
 
     private func commands() -> [PaletteCommand] {
         var list: [PaletteCommand] = []
@@ -270,7 +270,7 @@ struct CommandPaletteSheet: View {
                 })
             }
         }
-        // Nhánh remote đã có nhánh local cùng tên thì checkout cũng chỉ là chuyển sang nhánh local đó — bỏ cho đỡ rối.
+        // A remote branch that already has a local branch of the same name: checking it out is just switching to that local branch — leave it out to reduce noise.
         let localNames = Set(model.localBranches.map(\.name))
         for ref in model.remoteBranches.lazy.filter({ !localNames.contains($0.shortBranchName) && $0.shortBranchName != "HEAD" }).prefix(300) {
             list.append(PaletteCommand(id: "checkout." + ref.fullName, title: "Checkout \(ref.name)", subtitle: String(localized: "Nhánh remote"),

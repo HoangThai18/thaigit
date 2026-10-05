@@ -1,6 +1,6 @@
-// Trang admin CHỈ-ĐỌC: listener riêng trên 127.0.0.1 (không ra Internet → không cần đăng nhập web / CSRF). Vào bằng
-// đường hầm SSH: `ssh -L 8788:127.0.0.1:8788 <vps>` rồi mở http://127.0.0.1:8788. HTML dựng bằng `html` của Hono
-// (tự escape mọi giá trị chèn vào).
+// READ-ONLY admin page: its own listener on 127.0.0.1 (never exposed to the Internet → no web login or CSRF needed).
+// Reach it through an SSH tunnel: `ssh -L 8788:127.0.0.1:8788 <vps>` then open http://127.0.0.1:8788.
+// The HTML is built with Hono's `html` helper, which escapes every interpolated value.
 
 import { Hono } from 'hono';
 import { html } from 'hono/html';

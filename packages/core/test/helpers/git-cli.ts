@@ -1,6 +1,7 @@
-// Chạy git THẬT trong thư mục tạm để test patch/conflict theo byte. Chỉ dùng trong test (Node).
-// Cô lập hoàn toàn khỏi máy: HOME + cấu hình toàn cục/hệ thống bị vô hiệu, chỉ làm việc trong os.tmpdir().
-// Cờ `-c` và env chuẩn lấy từ chính sách chung (`buildGitArgv`/`buildGitEnv`) nên khớp hành vi trong app.
+// Runs REAL git in a temp directory so patch/conflict tests can be byte-exact. Test-only (Node).
+// Fully isolated from the machine: HOME plus global/system config are disabled and everything happens under
+// os.tmpdir(). The `-c` flags and standard env come from the shared policy (`buildGitArgv`/`buildGitEnv`), so behaviour
+// matches the app.
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -29,7 +30,7 @@ export interface GitResult {
 export interface GitRunOptions {
   readonly stdin?: Uint8Array;
   readonly env?: Readonly<Record<string, string>>;
-  /** Mặc định ném lỗi khi git thoát khác 0. */
+  /** Throw on a non-zero git exit by default. */
   readonly allowFailure?: boolean;
 }
 
@@ -48,7 +49,7 @@ export class GitCommandError extends Error {
   }
 }
 
-/** Repo git tạm, cô lập. Gọi `cleanup()` ở cuối (afterAll/afterEach). */
+/** An isolated temporary git repo. Call `cleanup()` afterwards (afterAll/afterEach). */
 export class TempRepo {
   readonly dir: string;
   private readonly root: string;
@@ -67,9 +68,9 @@ export class TempRepo {
     mkdirSync(dir);
     mkdirSync(home);
     const repo = new TempRepo(root, dir, TempRepo.makeEnv(root, home));
-    // `--template=` rỗng: không chép hook mẫu, init nhanh hơn và repo gọn hơn khi sao chép.
+    // Empty `--template=`: sample hooks are not copied, so init is faster and the repo stays small when cloned.
     repo.git('init', ['-q', '-b', 'main', '--template=']);
-    // Ghi cấu hình thẳng vào .git/config (đỡ vài lần spawn git); giá trị ghi sau thắng giá trị ghi trước.
+    // Write config straight into .git/config (saves a few git spawns); a later value wins over an earlier one.
     repo.appendConfig(
       '[user]\n\tname = Thaigit Test\n\temail = test@example.com\n[commit]\n\tgpgsign = false\n[core]\n\tsafecrlf = false\n',
     );
@@ -90,7 +91,7 @@ export class TempRepo {
     };
   }
 
-  /** Sao chép nguyên repo này (cả .git) sang một thư mục tạm mới, độc lập — rẻ hơn dựng lại bằng nhiều lệnh git. */
+  /** Copy this whole repo (including .git) to a fresh temp directory, fully independent — cheaper than recreating it with many git commands. */
   fork(): TempRepo {
     const root = mkdtempSync(join(tmpdir(), SANDBOX_PREFIX));
     const dir = join(root, 'repo');
@@ -100,7 +101,7 @@ export class TempRepo {
     return new TempRepo(root, dir, TempRepo.makeEnv(root, home));
   }
 
-  /** Thêm đoạn cấu hình vào .git/config của repo tạm. */
+  /** Append a config section to the temp repo's .git/config. */
   appendConfig(text: string): void {
     appendFileSync(join(this.dir, '.git', 'config'), text);
   }
@@ -109,7 +110,7 @@ export class TempRepo {
     this.appendConfig(`[core]\n\tautocrlf = ${value}\n`);
   }
 
-  /** Chạy `git <sub> <args…>` qua `buildGitArgv` (có cờ -c chuẩn, --no-ext-diff cho lệnh diff). */
+  /** Runs `git <sub> <args…>` through `buildGitArgv` (standard `-c` flags, `--no-ext-diff` for diff commands). */
   git(sub: string, args: readonly string[] = [], options: GitRunOptions = {}): GitResult {
     const argv = buildGitArgv(sub, args);
     const run = spawnSync('git', argv, {
@@ -129,7 +130,7 @@ export class TempRepo {
     return result;
   }
 
-  // MARK: - File
+  // MARK: - Files
 
   writeFile(relative: string, content: Uint8Array | string): void {
     const target = join(this.dir, relative);
@@ -145,7 +146,7 @@ export class TempRepo {
     unlinkSync(join(this.dir, relative));
   }
 
-  // MARK: - Lệnh git hay dùng (cùng dòng lệnh với app)
+  // MARK: - Frequently used git commands (same command lines as the app)
 
   add(...paths: string[]): void {
     this.git('add', ['--', ...paths]);
@@ -155,7 +156,7 @@ export class TempRepo {
     this.git('commit', ['-q', '--no-verify', '-m', message]);
   }
 
-  /** Nội dung blob trong index (byte thô, không qua bộ lọc). */
+  /** Blob content in the index (raw bytes, not through the filter). */
   indexBlob(relative: string): Uint8Array {
     return this.git('cat-file', ['blob', `:${relative}`]).stdout;
   }
@@ -164,7 +165,7 @@ export class TempRepo {
     return this.git('cat-file', ['blob', `HEAD:${relative}`]).stdout;
   }
 
-  /** Như `workingDiff` của app: diff index→worktree (unstaged) hoặc HEAD→index (staged), trả byte thô. */
+  /** Like the app's `workingDiff`: index→worktree diff (unstaged) or HEAD→index diff (staged), returning raw bytes. */
   diffBytes(kind: 'unstaged' | 'staged', relative: string, context = 3): Uint8Array {
     const common = ['--no-color', '--no-ext-diff', `-U${context}`, '--src-prefix=a/', '--dst-prefix=b/'];
     const args =
@@ -172,7 +173,7 @@ export class TempRepo {
     return this.git('diff', args).stdout;
   }
 
-  /** Như `applyPatch` của app: patch là byte, truyền qua stdin, không giải mã. */
+  /** Like the app's `applyPatch`: the patch is bytes, passed via stdin, never decoded. */
   applyPatch(patch: Uint8Array, options: { cached: boolean; reverse: boolean }): GitResult {
     const args = ['--whitespace=nowarn', '--recount'];
     if (options.cached) args.push('--cached');
@@ -182,7 +183,7 @@ export class TempRepo {
   }
 
   cleanup(): void {
-    // Chỉ xoá thư mục do chính helper này tạo trong thư mục tạm của hệ điều hành.
+    // Only delete directories this helper created, inside the OS temp directory.
     const inTmp = realpathSync(dirname(this.root)) === realpathSync(tmpdir());
     if (!inTmp || !basename(this.root).startsWith(SANDBOX_PREFIX)) {
       throw new Error(`Từ chối xoá thư mục ngoài vùng tạm: ${this.root}`);
@@ -191,9 +192,9 @@ export class TempRepo {
   }
 }
 
-// MARK: - So sánh byte dễ đọc
+// MARK: - Readable byte comparison
 
-/** Chuỗi hiển thị byte: ASCII in được giữ nguyên, \r \n \t escape, còn lại \xNN — để lỗi test đọc được. */
+/** Byte display string: printable ASCII kept as-is, \r \n \t escaped, everything else \xNN — so test failures are readable. */
 export function showBytes(bytes: Uint8Array): string {
   let out = '';
   for (const byte of bytes) {
@@ -211,7 +212,7 @@ export function utf8(text: string): Uint8Array {
   return new TextEncoder().encode(text);
 }
 
-/** Byte từ chuỗi "latin1" (mỗi ký tự = một byte) — dựng nội dung CP1252/CP1258 trong test. */
+/** Bytes from a "latin1" string (one character = one byte) — builds CP1252/CP1258 content in tests. */
 export function latin1(text: string): Uint8Array {
   const out = new Uint8Array(text.length);
   for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i) & 0xff;

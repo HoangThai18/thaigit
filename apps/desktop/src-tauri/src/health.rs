@@ -1,7 +1,6 @@
-//! Sức khoẻ repo sau khi git bị giết giữa chừng: khoá mồ côi (`index.lock`, `HEAD.lock`, `refs/**/*.lock`,
-//! `packed-refs.lock`…) khi không còn tiến trình git nào của app trên repo, cộng trạng thái thao tác dở
-//! (merge/rebase/cherry-pick/revert/am/bisect). Gỡ khoá chỉ sau khi người dùng xác nhận (`remove_stale_lock`).
-
+//! Repo health after git was killed mid-command: orphaned locks (`index.lock`, `HEAD.lock`, `refs/**/*.lock`,
+//! `packed-refs.lock`…) when no app git process is left on the repo, plus the state of in-progress operations
+//! (merge/rebase/cherry-pick/revert/am/bisect). A lock is only removed after the user confirms (`remove_stale_lock`).
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
@@ -12,7 +11,7 @@ use crate::errors::{AppError, Result};
 use crate::pathutil::relative_slash;
 use crate::registry::RepoEntry;
 
-/// Khoá trẻ hơn mức này có thể đang được một git bên ngoài (terminal) giữ — chưa coi là mồ côi.
+/// A lock younger than this may be held by an outside git (a terminal) — not treated as orphaned yet.
 pub const MIN_STALE_AGE: Duration = Duration::from_secs(2);
 const MAX_REF_ENTRIES: usize = 100_000;
 const MAX_REF_DEPTH: usize = 16;
@@ -20,19 +19,19 @@ const MAX_REF_DEPTH: usize = 16;
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct LockFile {
-    /// Đường dẫn tuyệt đối theo kiểu của hệ điều hành (là định danh cho `remove_stale_lock`).
+    /// Absolute path in the host's format (it is the identifier for `remove_stale_lock`).
     pub path: String,
-    /// Đường dẫn tương đối so với thư mục git chứa nó (`index.lock`, `refs/heads/main.lock`) — để hiển thị; luôn dùng `/`
-    /// (cả trên Windows) như mọi đường dẫn tương đối khác qua IPC.
+    /// Path relative to the git directory containing it (`index.lock`, `refs/heads/main.lock`) — for display; always
+    /// uses `/` (including on Windows), like every other relative path crossing IPC.
     pub relative_path: String,
     pub age_secs: u64,
 }
 
-/// Một file khoá tìm thấy trong repo.
+/// A lock file found in the repo.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScannedLock {
     pub path: PathBuf,
-    /// Tương đối so với thư mục git chứa khoá, dùng `/`.
+    /// Relative to the git directory holding the lock, using `/`.
     pub relative: String,
     pub age: Duration,
 }
@@ -40,15 +39,15 @@ pub struct ScannedLock {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoHealth {
-    /// Khoá nghi mồ côi: trống khi app còn lệnh git chạy trên repo.
+    /// Suspected orphaned lock: empty while the app still has a git command running on the repo.
     pub stale_locks: Vec<LockFile>,
     /// `merge` | `rebase` | `cherry-pick` | `revert` | `am` | `bisect`.
     pub operation: Option<&'static str>,
-    /// App đang có lệnh git chạy/xếp hàng trên repo (không đánh giá khoá lúc này).
+    /// The app has a git command running/queued on the repo (locks are not assessed right now).
     pub busy: bool,
 }
 
-/// Thao tác dở dang (giống `GitRepository.operationState` của app Swift).
+/// An in-progress operation (like the Swift app's `GitRepository.operationState`).
 pub fn detect_operation(git_dir: &Path) -> Option<&'static str> {
     let exists = |name: &str| git_dir.join(name).exists();
     if exists("rebase-merge") {
@@ -104,9 +103,9 @@ fn ref_locks(dir: &Path, depth: usize, budget: &mut usize, out: &mut Vec<PathBuf
     }
 }
 
-/// Mọi file khoá của repo kèm tuổi: `*.lock` ở gốc gitDir/commonDir, `refs/**/*.lock`.
+/// Every lock file in the repo with its age: `*.lock` at the gitDir/commonDir root, `refs/**/*.lock`.
 pub fn scan_lock_files(git_dir: &Path, common_dir: &Path) -> Vec<ScannedLock> {
-    // Mỗi đường dẫn đi kèm thư mục gốc để tính đường dẫn tương đối hiển thị.
+    // Each path carries its root directory, so the relative display path can be computed.
     let mut found: Vec<(PathBuf, &Path)> = Vec::new();
     let mut paths = Vec::new();
     top_level_locks(git_dir, &mut paths);
@@ -149,7 +148,7 @@ impl Core {
         Ok(RepoHealth { stale_locks, operation: detect_operation(&entry.git_dir), busy })
     }
 
-    /// Gỡ một khoá mồ côi do `repo_health` báo (người dùng đã xác nhận). Không bao giờ xoá đường dẫn ngoài danh sách đó.
+    /// Remove an orphaned lock reported by `repo_health` (the user confirmed). Never deletes a path outside that list.
     pub fn remove_stale_lock(&self, repo_id: &str, path: &str) -> Result<()> {
         let entry = self.registry.get(repo_id)?;
         if self.repo_busy(&entry) {
@@ -216,9 +215,9 @@ mod tests {
         let locks = scan_lock_files(git, git);
         let mut found: Vec<String> = locks.iter().map(|lock| lock.relative.clone()).collect();
         found.sort();
-        // Đường dẫn tương đối trả cho UI luôn dùng `/` (kể cả Windows, nơi `PathBuf` dùng `\`).
+        // The relative path returned to the UI always uses `/` (including on Windows, where `PathBuf` would use `\`)
+        // and matches the corresponding absolute path
         assert_eq!(found, ["HEAD.lock", "config.lock", "index.lock", "packed-refs.lock", "refs/heads/feature/x.lock", "refs/heads/main.lock"]);
-        // và khớp đường dẫn tuyệt đối tương ứng
         assert!(locks.iter().all(|lock| lock.path.starts_with(git) && lock.path.is_file()));
     }
 
@@ -247,7 +246,7 @@ mod tests {
         let lock = repo.canonical_root().join(".git/index.lock");
         std::fs::write(&lock, "").unwrap();
 
-        // Khoá mới tạo có thể là git bên ngoài đang chạy → chưa báo.
+        // A freshly created lock may be an outside git that is running → not reported yet.
         assert!(core.repo_health(&opened.repo_id).unwrap().stale_locks.is_empty());
         age_file(&lock, 30);
         let health = core.repo_health(&opened.repo_id).unwrap();
@@ -257,7 +256,7 @@ mod tests {
         assert!(health.stale_locks[0].age_secs >= 29);
         assert!(!health.busy);
 
-        // Chỉ gỡ được khoá nằm trong danh sách; đường dẫn tuỳ ý bị từ chối.
+        // Only locks from that list can be removed; an arbitrary path is rejected.
         let outside = repo.tmp().join("victim.lock");
         std::fs::write(&outside, "").unwrap();
         age_file(&outside, 30);

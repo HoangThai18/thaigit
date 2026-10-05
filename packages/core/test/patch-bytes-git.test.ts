@@ -1,6 +1,7 @@
-// Patch dựng từ byte, áp bằng git THẬT trong repo tạm (cô lập cấu hình), so sánh BYTE của blob index và file
-// working tree. Gồm: bản port các test staging dòng của RepositoryTests.swift, ca "không newline cuối file",
-// CRLF, CP1252/CP1258, BOM, đổi tên, mode, -U0, parse output git thật và một ca đối chứng (test phải có thể fail).
+// Byte-built patches applied with REAL git in a temp repo (isolated config), comparing the BYTES of the index blob and
+// the working-tree file.
+// Covers: a port of RepositoryTests.swift's per-line staging tests, the "no newline at end of file" case, CRLF,
+// CP1252/CP1258, BOM, renames, mode, -U0, parsing real git output, and one control case (the test must be able to fail).
 
 import { chmodSync } from 'node:fs';
 import { join } from 'node:path';
@@ -49,7 +50,7 @@ function selectLines(file: FileDiff, pick: Pick): Map<number, Set<number>> {
   return selection;
 }
 
-/** Dựng patch từ diff hiện tại rồi áp bằng git như app: stage = xuôi vào index, unstage = ngược vào index, huỷ = ngược vào worktree. */
+/** Builds a patch from the current diff and applies it with git like the app does: stage = forward into the index, unstage = reverse into the index, discard = reverse into the working tree. */
 function runOp(repo: TempRepo, op: Op, relative: string, pick: Pick): Uint8Array {
   const file = firstDiff(repo, op === 'unstage' ? 'staged' : 'unstaged', relative);
   const patch = makePatch(file, selectLines(file, pick), op !== 'stage');
@@ -83,7 +84,7 @@ describe('port RepositoryTests.swift: stage/unstage/huỷ theo hunk và dòng', 
     repo.add('f.txt');
     repo.commit('init');
 
-    // Hai vùng thay đổi cách xa nhau → hai hunk.
+    // Two changed regions far apart → two hunks.
     lines[1] = 'LINE TWO';
     lines[19] = 'LINE TWENTY';
     lines.splice(20, 0, 'inserted after 20');
@@ -92,7 +93,7 @@ describe('port RepositoryTests.swift: stage/unstage/huỷ theo hunk và dòng', 
     let diff = firstDiff(repo, 'unstaged', 'f.txt');
     expect(diff.hunks).toHaveLength(2);
 
-    // Stage nguyên hunk thứ hai.
+    // Stage the whole second hunk.
     const patch = makePatch(diff, selectionForWholeHunk(diff.hunks[1]!), false)!;
     expect(repo.applyPatch(patch, { cached: true, reverse: false }).code).toBe(0);
     let staged = firstDiff(repo, 'staged', 'f.txt');
@@ -103,17 +104,17 @@ describe('port RepositoryTests.swift: stage/unstage/huỷ theo hunk và dòng', 
     expect(diff.hunks).toHaveLength(1);
     expect(textsOf(diff.hunks[0]!)).toContain('LINE TWO');
 
-    // Unstage riêng dòng "inserted after 20" (áp ngược vào index).
+    // Unstage just the "inserted after 20" line (reverse into the index).
     runOp(repo, 'unstage', 'f.txt', textIs('inserted after 20'));
     staged = firstDiff(repo, 'staged', 'f.txt');
     expect(textsOf(staged.hunks[0]!, 'addition')).toContain('LINE TWENTY');
     expect(textsOf(staged.hunks[0]!, 'addition')).not.toContain('inserted after 20');
 
-    // Stage riêng dòng thêm "LINE TWO" nhưng không stage dòng xoá "line 2".
+    // Stage just the added line "LINE TWO" but not the deleted line "line 2".
     runOp(repo, 'stage', 'f.txt', (line, text) => line.kind === 'addition' && text === 'LINE TWO');
     expect(decodeUtf8Lossy(repo.indexBlob('f.txt'))).toContain('line 2\nLINE TWO\nline 3');
 
-    // Huỷ (discard) dòng "inserted after 20" khỏi working tree.
+    // Discard the "inserted after 20" line from the working tree.
     runOp(repo, 'discard', 'f.txt', (line, text) => line.kind === 'addition' && text === 'inserted after 20');
     const working = decodeUtf8Lossy(repo.readFile('f.txt'));
     expect(working).not.toContain('inserted after 20');
@@ -148,15 +149,15 @@ describe('port RepositoryTests.swift: stage/unstage/huỷ theo hunk và dòng', 
     repo.commit('init');
     repo.writeFile('p.txt', 'top\nA\nB\nmid\nbar\nend\n');
 
-    // Stage cặp thứ hai (b → B) và việc sửa foo → bar, giữ nguyên a và baz.
+    // Stage the second pair (b → B) and the foo → bar edit, leaving a and baz untouched.
     runOp(repo, 'stage', 'p.txt', textIs('b', 'B', 'foo', 'bar'));
     expectBytes(repo.indexBlob('p.txt'), 'top\na\nB\nmid\nbar\nbaz\nend\n');
 
-    // Huỷ trong working tree cặp a → A (khôi phục "a"), giữ các thay đổi còn lại.
+    // Discard the a → A pair in the working tree (restoring "a"), keeping every other change.
     runOp(repo, 'discard', 'p.txt', textIs('a', 'A'));
     expectBytes(repo.readFile('p.txt'), 'top\na\nB\nmid\nbar\nend\n');
 
-    // Unstage riêng việc sửa b → B khỏi index.
+    // Unstage just the b → B edit.
     runOp(repo, 'unstage', 'p.txt', textIs('b', 'B'));
     expectBytes(repo.indexBlob('p.txt'), 'top\na\nb\nmid\nbar\nbaz\nend\n');
   });
@@ -257,7 +258,7 @@ describe('-U0, đổi tên, đổi quyền', () => {
     repo.writeFile('d.txt', 'l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n');
     repo.add('d.txt');
     repo.commit('base');
-    // Hunk 0 chèn 2 dòng (lệch +2), hunk 1 xoá dòng l9.
+    // Hunk 0 inserts 2 lines (new side shifted +2), hunk 1 deletes line l9.
     repo.writeFile('d.txt', 'l1\nl2\nNEW1\nNEW2\nl3\nl4\nl5\nl6\nl7\nl8\nl10\n');
     const apply = (patch: Uint8Array, reverse: boolean) =>
       repo.git(
@@ -299,7 +300,7 @@ describe('-U0, đổi tên, đổi quyền', () => {
     repo.writeFile('b.txt', 'l1\nL2\nl3\nl4\nl5\nl6\nl7\nl8\nL9\nl10\n');
     repo.add('b.txt');
 
-    // Như app: truyền cả đường dẫn cũ và mới để git ghép cặp đổi tên.
+    // Like the app: pass both the old and the new path so git can pair up the rename.
     const diff = repo.git('diff', [
       '--cached',
       '-M',
@@ -349,7 +350,7 @@ describe('-U0, đổi tên, đổi quyền', () => {
     const result = repo.applyPatch(patch, { cached: true, reverse: true });
     expect(result.code, result.stderr).toBe(0);
     expectBytes(repo.indexBlob(to), 'l1\nL2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n');
-    // `status --porcelain` đặt tên có dấu cách trong ngoặc kép; chỉ cần thấy "R" ở index và "M" ở worktree.
+    // `status --porcelain` quotes names containing spaces; all we need is "R" in the index and "M" in the working tree.
     const status = decodeUtf8Lossy(repo.git('status', ['--porcelain']).stdout);
     expect(status.startsWith('RM ')).toBe(true);
     expect(status).toContain('ghi chú mới.txt');
@@ -374,14 +375,14 @@ describe('-U0, đổi tên, đổi quyền', () => {
 });
 
 describe('byte không phải UTF-8: CP1252 / CP1258 (không bao giờ qua giải mã)', () => {
-  // Mỗi chuỗi là "latin1" (một ký tự = một byte) — nội dung thật khi file lưu CP1252/CP1258.
+  // Every string is "latin1" (one character = one byte) — the real content when a file is stored as CP1252/CP1258.
   const datasets = {
     CP1252: {
       base: ['caf\xe9 un', 'na\xefve deux', 'tr\xe8s trois', '\xe0 quatre', 'fin'],
       edit1: 'na\xefve DEUX\xa4',
       edit3: '\xe0 QUATRE\xd0',
     },
-    // "Xin chào Việt Nam": ê = 0xEA, dấu nặng kết hợp = 0xF2, à = 0xE0, Đ = 0xD0.
+    // "Xin chào Việt Nam": ê = 0xEA, combining dot below = 0xF2, à = 0xE0, Đ = 0xD0.
     CP1258: {
       base: ['Xin ch\xe0o', 'Vi\xea\xf2t Nam', '\xd0\xe0 N\xeang', 'H\xe0 N\xf2i', 'h\xea\xf2t'],
       edit1: 'Vi\xea\xf2t NAM \xea',
@@ -392,7 +393,7 @@ describe('byte không phải UTF-8: CP1252 / CP1258 (không bao giờ qua giải
     a.length === b.length && a.every((value, i) => value === b[i]);
 
   for (const [name, data] of Object.entries(datasets)) {
-    // autocrlf=true: index LF, worktree CRLF (như Windows); các cấu hình khác: LF cả hai.
+    // autocrlf=true: index LF, working tree CRLF (like Windows); other settings: LF in both.
     for (const autocrlf of ['false', 'input', 'true'] as const) {
       it(`${name}, autocrlf=${autocrlf}: stage / unstage / huỷ đúng một dòng, mọi byte khác nguyên vẹn`, () => {
         const eol = autocrlf === 'true' ? '\r\n' : '\n';
@@ -444,7 +445,7 @@ describe('byte không phải UTF-8: CP1252 / CP1258 (không bao giờ qua giải
 });
 
 describe('BOM UTF-8 + CRLF', () => {
-  const BOM = 'ï»¿'; // ba byte EF BB BF dưới dạng "latin1"
+  const BOM = 'ï»¿'; // the three bytes EF BB BF written as "latin1"
   const bom = (lines: string[]): Uint8Array => latin1(BOM + lines.map((line) => `${line}\r\n`).join(''));
 
   it('stage / unstage / huỷ dòng đầu (dòng chứa BOM): BOM và "\\r\\n" giữ nguyên từng byte', () => {

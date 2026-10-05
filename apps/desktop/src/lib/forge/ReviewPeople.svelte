@@ -14,14 +14,14 @@
   interface Props {
     store: RepoStore;
     role: PeopleRole;
-    /** Bitbucket chưa gán được từ app: chỉ hiện danh sách. */
+    /** Bitbucket can't be assigned from the app yet: list only. */
     editable: boolean;
   }
 
   let { store, role, editable }: Props = $props();
 
   const text = vi.pullRequests;
-  /** Số ứng viên hiện tối đa (danh sách thành viên có thể rất dài — gõ tên để thu hẹp). */
+  /** Candidates currently shown (a member list can be very long — type a name to narrow it). */
   const ROW_LIMIT = 200;
 
   const review = $derived(store.review);
@@ -43,7 +43,7 @@
     return before.size !== chosenKeys.size || [...chosenKeys].some((name) => !before.has(name));
   });
 
-  /** Ứng viên: danh sách từ máy chủ cộng thêm những người đã được gán mà không có trong đó; người review không gồm tác giả. */
+  /** Candidates: what the host returned plus already-assigned people missing from it; reviewers exclude the author. */
   const rows = $derived.by(() => {
     const known = new Set<string>();
     const all: ForgePerson[] = [];

@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `dnd.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `dn.vi.ts` (same keys, same parameters). */
 import type { dnd as source } from './dnd.vi.ts';
 import type { Translation } from './types.ts';
 

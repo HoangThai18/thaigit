@@ -1,5 +1,6 @@
-// "✨ Viết bằng AI" trong ô soạn commit: dựng ngữ cảnh → hỏi đồng ý (lần đầu) → stream chữ vào ô tóm tắt + mô tả → dọn
-// lại sau `done`. Dừng / lỗi giữa chừng → trả ô soạn về nội dung cũ; xong thì giữ nội dung cũ để "Hoàn tác".
+// "✨ Write with AI" in the commit box: build the context → ask for consent (first time) → stream the text into
+// the summary + description boxes → tidy up after `done`. Stopping or failing mid-stream restores the previous
+// contents; on success the previous contents are kept so "Undo" works.
 
 import { finalizeCommitMessage } from '@thaigit/core';
 import { stageAll } from '../actions/staging.ts';
@@ -20,9 +21,9 @@ interface Draft {
 
 export class CommitWriter {
   phase = $state<WriterPhase>('idle');
-  /** Vị trí trong hàng đợi của máy chủ (khi `phase === 'queued'`). */
+  /** Position in the server queue (while `phase === 'queued'`). */
   position = $state(0);
-  /** Nội dung ô soạn trước lần AI viết gần nhất (cho "Hoàn tác"); `null` khi không có gì để hoàn tác. */
+  /** Box contents from before the most recent AI write (for "Undo"); `null` when there is nothing to undo. */
   previous = $state.raw<Draft | null>(null);
   #controller: AbortController | null = null;
   readonly #store: RepoStore;
@@ -119,7 +120,7 @@ export class CommitWriter {
     this.#controller?.abort();
   }
 
-  /** Trả ô soạn về nội dung trước khi AI viết. */
+  /** Restore the boxes to their contents from before the AI wrote. */
   undo(): void {
     const previous = this.previous;
     if (previous === null) return;

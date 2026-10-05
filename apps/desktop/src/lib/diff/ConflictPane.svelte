@@ -39,14 +39,14 @@
 
   let choices = $state.raw<ReadonlyMap<number, ConflictChoice>>(new Map());
   let expanded = $state.raw<ReadonlySet<number>>(new Set());
-  /** Đoạn đang đứng (nhảy trước / sau). */
+  /** The hunk currently in view (jumped to by the previous / next buttons). */
   let current = $state(0);
-  /** Nội dung khung Kết quả khi người dùng sửa tay (null: theo các lựa chọn). */
+  /** Result pane contents when the user edited by hand (null: follows the chosen sides). */
   let edited = $state<string | null>(null);
   let segmentsElement = $state<HTMLElement | null>(null);
   let choicesFor: unknown = null;
 
-  // File mới (hoặc nạp lại sau khi đổi trên đĩa): bỏ các lựa chọn cũ.
+  // A new file (or a reload after a change on disk): drop the old side choices.
   $effect.pre(() => {
     const opened = conflict?.file ?? null;
     if (opened === choicesFor) return;
@@ -70,7 +70,7 @@
     choices = next;
     edited = null;
     current = block.id;
-    // Vừa chọn cả một phía: tự sang đoạn chưa chọn kế tiếp (như GitKraken).
+    // Choosing a whole side at once: jump to the next unchosen hunk (like GitKraken).
     if (choice !== null && typeof choice === 'string') {
       const following = conflict?.file.blocks.find(
         (candidate) => candidate.id > block.id && !next.has(candidate.id),

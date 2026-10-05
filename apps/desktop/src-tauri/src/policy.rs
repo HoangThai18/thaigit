@@ -1,8 +1,8 @@
-//! Chính sách chạy git: nạp `packages/contracts/git-policy.json`, kiểm lệnh, dựng env và argv.
+//! The git run policy: loads `packages/contracts/git-policy.json`, validates commands, and builds env and argv.
 //!
-//! Bản Rust của `packages/contracts/src/policy.ts`: phải cho kết quả giống hệt trên mọi ca trong
-//! `git-policy.vectors.json` (test `vectors_match_reference` chạy hết). Webview là bên KHÔNG tin cậy nên cờ `-c`,
-//! env và bộ kiểm này chỉ nằm ở Rust; frontend chỉ gửi `sub` + `args` (+ vài env được phép).
+//! The Rust counterpart of `packages/contracts/src/policy.ts`: it must produce identical results on every case in
+//! `git-policy.vectors.json` (the `vectors_match_reference` test runs them all). The webview is NOT trusted, so the `-c`
+//! flags, the env and this checker live only in Rust; the frontend sends just `sub` + `args` (plus a few allowed env vars).
 
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
@@ -13,10 +13,10 @@ use serde::{Deserialize, Serialize};
 
 pub const POLICY_JSON: &str = include_str!("../../../../packages/contracts/git-policy.json");
 
-/// Biến môi trường đánh dấu lời gọi askpass chế độ từ chối (Windows: git chạy `<exe> <prompt>` nên không có cờ trong argv).
+/// Environment variable marking a deny-mode askpass call (Windows: git runs `<exe> <prompt>`, so argv carries no flag).
 pub const ASKPASS_DENY_ENV: &str = "THAIGIT_ASKPASS_DENY";
 
-/// Loại thao tác: quyết định khoá theo repo (`write`/`network` độc quyền) và khả năng huỷ (chỉ `network`).
+/// Operation kind: decides per-repo locking (`write`/`network` are exclusive) and cancellability (only `network`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ExecKind {
@@ -25,7 +25,7 @@ pub enum ExecKind {
     Network,
 }
 
-/// Hồ sơ môi trường: `background` (tự fetch) không bao giờ bật hộp thoại đăng nhập.
+/// Environment profile: `background` (autofetch) never opens a sign-in dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum EnvProfile {
@@ -43,8 +43,8 @@ impl EnvProfile {
     }
 }
 
-/// Dạng chỉ-đọc của một subcommand `write`: khớp khi args BẮT ĐẦU bằng đúng dãy `args` và, trừ khi `rest`, không còn đối số nào
-/// sau đó (`remote -v` là dạng chỉ-đọc, `remote -v update` thì không). Bản port của `ReadForm`/`matchesReadForm` (policy.ts).
+/// The read-only shape of a `write` subcommand: matches when args START with exactly `args` and, unless `rest`, have
+/// nothing after it (`remote -v` is read-only, `remote -v update` is not). A port of `ReadForm`/`matchesReadForm` (policy.ts).
 #[derive(Debug, Clone, Deserialize)]
 pub struct ReadForm {
     pub args: Vec<String>,
@@ -69,12 +69,12 @@ pub struct SubcommandRule {
     pub allow_second: Option<Vec<String>>,
     #[serde(default)]
     pub typed_second: Vec<String>,
-    /// Loại riêng theo đối số đầu (`lfs fetch` → `network`); không có thì dùng `kind`.
+    /// Kind overridden by the first arg (`lfs fetch` → `network`); falls back to `kind`.
     #[serde(default)]
     pub second_kinds: BTreeMap<String, ExecKind>,
     #[serde(default)]
     pub reject_second: Vec<String>,
-    /// Đối số đầu thuộc danh sách này phải là đối số DUY NHẤT (`remote -v` ok, `remote -v add …` bị chặn).
+    /// First args in this list must be the ONLY arg (`remote -v` ok, `remote -v add …` blocked).
     #[serde(default)]
     pub alone_second: Vec<String>,
     #[serde(default)]
@@ -160,7 +160,7 @@ pub struct GitPolicy {
     attached: Vec<Regex>,
 }
 
-/// Vi phạm chính sách; `code()` khớp mã của bản TypeScript.
+/// A policy violation; `code()` matches the TypeScript version's codes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Violation {
     SubNotAllowed { sub: String },
@@ -171,9 +171,9 @@ pub enum Violation {
     AttachedShort { sub: String, detail: String },
     UrlRejected { sub: String, detail: String },
     EnvRejected { sub: String, detail: String },
-    /// Chỉ có ở Rust: tuỳ chọn đọc file phải nhận stdin (`-`).
+    /// Rust only: a file-reading option must be given stdin (`-`).
     FileOptionNotStdin { sub: String, detail: String },
-    /// Chỉ có ở Rust: đường dẫn tuyệt đối / chứa `..` ở chỗ không được phép.
+    /// Rust only: an absolute path / a `..` where it is not allowed.
     PathOutsideRepo { sub: String, detail: String },
 }
 
@@ -217,15 +217,16 @@ impl std::fmt::Display for Violation {
 static URL_SCHEME: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([a-z][a-z0-9+.-]*)::").expect("regex scheme hợp lệ"));
 
-/// Tuỳ chọn đọc nội dung từ file: chỉ nhận stdin (`-`) để không biến lệnh thành đọc file tuỳ ý trên máy.
-/// Số thứ hai: độ dài ngắn nhất của dạng viết tắt mà git còn coi là duy nhất (`--fil` = `--file`; `--path=` của
-/// `hash-object` là tuỳ chọn khác nên không bị nhầm). 0 = chỉ khớp nguyên tên.
+/// Options that read content from a file: only stdin (`-`) is accepted, so a command cannot become an arbitrary file read on
+/// the machine.
+/// Second field: the shortest abbreviation length git still treats as unique (`--fil` = `--file`; `--path=` of `hash-object` is
+/// a different option, so no confusion). 0 = only the exact name matches.
 const STDIN_ONLY_OPTIONS: &[(&str, usize)] = &[("-F", 0), ("--file", 5), ("--pathspec-from-file", 13)];
 
-/// Biến môi trường của trình nạp thư viện động (Linux `LD_*`, macOS `DYLD_*`): bị bỏ khỏi môi trường gốc của git.
+/// Dynamic loader environment variables (Linux `LD_*`, macOS `DYLD_*`): removed from git's base environment.
 const LOADER_ENV_PREFIXES: [&str; 2] = ["LD_", "DYLD_"];
 
-/// Đối số `hash-object` được phép (chỉ `--stdin`, không file).
+/// The `hash-object` args that are allowed (only `--stdin`, never a file).
 const HASH_OBJECT_ALLOWED: &[&str] =
     &["--stdin", "-w", "--no-filters", "--literally", "-t", "blob", "tree", "commit", "tag"];
 
@@ -256,7 +257,7 @@ impl GitPolicy {
         self.subcommands.get(sub)
     }
 
-    /// Kiểm một lệnh trước khi chạy (bản port của `validateGitCommand`).
+    /// Validate a command before it runs (a port of `validateGitCommand`).
     pub fn validate(&self, sub: &str, args: &[String], env: &BTreeMap<String, String>) -> Option<Violation> {
         let Some(rule) = self.rule(sub) else {
             return Some(Violation::SubNotAllowed { sub: sub.to_string() });
@@ -275,7 +276,7 @@ impl GitPolicy {
             }
             return Some(Violation::SecondNotAllowed { sub: sub_owned(), detail: second.to_string() });
         }
-        // `remote -v add …` / `remote -v update`: git nhận `-v` đứng trước subcommand nên chỉ xét đối số đầu là chưa đủ.
+        // `remote -v add …` / `remote -v update`: git accepts `-v` before the subcommand, so checking the first arg alone is not enough.
         if args.len() > 1 && rule.alone_second.iter().any(|s| s == second) {
             return Some(Violation::SecondNotAllowed { sub: sub_owned(), detail: args[..2].join(" ") });
         }
@@ -300,7 +301,7 @@ impl GitPolicy {
                 if rule.allow_long.iter().any(|a| a == name) {
                     continue;
                 }
-                // git chấp nhận tên dài viết tắt (`--upl=` = `--upload-pack`): chặn mọi tiền tố ≥ 3 ký tự.
+                // git accepts long-name abbreviations (`--upl=` = `--upload-pack`): block every prefix of ≥ 3 chars.
                 if utf16_len(name) >= 3 && rejected_long.iter().any(|r| r.as_str() == name || r.starts_with(name)) {
                     return Some(Violation::FlagRejected { sub: sub_owned(), detail: name.to_string() });
                 }
@@ -335,7 +336,7 @@ impl GitPolicy {
         None
     }
 
-    /// URL nguy hiểm: `ext::`, `fd::`, bắt đầu bằng `-`, hoặc scheme `ext`/`fd` (không phân biệt hoa thường).
+    /// A dangerous URL: `ext::`, `fd::`, starting with `-`, or the `ext`/`fd` scheme (case-insensitive).
     pub fn is_rejected_url(&self, arg: &str) -> bool {
         let lower = arg.to_lowercase();
         if self.url.reject_prefixes.iter().any(|p| lower.starts_with(p.as_str())) {
@@ -347,10 +348,10 @@ impl GitPolicy {
             .is_some_and(|scheme| self.url.reject_schemes.iter().any(|s| s == scheme.as_str()))
     }
 
-    /// Lớp kiểm thêm chỉ có ở Rust (không đổi kết quả trên vectors): chặn các đường biến lệnh git thành "đọc file tuỳ ý".
+    /// An extra checking layer that exists only in Rust (it does not change results on the vectors): it blocks paths that turn a git command into an "arbitrary file read".
     pub fn check_scope(&self, sub: &str, args: &[String]) -> Option<Violation> {
         let sub_owned = || sub.to_string();
-        // 1. Tuỳ chọn đọc file chỉ nhận stdin.
+        // 1. A file-reading option only accepts stdin.
         let mut end_of_options = false;
         let mut index = 0;
         while index < args.len() {
@@ -390,7 +391,7 @@ impl GitPolicy {
             })
         };
         match sub {
-            // `git diff <đường dẫn> <đường dẫn>` (kể cả `--no-index`) đọc được file bất kỳ ngoài repo.
+            // `git diff <path> <path>` (including `--no-index`) can read any file outside the repo.
             "diff" => {
                 for arg in positionals() {
                     if arg != "/dev/null" && arg != "NUL" && is_outside_repo_path(arg) {
@@ -420,11 +421,11 @@ impl GitPolicy {
         None
     }
 
-    /// Lệnh (với đối số này) CHẮC CHẮN không chạy lệnh do cấu hình chỉ định: bộ lọc clean/smudge, textconv, diff ngoài, merge
-    /// driver, chương trình gpg, credential helper… Dùng cho repo chưa tin cậy mà cấu hình hiệu lực có thể đổi sau khi quét
-    /// (`include` tới file đã track, `includeIf onbranch:`), nơi ghi đè dựng từ lần quét có thể đã cũ: mọi lệnh khác bị chặn
-    /// tới khi người dùng tin tưởng repo. Chỉ gồm lệnh đọc đối tượng/ref thuần tuý — KHÔNG gồm `status`/`diff` (so nội dung
-    /// working tree với index chạy bộ lọc clean) hay lệnh ghi/mạng.
+    /// The command (with these args) definitely runs nothing from the config: clean/smudge filters, textconv, external diff,
+    /// merge driver, gpg program, credential helper… Used for an untrusted repo whose effective config can change after the
+    /// scan (`include` pointing at a tracked file, `includeIf onbranch:`), where overrides built from that scan may already
+    /// be stale: every other command is blocked until the user trusts the repo. Only purely object/ref-reading commands —
+    /// NOT `status`/`diff` (comparing working-tree content with the index runs clean filters) nor write/network commands.
     pub fn is_exec_free(&self, sub: &str, args: &[String]) -> bool {
         if self.derived_kind(sub, args) != Some(ExecKind::Read) {
             return false;
@@ -432,23 +433,23 @@ impl GitPolicy {
         let listed = match sub {
             "rev-parse" | "rev-list" | "for-each-ref" | "merge-base" | "check-ref-format" | "version" | "config" | "log" | "show"
             | "diff-tree" | "cat-file" | "ls-files" => true,
-            // Chỉ các dạng chỉ-đọc đã khai báo (`remote`, `-v`, `get-url …`) mới tới được đây (`derived_kind` ở trên): `remote show`
-            // hỏi máy chủ, `remote -v update` fetch — đều không phải dạng chỉ-đọc. Không có `stash`: `stash list -p` sinh diff mà
-            // chính sách chỉ thêm `--no-textconv` cho `stash show`, nên textconv của repo có thể chạy.
+            // Only the declared read-only shapes (`remote`, `-v`, `get-url …`) reach here (`derived_kind` above): `remote show`
+            // talks to the server and `remote -v update` fetches — neither is a read-only shape. No `stash`: `stash list -p` generates a
+            // diff, and the policy only adds `--no-textconv` for `stash show`, so the repo's textconv may run.
             "remote" => true,
             _ => false,
         };
         if !listed {
             return false;
         }
-        // Tuỳ chọn (trước `--`) làm lệnh đọc chạy bộ lọc: git chấp nhận tên dài viết tắt nên chặn mọi tiền tố ≥ 3 ký tự.
+        // Options (before `--`) make a read command run filters: git accepts long-name abbreviations, so block every prefix of ≥ 3 chars.
         let abbreviates = |name: &str, full: &str| utf16_len(name) >= 3 && name.starts_with("--") && full.starts_with(name);
         !args.iter().take_while(|arg| arg.as_str() != "--").any(|arg| {
             let name = arg.split('=').next().unwrap_or(arg);
             match sub {
-                // `--textconv`/`--filters`: chạy textconv/smudge của repo.
+                // `--textconv`/`--filters`: runs the repo's textconv/smudge.
                 "cat-file" => abbreviates(name, "--textconv") || abbreviates(name, "--filters"),
-                // `-m`/`--modified`: so nội dung working tree với index → chạy bộ lọc clean (kể cả khi gộp cờ như `-mz`).
+                // `-m`/`--modified`: compares working-tree content with the index → runs clean filters (including when bundled as `-mz`).
                 "ls-files" => {
                     abbreviates(name, "--modified") || (arg.starts_with('-') && !arg.starts_with("--") && arg.len() > 1 && arg[1..].contains('m'))
                 }
@@ -457,9 +458,9 @@ impl GitPolicy {
         })
     }
 
-    /// Loại thao tác hiệu lực của lệnh: loại của subcommand (hoặc của đối số đầu, `secondKinds`), nhưng `read` cho dạng chỉ-đọc
-    /// của lệnh `write` (`readForms` trong git-policy.json, khớp theo TOÀN BỘ hình dạng args). Bản port của `effectiveKind`
-    /// (policy.ts).
+    /// Effective kind of a command: the subcommand's kind (or the first arg's, `secondKinds`), except a `write` command whose
+    /// args match a read-only shape (`readForms` in git-policy.json, matched against the WHOLE args shape) is `read`. A port of
+    /// `effectiveKind` (policy.ts).
     pub fn derived_kind(&self, sub: &str, args: &[String]) -> Option<ExecKind> {
         let rule = self.rule(sub)?;
         let kind = args.first().and_then(|second| rule.second_kinds.get(second)).copied().unwrap_or(rule.kind);
@@ -469,8 +470,8 @@ impl GitPolicy {
         Some(kind)
     }
 
-    /// Chọn loại thao tác theo yêu cầu: có thể mạnh hơn chính sách (khoá chặt hơn) nhưng không yếu hơn, và chỉ
-    /// subcommand `network` mới được là `network` (huỷ được, độc quyền kiểu mạng).
+    /// Choose the operation kind for a request: it may be stronger than the policy (a tighter lock) but never weaker, and only a
+    /// `network` subcommand may be `network` (cancellable, network-style exclusive lock).
     pub fn resolve_kind(&self, sub: &str, args: &[String], requested: ExecKind) -> Result<ExecKind, String> {
         let derived = self.derived_kind(sub, args).ok_or_else(|| format!("sub `{sub}` không có trong chính sách"))?;
         let ok = match derived {
@@ -484,7 +485,7 @@ impl GitPolicy {
         }
     }
 
-    /// Đối số chèn trước subcommand (`-c k=v` …) và sau subcommand (`--no-ext-diff --no-textconv` cho lệnh sinh diff).
+    /// Args inserted before the subcommand (`-c k=v` …) and after it (`--no-ext-diff --no-textconv` for diff-producing commands).
     pub fn build_argv(&self, sub: &str, args: &[String]) -> Vec<String> {
         let mut argv: Vec<String> = Vec::with_capacity(self.global_config.len() * 2 + args.len() + 4);
         for entry in &self.global_config {
@@ -508,12 +509,12 @@ impl GitPolicy {
         argv
     }
 
-    /// Môi trường chạy git từ môi trường gốc (port y nguyên `GitEnvironment.swift` + các biến bị bỏ).
+    /// Git environment derived from the base environment (a direct port of `GitEnvironment.swift` minus dropped vars).
     pub fn build_env(&self, base: EnvMap, options: &EnvOptions) -> EnvMap {
         let mut env = EnvMap::default();
         for (key, value) in base.into_pairs() {
             let name = key.to_string_lossy().into_owned();
-            // `LD_*`/`DYLD_*` (PRELOAD, INSERT_LIBRARIES…) nạp thư viện tuỳ ý vào git: không bao giờ kế thừa từ môi trường app.
+            // `LD_*`/`DYLD_*` (PRELOAD, INSERT_LIBRARIES…) load arbitrary libraries into git: never inherited from the app's environment.
             let removed = self.env.remove.iter().any(|r| EnvMap::same_key(r, &name))
                 || self.env.remove_prefixes.iter().any(|p| EnvMap::has_prefix(&name, p))
                 || LOADER_ENV_PREFIXES.iter().any(|p| EnvMap::has_prefix(&name, p));
@@ -560,15 +561,15 @@ impl GitPolicy {
 #[derive(Debug, Clone, Default)]
 pub struct EnvOptions {
     pub profile: EnvProfile,
-    /// Env do frontend gửi (đã qua `validate`).
+    /// Env sent by the frontend (already through `validate`).
     pub caller_env: BTreeMap<String, String>,
     pub askpass: Option<OsString>,
     pub askpass_deny: Option<OsString>,
-    /// Env do Rust thêm sau cùng (chế độ hạn chế: `GIT_CONFIG_*`, `GIT_PROXY_COMMAND`).
+    /// Env Rust adds last (restricted mode: `GIT_CONFIG_*`, `GIT_PROXY_COMMAND`).
     pub extra: Vec<(String, String)>,
 }
 
-/// Bảng biến môi trường; trên Windows tên biến không phân biệt hoa thường.
+/// The env var table; on Windows variable names are case-insensitive.
 #[derive(Debug, Default, Clone)]
 pub struct EnvMap {
     entries: BTreeMap<String, (OsString, OsString)>,
@@ -636,7 +637,7 @@ impl EnvMap {
 static POLICY: LazyLock<GitPolicy> =
     LazyLock::new(|| GitPolicy::parse(POLICY_JSON).expect("git-policy.json nhúng sẵn phải hợp lệ (test `policy_parses`)"));
 
-/// Chính sách nhúng sẵn lúc biên dịch.
+/// The policy embedded at compile time.
 pub fn policy() -> &'static GitPolicy {
     &POLICY
 }
@@ -645,18 +646,18 @@ fn utf16_len(text: &str) -> usize {
     text.encode_utf16().count()
 }
 
-/// Hai ký tự đầu của tuỳ chọn ngắn (`-c` trong `-ccore.x=y`), giống `arg.slice(0, 2)` của bản TS.
+/// The first two characters of a short option (`-c` in `-ccore.x=y`), like the TS version's `arg.slice(0, 2)`.
 fn short_flag(arg: &str) -> String {
     arg.chars().take(2).collect()
 }
 
-/// `git diff --no-index`: git bỏ qua index và đọc thẳng hệ thống file (đi qua mọi symlink ở thư mục cha). Git chỉ nhận đúng
-/// chuỗi `--no-index` (không nhận viết tắt) và chỉ khi nó đứng trước toán hạng đầu tiên / `--`.
+/// `git diff --no-index`: git ignores the index and reads straight through the file system (following every symlink in the
+/// parent directory). Git accepts only the exact string `--no-index` (no abbreviations), and only before the first operand or `--`.
 pub fn is_no_index_diff(sub: &str, args: &[String]) -> bool {
     sub == "diff" && args.iter().take_while(|arg| arg.as_str() != "--").any(|arg| arg == "--no-index")
 }
 
-/// Đường dẫn tuyệt đối (`/x`, `\x`, `C:\x`, `C:/x`) hoặc có đoạn `..`.
+/// An absolute path (`/x`, `\x`, `C:\x`, `C:/x`) or one containing a `..` segment.
 fn is_outside_repo_path(arg: &str) -> bool {
     if arg.starts_with('/') || arg.starts_with('\\') {
         return true;
@@ -761,7 +762,7 @@ mod tests {
         assert_eq!(p.validate("status", &[], &env).map(|v| v.code()), Some("env-rejected"));
         assert_eq!(p.validate("difftool", &[], &none).map(|v| v.code()), Some("sub-not-allowed"));
         assert_eq!(p.validate("__proto__", &[], &none).map(|v| v.code()), Some("sub-not-allowed"));
-        // alias không chạy được: tên không có trong allowlist.
+        // the alias does not run: its name is not in the allowlist.
         assert_eq!(p.validate("co", &[], &none).map(|v| v.code()), Some("sub-not-allowed"));
     }
 
@@ -772,7 +773,7 @@ mod tests {
             let result = policy().validate("fetch", &strings(&[name, "origin"]), &none);
             assert_eq!(result.map(|v| v.code()), Some("flag-rejected"), "{name}");
         }
-        // Tuỳ chọn hợp lệ dài hơn tiền tố bị chặn vẫn được phép.
+        // A longer valid option than the blocked prefix is still allowed.
         let ok = policy().validate("diff", &strings(&["--output-indicator-new=+"]), &none);
         assert_eq!(ok, None);
     }
@@ -817,7 +818,7 @@ mod tests {
         assert_eq!(tail("log", &["-p"], 4), ["log", "--no-ext-diff", "--no-textconv", "-p"]);
         assert_eq!(tail("show", &["abc"], 4), ["show", "--no-ext-diff", "--no-textconv", "abc"]);
         assert_eq!(tail("diff-tree", &["-r"], 4), ["diff-tree", "--no-ext-diff", "--no-textconv", "-r"]);
-        // `stash show`: chèn sau "show", còn `stash push` thì không.
+        // `stash show`: inserted after "show", unlike `stash push`.
         assert_eq!(tail("stash", &["show", "-p"], 5), ["stash", "show", "--no-ext-diff", "--no-textconv", "-p"]);
         assert!(!p.build_argv("stash", &strings(&["push"])).iter().any(|a| a == "--no-ext-diff"));
         assert!(!p.build_argv("status", &[]).iter().any(|a| a == "--no-ext-diff"));
@@ -912,12 +913,12 @@ mod tests {
         assert_eq!(p.resolve_kind("fetch", &args, ExecKind::Network), Ok(ExecKind::Network));
         assert!(p.resolve_kind("fetch", &args, ExecKind::Write).is_err());
         assert!(p.resolve_kind("fetch", &args, ExecKind::Read).is_err());
-        // Dạng chỉ-đọc của subcommand `write`.
+        // A read-only form of a `write` subcommand.
         assert_eq!(p.resolve_kind("stash", &strings(&["list"]), ExecKind::Read), Ok(ExecKind::Read));
         assert!(p.resolve_kind("stash", &strings(&["pop"]), ExecKind::Read).is_err());
         assert_eq!(p.resolve_kind("remote", &strings(&["-v"]), ExecKind::Read), Ok(ExecKind::Read));
         assert!(p.resolve_kind("remote", &strings(&["remove", "x"]), ExecKind::Read).is_err());
-        // `-v` đứng trước một subcommand khác không còn là dạng chỉ-đọc; `remote show` liên lạc máy chủ nên cũng không.
+        // `-v` before a different subcommand is no longer a read-only form; `remote show` talks to the server, so it is not one either.
         assert!(p.resolve_kind("remote", &strings(&["-v", "update"]), ExecKind::Read).is_err());
         assert!(p.resolve_kind("remote", &strings(&["--verbose", "add", "x", "u"]), ExecKind::Read).is_err());
         assert!(p.resolve_kind("remote", &strings(&["show", "origin"]), ExecKind::Read).is_err());
@@ -930,14 +931,14 @@ mod tests {
     fn scope_layer_blocks_arbitrary_file_reads() {
         let p = policy();
         let code = |sub: &str, args: &[&str]| p.check_scope(sub, &strings(args)).map(|v| v.code());
-        // diff đọc file ngoài repo
+        // a diff reading a file outside the repo
         assert_eq!(code("diff", &["--no-index", "--", "/dev/null", "/etc/passwd"]), Some("path-outside-repo"));
         assert_eq!(code("diff", &["/etc/hosts", "/etc/passwd"]), Some("path-outside-repo"));
         assert_eq!(code("diff", &["--", "../secret"]), Some("path-outside-repo"));
         assert_eq!(code("diff", &["--no-index", "--", "/dev/null", "src/a.ts"]), None);
         assert_eq!(code("diff", &["HEAD~3..HEAD", "--", "a/b.txt"]), None);
         assert_eq!(code("diff", &["--cached", "-M", "-U3", "--", "a.txt"]), None);
-        // -F / --file / --pathspec-from-file chỉ nhận stdin
+        // -F / --file / --pathspec-from-file only accept stdin
         assert_eq!(code("commit", &["-F", "/etc/passwd"]), Some("file-option-not-stdin"));
         assert_eq!(code("commit", &["--file=/etc/passwd"]), Some("file-option-not-stdin"));
         assert_eq!(code("add", &["--pathspec-from-file=/etc/passwd"]), Some("file-option-not-stdin"));
@@ -950,7 +951,7 @@ mod tests {
         assert_eq!(code("hash-object", &["/etc/passwd"]), Some("path-outside-repo"));
         assert_eq!(code("hash-object", &["--stdin", "-w", "-t", "blob"]), None);
         assert_eq!(code("hash-object", &["--stdin-paths"]), Some("path-outside-repo"));
-        // lệnh khác không bị ảnh hưởng (message tự do bắt đầu bằng "/")
+        // other commands are unaffected (a free-form message starting with "/")
         assert_eq!(code("stash", &["push", "--message", "/dev/null xử lý lỗi"]), None);
     }
 
@@ -1024,14 +1025,14 @@ mod tests {
         ] {
             assert!(!free(sub, &args), "{sub} {args:?} phải bị chặn");
         }
-        // `cat-file --textconv/--filters` và `ls-files -m` chạy bộ lọc/textconv của repo (kể cả viết tắt, gộp cờ).
+        // `cat-file --textconv/--filters` and `ls-files -m` run the repo's filters/textconv (including abbreviated and bundled forms).
         for args in [vec!["--textconv", "HEAD:a"], vec!["--filters", "HEAD:a"], vec!["--textc", "HEAD:a"], vec!["--filt", "HEAD:a"], vec!["--textconv=x"], vec!["--batch", "--filters"]] {
             assert!(!free("cat-file", &args), "cat-file {args:?}");
         }
         for args in [vec!["-m"], vec!["--modified"], vec!["--mod"], vec!["-mz"], vec!["-om"], vec!["-z", "-m"], vec!["--cached", "-m", "--", "a"]] {
             assert!(!free("ls-files", &args), "ls-files {args:?}");
         }
-        // Sau `--` là đường dẫn, không phải tuỳ chọn.
+        // after `--` it is a path, not an option.
         assert!(free("ls-files", &["--cached", "--", "-m"]));
     }
 
@@ -1092,7 +1093,7 @@ mod tests {
 
     #[test]
     fn utf16_semantics_match_javascript() {
-        // `-😀`: dài 3 đơn vị UTF-16 trong JS → coi là gộp cờ và bị chặn; đủ 2 ký tự Rust nhưng vẫn phải khớp.
+        // `-😀`: 3 UTF-16 units in JS → treated as bundled options and blocked; it is 2 chars in Rust but must still match.
         let result = policy().validate("status", &strings(&["-😀"]), &BTreeMap::new());
         assert_eq!(result.map(|v| v.code()), Some("attached-short"));
         let ok = policy().validate("status", &strings(&["-é"]), &BTreeMap::new());

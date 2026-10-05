@@ -7,7 +7,7 @@ struct RepoWatcherTests {
     @Test func reportsChangesForRepoOpenedThroughSymlink() async throws {
         let test = try await TestRepo.make()
         defer { test.cleanup() }
-        // Thư mục tạm nằm dưới /var → /private/var; FSEvents luôn báo đường dẫn thật.
+        // The temp directory is under /var → /private/var; FSEvents always reports the real path.
         let linked = URL(fileURLWithPath: test.url.path.replacingOccurrences(of: "/private/var/", with: "/var/"))
         #expect(linked.path.hasPrefix("/var/"))
         let gitDir = linked.appendingPathComponent(".git")
@@ -18,8 +18,8 @@ struct RepoWatcherTests {
         watcher.start()
         defer { watcher.stop() }
 
-        // FSEvents có thể bắt đầu theo dõi muộn trên máy CI bận: ghi lại file mỗi nửa giây tới khi có sự kiện. Hạn 30 giây
-        // chỉ để không treo, không phải điều kiện đúng/sai.
+        // FSEvents may start watching late on a busy CI machine: rewrite the file every half second until an event arrives. The 30 second
+        // cap only stops it hanging; it is not a pass/fail condition.
         let deadline = Date().addingTimeInterval(30)
         var round = 0
         while !received.current.contains(.workingTree), Date() < deadline {

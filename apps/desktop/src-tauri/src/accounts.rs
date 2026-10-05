@@ -1,11 +1,12 @@
-//! Tài khoản git trên các máy chủ đã biết (GitHub / GitLab / Bitbucket): phần KHÔNG bí mật nằm trong
-//! `<data>/accounts.json`, token nằm trong kho bí mật của hệ điều hành (Keychain / Credential Manager).
+//! Git accounts on known hosts (GitHub / GitLab / Bitbucket): the NON-secret part lives in
+//! `<data>/accounts.json`, tokens live in the OS keystore (Keychain / Credential Manager).
 //!
-//! Nhiều tài khoản cho cùng một máy chủ (repo cá nhân + repo công ty): `resolve(host, owner)` chọn token theo thứ tự
-//! người dùng tự gán → owner trùng login → tổ chức mà tài khoản là thành viên → tài khoản mặc định của host đó.
-//! `credential.rs` dùng kết quả này để trả lời git, nên token không bao giờ nằm trong env của tiến trình con.
+//! Several accounts per host (a personal repo plus a company repo): `resolve(host, owner)` picks a token in this
+//! order — the user's own assignment → an owner matching the login → an organisation the account belongs to → that
+//! host's default account. `credential.rs` uses this result to answer git, so a token never sits in a child process's
+//! environment.
 //!
-//! Webview không tin cậy: mọi giá trị do frontend gửi (host, login, owner, token) đều được kiểm ở đây.
+//! The webview is untrusted: every value it sends (host, login, owner, token) is validated here.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -16,14 +17,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::{AppError, Result};
 
-/// Dịch vụ bí mật: giá trị trả về là token thô, chỉ sống trong tiến trình của Rust.
+/// Secret service: the returned value is the raw token and only lives inside the Rust process.
 pub trait SecretStore: Send + Sync {
     fn get(&self, key: &str) -> Result<Option<String>>;
     fn set(&self, key: &str, secret: &str) -> Result<()>;
     fn delete(&self, key: &str) -> Result<()>;
 }
 
-/// Kho bí mật của hệ điều hành. Lỗi ở đây (khoá bị khoá, không có quyền) là lỗi `auth` để UI gợi ý mở khoá.
+/// The OS keystore. Failures here (locked keychain, denied access) surface as an `auth` error so the UI can suggest unlocking.
 pub struct KeychainStore {
     service: String,
 }
@@ -64,7 +65,7 @@ fn secret_error(action: &str, error: keyring::v1::Error) -> AppError {
     AppError::Auth(format!("Không {action} trong kho bí mật của hệ điều hành: {error}"))
 }
 
-/// Kho trong bộ nhớ — test không được đụng Keychain thật.
+/// In-memory store — tests must never touch the real Keychain.
 #[derive(Default)]
 pub struct MemoryStore {
     items: Mutex<BTreeMap<String, String>>,
@@ -86,7 +87,7 @@ impl SecretStore for MemoryStore {
     }
 }
 
-/// Máy chủ đã biết. Host lạ (GitLab tự host…) phải khai báo `provider` rõ ràng.
+/// A known host. An unknown host (self-hosted GitLab…) must declare its `provider` explicitly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Provider {
@@ -108,7 +109,7 @@ impl Provider {
         }
     }
 
-    /// Host chính thức (dùng để gợi ý, không kiểm tra host lạ).
+    /// Canonical host (used for suggestions; unknown hosts are not validated).
     pub fn default_host(self) -> &'static str {
         match self {
             Self::Github => "github.com",
@@ -117,7 +118,7 @@ impl Provider {
         }
     }
 
-    /// Địa chỉ API của host (GitHub Enterprise dùng `/api/v3`).
+    /// Host's API base URL (GitHub Enterprise uses `/api/v3`).
     pub fn api_base(self, host: &str) -> String {
         match self {
             Self::Github if host.eq_ignore_ascii_case("github.com") => "https://api.github.com".to_string(),
@@ -127,22 +128,22 @@ impl Provider {
         }
     }
 
-    /// Địa chỉ giao diện để mở trên trình duyệt.
+    /// Web URL to open in the browser.
     pub fn web_base(self, host: &str) -> String {
         format!("https://{host}")
     }
 
-    /// Host này là của provider nào (chỉ nhận host chính thức).
+    /// Which provider this host belongs to (only canonical hosts are accepted).
     pub fn for_host(host: &str) -> Option<Provider> {
         Provider::all().into_iter().find(|provider| provider.default_host().eq_ignore_ascii_case(host))
     }
 
-    /// Bitbucket Cloud không có OAuth device flow: tài khoản chỉ thêm được bằng cách dán token.
+    /// Bitbucket Cloud has no OAuth device flow: an account can only be added by pasting a token.
     pub fn supports_device_flow(self) -> bool {
         matches!(self, Self::Github | Self::Gitlab)
     }
 
-    /// Email ẩn của GitHub: commit được tính cho tài khoản mà không lộ email thật.
+    /// GitHub's private email: commits count towards the account without exposing the real address.
     pub fn noreply_email(self, host: &str, id: &str, login: &str) -> Option<String> {
         match self {
             Self::Github if host.eq_ignore_ascii_case("github.com") => Some(format!("{id}+{login}@users.noreply.github.com")),
@@ -151,28 +152,28 @@ impl Provider {
     }
 }
 
-/// Một tài khoản đã đăng nhập (không chứa token trong file).
+/// A signed-in account (no token in the file).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
     pub host: String,
     pub provider: Provider,
-    /// Id của tài khoản ở máy chủ (GitHub dùng để dựng email ẩn `id+login@users.noreply.github.com`).
+    /// Account id on the server (GitHub uses it to build the private address `id+login@users.noreply.github.com`).
     #[serde(default)]
     pub id: String,
     pub login: String,
-    /// Tên hiển thị của máy chủ (có thể rỗng).
+    /// The server's display name (may be empty).
     pub display_name: String,
-    /// Tên / email dùng cho commit (người dùng sửa được).
+    /// Name / email used for commits (user-editable).
     pub commit_name: String,
     pub commit_email: String,
-    /// Tổ chức / nhóm / workspace mà tài khoản là thành viên — để chọn token theo owner.
+    /// Organisations / groups / workspaces the account belongs to — used to pick a token by owner.
     #[serde(default)]
     pub organizations: Vec<String>,
     #[serde(default)]
     pub organizations_updated_at: Option<String>,
-    /// Token OAuth hết hạn lúc này (giây Unix) — GitLab cấp token ~2 giờ kèm refresh token (trong kho bí mật). `None`: không
-    /// hết hạn (GitHub OAuth App, token dán tay).
+    /// When the OAuth token expires (Unix seconds) — GitLab issues ~2-hour tokens with a refresh token (kept in the
+    /// keystore). `None`: never expires (GitHub OAuth App, hand-pasted token).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub token_expires_at: Option<u64>,
 }
@@ -183,24 +184,24 @@ impl Account {
     }
 }
 
-/// Phần lưu trong `<data>/accounts.json`.
+/// What is persisted in `<data>/accounts.json`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountsFile {
     #[serde(default)]
     pub accounts: Vec<Account>,
-    /// host → login của tài khoản mặc định.
+    /// host → login of the default account.
     #[serde(default)]
     pub defaults: BTreeMap<String, String>,
-    /// `host/owner` → login do người dùng tự gán cho repo.
+    /// `host/owner` → login the user assigned to that repo.
     #[serde(default)]
     pub owner_assignments: BTreeMap<String, String>,
-    /// host → Client ID của OAuth App (device flow); rỗng = chỉ dán token.
+    /// host → OAuth App client id (device flow); empty = only pasted tokens work.
     #[serde(default)]
     pub oauth_client_ids: BTreeMap<String, String>,
 }
 
-/// Đăng nhập bằng mã (device flow) đang chờ người dùng xác nhận. Webview giữ `device_code` để hỏi, Rust giữ nhịp hỏi.
+/// A device-flow sign-in awaiting the user's confirmation. The webview holds `device_code` to poll with; Rust owns the polling cadence.
 #[derive(Debug, Clone)]
 pub struct Login {
     pub host: String,
@@ -208,17 +209,19 @@ pub struct Login {
     pub client_id: String,
     pub device_code: String,
     pub expires_at: Instant,
-    /// Khoảng chờ tối thiểu giữa hai lần hỏi; `slow_down` của RFC 8628 cộng thêm 5 giây.
+    /// Minimum wait between polls; RFC 8628's `slow_down` adds 5 seconds on top.
     pub interval: Duration,
-    /// Chưa tới lúc này thì không hỏi máy chủ (webview hỏi dồn cũng không bị máy chủ chặn).
+    /// Before this moment do not ask the server (a polling webview would not be rate-limited either).
     pub next_poll_at: Instant,
 }
 
-/// Client ID của OAuth App dựng sẵn lúc build (`THAIGIT_GITHUB_CLIENT_ID`, `THAIGIT_GITLAB_CLIENT_ID`): Client ID của public
-/// client không phải bí mật. Người dùng vẫn ghi đè được trong Cài đặt (GitHub Enterprise, GitLab tự host…).
-/// GitHub có sẵn Client ID của OAuth App "Thaigit" (bật Device Flow, token không hết hạn) — giống `Resources/Info.plist`.
+/// OAuth App client ids baked in at build time (`THAIGIT_GITHUB_CLIENT_ID`, `THAIGIT_GITLAB_CLIENT_ID`): the client id
+/// of a public client is not a secret. Users can still override them in Settings (GitHub Enterprise, self-hosted
+/// GitLab…).
+/// GitHub already ships the client id of the "Thaigit" OAuth App (device flow on, non-expiring tokens) — same value as in
+/// `Resources/Info.plist`.
 const GITHUB_CLIENT_ID: &str = "Ov23li9UeeQjJJwQqLqH";
-/// Application ID của OAuth App "Thaigit" trên gitlab.com (không confidential, bật device authorization grant).
+/// Application id of the "Thaigit" OAuth App on gitlab.com (non-confidential, device authorization grant on).
 const GITLAB_CLIENT_ID: &str = "506513c86541200954d6656725fab6cc78b0b458cae231f79a72e09c9b94f66d";
 
 fn builtin_client_id(host: &str) -> Option<&'static str> {
@@ -230,11 +233,11 @@ fn builtin_client_id(host: &str) -> Option<&'static str> {
     value.map(str::trim).filter(|id| !id.is_empty())
 }
 
-/// Số phiên đăng nhập được giữ đồng thời (mỗi cửa sổ một phiên).
+/// How many sign-in sessions are kept at once (one per window).
 const MAX_LOGINS: usize = 8;
 
 impl Accounts {
-    /// Bắt đầu đăng nhập bằng mã: cần Client ID của OAuth App trên máy chủ đó.
+    /// Start a device-flow sign-in: needs the OAuth App client id of that host.
     pub async fn start_login(
         &self,
         host: &str,
@@ -276,8 +279,9 @@ impl Accounts {
         Ok(code)
     }
 
-    /// Hỏi token cho phiên đăng nhập của `device_code` (một lần, không chờ). `Ok(None)` = người dùng chưa xác nhận, hoặc
-    /// chưa tới nhịp hỏi tiếp theo; `Ok(Some(login))` = đã lưu tài khoản. Lỗi (từ chối, hết hạn…) thì phiên bị bỏ.
+    /// Ask for the token of a `device_code` sign-in session (once, no waiting). `Ok(None)` = the user has not confirmed yet,
+    /// or the next poll is not due; `Ok(Some(login))` = the account was stored. On an error (denied, expired…) the session
+    /// is dropped.
     pub async fn poll_login(&self, device_code: &str) -> Result<Option<String>> {
         let login = {
             let mut logins = self.lock_logins();
@@ -286,7 +290,7 @@ impl Accounts {
             let login = logins.iter_mut().find(|login| login.device_code == device_code).ok_or_else(|| {
                 AppError::Auth("Phiên đăng nhập đã hết hạn hoặc đã đóng — bấm đăng nhập lại".into())
             })?;
-            // Hỏi dồn trước `interval` sẽ bị máy chủ từ chối (RFC 8628): trả "chưa xong" mà không gọi mạng.
+            // Polling earlier than `interval` gets the request rejected (RFC 8628): return "not done" without a network call.
             if now < login.next_poll_at {
                 return Ok(None);
             }
@@ -316,7 +320,7 @@ impl Accounts {
         }
     }
 
-    /// Bỏ phiên đăng nhập (người dùng đóng hộp thoại) — token đang chờ không được dùng nữa.
+    /// Drop a sign-in session (the user closed the dialog) — a pending token must no longer be usable.
     pub fn cancel_login(&self, device_code: &str) {
         self.lock_logins().retain(|login| login.device_code != device_code);
     }
@@ -325,21 +329,21 @@ impl Accounts {
         self.logins.lock().unwrap_or_else(|p| p.into_inner())
     }
 
-    /// Đọc danh tính + tổ chức từ API rồi lưu tài khoản (kèm token) — dùng chung cho dán token và device flow.
+    /// Read the identity + organisations from the API, then store the account (with its token) — shared by token pasting and device flow.
     pub async fn add_token_from_api(&self, host: &str, provider: Provider, token: &str) -> Result<crate::accounts::Account> {
         if !safe_secret(token, 512) {
             return Err(AppError::Auth("Token không hợp lệ".into()));
         }
         let identity = crate::forge::fetch_identity(host, provider, token).await?;
         let account = self.upsert(host, provider, &identity.id, &identity.login, &identity.display_name, token)?;
-        // Tổ chức chỉ để chọn token theo owner: thiếu quyền `read:org` không làm hỏng đăng nhập.
+        // Organisations only pick a token by owner: a missing `read:org` scope must not break sign-in.
         if let Ok(organizations) = crate::forge::fetch_organizations(host, provider, token).await {
             let _ = self.set_organizations(host, &account.login, organizations);
         }
         Ok(account)
     }
 
-    /// Kiểm tra token rồi lưu (webview dán token).
+    /// Validate the token, then store the account (webview pastes a token).
     pub async fn add_token(&self, host: &str, provider: Option<Provider>, token: &str) -> Result<crate::accounts::Account> {
         let provider = provider_for(host, provider)?;
         let host = host.to_ascii_lowercase();
@@ -351,7 +355,7 @@ fn clamp_interval(wait: Duration) -> Duration {
     wait.clamp(Duration::from_secs(1), Duration::from_secs(30))
 }
 
-/// Ảnh gửi webview: không có token, chỉ có `hasToken` + lý do chọn tài khoản theo owner hiện tại.
+/// What goes to the webview: no token, only `hasToken` plus why the account was picked for the current owner.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountsView {
@@ -369,21 +373,21 @@ pub struct AccountView {
     pub has_token: bool,
 }
 
-/// Lý do chọn tài khoản cho owner.
+/// Why this account was picked for the owner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MatchReason {
-    /// Người dùng tự gán owner cho tài khoản.
+    /// The user assigned this owner to the account.
     Assigned,
-    /// Owner trùng login của một tài khoản.
+    /// The owner matches an account's login.
     Login,
-    /// Owner là tổ chức mà tài khoản là thành viên.
+    /// The owner is an organisation the account belongs to.
     Organization,
-    /// Không khớp: tài khoản mặc định của host.
+    /// No match: the host's default account.
     Fallback,
 }
 
-/// Kết quả chọn tài khoản (token đọc sau, chỉ khi thật cần dùng).
+/// Result of the account choice (the token is read afterwards, only when really needed).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Resolved {
@@ -394,12 +398,12 @@ pub struct Resolved {
     pub token: Option<String>,
 }
 
-/// Khoá trong kho bí mật: `host/login` (login đã kiểm là chữ/số/`-_.`).
+/// Key in the keystore: `host/login` (the login is validated to letters/digits/`-_.`).
 fn account_key(host: &str, login: &str) -> String {
     format!("{host}/{login}")
 }
 
-/// Owner hợp lệ (chữ, số, `-`, `_`, `.`), viết thường; `None` nếu rỗng hoặc có ký tự lạ.
+/// Valid owner (letters, digits, `-`, `_`, `.`), lowercased; `None` when empty or containing odd characters.
 pub fn normalized_owner(owner: &str) -> Option<String> {
     let trimmed = owner.trim();
     if trimmed.is_empty()
@@ -411,15 +415,15 @@ pub fn normalized_owner(owner: &str) -> Option<String> {
     Some(trimmed.to_ascii_lowercase())
 }
 
-/// Login / token hợp lệ: không rỗng, không ký tự điều khiển hay khoảng trắng (giao thức credential của git là từng dòng
-/// `key=value` — xuống dòng sẽ chèn được dòng lạ).
+/// Valid login / token: non-empty, no control characters or whitespace (git's credential protocol is line-based
+/// `key=value` — a newline would inject a bogus line).
 pub fn safe_secret(value: &str, max_len: usize) -> bool {
     !value.is_empty()
         && value.len() <= max_len
         && !value.chars().any(|c| c.is_control() || c == ' ' || c == '\t')
 }
 
-/// Host hợp lệ: tên miền không scheme, không đường dẫn, không `@`.
+/// Valid host: a domain with no scheme, no path, no `@`.
 pub fn valid_host(host: &str) -> bool {
     !host.is_empty()
         && host.len() <= 253
@@ -431,7 +435,7 @@ pub fn valid_host(host: &str) -> bool {
         && !host.ends_with('.')
 }
 
-/// Provider của host: host chính thức thì tự nhận; host lạ phải truyền `provider`.
+/// Provider of a host: inferred for canonical hosts; an unknown host must pass `provider`.
 pub fn provider_for(host: &str, requested: Option<Provider>) -> Result<Provider> {
     if !valid_host(host) {
         return Err(AppError::Auth(format!("Host không hợp lệ: {host}")));
@@ -455,12 +459,12 @@ pub struct Accounts {
     path: PathBuf,
     secrets: Arc<dyn SecretStore>,
     file: Mutex<AccountsFile>,
-    /// Phiên đăng nhập bằng mã đang chờ (chỉ trong RAM, không lưu đĩa).
+    /// Device-flow sign-in sessions awaiting approval (RAM only, never written to disk).
     logins: Mutex<Vec<Login>>,
 }
 
 impl Accounts {
-    /// Nạp từ `<data>/accounts.json`; file hỏng thì bắt đầu lại từ rỗng (không mất khoá vì token nằm ngoài file).
+    /// Load from `<data>/accounts.json`; a corrupt file starts empty (no keys are lost, since tokens live outside the file).
     pub fn load(data_dir: &Path, secrets: Arc<dyn SecretStore>) -> Arc<Self> {
         let path = data_dir.join("accounts.json");
         let file = std::fs::read(&path)
@@ -484,7 +488,7 @@ impl Accounts {
         Ok(())
     }
 
-    /// Tài khoản của host (không phân biệt hoa thường).
+    /// Accounts of a host (case-insensitive).
     fn find<'a>(file: &'a AccountsFile, host: &str, login: &str) -> Option<&'a Account> {
         file.accounts.iter().find(|a| a.host.eq_ignore_ascii_case(host) && a.login.eq_ignore_ascii_case(login))
     }
@@ -493,7 +497,7 @@ impl Accounts {
         file.accounts.iter().position(|a| a.host.eq_ignore_ascii_case(host) && a.login.eq_ignore_ascii_case(login))
     }
 
-    /// Tài khoản mặc định của host: theo `defaults`, không có thì tài khoản đầu tiên của host đó.
+    /// The host's default account: from `defaults`, or that host's first account when unset.
     fn default_account<'a>(file: &'a AccountsFile, host: &str) -> Option<&'a Account> {
         let of_host = || file.accounts.iter().find(|a| a.host.eq_ignore_ascii_case(host));
         file.defaults
@@ -506,8 +510,8 @@ impl Accounts {
         self.secrets.get(&account.key()).ok().flatten().is_some()
     }
 
-    /// Ảnh gửi webview: `defaults` là tài khoản mặc định HIỆU LỰC của từng host (lựa chọn của người dùng, không có thì
-    /// tài khoản đầu tiên của host đó).
+    /// What goes to the webview: `defaults` holds the account that is CURRENTLY the default per host (the user's
+    /// choice, or that host's first account when unset).
     pub fn view(&self) -> AccountsView {
         let file = self.lock();
         let mut defaults: BTreeMap<String, String> = BTreeMap::new();
@@ -528,7 +532,7 @@ impl Accounts {
         }
     }
 
-    /// Token của một tài khoản (dùng cho API của máy chủ).
+    /// An account's token (for the host's API).
     pub fn token(&self, host: &str, login: &str) -> Option<String> {
         let key = {
             let file = self.lock();
@@ -537,13 +541,14 @@ impl Accounts {
         self.secrets.get(&key).ok().flatten().filter(|token| safe_secret(token, 512))
     }
 
-    /// Có tài khoản nào của host này đã có token không (để biết có cần chèn credential helper vào lệnh git).
+    /// Does any account of this host already have a token (i.e. must a credential helper be injected into git commands)?
     pub fn host_has_token(&self, host: &str) -> bool {
         let file = self.lock();
         file.accounts.iter().filter(|a| a.host.eq_ignore_ascii_case(host)).any(|a| self.has_token(a))
     }
 
-    /// Thêm (hoặc cập nhật) tài khoản + lưu token. Login đổi hoa/thường thì owner đã gán và tài khoản mặc định đi theo.
+    /// Add (or update) an account and store its token. When only the login's case changes, the owner assignments and the
+    /// default account follow along.
     pub fn upsert(
         &self,
         host: &str,
@@ -607,7 +612,7 @@ impl Accounts {
             }
         };
         self.secrets.set(&account_key(&host, login), token)?;
-        // Token mới (dán tay hoặc vừa đăng nhập): bỏ refresh token / hạn cũ — device flow đặt lại ngay sau đó nếu có.
+        // A freshly pasted or freshly issued token drops the refresh token / expiry — device flow sets them again right after.
         self.secrets.delete(&refresh_key(&host, login))?;
         if let Some(index) = Self::index_of(&file, &host, login) {
             file.accounts[index].token_expires_at = None;
@@ -616,7 +621,7 @@ impl Accounts {
         Ok(Self::find(&file, &host, login).cloned().unwrap_or(account))
     }
 
-    /// Lưu refresh token + hạn của token OAuth vừa cấp.
+    /// Store the refresh token and expiry of a just-issued OAuth token.
     fn store_grant_extras(&self, host: &str, login: &str, grant: &crate::forge::TokenGrant) -> Result<()> {
         let Some(refresh) = grant.refresh.as_deref().filter(|token| safe_secret(token, 512)) else { return Ok(()) };
         self.secrets.set(&refresh_key(host, login), refresh)?;
@@ -628,8 +633,8 @@ impl Accounts {
         Ok(())
     }
 
-    /// Làm mới token OAuth của các tài khoản trên `host` sắp hết hạn (còn dưới 2 phút). Lỗi thì giữ nguyên — lệnh git / API
-    /// sẽ báo đăng nhập lại như cũ.
+    /// Refresh the OAuth token of accounts on `host` that expire within 2 minutes. On failure keep the old token — git
+    /// commands and the API will report "sign in again" exactly as before.
     pub async fn refresh_due(&self, host: &str) {
         let due: Vec<Account> = {
             let file = self.lock();
@@ -650,7 +655,7 @@ impl Accounts {
         }
     }
 
-    /// Cập nhật danh sách tổ chức (chọn token theo owner tổ chức).
+    /// Refresh the organisation list (choosing a token by organisation owner).
     pub fn set_organizations(&self, host: &str, login: &str, organizations: Vec<String>) -> Result<()> {
         let mut file = self.lock().clone();
         let Some(index) = Self::index_of(&file, host, login) else { return Ok(()) };
@@ -698,7 +703,7 @@ impl Accounts {
         self.commit(&file)
     }
 
-    /// Gán owner cho tài khoản (`login = None`: bỏ gán). Owner lạ thì bỏ qua.
+    /// Assign an owner to an account (`login = None` clears it). An unknown owner is ignored.
     pub fn assign_owner(&self, host: &str, owner: &str, login: Option<&str>) -> Result<()> {
         let Some(key) = normalized_owner(owner) else { return Err(AppError::policy("owner không hợp lệ")) };
         let mut file = self.lock().clone();
@@ -715,7 +720,7 @@ impl Accounts {
         self.commit(&file)
     }
 
-    /// Gán tài khoản cho owner khi người dùng chọn repo trong danh sách (để clone/fetch dùng đúng tài khoản).
+    /// Assign an account to an owner when the user picks a repo from the list (so clone/fetch use the right account).
     pub fn assign_owner_for_login(&self, host: &str, owner: &str, login: &str) -> Result<bool> {
         let current = self.resolve_login(host, Some(owner));
         if current.as_deref().is_some_and(|current| current.eq_ignore_ascii_case(login)) {
@@ -749,7 +754,7 @@ impl Accounts {
         self.commit(&file)
     }
 
-    /// Lưu Client ID của OAuth App (device flow). Rỗng = xoá (quay về Client ID dựng sẵn nếu có).
+    /// Store an OAuth App client id (device flow). Empty = clear it (falling back to the build-time client id if there is one).
     pub fn set_oauth_client_id(&self, host: &str, client_id: &str) -> Result<()> {
         if !valid_host(host) {
             return Err(AppError::Auth(format!("Host không hợp lệ: {host}")));
@@ -768,19 +773,19 @@ impl Accounts {
         self.commit(&file)
     }
 
-    /// Client ID hiệu lực của host: người dùng tự điền, không có thì Client ID dựng sẵn lúc build.
+    /// The client id in effect for a host: the user's own entry, otherwise the build-time client id.
     pub fn oauth_client_id(&self, host: &str) -> Option<String> {
         let host = host.to_ascii_lowercase();
         self.lock().oauth_client_ids.get(&host).cloned().or_else(|| builtin_client_id(&host).map(str::to_string))
     }
 
-    /// Login được chọn cho owner (chưa đọc token).
+    /// The login picked for an owner (the token is not read yet).
     pub fn resolve_login(&self, host: &str, owner: Option<&str>) -> Option<String> {
         let file = self.lock();
         Self::resolve_login_in(&file, host, owner)
     }
 
-    /// Chọn tài khoản cho owner: người dùng tự gán → owner trùng login → tổ chức → mặc định của host.
+    /// Pick an account for an owner: user assignment → owner matching a login → organisation → the host's default.
     fn resolve_in(file: &AccountsFile, host: &str, owner: Option<&str>) -> Option<(String, MatchReason)> {
         let fallback = Self::default_account(file, host)?;
         let fallback_login = fallback.login.clone();
@@ -807,14 +812,15 @@ impl Accounts {
         Self::resolve_in(file, host, owner).map(|(login, _)| login)
     }
 
-    /// Lý do chọn tài khoản cho owner (để UI giải thích).
+    /// Why this account was picked for the owner (so the UI can explain it).
     pub fn resolve_reason(&self, host: &str, owner: Option<&str>) -> MatchReason {
         let file = self.lock();
         Self::resolve_in(&file, host, owner).map(|(_, reason)| reason).unwrap_or(MatchReason::Fallback)
     }
 
-    /// Tài khoản + token cho owner. Owner nào không có tài khoản được gán token thì KHÔNG rơi về tài khoản khác:
-    /// lệnh git tới owner đó không có token, git báo lỗi xác thực và UI gợi ý đăng nhập đúng tài khoản ấy.
+    /// The account plus its token for an owner. An owner with no assigned account NEVER falls back to another: a git
+    /// command to that owner runs without a token, git reports an authentication error, and the UI suggests signing in
+    /// to that very account.
     pub fn resolve(&self, host: &str, owner: Option<&str>) -> Option<Resolved> {
         let (login, reason) = {
             let file = self.lock();
@@ -824,7 +830,7 @@ impl Accounts {
         Some(Resolved { host: host.to_string(), login, reason, token })
     }
 
-    /// Provider của host đã có tài khoản (lỗi nếu chưa có tài khoản nào).
+    /// Provider of a host that has an account (an error when the host has none).
     pub fn provider_of(&self, host: &str) -> Result<Provider> {
         let file = self.lock();
         file.accounts
@@ -834,7 +840,7 @@ impl Accounts {
             .ok_or_else(|| AppError::NotFound(format!("Chưa có tài khoản nào trên {host}")))
     }
 
-    /// Danh sách host đã có tài khoản (một lần cho mỗi host) — dùng khi chèn credential helper.
+    /// Hosts that have an account (once per host) — used when injecting the credential helper.
     pub fn hosts(&self) -> Vec<(String, Provider)> {
         self.hosts_in(&self.lock())
     }
@@ -850,7 +856,7 @@ impl Accounts {
     }
 }
 
-/// Client ID người dùng điền, cộng Client ID dựng sẵn của host chưa được điền.
+/// The client id the user filled in, plus the build-time client id for hosts they left blank.
 fn effective_client_ids(saved: &BTreeMap<String, String>) -> BTreeMap<String, String> {
     let mut ids = saved.clone();
     for host in ["github.com", "gitlab.com"] {
@@ -865,7 +871,7 @@ fn unix_now() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
-/// Khoá của refresh token trong kho bí mật (cạnh token của tài khoản).
+/// Keystore key of the refresh token (next to the account's token).
 fn refresh_key(host: &str, login: &str) -> String {
     format!("{}#refresh", account_key(host, login))
 }
@@ -876,23 +882,23 @@ pub(crate) fn now_rfc3339() -> String {
         .unwrap_or_default()
 }
 
-/// Một remote mà ta biết: host, owner và tên repo (từ URL của `git remote` hoặc URL người dùng dán).
+/// A remote we know: host, owner and repo name (from a `git remote` URL or one the user pasted).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteTarget {
     pub host: String,
     pub provider: Option<Provider>,
-    /// Đường dẫn sau domain, bỏ `.git` (vd. `hoangthai18/thaigit`, `group/sub/repo`).
+    /// Path after the domain, without `.git` (e.g. `hoangthai18/thaigit`, `group/sub/repo`).
     pub path: String,
-    /// Phần đầu của đường dẫn (user / tổ chức) — dùng để chọn token.
+    /// First path segment (user / organisation) — used to pick a token.
     pub owner: String,
     pub name: String,
-    /// Remote dùng HTTPS (mới đi qua credential của app; SSH dùng khoá SSH của người dùng).
+    /// The remote uses HTTPS (only then does it go through the app's credential; SSH uses the user's own SSH keys).
     pub https: bool,
-    /// Username trong URL (`https://alice@github.com/…`).
+    /// Username in the URL (`https://alice@github.com/…`).
     pub username: Option<String>,
 }
 
-/// Đọc host / owner / tên từ URL remote (https, ssh, dạng scp của ssh). `None` nếu không đọc được.
+/// Read host / owner / name from a remote URL (https, ssh, scp-style). `None` when it cannot be read.
 pub fn parse_remote(url: &str) -> Option<RemoteTarget> {
     let text = url.trim();
     if text.is_empty() {
@@ -916,7 +922,7 @@ pub fn parse_remote(url: &str) -> Option<RemoteTarget> {
         let host = host.split(':').next().unwrap_or(host);
         (host.to_ascii_lowercase(), path, false, None)
     } else if let Some((host, path)) = text.split_once(':') {
-        // Dạng scp của ssh: git@github.com:owner/repo.git
+        // scp-style ssh: git@github.com:owner/repo.git
         if !host.contains('/') && !host.contains('.') {
             return None;
         }
@@ -967,7 +973,7 @@ mod tests {
         assert!(expires > unix_now() + 7000 && expires <= unix_now() + 7200);
         assert!(!format!("{grant:?}").contains("rt-bi-mat"));
 
-        // Dán token mới thay cho token OAuth: không còn hạn / refresh token cũ.
+        // A newly pasted token replaces the OAuth token: no expiry / old refresh token.
         add(&accounts, "gitlab.com", Provider::Gitlab, "carol");
         assert_eq!(accounts.lock().accounts[0].token_expires_at, None);
         assert!(store.get(&refresh_key("gitlab.com", "carol")).unwrap().is_none());
@@ -1012,7 +1018,7 @@ mod tests {
         add(&accounts, "github.com", Provider::Github, "Alice");
         accounts.assign_owner("github.com", "acme", Some("Alice")).unwrap();
         accounts.upsert("github.com", Provider::Github, "42", "alice", "Alice", "token-2").unwrap();
-        // Một tài khoản, tìm theo cả hai cách viết; token cũ đã bị xoá khỏi kho bí mật.
+        // One account, looked up under both spellings; the old token was already removed from the keystore.
         assert_eq!(accounts.token("github.com", "alice").as_deref(), Some("token-2"));
         assert_eq!(accounts.token("github.com", "Alice").as_deref(), Some("token-2"));
         assert_eq!(accounts.view().accounts.len(), 1);
@@ -1103,7 +1109,7 @@ mod tests {
     async fn polling_too_early_keeps_the_login_without_calling_the_server() {
         let (_dir, accounts) = accounts();
         pending_login(&accounts, "dc-1", Instant::now() + Duration::from_secs(60));
-        // Chưa tới nhịp: trả "chưa xong" (không gọi mạng) và phiên vẫn còn cho lần hỏi sau.
+        // Not due yet: return "not done" (no network call) and keep the session for the next poll.
         assert_eq!(accounts.poll_login("dc-1").await.unwrap(), None);
         assert_eq!(accounts.poll_login("dc-1").await.unwrap(), None);
         assert_eq!(accounts.lock_logins().len(), 1);

@@ -1,23 +1,24 @@
 /**
- * Cây nhánh theo dấu "/" cho sidebar (port `BranchNode` của SidebarView.swift): `feature/a`, `feature/b` → thư mục `feature`.
- * Thư mục trước, nhánh lá sau (giữ thứ tự đầu vào). Chỉ tính cấu trúc — việc "chỉ dựng node đang mở" do component làm.
+ * Branch tree keyed on "/" for the sidebar (a port of `BranchNode` in SidebarView.swift): `feature/a`,
+ * `feature/b` → folder `feature`. Folders first, leaf branches after (input order preserved inside a group).
+ * Only the structure is computed — "build just the open nodes" is the component's job.
  */
 import type { GitRef } from '@thaigit/core';
 
 export interface BranchNode {
-  /** Duy nhất giữa các node anh em: `folder:<đường dẫn>` hoặc tên đầy đủ của ref. */
+  /** Unique across sibling nodes: `folder:<path>` or the ref's full name. */
   readonly id: string;
   readonly name: string;
-  /** Có = nhánh lá; `null` = thư mục. */
+  /** Set for a leaf branch; `null` = a folder. */
   readonly ref: GitRef | null;
   readonly children: readonly BranchNode[];
-  /** Số nhánh bên trong (tính cả thư mục con); nhánh lá là 1. */
+  /** Number of branches inside (child folders included); a leaf branch is 1. */
   readonly leafCount: number;
 }
 
-/** Thư mục nhỏ mở sẵn để thấy ngay các nhánh; thư mục lớn hơn mức này thu gọn cho nhẹ. */
+/** Small folders start expanded so branches are visible at once; bigger ones collapse to stay cheap. */
 export const FOLDER_COLLAPSE_THRESHOLD = 30;
-/** Số hàng dựng sẵn mỗi cấp và số hàng thêm mỗi lần bấm "Hiện thêm". */
+/** Rows pre-built per level, and rows added per "Show more" click. */
 export const PAGE_SIZE = 50;
 export const PAGE_STEP = 200;
 
@@ -68,12 +69,12 @@ export function buildBranchTree(refs: readonly GitRef[], nameOf: (ref: GitRef) =
   return convert(root, '');
 }
 
-/** Thư mục có mở sẵn không (Swift: `count <= 30`). */
+/** Whether a folder starts expanded (Swift: `count <= 30`). */
 export function folderStartsExpanded(leafCount: number): boolean {
   return leafCount <= FOLDER_COLLAPSE_THRESHOLD;
 }
 
-/** Số hàng sẽ thêm khi bấm "Hiện thêm" và số hàng còn lại. */
+/** Rows a "Show more" click will add, and how many are left. */
 export function nextPage(total: number, shown: number): { step: number; remaining: number } {
   const remaining = Math.max(0, total - shown);
   return { step: Math.min(remaining, PAGE_STEP), remaining };

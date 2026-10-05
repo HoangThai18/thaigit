@@ -1,4 +1,4 @@
-// Lưu bộ lọc nhánh trên graph (ẩn / solo) theo repo trong localStorage của webview. Dữ liệu đọc ra luôn được kiểm lại.
+// Persist the graph branch filter (hidden / solo) per repo in the webview's localStorage. Everything read back is revalidated.
 
 import { NO_REF_FILTER, refFilterActive, type GraphRefFilter } from '@thaigit/core';
 import { browserStorage, type KeyValueStorage } from '../stores/prefs.svelte.ts';
@@ -36,6 +36,6 @@ export function saveGraphFilter(
     if (refFilterActive(filter)) storage?.setItem(PREFIX + root, JSON.stringify(filter));
     else storage?.removeItem?.(PREFIX + root);
   } catch {
-    // Bị chặn / hết chỗ: bộ lọc chỉ sống trong phiên này.
+    // Blocked or out of space: the filter only lives for this session.
   }
 }

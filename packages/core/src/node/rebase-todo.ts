@@ -1,5 +1,5 @@
-// Bản Node (test) của phần soạn todo trong `apps/desktop/src-tauri/src/rebase.rs` — giữ đúng cùng luật: sha đầy đủ, không
-// trùng, message đi qua file (không bao giờ nằm trong todo), sequence editor chỉ dùng lệnh dựng sẵn của shell.
+// Node (test) twin of the todo composition in `apps/desktop/src-tauri/src/rebase.rs` — same rules: full shas, no
+// duplicates, messages passed through a file (never in the todo itself), sequence editor limited to a prepared shell command.
 
 import type { RebaseStepRequest } from '@thaigit/contracts';
 import { AdapterError } from '../git/runner.ts';

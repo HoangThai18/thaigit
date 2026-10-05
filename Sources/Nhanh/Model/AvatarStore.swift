@@ -1,25 +1,26 @@
 import AppKit
 import NhanhCore
 
-/// Ảnh đại diện thật của người commit (như GitKraken), dùng chung cho graph và panel chi tiết.
-/// Hỏi ảnh chưa có thì trả nil ngay (vẽ chữ viết tắt) và tải nền; tải xong thì báo `didChange` để vẽ lại.
-/// Hàng đợi / trạng thái nằm trong `AvatarQueue` (NhanhCore, có test); ảnh đã tải giữ trong NSCache có giới hạn.
+/// Real commit-author avatars (like GitKraken), shared by the graph and the details panel.
+/// A missing image returns nil right away (draw initials instead) and downloads in the background; once ready it
+/// fires `didChange` so the views repaint.
+/// The queue / state live in `AvatarQueue` (NhanhCore, covered by tests); downloaded images are kept in a size-limited NSCache.
 @Observable
 final class AvatarStore {
     static let shared = AvatarStore()
 
-    /// Khoá cài đặt bật/tắt (mặc định bật) — dùng chung cho công tắc trong Cài đặt và menu tiêu đề cột graph.
+    /// The on/off setting key (on by default) — shared by the Settings switch and the graph column header menu.
     static let enabledKey = "realAvatars"
-    /// Gửi khi có ảnh mới để các ô graph (AppKit) vẽ lại.
+    /// Sent when a new image arrives so the AppKit graph cells repaint.
     static let didChange = Notification.Name("nhanh.avatarsDidChange")
     private static let pixelSize = 80
-    /// Số ảnh giữ trong RAM (ảnh 80 px đã giải mã ~25 KB): ảnh bị bỏ thì lần sau đọc lại từ cache trên đĩa.
+    /// How many images stay in RAM (a decoded 80 px image is ~25 KB): a dropped one is simply re-read from the on-disk cache next time.
     private static let memoryLimit = 800
 
-    /// Tăng mỗi khi có ảnh mới — view SwiftUI đọc để tự vẽ lại.
+    /// Bumped whenever a new image arrives — SwiftUI views read it to repaint themselves.
     private(set) var version = 0
 
-    /// Tắt thì không gửi gì ra mạng: bỏ ngay hàng đợi, không bắt đầu việc tải nào nữa (việc đang tải chạy nốt).
+    /// While off nothing goes over the network: the queue is dropped immediately and no download job starts any more (a running one finishes).
     var isEnabled: Bool = UserDefaults.standard.object(forKey: AvatarStore.enabledKey) as? Bool ?? true {
         didSet {
             guard isEnabled != oldValue else { return }
@@ -42,27 +43,27 @@ final class AvatarStore {
         images.countLimit = Self.memoryLimit
     }
 
-    /// Ảnh đã tải của `email`; chưa có thì xếp hàng tải (repo GitHub giúp tìm ảnh qua API commit) và trả nil.
+    /// The downloaded image for `email`; when there is none it queues a download (the GitHub repo helps find images via the commits API) and returns nil.
     func image(email: String, repo: GitHubRepoRef?) -> NSImage? {
         guard isEnabled, email.contains("@") else { return nil }
         let key = AvatarSource.hash(email)
         if let image = images.object(forKey: key as NSString) { return image }
-        // Hỏi lại khi đang chờ: đưa lên đầu hàng (dòng đang hiện trên màn hình được tải trước).
+        // Re-requesting while waiting: move it to the front (rows on screen download first).
         queue.enqueue(key, AvatarRequest(email: email, repo: repo))
         startNext()
         return nil
     }
 
     private func startNext() {
-        // Đã tắt: không bắt đầu việc nào nữa, kể cả việc xếp hàng trước khi tắt.
+        // Turned off: don't start any job any more, including one queued before it was turned off.
         guard isEnabled else { return }
         while let next = queue.next() {
             let key = next.key
             let request = next.request
             let fetcher = fetcher
             Task {
-                // Token của tài khoản GitHub ứng với owner của repo (chỉ gửi tới api.github.com, không gửi Gravatar):
-                // không có token thì GitHub chỉ cho 60 lượt/giờ mỗi IP. Lấy ngoài luồng chính vì có thể phải đọc Keychain.
+                // The GitHub account token matching the repo's owner (only ever sent to api.github.com, never to Gravatar):
+                // without a token GitHub allows only 60 requests/hour per IP. Fetched off the main actor because it may read the Keychain.
                 let repo = request.repo
                 let token = await Task.detached { repo.flatMap { GitHubAccountManager.shared.apiToken(forOwner: $0.owner) } }.value
                 let result = await fetcher.lookupAvatar(email: request.email, repo: repo, size: Self.pixelSize, token: token)
@@ -71,7 +72,7 @@ final class AvatarStore {
         }
     }
 
-    /// Không có ảnh: không hỏi lại trong phiên; lỗi tạm (mạng, hết lượt API, token hết hạn): hỏi lại sau vài phút.
+    /// No image: not asked again during the session; a temporary failure (network, API rate limit, expired token) is retried after a few minutes.
     private func finish(_ key: String, _ result: AvatarResult) {
         switch result {
         case .found(let data):
@@ -90,7 +91,7 @@ final class AvatarStore {
         startNext()
     }
 
-    /// Gom nhiều ảnh về cùng lúc thành một lần vẽ lại.
+    /// Coalesce several arriving images into one repaint.
     private func scheduleNotify() {
         guard !notifyScheduled else { return }
         notifyScheduled = true
@@ -104,7 +105,7 @@ final class AvatarStore {
 }
 
 extension RepoModel {
-    /// Repo trên GitHub của remote mặc định (để tìm ảnh đại diện qua API commit), nil nếu không phải GitHub.
+    /// The default remote's GitHub repo (used to find avatars via the commits API), nil when it isn't GitHub.
     var githubRepo: GitHubRepoRef? {
         let ordered = remotes.filter { $0.name == defaultRemote } + remotes
         return ordered.lazy.compactMap { GitHubRepoRef.parse(remoteURL: $0.fetchURL) }.first

@@ -1,8 +1,8 @@
 import Foundation
 import Security
 
-/// Một tài khoản GitLab (gitlab.com hoặc máy chủ tự host) — phần không bí mật, lưu trong UserDefaults. Token nằm trong
-/// Keychain theo `key`.
+/// A GitLab account (gitlab.com or a self-hosted server) — the non-secret part, stored in UserDefaults. The token lives in
+/// the Keychain under `key`.
 public struct GitLabAccount: Codable, Sendable, Equatable, Identifiable {
     public let host: String
     public let user: GitLabUser
@@ -13,20 +13,20 @@ public struct GitLabAccount: Codable, Sendable, Equatable, Identifiable {
     }
 
     public var id: String { key }
-    /// "gitlab.com/alice" — khoá trong Keychain và danh sách.
+    /// "gitlab.com/alice" — the Keychain key and the list's identity.
     public var key: String { "\(host)/\(user.username.lowercased())" }
     public var displayName: String { user.name.flatMap { $0.isEmpty ? nil : $0 } ?? user.username }
 }
 
-/// Nơi cất token GitLab (JSON của `GitLabToken`). App dùng Keychain; test dùng bản trong bộ nhớ.
+/// Where GitLab tokens are stored (the JSON of a `GitLabToken`). The app uses the Keychain; tests use an in-memory version.
 public protocol GitLabTokenStore: Sendable {
     func read(key: String) throws -> GitLabToken?
     func save(_ token: GitLabToken, key: String) throws
     func delete(key: String) throws
 }
 
-/// Token trong Keychain: generic password, service `com.phanthai.thaigit.gitlab`, account = "host/username", chỉ trên máy
-/// này, không đồng bộ iCloud.
+/// Tokens in the Keychain: a generic password with service `com.phanthai.thaigit.gitlab` and account = "host/username", on this
+/// machine only, no iCloud sync.
 public struct KeychainGitLabTokenStore: GitLabTokenStore {
     public static let service = "com.phanthai.thaigit.gitlab"
 
@@ -98,8 +98,8 @@ public final class InMemoryGitLabTokenStore: GitLabTokenStore, @unchecked Sendab
     }
 }
 
-/// Tài khoản GitLab của app + token, an toàn đa luồng. Lệnh git HTTPS tới host của một tài khoản nhận token qua
-/// credential helper (xem `GitLabCredentialInjection`); token OAuth sắp hết hạn được làm mới trước khi dùng.
+/// The app's GitLab accounts plus tokens, thread-safe. An HTTPS git command to one of the account's hosts receives the token
+/// through a credential helper (see `GitLabCredentialInjection`); an OAuth token about to expire is renewed first.
 public final class GitLabAccounts: @unchecked Sendable {
     public static let listKey = "thaigit.gitlabAccounts"
 
@@ -107,10 +107,10 @@ public final class GitLabAccounts: @unchecked Sendable {
     private let storage: GitHubSettingsStorage
     private let tokens: GitLabTokenStore
     private let api: GitLabAPI
-    /// host → Client ID của OAuth App (để làm mới token OAuth). gitlab.com lấy từ Info.plist.
+    /// host → the OAuth App's client ID (used to renew OAuth tokens). gitlab.com's comes from Info.plist.
     private let clientIDs: @Sendable (String) -> String?
     private var cached: [GitLabAccount]
-    /// Chỉ một lần làm mới cho mỗi tài khoản tại một thời điểm (refresh token dùng một lần).
+    /// Only one renewal per account at a time (a refresh token can be used just once).
     private var refreshing: [String: Task<GitLabToken?, Never>] = [:]
 
     public init(storage: GitHubSettingsStorage = UserDefaultsSettingsStorage(), tokens: GitLabTokenStore = KeychainGitLabTokenStore(),
@@ -128,10 +128,10 @@ public final class GitLabAccounts: @unchecked Sendable {
         return cached
     }
 
-    /// Host có tài khoản (để nhận remote HTTPS của GitLab tự host).
+    /// Hosts that have an account (used to recognise a self-hosted GitLab HTTPS remote).
     public var hosts: Set<String> { Set(accounts.map(\.host)) }
 
-    /// Tài khoản dùng cho một host: khớp đúng host (kể cả cổng) rồi mới khớp theo tên host; ưu tiên `preferredUser`.
+    /// The account used for a host: exact host match (including port) first, then host name; `preferredUser` wins ties.
     public func account(forHost host: String, preferredUser: String? = nil) -> GitLabAccount? {
         let bare = GitLabProjectRef.stripPort(host.lowercased())
         let known = accounts
@@ -142,13 +142,13 @@ public final class GitLabAccounts: @unchecked Sendable {
         return candidates.first(where: { $0.user.username.lowercased() == wanted }) ?? candidates.first
     }
 
-    /// Token API dùng ngay của tài khoản ứng với `host` (làm mới nếu sắp hết hạn); nil khi chưa có tài khoản / token.
+    /// The account's ready-to-use API token for `host` (renewing it when it's about to expire); nil when there's no account / token.
     public func apiToken(forHost host: String, preferredUser: String? = nil) async -> String? {
         guard let account = account(forHost: host, preferredUser: preferredUser) else { return nil }
         return await validToken(for: account)?.accessToken
     }
 
-    /// Thêm (hoặc cập nhật token của) tài khoản sau khi đăng nhập / dán token.
+    /// Add (or update the token of) an account after sign-in / token paste.
     public func add(host: String, user: GitLabUser, token: GitLabToken) throws -> GitLabAccount {
         let account = GitLabAccount(host: host, user: user)
         try tokens.save(token, key: account.key)
@@ -170,7 +170,7 @@ public final class GitLabAccounts: @unchecked Sendable {
         storage.setData(data, forKey: Self.listKey)
     }
 
-    /// Token dùng được ngay của tài khoản (làm mới nếu sắp hết hạn). nil khi không có token hoặc làm mới lỗi.
+    /// The account's ready-to-use token (renewing it when it's about to expire). nil when there's no token or the renewal failed.
     public func validToken(for account: GitLabAccount, now: Date = Date()) async -> GitLabToken? {
         guard let token = try? tokens.read(key: account.key) else { return nil }
         guard token.needsRefresh(now: now) else { return token }
@@ -193,8 +193,8 @@ public final class GitLabAccounts: @unchecked Sendable {
         return result
     }
 
-    /// Thông tin đăng nhập cho một lệnh git chạm `urls`: tài khoản đầu tiên của host HTTPS đầu tiên khớp. Username là
-    /// "oauth2" với token OAuth, username GitLab với personal access token.
+    /// Sign-in info for a git command touching `urls`: the account of the first matching HTTPS host. The username is
+    /// "oauth2" with an OAuth token and the GitLab username with a personal access token.
     public func credential(forURLs urls: [String]) async -> GitLabCredential? {
         let known = accounts
         for url in urls {
@@ -212,7 +212,7 @@ public final class GitLabAccounts: @unchecked Sendable {
     }
 }
 
-/// Username + token cho một host GitLab. In ra không bao giờ lộ token.
+/// Username + token for one GitLab host. Printing it never exposes the token.
 public struct GitLabCredential: Sendable, Equatable, CustomStringConvertible {
     public let host: String
     public let username: String
@@ -221,8 +221,9 @@ public struct GitLabCredential: Sendable, Equatable, CustomStringConvertible {
     public var description: String { "GitLabCredential(\(host), \(username), token: <ẩn>)" }
 }
 
-/// Đưa token GitLab cho git như `GitCredentialInjection` của GitHub: `-c credential.https://<host>.helper=` (xoá helper
-/// của người dùng cho đúng URL đó) rồi helper script đọc username / token từ biến môi trường của riêng tiến trình git.
+/// Hands a GitLab token to git like GitHub's `GitCredentialInjection`: `-c credential.https://<host>.helper=` (clears the
+/// user's own helper for exactly that URL), then a helper script reads the username / token from environment
+/// variables of that git process alone.
 public enum GitLabCredentialInjection {
     public static let userVariable = "THAIGIT_GITLAB_USER"
     public static let tokenVariable = "THAIGIT_GITLAB_TOKEN"
@@ -238,14 +239,14 @@ public enum GitLabCredentialInjection {
     }
 }
 
-/// Script credential helper cho GitLab, cài cạnh `github-credential.sh`. Chỉ trả lời "get".
+/// The credential helper script for GitLab, installed next to `github-credential.sh`. It only answers "get".
 public enum GitLabCredentialHelper {
     public static let fileName = "gitlab-credential.sh"
 
     public static let script = #"""
     #!/bin/sh
-    # Thaigit — credential helper cho GitLab (git gọi: <script> get|store|erase). Username / token nằm trong biến môi
-    # trường của riêng tiến trình git (THAIGIT_GITLAB_USER / THAIGIT_GITLAB_TOKEN), không ghi ra đĩa.
+    # Thaigit — credential helper for GitLab (git calls: <script> get|store|erase). The username / token live in
+    # environment variables of that git process alone (THAIGIT_GITLAB_USER / THAIGIT_GITLAB_TOKEN), never on disk.
     [ "$1" = "get" ] || exit 0
     [ -n "${THAIGIT_GITLAB_USER-}" ] && [ -n "${THAIGIT_GITLAB_TOKEN-}" ] || exit 0
     printf 'username=%s\npassword=%s\n' "$THAIGIT_GITLAB_USER" "$THAIGIT_GITLAB_TOKEN"

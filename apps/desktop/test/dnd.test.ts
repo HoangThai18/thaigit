@@ -1,4 +1,4 @@
-// Kéo-thả: thả nhánh / tag / file lên đâu thì được làm gì (port dropOptions của Swift), trên repo git thật.
+// Drag and drop: what dropping a branch / tag / file onto a target is allowed to do (a port of Swift's dropOptions), on a real git repo.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseDropTarget } from '../src/lib/dnd/drag.svelte.ts';
 import { canDrop, dropAction, refDropItems } from '../src/lib/dnd/dropMenu.ts';

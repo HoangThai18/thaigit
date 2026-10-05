@@ -40,7 +40,7 @@ def sdk_env():
 
 def extracted_keys():
     out = tempfile.mkdtemp(prefix="thaigit-strings-")
-    # Chạm mọi file để trình biên dịch trích lại cả những file không đổi.
+    # Touch every file so the compiler re-extracts even the unchanged ones.
     for path in glob.glob(os.path.join(ROOT, "Sources/**/*.swift"), recursive=True):
         os.utime(path)
     build = subprocess.run(

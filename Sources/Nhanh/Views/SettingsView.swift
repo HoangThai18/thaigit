@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Các thẻ trong Cài đặt (lưu thẻ đang chọn để menu "Tài khoản GitHub…" mở đúng thẻ).
+/// The tabs in Settings (the selected tab is remembered so the "GitHub accounts…" menu opens the right one).
 enum SettingsTab: String {
     case general, git, account, ssh
 }
@@ -77,7 +77,7 @@ private struct GeneralSettings: View {
                 Toggle("Hiện nhánh remote trên graph", isOn: $showRemoteBranches)
                 Toggle("Hiện tag trên graph", isOn: $showTags)
                 Toggle("Hiện thời gian tương đối (“3 giờ trước”)", isOn: $relativeDates)
-                // Cùng cài đặt với công tắc trong menu chuột phải lên tiêu đề cột graph.
+                // The same setting as the switch in the right-click menu on the graph column header.
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle("Ảnh đại diện thật (GitHub, Gravatar)", isOn: $avatars.isEnabled)
                     Text("Để tìm ảnh, Thaigit gửi mã băm SHA-256 của email người commit tới Gravatar; với repo có remote github.com, gửi email người commit tới API GitHub. Tắt thì không gửi gì nữa.")
@@ -173,7 +173,7 @@ private struct GitSettings: View {
     }
 }
 
-/// Thẻ "Tài khoản": các tài khoản GitHub (thêm, xoá, đặt mặc định, danh tính commit) và owner đã gán.
+/// The "Accounts" tab: the GitHub accounts (add, remove, set default, commit identity) and the assigned owners.
 private struct AccountSettings: View {
     @Bindable private var github = GitHubAccountManager.shared
     @State private var removing: GitHubAccountProfile?
@@ -212,7 +212,7 @@ private struct AccountSettings: View {
         } message: { _ in
             Text("Chỉ token của tài khoản này bị xoá khỏi Keychain, các tài khoản khác giữ nguyên. Token vẫn còn hiệu lực trên GitHub tới khi bạn thu hồi.")
         }
-        // Làm mới danh sách tổ chức mỗi lần mở thẻ (để chọn đúng tài khoản cho repo của tổ chức).
+        // Refresh the organisation list every time the tab opens (so the right account is picked for an organisation's repo).
         .task { github.refreshOrganizations() }
     }
 
@@ -318,7 +318,7 @@ private struct AccountSettings: View {
     }
 }
 
-/// Một tài khoản trong Cài đặt: ảnh, tên, tổ chức, mặc định / cần đăng nhập lại, sửa tên & email commit.
+/// One account in Settings: avatar, name, organisations, default / needs sign-in again, and the commit name & email.
 private struct GitHubAccountRow: View {
     let profile: GitHubAccountProfile
     let isDefault: Bool

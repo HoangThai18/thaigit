@@ -1,4 +1,4 @@
-// Các `{#each}` có khoá khác trong vỏ ứng dụng cũng không được vỡ khi dữ liệu trùng (H2: rà thêm).
+// Other `{#each}` blocks in the app shell must not break either when the data has duplicates (H2: widening the audit).
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 import Toasts from '../../src/lib/shell/Toasts.svelte';

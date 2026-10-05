@@ -20,7 +20,7 @@
 
   let cancelButton = $state<HTMLButtonElement>();
 
-  // Hộp thoại chặn mọi thao tác khác: đưa focus vào nút an toàn (Huỷ) để bàn phím/trình đọc màn hình ở trong hộp thoại ngay từ đầu.
+  // This dialog blocks every other action: move focus to the safe button (Cancel) so the keyboard / screen reader stays inside the dialog from the start.
   onMount(() => cancelButton?.focus());
 </script>
 

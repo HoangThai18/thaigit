@@ -1,7 +1,8 @@
 /**
- * Panel Dòng thời gian (snapshot tự động của thư mục làm việc): danh sách mốc, so một mốc với "bây giờ" (chụp mốc hiện tại trước
- * nên thấy cả file chưa track), mở diff từng file ở vùng giữa, khôi phục một file / tất cả có hỏi trước và Hoàn tác trên toast.
- * Cũng giữ công tắc tự lưu theo repo.
+ * Timeline panel (automatic snapshots of the working tree): a list of milestones, a comparison of one
+ * milestone against "now" (it captures the current state first so untracked files show up too), per-file
+ * diffs in the centre area, restore of one file / all files after a confirmation, and Undo on the toast.
+ * It also holds the per-repo auto-capture switch.
  */
 import { SnapshotStore, type FileChange, type GitRepository, type SnapshotEntry } from '@thaigit/core';
 import { dialogs as globalDialogs, type DialogStore } from '../stores/dialogs.svelte.ts';
@@ -10,7 +11,7 @@ import type { PrefsStore } from '../stores/prefs.svelte.ts';
 import type { ToastAction } from '../stores/toasts.svelte.ts';
 import { vi } from '../strings.vi.ts';
 
-/** Phần của `RepoStore` mà dòng thời gian cần (tránh import vòng). */
+/** The slice of `RepoStore` that the timeline needs (avoids a circular import). */
 export interface TimelineHost {
   readonly git: GitRepository;
   readonly rootPath: string;
@@ -27,9 +28,9 @@ export interface TimelineHost {
     options?: { actions?: readonly ToastAction[] },
   ): void;
   showError(title: string, error: unknown): void;
-  /** Hai panel cùng chỗ bên phải: mở Dòng thời gian thì đóng Lịch sử file. */
+  /** Panels that share the right-hand slot: opening the Timeline closes File history. */
   closeFileHistory?(): void;
-  /** Mở Dòng thời gian thì đóng Review PR (cùng chỗ bên phải). */
+  /** Opening the Timeline closes the PR review (same right-hand slot). */
   closeReview?(): void;
 }
 
@@ -39,7 +40,7 @@ export interface TimelineComparison {
   readonly files: readonly FileChange[];
 }
 
-/** Phạm vi làm mới sau khi khôi phục: chỉ trạng thái working tree (`Scope.status`). */
+/** What to refresh after a restore: working tree status only (`Scope.status`). */
 const STATUS_SCOPE = 1;
 
 export class TimelineStore {
@@ -55,13 +56,13 @@ export class TimelineStore {
 
   constructor(private readonly host: TimelineHost) {}
 
-  /** Tạo khi cần lần đầu: `host.git` là getter trỏ về `RepoStore` đang dựng nên chưa đọc được trong constructor. */
+  /** Created on first use: `host.git` is a getter pointing at the `RepoStore` under construction, so it can't be read in the constructor. */
   get snapshots(): SnapshotStore {
     this.snapshotStore ??= new SnapshotStore(this.host.git);
     return this.snapshotStore;
   }
 
-  /** Tự lưu đang bật cho repo này (cài đặt chung VÀ không bị tắt riêng). */
+  /** Auto-capture is on for this repo (global setting AND not disabled per repo). */
   get enabled(): boolean {
     const value = this.host.prefs.value;
     return value.snapshotsEnabled && !value.snapshotsDisabledRepos.includes(this.host.rootPath);
@@ -107,7 +108,7 @@ export class TimelineStore {
     }
   }
 
-  /** Chọn một mốc và so với thư mục làm việc bây giờ. */
+  /** Pick a milestone and compare it against the current working tree. */
   async select(entry: SnapshotEntry): Promise<void> {
     this.selected = entry;
     const token = ++this.compareToken;
@@ -125,14 +126,14 @@ export class TimelineStore {
     }
   }
 
-  /** Diff của một file: mốc đã chọn → bây giờ, ở vùng giữa. */
+  /** Diff of one file: selected milestone → now, in the centre area. */
   openFile(change: FileChange): void {
     const comparison = this.comparison;
     if (comparison === null) return;
     this.host.diff.open(change, { kind: 'commit', sha: comparison.now.sha, parent: comparison.target.sha });
   }
 
-  /** Lần chụp tự động (bộ lập lịch): lỗi ném lên để bộ lập lịch quyết định thử lại; lần đầu trên máy thì giải thích. */
+  /** An automatic capture (from the scheduler): a thrown error is left to the scheduler to decide about retrying; the first run on a machine gets an explanation. */
   async autoTake(): Promise<void> {
     await this.snapshots.take('auto');
     const prefs = this.host.prefs;
@@ -145,7 +146,7 @@ export class TimelineStore {
     if (this.isOpen) await this.load();
   }
 
-  /** Dọn mốc cũ theo cài đặt (bộ lập lịch gọi tối đa mỗi giờ một lần). */
+  /** Prune old milestones per the settings (the scheduler calls this at most once an hour). */
   async autoPrune(): Promise<void> {
     const value = this.host.prefs.value;
     const removed = await this.snapshots.prune({
@@ -166,7 +167,7 @@ export class TimelineStore {
     }
   }
 
-  /** Khôi phục `paths` (null = tất cả) về mốc đã chọn — hỏi trước, có Hoàn tác. */
+  /** Restore `paths` (null = everything) to the selected milestone — asks first, and offers Undo. */
   async restore(paths: readonly string[] | null, options: { dialogs?: DialogStore } = {}): Promise<void> {
     const comparison = this.comparison;
     if (comparison === null) return;

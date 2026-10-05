@@ -1,4 +1,6 @@
-/** Mục "Khoá SSH" trong Cài đặt — khoá SSH riêng của Thaigit, khoá bí mật nằm trong kho bí mật của hệ điều hành. */
+/**
+ * The "SSH keys" entry in Settings — Thaigit's own SSH keys; the secrets live in the OS keychain.
+ */
 export const ssh = {
   title: 'Khoá SSH',
   help: 'Tạo khoá SSH ngay trong Thaigit (hoặc nhập khoá có sẵn) để clone / fetch / push repo SSH (git@github.com:…, git@gitlab.com:…) mà không cần cấu hình ssh-agent hay thư mục .ssh.',

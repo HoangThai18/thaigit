@@ -2,8 +2,8 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Nội dung một cửa sổ, như GitKraken: thanh tab tự vẽ ở hàng trên cùng (cạnh 3 nút đỏ/vàng/xanh), bên dưới là tab
-/// đang chọn — màn hình chọn repository, một repository, hoặc "Có gì mới".
+/// A window's content, like GitKraken: a hand-drawn tab bar on the top row (next to the red/yellow/green buttons), and below it the
+/// selected tab — the repository picker, a repository, or "What's New".
 struct RootView: View {
     @Environment(AppState.self) private var appState
     @State private var tabs = TabsModel()
@@ -13,8 +13,8 @@ struct RootView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            // Cửa sổ ẩn thanh tiêu đề (nội dung tràn lên trên): khoảng an toàn phía trên chính là chiều cao thanh tiêu đề,
-            // nơi đặt 3 nút đỏ/vàng/xanh — hàng tab cao đúng bằng nó để các nút nằm giữa hàng.
+            // A window with a hidden title bar (the content overflows upwards): the top safe-area inset is exactly the title bar's
+            // height, where the red/yellow/green buttons sit — the tab row is made exactly that tall so the buttons end up centred in it.
             let stripHeight = max(proxy.safeAreaInsets.top, 30)
             VStack(spacing: 0) {
                 TabStrip(tabs: tabs, height: stripHeight)
@@ -67,7 +67,7 @@ struct RootView: View {
         windowActions.showPalette = { showPalette = true }
     }
 
-    /// Lần mở đầu tiên sau khi cập nhật: tự mở tab "Có gì mới" (như Release Notes của GitKraken), một lần.
+    /// The first launch after an update: open the "What's New" tab by itself once (like GitKraken's Release Notes).
     private func showReleaseNotesIfJustUpdated() {
         guard AppUpdater.shared.justUpdated != nil, !Self.didAutoShowReleaseNotes else { return }
         Self.didAutoShowReleaseNotes = true
@@ -76,7 +76,7 @@ struct RootView: View {
 
     private static var didAutoShowReleaseNotes = false
 
-    /// Thư mục mở từ Finder / Dock / dòng lệnh: mỗi thư mục một tab trong cửa sổ đang dùng.
+    /// A folder opened from Finder / Dock / the command line: one tab per folder, in the window in use.
     private func consumePendingOpens() {
         let paths = appState.pendingOpenPaths
         guard !paths.isEmpty else { return }
@@ -104,7 +104,7 @@ struct RootView: View {
     }
 }
 
-/// Nội dung của tab đang chọn.
+/// The content of the selected tab.
 private struct TabContentView: View {
     let tab: AppTab
     let tabs: TabsModel
@@ -128,7 +128,7 @@ private struct TabContentView: View {
     }
 }
 
-/// Cấu hình NSWindow bên dưới: tắt tab của macOS (Thaigit tự vẽ thanh tab) để mở repo không sinh thêm cửa sổ.
+/// The NSWindow configuration underneath: macOS tabs are turned off (Thaigit draws its own tab bar) so opening a repo doesn't spawn another window.
 struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         ConfiguratorView()

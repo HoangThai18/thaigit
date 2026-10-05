@@ -1,5 +1,5 @@
-// Parse output của các lệnh git plumbing/porcelain có định dạng máy đọc được (port Parsers.swift).
-// Mọi hàm là THUẦN (bytes/chuỗi → mô hình) nên chạy được trong Web Worker. Giải mã UTF-8 lossy như Swift.
+// Parsers for machine-readable git plumbing/porcelain output (port of Parsers.swift).
+// Every function is PURE (bytes/string → model) so it can run in a Web Worker. UTF-8 is decoded lossily, like Swift.
 
 import { decodeUtf8, encodeUtf8 } from './bytes.ts';
 import {
@@ -31,7 +31,7 @@ function asText(input: Uint8Array | string): string {
   return typeof input === 'string' ? input : decodeUtf8(input);
 }
 
-/** Như `split(separator, maxSplits:, omittingEmptySubsequences: false)` của Swift: tối đa `maxSplits + 1` phần, phần cuối giữ nguyên phần còn lại. */
+/** Like Swift's `split(separator, maxSplits:, omittingEmptySubsequences: false)`: at most `maxSplits + 1` pieces, the last keeping the remainder. */
 function splitLimited(text: string, separator: string, maxSplits: number): string[] {
   const parts: string[] = [];
   let start = 0;
@@ -45,26 +45,26 @@ function splitLimited(text: string, separator: string, maxSplits: number): strin
   return parts;
 }
 
-/** Tách theo `separator`, bỏ phần rỗng (mặc định của `split` trong Swift). */
+/** Split on `separator`, dropping empty pieces (Swift's `split` default). */
 function splitOmittingEmpty(text: string, separator: string): string[] {
   return text.split(separator).filter((part) => part !== '');
 }
 
-/** `Double(text)` của Swift: chuỗi rỗng/không phải số → null. */
+/** Swift's `Double(text)`: empty or non-numeric string → null. */
 function parseNumber(text: string): number | null {
   if (text === '') return null;
   const value = Number(text);
   return Number.isNaN(value) ? null : value;
 }
 
-/** `Int(text)` của Swift: chỉ nhận số nguyên thập phân có dấu tuỳ chọn. */
+/** Swift's `Int(text)`: accepts only decimal integers with an optional sign. */
 function parseInteger(text: string): number | null {
   return /^[+-]?\d+$/.test(text) ? Number(text) : null;
 }
 
 // MARK: - Log
 
-/** Dùng với `git log -z --format=...`: mỗi commit kết thúc bằng NUL, các trường ngăn bởi \x1f. */
+/** For `git log -z --format=…`: each commit ends with NUL, fields separated by \x1f. */
 export const LOG_FORMAT = '%H%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%cn%x1f%ce%x1f%ct%x1f%s';
 
 export function parseLog(data: Uint8Array | string): Commit[] {
@@ -75,7 +75,7 @@ export function parseLog(data: Uint8Array | string): Commit[] {
     let end = text.indexOf('\0', start);
     if (end < 0) end = text.length;
     if (end > start) {
-      // Một số phiên bản git chèn "\n" trước bản ghi kế tiếp.
+      // Some git versions insert a "\n" before the next record.
       const from = text.charCodeAt(start) === 0x0a ? start + 1 : start;
       const fields = splitLimited(text.slice(from, end), UNIT_SEPARATOR, 8);
       const [
@@ -120,17 +120,18 @@ export function parseLog(data: Uint8Array | string): Commit[] {
   return commits;
 }
 
-// MARK: - Lịch sử một file
+// MARK: - File history
 
 /**
- * Định dạng cho `git log -z --follow --name-status`: \x1e mở đầu bản ghi commit để phân biệt với token của name-status
- * (cũng ngăn bằng NUL).
+ * Format for `git log -z --follow --name-status`: \x1e starts each commit record, distinguishing it from name-status
+ * tokens (which are also NUL-terminated).
  */
 export const FILE_HISTORY_FORMAT = `%x1e${LOG_FORMAT}`;
 
 /**
- * Parse `git log -z --format=FILE_HISTORY_FORMAT --follow --name-status -- <path>`. Đi từ mới về cũ: commit đổi tên
- * (`R100 cũ mới`) làm các commit cũ hơn mang tên cũ. Commit không kèm name-status (merge) lấy tên đang theo dõi.
+ * Parse `git log -z --format=FILE_HISTORY_FORMAT --follow --name-status -- <path>`. Walked newest to oldest: a rename
+ * commit (`R100 old new`) makes older commits carry the old name. Commits without name-status (merges) keep the name
+ * currently being tracked.
  */
 export function parseFileHistory(data: Uint8Array | string, path: string): FileHistoryEntry[] {
   const tokens = asText(data).split('\0');
@@ -140,7 +141,7 @@ export function parseFileHistory(data: Uint8Array | string, path: string): FileH
   let change: FileChange | null = null;
   for (let index = 0; index < tokens.length; index++) {
     const raw = tokens[index] ?? '';
-    // Một số phiên bản git chèn "\n" trước bản ghi kế tiếp / trước name-status.
+    // Some git versions insert a "\n" before the next record / before the name-status.
     const token = raw.startsWith('\n') ? raw.slice(1) : raw;
     if (token.startsWith('\x1e')) {
       if (commit !== null) entries.push({ commit, change: change ?? fileChange(tracked, 'modified') });
@@ -169,9 +170,9 @@ export function parseFileHistory(data: Uint8Array | string, path: string): FileH
   return entries;
 }
 
-// MARK: - Worktree, submodule
+// MARK: - Worktrees, submodules
 
-/** Parse `git worktree list --porcelain -z`: các trường ngăn bởi NUL, mỗi worktree kết thúc bằng một trường rỗng. */
+/** Parse `git worktree list --porcelain -z`: fields separated by NUL, each worktree terminated by an empty field. */
 export function parseWorktrees(data: Uint8Array | string): Worktree[] {
   const result: Worktree[] = [];
   let current: { -readonly [K in keyof Worktree]: Worktree[K] } | null = null;
@@ -210,7 +211,7 @@ const SUBMODULE_STATES: Readonly<Record<string, SubmoduleState>> = {
   U: 'conflict',
 };
 
-/** Parse `git submodule status`: mỗi dòng "<trạng thái><sha> <đường dẫn>[ (<mô tả>)]". */
+/** Parse `git submodule status`: each line "<status><sha> <path>[ (<description>)]". */
 export function parseSubmoduleStatus(data: Uint8Array | string): Submodule[] {
   const result: Submodule[] = [];
   for (const line of asText(data).split('\n')) {
@@ -238,9 +239,10 @@ export function parseSubmoduleStatus(data: Uint8Array | string): Submodule[] {
 const BLAME_HEADER = /^([0-9a-f]{40}|[0-9a-f]{64}) \d+ \d+/;
 
 /**
- * Parse `git blame --porcelain` (port Blame.parse của app Swift): mỗi dòng mở đầu bằng "<sha> <dòng gốc> <dòng mới> [số dòng]",
- * thông tin commit (author, author-mail, author-time, summary…) chỉ có ở lần đầu commit xuất hiện, nội dung dòng bắt đầu bằng
- * tab. Nội dung không phải UTF-8 được giải mã lỏng (chỉ để xem).
+ * Parse `git blame --porcelain` (port of Blame.parse in the Swift app): each line starts with
+ * "<sha> <origLine> <newLine> [linesInGroup]", commit details (author, author-mail, author-time, summary…) appear only
+ * the first time a commit appears, and line content starts with a tab. Content that is not UTF-8 is decoded lossily
+ * (display only).
  */
 export function parseBlame(data: Uint8Array | string): Blame {
   const lines: BlameLine[] = [];
@@ -280,7 +282,7 @@ export function parseBlame(data: Uint8Array | string): Blame {
 
 // MARK: - Refs
 
-/** Dùng với `git for-each-ref --format=...`: %1f là ký tự \x1f. */
+/** For `git for-each-ref --format=…`: %1f is the \x1f character. */
 export const REF_FORMAT =
   '%(refname)%1f%(objectname)%1f%(*objectname)%1f%(upstream:short)%1f%(upstream:track,nobracket)%1f%(HEAD)%1f%(symref)%1f%(creatordate:unix)';
 
@@ -308,7 +310,7 @@ export function parseRefs(input: Uint8Array | string): GitRef[] {
     ) {
       continue;
     }
-    // Bỏ các symref như refs/remotes/origin/HEAD.
+    // Drop symrefs such as refs/remotes/origin/HEAD.
     if (symref !== '') continue;
     const kind = refKindOf(fullName);
     if (kind === null) continue;
@@ -464,7 +466,7 @@ export function parseStatus(data: Uint8Array | string): WorkingTreeStatus {
 
 // MARK: - Name-status
 
-/** Parse `git diff-tree -r -z --name-status -M ...`. */
+/** Parse `git diff-tree -r -z --name-status -M …`. */
 export function parseNameStatus(data: Uint8Array | string): FileChange[] {
   const tokens = asText(data).split('\0');
   const result: FileChange[] = [];
@@ -511,7 +513,7 @@ export function parseStashList(data: Uint8Array | string): Stash[] {
     ) {
       continue;
     }
-    // "stash@{3}" → 3; không đọc được thì dùng thứ tự trong danh sách.
+    // "stash@{3}" → 3; when it cannot be read, fall back to list order.
     const braces = /\{(\d+)\}/.exec(selector);
     stashes.push({
       index: braces?.[1] !== undefined ? Number(braces[1]) : stashes.length,
@@ -534,7 +536,7 @@ export function parseRemotes(input: Uint8Array | string): Remote[] {
   const order: string[] = [];
   for (const line of splitOmittingEmpty(asText(input), '\n')) {
     const parts = line.split('\t');
-    // `split(maxSplits: 1)` của Swift: tên, rồi toàn bộ phần còn lại.
+    // Swift's `split(maxSplits: 1)`: the name, then everything that remains.
     const name = parts[0];
     const rest = parts.slice(1).join('\t');
     if (name === undefined || name === '' || rest === '') continue;
@@ -556,9 +558,9 @@ export function parseRemotes(input: Uint8Array | string): Remote[] {
   }));
 }
 
-// MARK: - Tiến trình
+// MARK: - Progress
 
-/** Rút phần trăm từ dòng tiến độ của git ("Receiving objects:  45% (450/1000)") → 0...1, hoặc null. */
+/** Extract a percentage from a git progress line ("Receiving objects:  45% (450/1000)") → 0…1, or null. */
 export function progressFraction(line: string): number | null {
   const percent = line.indexOf('%');
   if (percent < 0) return null;
@@ -568,9 +570,9 @@ export function progressFraction(line: string): number | null {
   return Math.min(Math.max(Number(line.slice(start, percent)) / 100, 0), 1);
 }
 
-// MARK: - Đường dẫn trong ngoặc kép
+// MARK: - Quoted paths
 
-/** Giải mã đường dẫn bị git đặt trong ngoặc kép kiểu C ("a\tb\"c", "\303\251") → chuỗi UTF-8 (lossy). */
+/** Decode a git C-style quoted path ("a\tb\"c", "\303\251") → a UTF-8 string (lossy). */
 export function unquoteGitPath(text: string): string {
   if (text.length < 2 || !text.startsWith('"') || !text.endsWith('"')) return text;
   const inner = encodeUtf8(text.slice(1, -1));
@@ -622,14 +624,14 @@ const SIMPLE_ESCAPES: Readonly<Record<number, number>> = {
   0x76: 0x0b, // \v
 };
 
-// MARK: - Tên thư mục clone
+// MARK: - Clone directory name
 
-/** Tên thư mục mặc định khi clone từ URL ("https://github.com/a/b.git" → "b"). */
+/** Default directory name when cloning from a URL ("https://github.com/a/b.git" → "b"). */
 export function defaultCloneDirectoryName(url: string): string {
   let trimmed = url.trim();
   while (trimmed.endsWith('/')) trimmed = trimmed.slice(0, -1);
   if (trimmed.endsWith('.git')) trimmed = trimmed.slice(0, -4);
-  // Tên này thành tên thư mục: bỏ ký tự điều khiển/ký tự cấm của Windows, không để "." hay "..".
+  // The name becomes a directory name: drop Windows-forbidden characters, and never leave "." or "..".
   const last = (trimmed.split(/[/:]/).pop() ?? '').replace(/[\\<>"|?*\u0000-\u001f]/g, '-');
   return last === '' || last === '.' || last === '..' ? 'repo' : last;
 }

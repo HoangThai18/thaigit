@@ -1,10 +1,10 @@
-//! Terminal thật trong cửa sổ repo (như terminal tích hợp của GitKraken): shell của máy (PowerShell trên Windows, shell đăng
-//! nhập trên macOS / Linux) chạy qua PTY ở thư mục gốc repo; webview vẽ bằng xterm.js.
+//! A real terminal inside the repo window (like GitKraken's integrated terminal): the machine's shell (PowerShell on
+//! Windows, the login shell on macOS / Linux) runs through a PTY in the repo root; the webview draws it with xterm.js.
 //!
-//! Ranh giới tin cậy: webview chỉ chọn REPO (theo id trong registry), kích thước và gửi phím gõ — chương trình, tham số,
-//! thư mục làm việc và env đều do Rust quyết định. Đây là tính năng chủ ý cho người dùng gõ lệnh tuỳ ý, nên phím gõ được
-//! chuyển nguyên văn cho shell; mọi chuỗi lấy từ repo trong webview vẫn chỉ render dạng text (không có HTML thô) để nội dung
-//! repo không thể tự gõ vào terminal.
+//! Trust boundary: the webview only picks the REPO (by its registry id), the size, and sends keystrokes — the program, its
+//! arguments, the working directory and the environment are all decided by Rust. This is a feature that intentionally lets
+//! users type arbitrary commands, so keystrokes reach the shell verbatim; strings coming from the repo are still rendered
+//! as text in the webview (no raw HTML), so repo content cannot type itself into the terminal.
 
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -17,16 +17,16 @@ use serde::Serialize;
 
 use crate::errors::{AppError, Result};
 
-/// Số terminal tối đa mở cùng lúc (mọi cửa sổ) — chặn webview mở vô hạn tiến trình.
+/// Maximum terminals open at once (all windows) — stops the webview from spawning processes without limit.
 const MAX_SESSIONS: usize = 16;
 
-/// Sự kiện gửi lên webview qua Channel.
+/// Events sent up to the webview through a Channel.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum TerminalEvent {
-    /// Output của shell (base64 — byte thô, có thể cắt giữa ký tự UTF-8; xterm.js tự ghép).
+    /// Shell output (base64 — raw bytes, possibly cut mid-UTF-8 sequence; xterm.js reassembles them).
     Data { data: String },
-    /// Shell đã thoát.
+    /// The shell exited.
     Exit,
 }
 
@@ -46,7 +46,7 @@ fn clamp_size(cols: u16, rows: u16) -> PtySize {
     PtySize { rows: rows.clamp(2, 500), cols: cols.clamp(2, 1000), pixel_width: 0, pixel_height: 0 }
 }
 
-/// Shell mặc định: Windows ưu tiên PowerShell 7 (`pwsh`), không có thì Windows PowerShell; nơi khác dùng `$SHELL` (đăng nhập).
+/// Default shell: on Windows prefer PowerShell 7 (`pwsh`), else Windows PowerShell; elsewhere use `$SHELL` (login).
 fn shell_command(path_env: &OsString) -> CommandBuilder {
     #[cfg(windows)]
     {
@@ -66,7 +66,7 @@ fn shell_command(path_env: &OsString) -> CommandBuilder {
 }
 
 impl Terminals {
-    /// Mở terminal ở `root`. `on_event` nhận output / sự kiện thoát (gọi từ luồng đọc riêng).
+    /// Open a terminal at `root`. `on_event` receives output / the exit event (called from a separate reader thread).
     pub fn open(
         &self,
         window: &str,
@@ -113,7 +113,7 @@ impl Terminals {
         Ok(id)
     }
 
-    /// Phím gõ của người dùng (đúng terminal của cửa sổ đó).
+    /// The user's keystrokes (always the terminal of that window).
     pub fn write(&self, window: &str, id: &str, data: &str) -> Result<()> {
         let mut sessions = self.lock();
         let session = sessions.get_mut(id).filter(|s| s.window == window).ok_or_else(Self::missing)?;
@@ -126,7 +126,7 @@ impl Terminals {
         session.master.resize(clamp_size(cols, rows)).map_err(|_| Self::missing())
     }
 
-    /// Đóng một terminal (dừng shell).
+    /// Close one terminal (stop its shell).
     pub fn close(&self, window: &str, id: &str) {
         let removed = {
             let mut sessions = self.lock();
@@ -140,7 +140,7 @@ impl Terminals {
         }
     }
 
-    /// Cửa sổ đóng / webview tải lại: dừng mọi terminal của cửa sổ đó.
+    /// The window closed / the webview reloaded: stop every terminal of that window.
     pub fn close_window(&self, window: &str) {
         let removed: Vec<Session> = {
             let mut sessions = self.lock();
@@ -182,10 +182,10 @@ mod tests {
         let (tx, rx) = mpsc::channel::<TerminalEvent>();
         let path = std::env::var_os("PATH").unwrap_or_default();
         let id = terminals.open("main", dir.path(), 80, 24, path, move |event| { let _ = tx.send(event); }).unwrap();
-        // Cửa sổ khác không gõ / đóng được terminal này.
+        // Another window cannot type into or close this terminal.
         assert!(terminals.write("other", &id, "echo x\r").is_err());
         terminals.close("other", &id);
-        // Ghép chuỗi trong shell để output khác dòng lệnh vừa gõ (terminal tự in lại phím gõ).
+        // Command substitution in the shell, so the output differs from the typed line (the terminal echoes keystrokes itself).
         let line = if cfg!(windows) { "echo ('thai' + 'git-42')\r" } else { "echo thai''git-42\r" };
         terminals.write("main", &id, line).unwrap();
         terminals.resize("main", &id, 100, 30).unwrap();

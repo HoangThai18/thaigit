@@ -1,10 +1,10 @@
 import Foundation
 
-/// Message commit đang gõ dở của một repo.
+/// One repo's half-typed commit message.
 public struct CommitDraft: Codable, Equatable, Sendable {
     public var summary: String
     public var body: String
-    /// Lần sửa cuối — để bỏ bản nháp cũ nhất khi vượt trần.
+    /// Last edit time — used to drop the oldest draft once the cap is exceeded.
     public var savedAt: Date
 
     public init(summary: String, body: String, savedAt: Date = Date()) {
@@ -19,8 +19,9 @@ public struct CommitDraft: Codable, Equatable, Sendable {
     }
 }
 
-/// Bản nháp commit theo từng repo (khoá: đường dẫn gốc repo) lưu trong UserDefaults: đóng app, đóng tab hay đổi repo
-/// rồi quay lại vẫn còn message đang gõ dở. Bản nháp trống thì xoá; giữ tối đa `maxDrafts` repo gần nhất.
+/// Per-repo commit drafts (keyed by the repo's root path) stored in UserDefaults: closing the app, closing a
+/// tab or switching repo and coming back still keeps the half-typed message. A blank draft is deleted; at
+/// most the `maxDrafts` most recent repos are kept.
 public struct CommitDraftStore: Sendable {
     public static let key = "commitDrafts.v1"
     public static let maxDrafts = 50

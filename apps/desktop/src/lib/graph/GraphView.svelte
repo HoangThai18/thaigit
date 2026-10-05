@@ -1,7 +1,8 @@
 <!--
-  Bảng commit + graph (port CommitGraphView.swift): hàng DOM ảo hoá cao 30px cho các cột chữ (chữ sắc, chọn/copy được)
-  và MỘT canvas phủ cột Graph chỉ vẽ phần thấy. Cột kéo đổi rộng được, tự co/ẩn khi hẹp theo luật Swift; ↑↓ chọn commit;
-  tải thêm khi cuộn gần cuối.
+  Commit table + graph (port of CommitGraphView.swift): text columns use 30px virtualised DOM rows (selectable,
+  copyable text) while a SINGLE canvas over the Graph column paints only the visible slice. Columns are
+  user-resizable and auto collapse/hide when narrow using the Swift rules; Up/Down selects a commit; more
+  history loads when scrolling near the end.
 -->
 <script lang="ts">
   import type { GraphSearch } from './search.svelte.ts';
@@ -40,9 +41,9 @@
 
   interface Props {
     store: RepoStore;
-    /** Double-click / Enter trên một hàng (checkout ở phase sau). */
+    /** Double-click / Enter on a row (checkout happens in a later phase). */
     onactivate?: (entry: GraphEntry) => void;
-    /** Tìm kiếm đang mở: tô hàng khớp, làm mờ hàng còn lại. */
+    /** Active search: highlight matching rows, dim the rest. */
     search?: GraphSearch;
   }
 
@@ -52,9 +53,9 @@
   const laneColors = readLaneColors(document.documentElement);
   const fontFamily = getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim();
 
-  /** Hàng dựng thêm ngoài vùng thấy ở mỗi phía (truyền cho VirtualList; cũng để biết hàng nào đang có trong DOM). */
+  /** Extra rows rendered beyond the visible range on each side (fed to VirtualList; also tells us which rows exist in the DOM). */
   const OVERSCAN = 14;
-  // `id` hàng phải duy nhất trong tài liệu (nhiều GraphView có thể cùng tồn tại): lấy tiền tố riêng của component.
+  // Row ids must be unique document-wide (several GraphViews can be alive at once), so use the component's own prefix.
   const uid = $props.id();
   const rowId = (index: number): string => `${uid}-row-${index}`;
 
@@ -64,7 +65,7 @@
   let rangeStart = $state(0);
   let rangeEnd = $state(0);
 
-  // --- cột ---
+  // --- columns ---
   const graphWidthPx = $derived(graphColumnWidth(store.graphLanes));
   const columns = $derived(fitColumns(rowsWidth, prefs.value.columns, graphWidthPx));
   const visible = $derived(new Set<ColumnId>(columns.visible));
@@ -82,8 +83,9 @@
   );
 
   const selectedRow = $derived(store.selectedRow);
-  // `aria-activedescendant` chỉ được trỏ vào phần tử có trong DOM: danh sách ảo hoá gỡ hàng ngoài vùng dựng, nên hàng đang chọn
-  // mà ở ngoài vùng đó thì bỏ thuộc tính (quay về hộp listbox) thay vì để một id treo.
+  // `aria-activedescendant` may only point at an element that is in the DOM: the virtualised list removes rows
+  // outside the rendered range, so when the selected row falls outside it we drop the attribute (falling back to
+  // the listbox itself) instead of leaving a dangling id.
   const activeDescendant = $derived(
     selectedRow !== null &&
       selectedRow >= Math.max(0, rangeStart - OVERSCAN) &&
@@ -92,22 +94,22 @@
       : undefined,
   );
   const relative = $derived(prefs.value.relativeDates);
-  /** Số file chưa commit: hiện trên pill nhánh đang đứng (thay đổi thuộc nhánh đó, không thuộc dòng "// WIP"). */
+  /** Uncommitted file count: shown on the pill of the checked-out branch (those changes belong to the branch, not to the "// WIP" row). */
   const pendingCount = $derived(changedFileCount(store.status));
-  /** HEAD tách rời thì không có nhánh để gắn số file, dòng WIP phải tự nói mình có bao nhiêu thay đổi. */
+  /** With a detached HEAD there is no branch to hang the file count on, so the WIP row states its own change count. */
   const pendingOnCurrent = $derived(store.currentBranch === null ? 0 : pendingCount);
   const wipSummary = $derived(workingTreeSummary(store.status));
   const showLoading = $derived(!store.hasLoaded);
   const showError = $derived(store.hasLoaded && store.historyError !== null && store.entries.length === 0);
   const showEmpty = $derived(store.hasLoaded && store.historyError === null && store.entries.length === 0);
 
-  /** Repo trên GitHub của repo đang mở (từ remote `origin`): Rust dùng để tìm ảnh qua API commit. */
+  /** GitHub repo of the open repo (from the `origin` remote): Rust uses it to find avatars via the commits API. */
   const githubTarget = $derived.by(() => {
     const target = repoForgeTarget(store.remotes);
     return target?.provider === 'github' ? { owner: target.owner, name: target.repo } : null;
   });
 
-  /** Email người đang commit: node dòng WIP vẽ avatar của chính người đó. */
+  /** Email of the current committer: the WIP row node draws that person's avatar. */
   let wipEmail = $state<string | null>(null);
   $effect(() => {
     let alive = true;
@@ -119,13 +121,13 @@
     };
   });
 
-  // Repo GitHub của repo đang mở (để Rust tìm ảnh qua API commit). Ảnh đã tải giữ nguyên trong bộ nhớ.
+  // GitHub repo of the open repo (so Rust can find avatars via the commits API). Already downloaded avatars stay cached in memory.
   $effect(() => {
     avatars.setEnabled(prefs.value.showAvatars);
     avatars.github = githubTarget;
   });
 
-  /** Tải ảnh đại diện cho các hàng đang thấy (kể cả hàng vừa cuộn tới): Rust cache sẵn nên lần sau không tải lại. */
+  /** Load avatars for the visible rows (including rows just scrolled in); Rust caches them, so later passes are cheap. */
   $effect(() => {
     if (!avatars.enabled) return;
     const first = Math.max(0, rangeStart - OVERSCAN);
@@ -137,8 +139,8 @@
     }
   });
 
-  // --- chọn hàng, bàn phím ---
-  /** Bấm giữ lên nhãn nhánh / tag rồi kéo: thả lên nhánh khác để merge / rebase, lên remote để push. */
+  // --- row selection, keyboard ---
+  /** Press and hold on a branch/tag label then drag: drop on another branch to merge / rebase, on a remote to push. */
   function beginPillDrag(event: PointerEvent, entry: GraphEntry): void {
     const pill = event.target instanceof Element ? event.target.closest('.pill[data-drop]') : null;
     const target = parseDropTarget(pill?.getAttribute('data-drop'));
@@ -150,7 +152,7 @@
     dragDrop.begin(event, () => ({ kind: 'ref', ref, label: label.text }));
   }
 
-  /** Khung nổi khi rê chuột vào "+N": các nhánh / tag bị gom (như GitKraken). */
+  /** Popover shown when hovering "+N": the branches / tags folded into it (like GitKraken). */
   let moreHover = $state<{ x: number; y: number; labels: readonly RefLabel[] } | null>(null);
 
   function showMore(event: PointerEvent, labels: readonly RefLabel[]): void {
@@ -165,7 +167,7 @@
     menus.openBelow(event.currentTarget as HTMLElement, labelsMenu(store, labels));
   }
 
-  /** Nhấp đúp lên một nhãn: checkout đúng nhánh đó (không phải nhánh đầu dòng). */
+  /** Double-click a label: check out exactly that branch (not the topmost one). */
   function activatePill(event: MouseEvent, label: RefLabel): void {
     const ref =
       label.refs.find((item) => item.kind === 'localBranch') ??
@@ -222,9 +224,10 @@
     selectRow(target);
   }
 
-  // Cuộn tới hàng khi store yêu cầu (chọn nhánh ở sidebar, bấm commit cha, chọn lần đầu). Mỗi yêu cầu chỉ xử lý MỘT lần, và
-  // lời gọi `scrollToIndex` nằm trong `untrack`: bên trong nó đọc `items.length` (phản ứng) nên nếu không thì mỗi lần graph
-  // nạp lại, effect chạy lại và cuộn về hàng của yêu cầu cũ.
+  // Scroll to a row when the store asks for it (selecting a branch in the sidebar, clicking a parent commit,
+  // first-time select). Each request is handled only ONCE, and the `scrollToIndex` call sits inside `untrack`:
+  // it reads `items.length` (reactive) internally, so without it every graph reload would re-run the effect
+  // and scroll back to the row of an already handled request.
   let handledScrollId = 0;
   $effect(() => {
     const request = store.scrollRequest;
@@ -234,13 +237,13 @@
     untrack(() => target.scrollToIndex(request.row, 'center'));
   });
 
-  // Tải thêm khi cuộn gần cuối (như Swift: còn ≤ 30 hàng); chống lặp khi lỗi: xem `autoLoadMore`.
+  // Load more when scrolling near the end (like Swift: ≤ 30 rows left); retry loop guard on failure: see `autoLoadMore`.
   autoLoadMore(
     () => store,
     () => rangeEnd,
   );
 
-  // --- kéo đổi độ rộng cột ---
+  // --- column width drag ---
   interface Drag {
     id: SizedColumn;
     startX: number;
@@ -269,7 +272,7 @@
   }
 
   function resizeKey(id: SizedColumn, event: KeyboardEvent): void {
-    // Phím trên thanh đổi rộng là của thanh đó: không để lan lên các bộ xử lý phím bao quanh (vd. Home/End/↑/↓ chọn hàng).
+    // Keys pressed on a resize bar belong to that bar: don't let them bubble to the surrounding key handlers (e.g. Home/End/Up/Down row selection).
     event.stopPropagation();
     const step = event.shiftKey ? 30 : 10;
     const current = columns.widths[id] ?? DEFAULT_WIDTHS[id];
@@ -285,7 +288,7 @@
 </script>
 
 {#snippet resizer(id: SizedColumn)}
-  <!-- Thanh chia cột có thể focus (mẫu "window splitter" của WAI-ARIA): Svelte coi `separator` là phần tử tĩnh nên cần bỏ qua cảnh báo. -->
+  <!-- Focusable column divider (the WAI-ARIA "window splitter" pattern): Svelte treats `separator` as a static element, hence the ignored warnings. -->
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div
     class="resizer"
@@ -310,8 +313,9 @@
   {@const commit = entry.commit}
   {@const isWip = isWorkingTreeCommit(commit)}
   <!--
-    Bàn phím do hộp `listbox` bên ngoài xử lý (↑↓/PageUp/PageDown/Home/End/Enter). Hàng ảo hoá bị gỡ khỏi DOM khi cuộn đi; nếu
-    focus nằm ở hàng thì phím mũi tên ngừng hoạt động, nên bấm hàng xong là chuyển focus về hộp listbox.
+    Keyboard handling lives on the outer `listbox` (Up/Down/PageUp/PageDown/Home/End/Enter). Virtualised rows are
+    removed from the DOM once scrolled away; if focus sits on a row the arrow keys stop working, so clicking a row
+    moves focus back to the listbox.
   -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
@@ -331,7 +335,7 @@
       graphElement?.focus({ preventScroll: true });
     }}
     ondblclick={(event) => {
-      // Nhấp đúp lên một nhãn: checkout đúng nhánh đó; chỗ khác của hàng: như cũ (onactivate).
+      // Double-click on a label checks out that exact branch; anywhere else in the row behaves as before (onactivate).
       const pill = (event.target as HTMLElement | null)?.closest('[data-pill]')?.getAttribute('data-pill');
       const label = pill == null ? undefined : entry.labels[Number(pill)];
       if (label) activatePill(event, label);
@@ -454,7 +458,7 @@
 {/snippet}
 
 <div class="graph-table" style={tableStyle}>
-  <!-- Tiêu đề cột nằm NGOÀI listbox: listbox chỉ chứa các hàng (option) để trình đọc màn hình đếm đúng "mục x / tổng". -->
+  <!-- The column header sits OUTSIDE the listbox: the listbox only holds the rows (options) so screen readers report "item x of y" correctly. -->
   <div class="header" role="presentation" style:width="{rowsWidth}px">
     {#each columns.visible as id (id)}
       <div class="hcell col-{id}" role="presentation">
@@ -526,7 +530,7 @@
     position: relative;
   }
 
-  /* Hộp listbox (nhận focus bàn phím) phủ kín vùng thân; không vẽ viền focus: hàng được chọn đổi sang màu nhấn khi bảng có focus. */
+  /* The listbox (keyboard focus target) covers the whole body area; no focus outline: the selected row switches to the pressed colour whenever the table has focus. */
   .rows {
     height: 100%;
     outline: none;
@@ -577,7 +581,7 @@
     text-overflow: ellipsis;
   }
 
-  /* Vạch ngăn giữa các tiêu đề; vùng bấm kéo rộng hơn vạch. */
+  /* Divider between headers; the drag target is wider than the visual line. */
   .hcell::after {
     content: '';
     position: absolute;
@@ -696,7 +700,7 @@
     color: var(--text-secondary);
   }
 
-  /* --- nhãn nhánh/tag kiểu kính --- */
+  /* --- glass-style branch/tag labels --- */
   .pill {
     position: absolute;
     top: 50%;
@@ -726,7 +730,7 @@
     text-overflow: ellipsis;
   }
 
-  /* Badge số file chưa commit: đứng trong viên, cạnh tên nhánh đang checkout. */
+  /* Badge with the uncommitted file count: sits inside the pill, next to the checked-out branch name. */
   .pill-badge {
     flex: none;
     margin-left: 5px;
@@ -800,7 +804,7 @@
     font-size: 11.5px;
   }
 
-  /* Đường nối từ nhãn sang node (phần trong cột Nhánh/Tag; phần trong cột Graph do canvas vẽ). */
+  /* Connector from a label to its node (the part inside the Refs column; the part inside the Graph column is painted by the canvas). */
   .connector {
     position: absolute;
     top: 50%;

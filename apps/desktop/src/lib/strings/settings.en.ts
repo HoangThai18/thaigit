@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `settings.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `setting.vi.ts` (same keys, same parameters). */
 import type { settings as source } from './settings.vi.ts';
 import type { Translation } from './types.ts';
 

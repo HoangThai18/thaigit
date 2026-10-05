@@ -1,7 +1,9 @@
-// Đóng gói diff thành ngữ cảnh gửi cho AI (`AiDiffContext` của contracts). Mọi thứ bị loại ở đây KHÔNG BAO GIỜ rời máy:
-//  - cả file: theo tên (lockfile / sinh tự động / nhạy cảm), nhị phân, không phải UTF-8;
-//  - từng hunk: chứa chuỗi trông như bí mật (secret-scan.ts) → bỏ hunk, ghi vào `redactions`;
-//  - vượt ngân sách token: mỗi file ≤ PER_FILE_TOKENS, ưu tiên hunk đổi nhiều dòng; hết ngân sách chung → chỉ gửi tên file.
+// Packages a diff into the context sent to the AI (`AiDiffContext` from contracts). Whatever is dropped here NEVER
+// leaves the machine:
+//  - whole files: by name (lockfile / generated / sensitive), binary, or not UTF-8;
+//  - individual hunks: containing a secret-looking string (secret-scan.ts) → drop the hunk, record it in `redactions`;
+//  - over the token budget: per-file cap PER_FILE_TOKENS preferring hunks with the most changed lines; once the shared
+//    budget is gone, send file names only.
 
 import type { AiDiffFile, AiFileStatus, AiSkippedFile } from '@thaigit/contracts';
 import type { DiffHunk, FileDiff } from '../diff/diff.ts';
@@ -9,9 +11,9 @@ import { decodeUtf8Strict } from '../support/text.ts';
 import { classifyPath, findSecret } from './secret-scan.ts';
 import { estimateTokens } from './token-estimate.ts';
 
-/** Trần token cho một file (để một file khổng lồ không nuốt hết ngân sách). */
+/** Token cap for one file, so a single huge file cannot swallow the whole budget. */
 export const PER_FILE_TOKENS = 2000;
-/** File được chia dưới mức này thì chỉ gửi tên (gửi vài dòng lẻ không giúp gì cho model). */
+/** Files smaller than this are sent by name only (a few stray lines would not help the model). */
 const MIN_FILE_TOKENS = 60;
 
 export interface Redaction {
@@ -22,9 +24,9 @@ export interface Redaction {
 export interface BuiltContext {
   files: AiDiffFile[];
   skipped: AiSkippedFile[];
-  /** Các hunk đã bỏ vì nghi chứa bí mật (để báo "Đã bỏ n đoạn có thể chứa bí mật"). */
+  /** Hunks dropped as suspected secrets (so the UI can report "Dropped N possible secrets"). */
   redactions: Redaction[];
-  /** Ước lượng token của phần diff gửi đi. */
+  /** Token estimate of the diff portion actually sent. */
   tokens: number;
 }
 
@@ -34,9 +36,9 @@ interface Candidate {
   status: AiFileStatus;
   additions: number;
   deletions: number;
-  /** Hunk đã giải mã + đã qua quét bí mật, theo thứ tự trong file. */
+  /** Decoded, secret-scanned hunks, in file order. */
   hunks: { text: string; tokens: number; changes: number }[];
-  /** Có hunk bị bỏ vì bí mật. */
+  /** Whether any hunk was dropped as a suspected secret. */
   redacted: boolean;
 }
 
@@ -61,7 +63,7 @@ function fileStatus(file: FileDiff): AiFileStatus {
 
 const PREFIX = { context: ' ', addition: '+', deletion: '-', noNewline: '\\ ' } as const;
 
-/** Hunk → text unified; `null` khi có dòng không phải UTF-8. Bỏ "\r" cuối dòng (vô ích với model, tốn token). */
+/** Hunk → unified text; `null` when a line is not UTF-8. Trailing "\r" is dropped (useless to the model, costly in tokens). */
 function hunkText(hunk: DiffHunk): string | null {
   const lines = [hunk.header];
   for (const line of hunk.lines) {
@@ -115,7 +117,7 @@ function candidateFor(file: FileDiff, skipped: AiSkippedFile[], redactions: Reda
   };
 }
 
-/** Chọn hunk trong ngân sách `budget`: ưu tiên hunk đổi nhiều dòng, nhưng giữ thứ tự gốc khi ghép. */
+/** Pick hunks within `budget`: prefer hunks changing the most lines, but keep original order when assembling. */
 function pickHunks(
   candidate: Candidate,
   budget: number,
@@ -138,8 +140,9 @@ function pickHunks(
 }
 
 /**
- * `diffs`: kết quả `parseDiff` của toàn bộ thay đổi (vd. `git diff --cached`). `budgetTokens`: phần ngân sách dành cho
- * diff (đã trừ prompt, subject…). File nhỏ được xét trước nên phần còn lại chia đều cho file lớn.
+ * `diffs`: `parseDiff` output for all changes (e.g. `git diff --cached`). `budgetTokens`: the part of the budget spent on
+ * the diff (prompt, subjects… already deducted). Small files are considered first so the rest is shared evenly among
+ * large ones.
  */
 export function buildDiffContext(diffs: readonly FileDiff[], budgetTokens: number): BuiltContext {
   const skipped: AiSkippedFile[] = [];

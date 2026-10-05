@@ -24,7 +24,7 @@
 
   let { store, dock }: Props = $props();
 
-  /** Màu terminal lấy từ token của giao diện (sáng / tối) để hoà với phần còn lại của cửa sổ. */
+  /** Terminal colours taken from the UI theme tokens (light / dark) so they blend with the rest of the window. */
   function palette(): ITheme {
     const style = getComputedStyle(document.documentElement);
     const token = (name: string, fallback: string): string => style.getPropertyValue(name).trim() || fallback;
@@ -36,7 +36,7 @@
     };
   }
 
-  /** xterm của từng tab (theo `key`) — đổi màu theo giao diện, đưa focus khi chọn tab / hiện panel. */
+  /** The xterm of each tab (keyed by `key`) — re-themed with the UI, focused when a tab is picked or the panel is shown. */
   const terminals = new Map<number, Terminal>();
 
   $effect(() => {
@@ -48,11 +48,11 @@
   $effect(() => {
     const key = dock.selected;
     if (!dock.visible || key === null) return;
-    // Sau khi khung hiện ra (display) mới focus được.
+    // Only focusable once the frame is actually displayed.
     requestAnimationFrame(() => terminals.get(key)?.focus());
   });
 
-  /** Gắn xterm + shell cho một tab; gỡ (tab bị đóng / panel bị huỷ) thì dừng shell. */
+  /** Attach an xterm + shell to a tab; detaching (the tab was closed / the panel was cancelled) stops the shell. */
   function session(tab: TerminalTab): Attachment<HTMLElement> {
     return (node) => {
       const term = new Terminal({
@@ -74,7 +74,7 @@
 
       let id: string | null = null;
       let disposed = false;
-      // Ctrl+` để app ẩn panel; Ctrl+C khi đang chọn chữ thì sao chép (không gửi ^C); Ctrl+V để trình duyệt dán.
+      // Ctrl+` hides the panel; Ctrl+C while text is selected copies (does not send ^C); Ctrl+V lets the browser paste.
       term.attachCustomKeyEventHandler((event) => {
         if (event.type !== 'keydown' || !(event.ctrlKey || event.metaKey) || event.altKey) return true;
         if (event.code === 'Backquote') return false;
@@ -125,7 +125,7 @@
     };
   }
 
-  // Kéo mép trên để đổi chiều cao.
+  // Drag the top edge to change the height.
   let dragFrom: { y: number; height: number } | null = null;
 
   function onhandledown(event: PointerEvent): void {

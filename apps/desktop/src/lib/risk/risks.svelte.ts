@@ -1,7 +1,8 @@
 /**
- * Cờ rủi ro của thay đổi chưa commit (xoá / bỏ qua test, đổi thư viện, CI, file lớn, bí mật) — tính lại sau mỗi lần làm mới
- * trạng thái (gom các lần sát nhau), vì agent có thể thêm một dòng token vào file vốn đã "sửa" mà danh sách file không đổi.
- * Chỉ là gợi ý: lỗi khi tính thì giữ im lặng, không bao giờ chặn commit.
+ * Risk flags on uncommitted changes (deletions / skipped tests, dependency changes, CI, large files,
+ * secrets) — recomputed after each status refresh (close-together refreshes are batched), because an agent
+ * can add a token line to a file that was already "modified" without the file list changing.
+ * Advisory only: a failure to compute stays silent and never blocks a commit.
  */
 import {
   collectRiskInputs,
@@ -21,7 +22,7 @@ export const RISK_DEBOUNCE_MS = 1500;
 
 export class RiskStore {
   flags = $state.raw<readonly RiskFlag[]>([]);
-  /** Dấu của bộ cờ người dùng đã bấm ẩn: dải cảnh báo chỉ hiện lại khi có cờ mới. */
+  /** The set of flags the user dismissed: the warning strip only reappears for a new flag. */
   dismissedKey = $state('');
 
   get key(): string {
@@ -44,7 +45,7 @@ export class RiskStore {
     private readonly delayMs = RISK_DEBOUNCE_MS,
   ) {}
 
-  /** Trạng thái vừa làm mới: tính lại sau một nhịp. */
+  /** The just-refreshed status: recomputed after a debounce. */
   schedule(): void {
     if (this.disposed) return;
     clearTimeout(this.timer);
@@ -58,7 +59,7 @@ export class RiskStore {
       if (token !== this.token || this.disposed) return;
       if (!jsonEqual(flags, this.flags)) this.flags = flags;
     } catch {
-      // Cờ chỉ là gợi ý: repo bận / lệnh lỗi thì giữ kết quả cũ, lần làm mới sau tính lại.
+      // Flags are only advisory: if the repo is busy or a command fails, keep the previous result and recompute on the next refresh.
     }
   }
 

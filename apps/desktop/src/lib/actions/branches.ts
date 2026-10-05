@@ -1,5 +1,5 @@
-// Đổi nhánh / tạo nhánh (port phần Checkout + Nhánh của RepoModel+Actions.swift). Có "Hoàn tác" (quay lại HEAD cũ) và
-// "Stash rồi checkout" khi thay đổi chưa commit chặn việc đổi nhánh.
+// Switching / creating branches (a port of the Checkout and Branch parts of RepoModel+Actions.swift). There is an "Undo"
+// (return to the old HEAD) and "Stash then switch" when uncommitted changes block the switch.
 
 import {
   isValidRefName,
@@ -119,7 +119,7 @@ export function stashThen(store: RepoStore, retry: CheckoutRetry): Promise<void>
   );
 }
 
-/** Quay lại HEAD trước đó (nhánh hoặc commit), rồi chạy thêm `then` nếu có. */
+/** Go back to the previous HEAD (a branch or a commit), then run `then` when given. */
 export function restoreHead(store: RepoStore, head: HeadState, then?: Work): Promise<void> {
   return store.perform(
     vi.branches.undoCheckout,
@@ -132,7 +132,7 @@ export function restoreHead(store: RepoStore, head: HeadState, then?: Work): Pro
   );
 }
 
-/** Checkout một ref: nhánh local → chuyển sang; nhánh remote → nhánh local cùng tên (tạo mới nếu chưa có); tag → HEAD tách rời. */
+/** Check out a ref: a local branch → switch to it; a remote branch → the same-named local branch (created when missing); a tag → detached HEAD. */
 export function checkout(store: RepoStore, ref: GitRef, dialogs?: DialogStore): Promise<void> {
   switch (ref.kind) {
     case 'localBranch': {
@@ -185,7 +185,7 @@ export function switchToBranch(store: RepoStore, name: string, dialogs?: DialogS
   });
 }
 
-/** Checkout một commit (HEAD tách rời) — hỏi trước vì người mới hay lạc ở trạng thái này. */
+/** Check out a commit (detached HEAD) — asks first, because newcomers are often confused by that state. */
 export async function checkoutDetached(
   store: RepoStore,
   sha: string,
@@ -211,7 +211,7 @@ export async function checkoutDetached(
   });
 }
 
-/** Hỏi tên rồi tạo nhánh tại `startPoint` (mặc định HEAD), có tuỳ chọn chuyển sang luôn. */
+/** Ask for a name, then create the branch at `startPoint` (default HEAD), with an option to switch to it. */
 export async function beginCreateBranch(
   store: RepoStore,
   startPoint?: { sha: string; label: string },
@@ -296,7 +296,7 @@ export function createBranch(
   });
 }
 
-// MARK: - Xoá / đổi tên / fast-forward
+// MARK: - Delete / rename / fast-forward
 
 export async function deleteBranch(store: RepoStore, ref: GitRef, dialogs?: DialogStore): Promise<void> {
   const name = refName(ref);
@@ -344,7 +344,7 @@ function performDeleteBranch(store: RepoStore, ref: GitRef, force: boolean): Pro
   });
 }
 
-/** Xoá nhánh trên remote (cho mọi người — hỏi trước). "Hoàn tác" đẩy lại đúng commit cũ. */
+/** Delete a branch on the remote (visible to everyone — asks first). "Undo" pushes the exact old commit back. */
 export async function deleteRemoteBranch(
   store: RepoStore,
   ref: GitRef,
@@ -434,7 +434,7 @@ export async function beginRenameBranch(store: RepoStore, ref: GitRef, dialogs?:
   });
 }
 
-/** Đưa nhánh local lên ngang upstream (chỉ khi chỉ có "sau", không có "trước"). */
+/** Bring a local branch level with its upstream (only when it is purely "behind"). */
 export function fastForward(store: RepoStore, ref: GitRef): Promise<void> {
   const upstream = ref.upstream;
   if (upstream === null) return Promise.resolve();

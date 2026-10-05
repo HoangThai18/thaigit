@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import NhanhCore
 
-/// Thao tác từng phần như app: stage = áp xuôi vào index, unstage = áp ngược vào index, huỷ = áp ngược vào worktree.
+/// Partial operations as the app does them: stage = applied forward into the index, unstage = applied in reverse into the index, discard = applied in reverse into the working tree.
 private enum PartialOp {
     case stage, unstage, discard
 }
@@ -16,7 +16,7 @@ private func selection(_ diff: FileDiff, where predicate: (DiffLine) -> Bool) ->
     return result
 }
 
-/// Dựng patch từ diff hiện tại rồi áp bằng git như app. Trả về patch đã áp.
+/// Builds a patch from the current diff and applies it with git, like the app does. Returns the applied patch.
 @discardableResult
 private func apply(_ op: PartialOp, _ t: TestRepo, _ change: FileChange,
                    where predicate: (DiffLine) -> Bool) async throws -> String {
@@ -26,7 +26,7 @@ private func apply(_ op: PartialOp, _ t: TestRepo, _ change: FileChange,
     return patch
 }
 
-/// Repo có `path` đã commit với `base`, working tree là `worktree` (đã stage nếu `staged`).
+/// A repo with `path` committed with `base`; the working tree holds `worktree` (staged when `staged`).
 private func makeRepo(_ path: String, base: Data, worktree: Data, staged: Bool = false) async throws -> TestRepo {
     let t = try await TestRepo.make()
     do {
@@ -41,7 +41,7 @@ private func makeRepo(_ path: String, base: Data, worktree: Data, staged: Bool =
     }
 }
 
-/// Hai nhánh cùng sửa một chỗ → `git merge feature` dừng với xung đột ở f.txt.
+/// Two branches editing the same spot → `git merge feature` stops with a conflict in f.txt.
 private func makeConflict(base: Data, ours: Data, theirs: Data) async throws -> TestRepo {
     let t = try await TestRepo.make()
     do {
@@ -79,7 +79,7 @@ struct ByteParsingTests {
         #expect(file.isValidUTF8 && file.supportsPartialStaging)
         #expect(DiffParser.parse(bytes(header + body)) == [file])
 
-        // Hiển thị (và tô đậm trong dòng) dùng chữ đã bỏ "\r"; dữ liệu gốc giữ "\r" để dựng patch.
+        // Display (and bolding within a line) uses the text with "\r" removed; the raw data keeps "\r" so the patch can be built.
         let presentation = DiffPresentation.build(file)
         #expect(presentation.hunks[0].lines.map(\.text) == ["a", "b", "c"])
         #expect(presentation.hunks[1].splitRows.map { [$0.left?.text, $0.right?.text] } == [["x", "y"]])
@@ -100,14 +100,14 @@ struct ByteParsingTests {
         try #require(files.count == 2)
         #expect(files[0].isValidUTF8 && files[0].supportsPartialStaging)
         #expect(files[0].hunks[0].lines.map(\.text) == ["caf\u{e9}", "caf\u{e9}!"])
-        // Vẫn hiển thị được (byte lỗi thành U+FFFD) nhưng không bao giờ dựng patch từ chữ đó.
+        // Still displays (bad bytes become U+FFFD) but a patch is never built from that text.
         #expect(!files[1].isValidUTF8 && !files[1].supportsPartialStaging)
         #expect(files[1].hunks[0].lines.map(\.text) == ["caf\u{FFFD}", "caf\u{FFFD}!"])
         #expect(PatchBuilder.makePatch(file: files[1], selection: PatchBuilder.selectionForWholeHunk(files[1].hunks[0]), reverse: false) == nil)
     }
 
     @Test func lineStartingWithCombiningMarkIsKept() throws {
-        // " " / "-" + dấu kết hợp là MỘT Character: xét ký tự đánh dấu theo Character thì mất dòng.
+        // A space or "-" plus a combining mark is ONE Character: examining the marker by Character loses the line.
         let text = "diff --git a/n.txt b/n.txt\n--- a/n.txt\n+++ b/n.txt\n@@ -1,2 +1,2 @@\n \u{301}a\n-\u{301}x\n+\u{301}y\n"
         let hunk = try #require(DiffParser.parse(text).first?.hunks.first)
         #expect(hunk.lines.map(\.kind) == [.context, .deletion, .addition])
@@ -115,7 +115,7 @@ struct ByteParsingTests {
     }
 
     @Test func noNewlineChangeMovesBelowKeptLines() throws {
-        // "x1\nx2\n" → "y1" (không newline cuối). Chọn "-x1" và "+y1": "+y1" không được đứng trước " x2".
+        // "x1\nx2\n" → "y1" (no trailing newline). Picking "-x1" and "+y1": "+y1" must not end up before " x2".
         let text = "diff --git a/d.txt b/d.txt\n--- a/d.txt\n+++ b/d.txt\n@@ -1,2 +1 @@\n-x1\n-x2\n+y1\n\\ No newline at end of file\n"
         let file = try #require(DiffParser.parse(text).first)
         let patch = try #require(PatchBuilder.makePatch(file: file, selection: [0: [0, 2]], reverse: false))
@@ -124,11 +124,11 @@ struct ByteParsingTests {
 
     @Test func gainedNewlineUsesNeighbourLineEnding() throws {
         let header = "diff --git a/c.txt b/c.txt\n--- a/c.txt\n+++ b/c.txt\n"
-        // Áp ngược hai dòng xoá CRLF: "y1" (không newline) phải nhận "\r\n" chứ không phải "\n" lẻ.
+        // Applying two deleted CRLF lines in reverse: "y1" (no newline) must get "\r\n", not a lone "\n".
         let crlf = try #require(DiffParser.parse(header + "@@ -1,2 +1 @@\n-x1\r\n-x2\r\n+y1\n\\ No newline at end of file\n").first)
         let reversed = try #require(PatchBuilder.makePatch(file: crlf, selection: [0: [0, 1]], reverse: true))
         #expect(show(bytes(reversed)) == show(bytes(header + "@@ -1,3 +1,1 @@\n-x1\r\n-y1\r\n+y1\n\\ No newline at end of file\n-x2\r\n")))
-        // File LF vẫn là "\n".
+        // An LF file stays "\n".
         let lf = try #require(DiffParser.parse(header + "@@ -1,2 +1 @@\n-x1\n-x2\n+y1\n\\ No newline at end of file\n").first)
         let lfPatch = try #require(PatchBuilder.makePatch(file: lf, selection: [0: [0, 1]], reverse: true))
         #expect(show(bytes(lfPatch)) == show(bytes(header + "@@ -1,3 +1,1 @@\n-x1\n-y1\n+y1\n\\ No newline at end of file\n-x2\n")))
@@ -143,31 +143,31 @@ struct ByteParsingTests {
         #expect(patch(plain, reverse: true) == "diff --git a/b.txt b/b.txt\nindex 01f84f8..e864914 100644\n--- a/b.txt\n+++ b/b.txt\n" + body)
         #expect(patch(plain, reverse: false) == "diff --git a/a.txt b/a.txt\nindex 01f84f8..e864914 100644\n--- a/a.txt\n+++ b/a.txt\n" + body)
 
-        // Tên trong ngoặc kép kiểu C giữ nguyên dạng đã escape; tên có dấu cách giữ TAB cuối dòng ---/+++.
+        // A C-quoted name stays in its escaped form; a name with a space keeps the trailing TAB on ---/+++.
         let quoted = "diff --git \"a/t\\303\\240i.txt\" \"b/m\\341\\273\\233i.txt\"\nsimilarity index 90%\nrename from \"t\\303\\240i.txt\"\nrename to \"m\\341\\273\\233i.txt\"\nindex 1..2 100644\n--- \"a/t\\303\\240i.txt\"\n+++ \"b/m\\341\\273\\233i.txt\"\n"
         #expect(patch(quoted, reverse: true) == "diff --git \"a/m\\341\\273\\233i.txt\" \"b/m\\341\\273\\233i.txt\"\nindex 1..2 100644\n--- \"a/m\\341\\273\\233i.txt\"\n+++ \"b/m\\341\\273\\233i.txt\"\n" + body)
         let spaced = "diff --git a/old name.txt b/new name.txt\nsimilarity index 90%\nrename from old name.txt\nrename to new name.txt\nindex 1..2 100644\n--- a/old name.txt\t\n+++ b/new name.txt\t\n"
         #expect(patch(spaced, reverse: true) == "diff --git a/new name.txt b/new name.txt\nindex 1..2 100644\n--- a/new name.txt\t\n+++ b/new name.txt\t\n" + body)
         let copied = "diff --git a/a.txt b/c.txt\nsimilarity index 80%\ncopy from a.txt\ncopy to c.txt\nindex 1..2 100644\n--- a/a.txt\n+++ b/c.txt\n"
         #expect(patch(copied, reverse: true) == "diff --git a/c.txt b/c.txt\nindex 1..2 100644\n--- a/c.txt\n+++ b/c.txt\n" + body)
-        // Không đọc được tên (tiền tố lạ) trên file đổi tên: từ chối thay vì đoán.
+        // An unreadable name (an odd prefix) on a renamed file: refuse rather than guess.
         #expect(patch("diff --git x/a.txt y/b.txt\nsimilarity index 80%\nrename from a.txt\nrename to b.txt\n--- x/a.txt\n+++ y/b.txt\n", reverse: true) == nil)
     }
 
     @Test func conflictMarkersAfterBOMAndInMixedLineEndings() throws {
-        // BOM rồi dấu xung đột ngay dòng đầu: BOM không được che mất dấu, và vẫn còn sau khi giải.
+        // A BOM followed by a conflict marker on the very first line: the BOM must not hide the marker, and it must survive resolving.
         let bomFirst = ConflictFile.parse("\u{FEFF}<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> b\nz\n")
         #expect(bomFirst.hasBOM && bomFirst.conflictCount == 1)
         #expect(bomFirst.resolvedData(with: [0: .theirs]) == bytes("\u{FEFF}y\nz\n"))
 
-        // File CRLF nhưng dòng dấu chỉ có "\n": vẫn nhận ra; mỗi dòng giữ kiểu xuống dòng của riêng nó.
+        // A CRLF file whose marker line has only "\n": still recognised; each line keeps its own line ending.
         let mixed = ConflictFile.parse("a\r\n<<<<<<< HEAD\nx\r\n=======\ny\n>>>>>>> b\nz\r\n")
         try #require(mixed.conflictCount == 1)
         #expect(mixed.lineEnding == "\r\n")
         #expect(mixed.blocks[0].ours == ["x"] && mixed.blocks[0].theirs == ["y"])
         #expect(mixed.resolvedData(with: [0: .oursThenTheirs]) == bytes("a\r\nx\r\ny\nz\r\n"))
 
-        // Không phải UTF-8: không trả nội dung đã giải mã, chỉ đếm số khối (dấu là ASCII).
+        // Not UTF-8: no decoded content is returned, only the block count is (the markers are ASCII).
         #expect(ConflictFile.parse(latin1("caf\u{e9}\n<<<<<<< HEAD\nA\u{e9}\n=======\nB\u{e9}\n>>>>>>> b\n")) == .notUTF8(conflictCount: 1))
         #expect(ConflictFile.parse(bytes("x\n")) == .parsed(ConflictFile.parse("x\n")))
     }
@@ -192,17 +192,17 @@ struct ByteIntegrityGitTests {
         defer { t.cleanup() }
         let change = FileChange(path: "c.txt", kind: .modified)
 
-        // Stage riêng b → B: index đổi đúng một dòng, mọi "\r\n" còn nguyên.
+        // Staging b → B on its own: the index changes exactly one line, every "\r\n" intact.
         let patch = try await apply(.stage, t, change) { $0.text == "b\r" || $0.text == "B\r" }
         #expect(patch.contains("-b\r\n+B\r\n"))
         #expect(show(try await t.indexBlob("c.txt")) == show(bytes("a\r\nB\r\nc\r\nd\r\ne\r\nf\r\ng\r\nh\r\n")))
 
-        // Huỷ riêng g → G trong working tree.
+        // Discarding g → G on its own in the working tree.
         try await apply(.discard, t, change) { $0.text == "g\r" || $0.text == "G\r" }
         #expect(show(try t.readBytes("c.txt")) == show(bytes("a\r\nB\r\nc\r\nd\r\ne\r\nf\r\ng\r\nh\r\n")))
         #expect(try await t.repo.workingDiff(change, kind: .unstaged) == nil)
 
-        // Bỏ stage lại b → B: index về đúng bản gốc.
+        // Unstaging b → B again: the index returns to exactly the original content.
         try await apply(.unstage, t, change) { $0.text == "b\r" || $0.text == "B\r" }
         #expect(show(try await t.indexBlob("c.txt")) == show(bytes("a\r\nb\r\nc\r\nd\r\ne\r\nf\r\ng\r\nh\r\n")))
     }
@@ -226,20 +226,20 @@ struct ByteIntegrityGitTests {
     @Test func noNewlineAdditionIsNeverFusedWithKeptLine() async throws {
         let change = FileChange(path: "d.txt", kind: .modified)
 
-        // Stage "-x1" và "+y1" (không newline cuối), giữ x2: trước đây index thành "y1x2\n".
+        // Stage "-x1" and "+y1" (no trailing newline), keep x2: the index used to become "y1x2\n".
         let pair = try await makeRepo("d.txt", base: bytes("x1\nx2\n"), worktree: bytes("y1"))
         defer { pair.cleanup() }
         try await apply(.stage, pair, change) { $0.text == "x1" || $0.text == "y1" }
         #expect(show(try await pair.indexBlob("d.txt")) == show(bytes("x2\ny1")))
         #expect(show(try pair.readBytes("d.txt")) == show(bytes("y1")))
 
-        // Stage riêng "+y1", giữ cả hai dòng cũ: trước đây "x1\ny1x2\n".
+        // Stage only "+y1", keep both old lines: it used to be "x1\ny1x2\n".
         let addition = try await makeRepo("d.txt", base: bytes("x1\nx2\n"), worktree: bytes("y1"))
         defer { addition.cleanup() }
         try await apply(.stage, addition, change) { $0.kind == .addition }
         #expect(show(try await addition.indexBlob("d.txt")) == show(bytes("x1\nx2\ny1")))
 
-        // Bỏ stage riêng "-x1" (không newline cuối), giữ hai dòng thêm: trước đây "x1y1\ny2\n".
+        // Unstage only "-x1" (no trailing newline), keep both added lines: it used to be "x1y1\ny2\n".
         let deletion = try await makeRepo("d.txt", base: bytes("x1"), worktree: bytes("y1\ny2\n"), staged: true)
         defer { deletion.cleanup() }
         try await apply(.unstage, deletion, change) { $0.kind == .deletion }
@@ -247,7 +247,7 @@ struct ByteIntegrityGitTests {
     }
 
     @Test func gainedNewlineFollowsCRLFLineEnding() async throws {
-        // Stage riêng dòng mới "d": "c" (không newline cuối) được thêm xuống dòng — phải là "\r\n" như cả file.
+        // Staging the new line "d" alone: "c" (no trailing newline) gets a newline added — and it must be "\r\n" like the rest of the file.
         let forward = try await makeRepo("c.txt", base: bytes("a\r\nb\r\nc"), worktree: bytes("a\r\nb\r\nc\r\nd"))
         defer { forward.cleanup() }
         let change = FileChange(path: "c.txt", kind: .modified)
@@ -255,7 +255,7 @@ struct ByteIntegrityGitTests {
         #expect(show(try await forward.indexBlob("c.txt")) == show(bytes("a\r\nb\r\nc\r\nd")))
         #expect(try await forward.repo.workingDiff(change, kind: .unstaged) == nil)
 
-        // Áp ngược: bỏ stage hai dòng xoá CRLF khi dòng thêm cuối file không có newline → "y1" nhận "\r\n".
+        // Applied in reverse: unstaging two deleted CRLF lines when the file's last added line has no newline → "y1" gets "\r\n".
         let reverse = try await makeRepo("d.txt", base: bytes("x1\r\nx2\r\n"), worktree: bytes("y1"), staged: true)
         defer { reverse.cleanup() }
         try await apply(.unstage, reverse, FileChange(path: "d.txt", kind: .modified)) { $0.kind == .deletion }
@@ -278,7 +278,7 @@ struct ByteIntegrityGitTests {
         let change = try #require(try await t.repo.status().staged.first)
         #expect(change == FileChange(path: to, oldPath: from, kind: .renamed))
 
-        // Unstage riêng l2 → L2. Trước đây patch giữ "rename from/to" nên áp ngược đổi tên ngược trong index.
+        // Unstage l2 → L2 on its own. The patch used to keep "rename from/to", so applying it in reverse renamed the file back in the index.
         let patch = try await apply(.unstage, t, change) { $0.text == "l2" || $0.text == "L2" }
         #expect(!patch.contains("rename"))
         #expect(try await t.repo.status().staged == [FileChange(path: to, oldPath: from, kind: .renamed)])
@@ -298,10 +298,10 @@ struct ByteIntegrityGitTests {
         try #require(diff.hunks.count == 1)
         #expect(diff.additions == 1 && diff.deletions == 1)
         #expect(PatchBuilder.makePatch(file: diff, selection: PatchBuilder.selectionForWholeHunk(diff.hunks[0]), reverse: false) == nil)
-        // Đối chứng: đi qua chuỗi giải mã lỏng rồi mã hoá lại sẽ đổi byte — lý do phải chặn.
+        // The contrast: going through a leniently decoded string and re-encoding changes bytes — the reason non-UTF-8 must be blocked.
         #expect(Data(String(decoding: edited, as: UTF8.self).utf8) != edited)
 
-        // Stage / bỏ stage cả file (git add / git reset) giữ nguyên từng byte.
+        // Whole-file stage / unstage (git add / git reset) keeps every byte.
         try await t.repo.stage(paths: ["l.txt"])
         #expect(show(try await t.indexBlob("l.txt")) == show(edited))
         let staged = try #require(try await t.repo.workingDiff(change, kind: .staged))
@@ -327,12 +327,12 @@ struct ByteIntegrityGitTests {
         } catch RepositoryError.notUTF8(let path) {
             #expect(path == "f.txt")
         }
-        // Không có gì bị ghi: working tree và 3 mức xung đột trong index nguyên vẹn.
+        // Nothing is written: the working tree and the 3 conflict stages in the index stay intact.
         #expect(show(try t.readBytes("f.txt")) == show(before))
         #expect(try await t.git("ls-files", "-u") == unmerged)
         #expect(try await t.repo.status().conflicts == [ConflictEntry(path: "f.txt", kind: .bothModified)])
 
-        // Lối thoát giữ nguyên byte: chọn cả file của một bên (git checkout --ours).
+        // An exit path that preserves bytes: take the whole file from one side (git checkout --ours).
         try await t.repo.resolveConflict(path: "f.txt", kind: .bothModified, useOurs: true)
         #expect(show(try t.readBytes("f.txt")) == show(ours))
         #expect(show(try await t.indexBlob("f.txt")) == show(ours))
@@ -361,14 +361,14 @@ struct ByteIntegrityGitTests {
         #expect(t.repo.operationState() == nil)
         let committed = try await t.repo.blob("HEAD:f.txt")
         #expect(show(committed) == show(crlf("one", "OURS", "THEIRS", "three")))
-        // Đọc chặt dạng chuỗi cũng giữ BOM (U+FEFF), không như String(data:encoding:).
+        // Strict decoding as a string also keeps the BOM (U+FEFF), unlike String(data:encoding:).
         #expect(try t.repo.readWorkingFile("f.txt").unicodeScalars.first == "\u{FEFF}")
     }
 
     @Test func pendingMergeMessageWithCRLFDropsComments() async throws {
         let t = try await TestRepo.make()
         defer { t.cleanup() }
-        // "\r\n" là MỘT Character: tách theo Character thì cả message là một dòng, dòng chú thích "#" lọt vào.
+        // "\r\n" is ONE Character: splitting by Character makes the whole message one line and a "#" comment line leaks in.
         try Data("Merge branch 'x'\r\n\r\nChi tiết\r\n# Conflicts:\r\n#\tf.txt\r\n".utf8)
             .write(to: t.repo.gitDir.appendingPathComponent("MERGE_MSG"))
         #expect(t.repo.pendingCommitMessage() == "Merge branch 'x'\n\nChi tiết")
@@ -377,7 +377,7 @@ struct ByteIntegrityGitTests {
     @Test func blankContextLinesSurviveSuppressBlankEmptyConfig() async throws {
         let t = try await makeRepo("b.txt", base: bytes("a\n\nb\nc\n"), worktree: bytes("a\n\nB\nc\n"))
         defer { t.cleanup() }
-        // Cấu hình của repo bị ghi đè bằng -c: dòng ngữ cảnh rỗng vẫn có " " nên không bị parser bỏ qua.
+        // The repo's config is overridden with -c so an empty context line still has " " and isn't skipped by the parser.
         try await t.git("config", "diff.suppressBlankEmpty", "true")
         let change = FileChange(path: "b.txt", kind: .modified)
         let diff = try #require(try await t.repo.workingDiff(change, kind: .unstaged))
@@ -389,8 +389,8 @@ struct ByteIntegrityGitTests {
     @Test func workingDiffNeverRunsTextconvDriver() async throws {
         let t = try await makeRepo("t.txt", base: bytes("x1\nx2\nx3\n"), worktree: bytes("x1\nX2\nx3\n"))
         defer { t.cleanup() }
-        // Repo lạ đặt textconv thành lệnh tuỳ ý: xem diff không được chạy nó, và patch phải dựng từ byte thật
-        // (textconv in hoa cả hai phía thì git còn báo "không có thay đổi").
+        // An untrusted repo sets textconv to an arbitrary command: viewing a diff must not run it, and the patch has to be built
+        // from real bytes (with textconv capitalising both sides git even reports "no changes").
         let marker = t.url.appendingPathComponent("textconv-ran")
         try t.write(".gitattributes", "*.txt diff=upper\n")
         try await t.git("config", "diff.upper.textconv", "touch '\(marker.path)'; tr a-z A-Z <")
@@ -407,7 +407,7 @@ struct ByteIntegrityGitTests {
         let t = try await makeRepo("z.txt", base: bytes("a\nb\nc\nd\ne\nf\n"), worktree: bytes("a\nB\nc\nd\nE\nf\n"))
         defer { t.cleanup() }
         let change = FileChange(path: "z.txt", kind: .modified)
-        // Cài đặt "0 dòng ngữ cảnh": hunk không có dòng ngữ cảnh, git apply chỉ nhận khi có --unidiff-zero.
+        // The "0 context lines" setting: the hunk has no context, and git apply only accepts it with --unidiff-zero.
         let diff = try #require(try await t.repo.workingDiff(change, kind: .unstaged, context: 0))
         #expect(diff.hunks.count == 2 && diff.hunks.allSatisfy { !$0.lines.contains { $0.kind == .context } })
         let patch = try #require(PatchBuilder.makePatch(file: diff, selection: selection(diff) { $0.text == "e" || $0.text == "E" },
@@ -423,14 +423,14 @@ struct ByteIntegrityGitTests {
         try t.write("r.txt", bytes: bytes("<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> b\n"))
         let loaded = try t.readBytes("r.txt")
 
-        // Sửa bên ngoài sau khi app đã đọc file (đang giải xung đột): không được ghi đè mất phần sửa đó.
+        // An outside edit after the app already read the file (while resolving a conflict): it must not be overwritten away.
         try t.write("r.txt", bytes: bytes("sửa tay trong editor\n"))
         #expect(throws: RepositoryError.self) {
             try t.repo.replaceWorkingFile("r.txt", data: bytes("ours\n"), expecting: loaded)
         }
         #expect(show(try t.readBytes("r.txt")) == show(bytes("sửa tay trong editor\n")))
 
-        // Không ai sửa thì ghi bình thường.
+        // With nobody editing, the write is a normal one.
         try t.repo.replaceWorkingFile("r.txt", data: bytes("ours\n"), expecting: try t.readBytes("r.txt"))
         #expect(show(try t.readBytes("r.txt")) == show(bytes("ours\n")))
     }

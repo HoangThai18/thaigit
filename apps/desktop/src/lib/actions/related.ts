@@ -1,6 +1,6 @@
-// Worktree và submodule (như GitKraken): menu ở sidebar, thêm / gỡ / dọn worktree, cập nhật submodule, mở worktree / submodule
-// trong cửa sổ mới. Thư mục cho worktree mới chọn bằng hộp thoại native (Rust cấp token, như clone); mở cửa sổ mới thì Rust
-// tự kiểm git có xác nhận đường dẫn đó là worktree / submodule của repo không.
+// Worktrees and submodules (like GitKraken): the sidebar section, adding / removing / pruning worktrees, updating submodules, and
+// opening a worktree / submodule in a new window. The folder for a new worktree is picked with a native dialog (Rust issues a token, like clone); for a new
+// window Rust verifies that git itself confirms the path is a worktree / submodule of the repo.
 
 import { isValidRefName, type Submodule, type Worktree } from '@thaigit/core';
 import { pickRepoFolder } from '../ipc/host.ts';
@@ -18,7 +18,7 @@ import { gitErrorContains, handleNetworkError } from './errors.ts';
 
 const INVALID_FOLDER = /[/\\:*?"<>|\u0000-\u001f]/;
 
-/** Tên ngắn để hiện một worktree: nhánh, hoặc "detached @ sha", hoặc tên thư mục. */
+/** A short name for a worktree: its branch, or "detached @ sha", or the folder name. */
 export function worktreeName(worktree: Worktree): string {
   if (worktree.branch !== null) return worktree.branch;
   if (worktree.head !== null) return vi.related.worktreeDetached(worktree.head.slice(0, 7));
@@ -42,7 +42,7 @@ async function openRelated(store: RepoStore, kind: 'worktree' | 'submodule', pat
   }
 }
 
-/** Mở worktree trong cửa sổ mới (nhấp đúp ở sidebar) — trừ chính worktree đang mở và worktree đã mất thư mục. */
+/** Open a worktree in a new window (double-click in the sidebar) — except the currently open worktree and one whose folder is gone. */
 export function openWorktree(store: RepoStore, worktree: Worktree): void {
   if (isCurrentWorktree(store, worktree) || worktree.prunable) return;
   void openRelated(store, 'worktree', worktree.path);
@@ -64,7 +64,7 @@ export function worktreeMenu(store: RepoStore, worktree: Worktree, index: number
       run: () => void store.copy(worktree.path, vi.related.pathLabel),
     },
     { kind: 'separator' },
-    // Worktree đầu tiên là worktree chính — git không gỡ được.
+    // The first worktree is the main one — git cannot remove it.
     index > 0 &&
       !current && {
         title: vi.related.removeWorktree,
@@ -109,7 +109,7 @@ export function submoduleMenu(store: RepoStore, submodule: Submodule): MenuItem[
   ]);
 }
 
-/** Chọn thư mục cha (hộp thoại native), rồi hỏi nhánh + tên thư mục, rồi thêm worktree. */
+/** Pick a parent folder (native dialog), then ask for the branch + folder name, then add the worktree. */
 export async function beginAddWorktree(
   store: RepoStore,
   options: { dialogs?: DialogStore; pickFolder?: () => Promise<PickedFolder | null> } = {},
@@ -177,7 +177,7 @@ export async function beginAddWorktree(
   );
 }
 
-/** "repo-feature-x": tên repo + tên nhánh, bỏ ký tự không hợp lệ cho tên thư mục. */
+/** "repo-feature-x": the repo name plus the branch name, dropping characters invalid in a folder name. */
 export function defaultFolder(repoName: string, branch: string): string {
   return `${repoName}-${branch}`.replace(/[/\\:*?"<>|\s]+/g, '-');
 }
@@ -230,7 +230,7 @@ export function pruneWorktrees(store: RepoStore): Promise<void> {
   });
 }
 
-/** `submodule update --init --recursive` (paths null = tất cả) — có thể clone qua mạng. */
+/** `submodule update --init --recursive` (paths null = all) — this may clone over the network. */
 export function updateSubmodules(store: RepoStore, paths: readonly string[] | null): Promise<void> {
   const title = vi.related.updateRunning(paths === null ? null : paths.length);
   return store.perform(title, (git) => git.updateSubmodules(paths), {

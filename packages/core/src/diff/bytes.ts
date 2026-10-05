@@ -1,17 +1,17 @@
-// Tiện ích thuần trên Uint8Array cho diff/patch/conflict. Tách dòng chỉ theo byte "\n" (0x0A);
-// "\r" luôn nằm lại trong dòng — đây là chỗ khác bản Swift (Character coi "\r\n" là một ký tự nên không tách được).
+// Pure Uint8Array helpers for diff/patch/conflict. Lines split on the byte "\n" (0x0A) only; "\r" always stays
+// inside the line — deliberately different from the Swift version, where Character treats "\r\n" as one character.
 
 export const LF = 0x0a;
 export const CR = 0x0d;
 
-/** Byte của một chuỗi ASCII (dùng cho tiền tố và dòng cố định). */
+/** Bytes of an ASCII string (for prefixes and fixed lines). */
 export function asciiBytes(text: string): Uint8Array {
   const out = new Uint8Array(text.length);
   for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i) & 0x7f;
   return out;
 }
 
-/** `bytes` (từ vị trí `at`) có bắt đầu bằng chuỗi ASCII `prefix` không. */
+/** Do `bytes` (from offset `at`) start with the ASCII string `prefix`? */
 export function startsWithAscii(bytes: Uint8Array, prefix: string, at = 0): boolean {
   if (at + prefix.length > bytes.length) return false;
   for (let i = 0; i < prefix.length; i++) {
@@ -41,17 +41,17 @@ export function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 export interface LineSpan {
-  /** Vị trí byte đầu dòng. */
+  /** Byte offset of the line start. */
   readonly start: number;
-  /** Hết phần nội dung (trước "\n" hoặc "\r\n"). */
+  /** End of the content (before "\n" or "\r\n"). */
   readonly contentEnd: number;
-  /** Hết dòng, gồm cả ký tự xuống dòng; bằng `contentEnd` nếu dòng cuối không có xuống dòng. */
+  /** End of line including its terminator; equal to `contentEnd` when the last line has none. */
   readonly end: number;
 }
 
 /**
- * Tách thành các dòng theo "\n"; "\r" đứng ngay trước "\n" thuộc ký tự xuống dòng (`contentEnd` nằm trước nó),
- * mọi "\r" khác nằm lại trong nội dung. Phần cuối không có "\n" là một dòng riêng (nếu không rỗng).
+ * Split into lines on "\n"; a "\r" immediately before the "\n" is part of the terminator (`contentEnd` stops before
+ * it), any other "\r" stays in the content. A trailing chunk without "\n" is its own line (if non-empty).
  */
 export function splitLineSpans(bytes: Uint8Array, from = 0): LineSpan[] {
   const spans: LineSpan[] = [];

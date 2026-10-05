@@ -1,16 +1,18 @@
 /**
- * Cột của bảng graph và luật co/ẩn khi hẹp (port `CommitTable.fitColumns` của CommitGraphView.swift):
- * cột "Commit" lấp phần còn lại; thiếu chỗ thì co tạm Tác giả → Thời gian → Nhánh/Tag tới mức tối thiểu; vẫn thiếu thì ẩn
- * lần lượt SHA → Thời gian → Tác giả (hiện lại khi rộng ra) thay vì bắt cuộn ngang. Hàm thuần, không đụng DOM.
+ * Graph table columns and the shrink/hide rules when narrow (a port of `CommitTable.fitColumns` in
+ * CommitGraphView.swift): the "Commit" column takes the remaining space; when space runs short, Author →
+ * Date → Branch/Tag shrink to their minimums in turn; if it is still too narrow, SHA → Date → Author are
+ * hidden (and reappear when there is room again) instead of forcing a horizontal scroll. Pure functions,
+ * no DOM access.
  */
 import { graphWidth } from './style.ts';
 
 export type ColumnId = 'refs' | 'graph' | 'message' | 'author' | 'date' | 'sha';
 
-/** Thứ tự hiển thị từ trái sang phải. */
+/** Display order, left to right. */
 export const COLUMN_ORDER: readonly ColumnId[] = ['refs', 'graph', 'message', 'author', 'date', 'sha'];
 
-/** Các cột có độ rộng do người dùng chỉnh (và được nhớ). `graph` tự tính theo số làn; `message` lấp phần còn lại. */
+/** Columns whose width the user can set (and which are remembered). `graph` is computed from the lane count; `message` fills the rest. */
 export type SizedColumn = 'refs' | 'author' | 'date' | 'sha';
 
 export interface ColumnLimits {
@@ -32,25 +34,25 @@ export const DEFAULT_WIDTHS: Readonly<Record<SizedColumn, number>> = {
   sha: 74,
 };
 
-/** Độ rộng tối thiểu của cột Commit: dưới mức này thì co/ẩn các cột phụ. */
+/** Minimum width of the Commit column: below this, secondary columns start shrinking/hiding. */
 export const MESSAGE_MIN = 160;
 
-/** Cột co được khi thiếu chỗ, theo thứ tự co, kèm mức tối thiểu khi co. */
+/** Columns that shrink when space is short, in shrink order, with their minimum shrunk width. */
 const SHRINK_ORDER: readonly { id: SizedColumn; floor: number }[] = [
   { id: 'author', floor: 90 },
   { id: 'date', floor: 116 },
   { id: 'refs', floor: 110 },
 ];
 
-/** Thứ tự ẩn khi vẫn thiếu chỗ sau khi co. */
+/** Hide order used when the table is still too narrow after shrinking. */
 const HIDE_ORDER: readonly SizedColumn[] = ['sha', 'date', 'author'];
 
 export type PreferredWidths = Readonly<Record<SizedColumn, number>>;
 
 export interface ColumnLayout {
-  /** Độ rộng thực của mọi cột đang hiện (cột ẩn không có khoá). */
+  /** Effective width of every visible column (a hidden column has no entry). */
   widths: Partial<Record<ColumnId, number>>;
-  /** Cột đang hiện theo thứ tự trái → phải. */
+  /** Visible columns, in left-to-right order. */
   visible: ColumnId[];
 }
 
@@ -59,12 +61,12 @@ export function clampWidth(id: SizedColumn, width: number): number {
   return Math.min(max, Math.max(min, Math.round(width)));
 }
 
-/** Độ rộng cột Graph theo số làn: tối đa 40 làn, kẹp trong 64…640 px. */
+/** Graph column width from the lane count: at most 40 lanes, clamped to 64…640 px. */
 export function graphColumnWidth(lanes: number): number {
   return Math.min(640, Math.max(64, graphWidth(Math.min(lanes, 40))));
 }
 
-/** Đọc độ rộng đã lưu (dữ liệu không tin cậy): thiếu/sai → mặc định, ngoài khoảng → kẹp. */
+/** Read a stored width (persisted data is untrusted): missing/invalid → default, out of range → clamped. */
 export function sanitizePreferred(raw: unknown): PreferredWidths {
   const source = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
   const result = { ...DEFAULT_WIDTHS };
@@ -76,7 +78,8 @@ export function sanitizePreferred(raw: unknown): PreferredWidths {
 }
 
 /**
- * Tính độ rộng/ẩn hiện cột trong bề ngang `available`. `preferred` là độ rộng người dùng muốn; `graph` là độ rộng cột Graph.
+ * Compute column widths and visibility for the horizontal extent `available`. `preferred` holds the widths the
+ * user asked for; `graph` is the Graph column width.
  */
 export function fitColumns(available: number, preferred: PreferredWidths, graph: number): ColumnLayout {
   let hidden = new Set<SizedColumn>();

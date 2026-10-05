@@ -1,11 +1,12 @@
-// Bản tiếng Anh: cùng hình dạng với tiếng Việt (kiểu `Strings` bắt lúc check; test này bắt thêm lúc chạy), không sót chữ
-// tiếng Việt, hàm cùng số tham số và trả về chữ; ngôn ngữ đã lưu đọc đúng, giá trị lạ rơi về tiếng Việt.
+// The English translation: same shape as the Vietnamese (the `Strings` type catches that at check time; this
+// test also catches it at run time), no Vietnamese left behind, functions take the same number of arguments
+// and return a string; a stored language reads back correctly and a bogus value falls back to Vietnamese.
 import { describe, expect, it } from 'vitest';
 import { LOCALE_KEY, LOCALES, readLocale } from '../src/lib/i18n/locale.ts';
 import { en } from '../src/lib/strings.en.ts';
 import { vi } from '../src/lib/strings.vi.ts';
 
-/** Dấu tiếng Việt (chữ thường lẫn hoa) — bản tiếng Anh không được có, trừ tên ngôn ngữ "Tiếng Việt" / "Ngôn ngữ". */
+/** Vietnamese diacritics (lower- and uppercase) — the English version must have none, except in the language names "Tiếng Việt" / "Ngôn ngữ". */
 const VIETNAMESE = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
 const ALLOWED = new Set(['languageVi', 'language']);
 
@@ -16,13 +17,13 @@ function leaves(value: unknown, path = ''): Leaf[] {
   return Object.entries(value).flatMap(([key, child]) => leaves(child, path ? `${path}.${key}` : key));
 }
 
-/** Gọi thử hàm chuỗi: tham số có thể là chữ, số, mảng hay cờ — thử lần lượt tới khi không lỗi. */
+/** Call a string function: arguments may be a string, number, array or boolean — keep trying until none throws. */
 function sample(fn: (...args: never[]) => unknown): unknown {
   for (const value of ['main', 2, ['origin'], true]) {
     try {
       return fn(...(Array.from({ length: fn.length }, () => value) as never[]));
     } catch {
-      // Sai kiểu tham số: thử kiểu khác.
+      // Wrong argument type: try another shape.
     }
   }
   throw new Error('không gọi thử được');

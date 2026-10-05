@@ -1,6 +1,7 @@
 /**
- * Phía trình duyệt của cầu nối DEV (xem `dev/bridge-plugin.ts`): cài đặt `Host` bằng HTTP tới dev server. CHỈ nạp bằng
- * `import()` có điều kiện `import.meta.env.DEV` (host.ts) — bản build không chứa file này. Chỉ đọc: mọi thao tác ghi bị từ chối.
+ * Browser side of the DEV bridge (see `dev/bridge-plugin.ts`): installs a `Host` talking HTTP to the dev
+ * server. Loaded ONLY via a conditional `import()` guarded by `import.meta.env.DEV` (host.ts), so builds
+ * never contain this file. Read-only: every write operation is refused.
  */
 import type { OpenedRepo, RepoChangedEvent } from '@thaigit/contracts';
 import type { RepoFs, TypedGit } from '@thaigit/core';
@@ -20,7 +21,7 @@ import {
 
 const READ_ONLY = 'Cầu nối dev chỉ đọc: thao tác ghi cần chạy trong app Tauri.';
 
-/** Mọi thao tác ghi: trả promise bị từ chối (không ném đồng bộ) để người gọi `.catch()` / `await` đều bắt được. */
+/** Every write operation: returns a rejected promise (never throws synchronously) so callers can `.catch()` / `await` it either way. */
 function refuse(): Promise<never> {
   return Promise.reject(new CommandFailure('policy', READ_ONLY));
 }
@@ -46,7 +47,7 @@ export function createDevBridgeHost(): Host | null {
     try {
       failure = (await response.json()) as BridgeError;
     } catch {
-      // thân không phải JSON
+      // body is not JSON
     }
     throw new CommandFailure(
       failure?.code ?? 'internal',
@@ -119,7 +120,7 @@ export function createDevBridgeHost(): Host | null {
               if (next.kinds.length > 0) onChange({ repoId: info.repoId, kinds: next.kinds });
             } catch {
               if (controller.signal.aborted) return;
-              await delay(1000); // dev server khởi động lại: thử tiếp
+              await delay(1000); // dev server restarted: keep polling
             }
           }
         })();
@@ -141,10 +142,10 @@ export function createDevBridgeHost(): Host | null {
       return (await json<BridgeInfo>('/info')).recent;
     },
     async forgetRecentRepo() {
-      // Danh sách "gần đây" của cầu nối là repo cố định: không có gì để quên.
+      // The bridge's "recent" list is a fixed repo: there is nothing to forget.
     },
     openLaunchRepo: async () => (autoOpen ? openDevRepo() : null),
-    // Cầu nối chỉ-đọc: không tạo / clone repo.
+    // Read-only bridge: never creates / clones a repo.
     pickFolder: refuse,
     cloneRepo: refuse,
     initRepo: refuse,

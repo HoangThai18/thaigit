@@ -26,7 +26,7 @@ struct AvatarTests {
         #expect(AvatarSource.githubAvatarURL(id: 12345, login: "ten", size: 80)?.absoluteString
             == "https://avatars.githubusercontent.com/u/12345?s=80&v=4")
         #expect(AvatarSource.githubAvatarURL(id: nil, login: "ten", size: 80)?.absoluteString == "https://github.com/ten.png?size=80")
-        // Gravatar: SHA-256 của email đã trim + viết thường.
+        // Gravatar: SHA-256 of the trimmed, lowercased email.
         #expect(AvatarSource.gravatarURL(email: "  Test@Example.com ", size: 80)?.absoluteString
             == "https://gravatar.com/avatar/973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b?s=80&d=404")
 
@@ -57,16 +57,16 @@ struct AvatarTests {
         }
         let fetcher = AvatarFetcher(cacheDirectory: cache, transport: server.transport)
 
-        // Qua API commit của repo GitHub.
+        // Through the GitHub repo's commits API.
         #expect(await fetcher.avatar(email: "co@vd.vn", repo: repo, size: 80) == png)
-        // GitHub không biết email này → Gravatar.
+        // GitHub doesn't know this email → Gravatar.
         #expect(await fetcher.avatar(email: "gravatar@vd.vn", repo: repo, size: 80) == png)
-        // Không ai có ảnh → nil, và nhớ "không có".
+        // Nobody has an image → nil, and "none" is remembered.
         #expect(await fetcher.avatar(email: "khong-co@vd.vn", repo: repo, size: 80) == nil)
         let requestsBefore = server.requestCount
         #expect(await fetcher.avatar(email: "co@vd.vn", repo: repo, size: 80) == png)
         #expect(await fetcher.avatar(email: "khong-co@vd.vn", repo: repo, size: 80) == nil)
-        #expect(server.requestCount == requestsBefore, "Lần hai phải lấy từ cache trên đĩa")
+        #expect(server.requestCount == requestsBefore, "The second lookup must come from the on-disk cache")
     }
 
     @Test func networkErrorsAreNotRememberedAndRateLimitSkipsGitHub() async throws {
@@ -81,7 +81,7 @@ struct AvatarTests {
         #expect(await fetcher.avatar(email: "a@vd.vn", repo: repo, size: 80) == nil)
         #expect(server.requests(host: "api.github.com") == 1)
 
-        // Hết lượt API: không hỏi GitHub nữa; lỗi 500 không bị nhớ nên lần sau vẫn hỏi Gravatar.
+        // API limit reached: stop asking GitHub; a 500 isn't remembered so the next round still asks Gravatar.
         let png = Data([0x89, 0x50, 0x4E, 0x47])
         server.reset { request in
             if request.url!.host == "api.github.com" { return (200, "application/json", Data("[]".utf8)) }
@@ -91,8 +91,8 @@ struct AvatarTests {
         #expect(server.requests(host: "api.github.com") == 0)
     }
 
-    /// 401 (token hết hạn / bị thu hồi) là lỗi tạm, không phải "GitHub không có ảnh": không nhớ "không có" trên đĩa,
-    /// đăng nhập lại thì tìm được ngay.
+    /// A 401 (the token expired / was revoked) is a temporary failure, not "GitHub has no image": don't remember "none"
+    /// on disk, so signing in again finds the image immediately.
     @Test func unauthorizedIsNotRememberedAsMissing() async throws {
         let cache = FileManager.default.temporaryDirectory.appendingPathComponent("nhanh-avatars-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: cache) }
@@ -117,7 +117,7 @@ struct AvatarTests {
         #expect(await AvatarFetcher(cacheDirectory: cache, transport: server.transport).avatar(email: "dev@cty.vn", repo: repo, size: 80, token: "moi") == png)
     }
 
-    /// "Không có ảnh" tìm được khi chưa biết repo GitHub (chưa hỏi API GitHub) không được dùng cho lần hỏi có repo GitHub.
+    /// A "no image" learned while the GitHub repo wasn't known yet (the commits API was never asked) must not be reused for a lookup that does have a GitHub repo.
     @Test func missingWithoutGitHubDoesNotHideGitHubAvatar() async throws {
         let cache = FileManager.default.temporaryDirectory.appendingPathComponent("nhanh-avatars-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: cache) }
@@ -132,15 +132,15 @@ struct AvatarTests {
         }
         let fetcher = AvatarFetcher(cacheDirectory: cache, transport: server.transport)
         #expect(await fetcher.avatar(email: "dev@cty.vn", repo: nil, size: 80) == nil)
-        // Repo không ở GitHub hỏi lại: vẫn lấy "không có" từ cache, không gửi gì.
+        // Asking again with a repo that isn't on GitHub: still takes "none" from the cache, nothing is sent.
         let before = server.requestCount
         #expect(await fetcher.avatar(email: "dev@cty.vn", repo: nil, size: 80) == nil)
         #expect(server.requestCount == before)
-        // Repo trên GitHub: phải hỏi API GitHub.
+        // A repo on GitHub: the commits API has to be asked.
         #expect(await fetcher.avatar(email: "dev@cty.vn", repo: GitHubRepoRef(owner: "cty", name: "app"), size: 80) == png)
     }
 
-    /// Lỗi tạm và "không có ảnh" là hai kết quả khác nhau (app thử lại lỗi tạm sau ít phút).
+    /// A temporary failure and "no image" are two different outcomes (the app retries a temporary failure after a few minutes).
     @Test func lookupSeparatesMissingFromUnavailable() async throws {
         let cache = FileManager.default.temporaryDirectory.appendingPathComponent("nhanh-avatars-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: cache) }
@@ -154,15 +154,15 @@ struct AvatarTests {
         #expect(await fetcher.lookupAvatar(email: "b@vd.vn", repo: nil, size: 80) == .found(png))
     }
 
-    // MARK: - Hàng đợi trong RAM của app
+    // MARK: - The app's in-RAM queue
 
-    /// Tắt "Ảnh đại diện thật": bỏ hết yêu cầu đang chờ — không việc nào bắt đầu sau đó.
+    /// Turning off "Real avatars": drop every waiting request — no job starts afterwards.
     @Test func disablingDropsQueuedRequests() {
         var queue = AvatarQueue(maxConcurrent: 2)
         for index in 0..<10 { queue.enqueue("k\(index)", AvatarRequest(email: "\(index)@vd.vn", repo: nil)) }
         #expect(queue.next()?.key == "k9")
         #expect(queue.next()?.key == "k8")
-        #expect(queue.next() == nil) // đủ 2 việc đang chạy
+#expect(queue.next() == nil) // 2 jobs are already running
         queue.removeAllQueued()
         queue.finish("k9", .found)
         queue.finish("k8", .found)
@@ -170,7 +170,7 @@ struct AvatarTests {
         #expect(queue.queuedCount == 0 && queue.inFlightCount == 0)
     }
 
-    /// Lỗi tạm không bị nhớ thành "không có ảnh": hỏi lại sau `retryInterval` thì tải lại; "không có ảnh" thì không hỏi lại.
+    /// A temporary failure isn't remembered as "no image": asking again after `retryInterval` re-downloads; "no image" is never re-asked.
     @Test func unavailableIsRetriedLaterButMissingIsNot() {
         var queue = AvatarQueue(maxConcurrent: 4, retryInterval: 300)
         let start = Date(timeIntervalSince1970: 1_000_000)
@@ -191,14 +191,14 @@ struct AvatarTests {
         #expect(queue.next() == nil)
     }
 
-    /// Hàng đợi có giới hạn: cuộn qua hàng nghìn dòng chỉ giữ các yêu cầu mới nhất; hỏi lại một khoá đưa nó lên đầu,
-    /// yêu cầu có repo GitHub thắng yêu cầu không có repo.
+    /// The queue is bounded: scrolling through thousands of rows only keeps the newest requests; re-asking a key moves it
+    /// to the front, and a request carrying a GitHub repo outranks one without.
     @Test func queueIsBoundedAndLatestFirst() {
         var queue = AvatarQueue(maxConcurrent: 1, maxQueued: 100)
         let repo = GitHubRepoRef(owner: "o", name: "r")
         for index in 0..<5000 {
             queue.enqueue("k\(index)", AvatarRequest(email: "\(index)@vd.vn", repo: nil))
-            // Vẽ lại nhiều lần cùng một dòng (graph gọi mỗi lần vẽ).
+            // Redraws the same row many times (the graph does it on every paint).
             queue.enqueue("k\(index)", AvatarRequest(email: "\(index)@vd.vn", repo: index == 4999 ? repo : nil))
         }
         #expect(queue.queuedCount <= 100)
@@ -211,8 +211,8 @@ struct AvatarTests {
     }
 }
 
-/// Máy chủ HTTP giả của riêng một test (không URLProtocol, không biến tĩnh dùng chung): trả lời theo `handler`, ghi lại
-/// mọi request. Không bao giờ gọi mạng thật.
+/// An HTTP server fake private to one test (no URLProtocol, no shared static state): answers via `handler` and records
+/// every request. It never touches the real network.
 final class FakeHTTP: Sendable {
     typealias Handler = @Sendable (URLRequest) -> (status: Int, mime: String, body: Data)
 
@@ -222,7 +222,7 @@ final class FakeHTTP: Sendable {
         state = LockedBox((handler, []))
     }
 
-    /// Đổi cách trả lời (giữa chừng test) và xoá danh sách request đã ghi.
+    /// Change how it answers (mid-test) and clear the recorded requests.
     func reset(_ handler: @escaping Handler) {
         state.withValue { $0 = (handler, []) }
     }

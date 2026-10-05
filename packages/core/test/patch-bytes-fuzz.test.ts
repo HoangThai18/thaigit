@@ -1,11 +1,14 @@
-// Kiểm thử ngẫu nhiên (PRNG cố định → lặp lại được) của PatchBuilder với git THẬT. Mỗi vòng sinh file cũ/mới ngẫu nhiên
-// (LF/CRLF/lẫn, thiếu newline cuối, byte không phải UTF-8), chọn tập dòng ngẫu nhiên và kiểm tra cả ba thao tác:
-//   stage (áp xuôi vào index), unstage (áp ngược vào index), huỷ (áp ngược vào worktree).
-// Ba "nhân chứng" độc lập với bộ dựng patch:
-//   1. git apply phải thành công;
-//   2. bộ áp patch NGHIÊM NGẶT tự viết (đúng vị trí, đúng ngữ cảnh, đúng số đếm trong header) cho đúng kết quả của git;
-//   3. mô hình ngữ nghĩa theo thứ tự thẻ (mỗi dòng có id duy nhất): kết quả phải là một phép trộn hợp lệ của "các dòng
-//      cũ còn giữ" và "các dòng mới được chọn" — giữ đúng thứ tự cũ và thứ tự mới, đúng byte từng dòng.
+// Randomised testing (fixed PRNG, so it is reproducible) of PatchBuilder against REAL git. Each round generates random
+// old/new files (LF/CRLF/mixed, missing final newline, non-UTF-8 bytes), picks a random line set and checks all three
+// operations:
+//   stage (apply forward into the index), unstage (apply in reverse into the index), discard (apply in reverse into the
+//   working tree).
+// Three "witnesses" independent of the patch builder:
+//   1. git apply must succeed;
+//   2. a STRICT hand-written patch applier (exact position, exact context, exact header counts) must reproduce git's
+//      result;
+//   3. a tag-order semantic model (every line has a unique id): the result must be a valid merge of the "kept old
+//      lines" and the "selected new lines", preserving old order, new order, and each line's bytes exactly.
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { type DiffHunk, type FileDiff, isChangeLine, makePatch, parseDiff } from '../src/diff/index.ts';
@@ -13,7 +16,7 @@ import { TempRepo, latin1, showBytes } from './helpers/git-cli.ts';
 
 type Eol = '' | '\n' | '\r\n';
 interface Line {
-  readonly text: string; // mỗi ký tự = một byte (latin1)
+  readonly text: string; // one character = one byte (latin1)
   readonly eol: Eol;
 }
 type Op = 'stage' | 'unstage' | 'discard';
@@ -53,7 +56,7 @@ function parseLines(bytes: Uint8Array): Line[] {
   return lines;
 }
 
-// MARK: - Bộ áp patch nghiêm ngặt (nhân chứng độc lập với git)
+// MARK: - Strict patch applier (a witness independent of git)
 
 interface Record {
   readonly kind: 'context' | 'addition' | 'deletion';
@@ -77,8 +80,9 @@ function recordsOf(hunk: DiffHunk): Record[] {
 }
 
 /**
- * Áp patch lên `target` đúng nghĩa unified diff, KHÔNG khoan nhượng: vị trí bắt đầu, từng dòng ngữ cảnh/xoá, số đếm
- * trong header và vị trí của phía kết quả đều phải khớp tuyệt đối (git thì chịu lệch vị trí). `reverse` = áp ngược.
+ * Apply a patch to `target` with strict unified-diff semantics, no leniency: the start position, every context/deleted line,
+ * the header counts and the resulting side's position must all match exactly (git tolerates position drift).
+ * `reverse` = apply in reverse.
  */
 function strictApply(target: readonly Line[], patch: Uint8Array, reverse: boolean): Line[] {
   const [file] = parseDiff(patch);
@@ -119,7 +123,7 @@ function strictApply(target: readonly Line[], patch: Uint8Array, reverse: boolea
   return result;
 }
 
-// MARK: - Sinh dữ liệu
+// MARK: - Data generation
 
 interface Version {
   readonly id: string;
@@ -130,8 +134,8 @@ const FILLERS = [
   '',
   'abc',
   'tab\there',
-  '  kho\xe1\xba\xa3ng tr\xe1\xba\xafng  ', // "khoảng trắng" là UTF-8 hợp lệ, viết ở dạng byte
-  'caf\xe9', // CP1252 (không phải UTF-8)
+  '  kho\xe1\xba\xa3ng tr\xe1\xba\xafng  ', // "khoảng trắng" is valid UTF-8, written as raw bytes
+  'caf\xe9', // CP1252 (not UTF-8)
   'Vi\xea\xf2t Nam', // CP1258
   'Vi\xe1\xbb\x87t Nam', // UTF-8
   '}',
@@ -168,18 +172,18 @@ function generateUnique(random: () => number): { oldV: Version[]; newV: Version[
       for (let k = 0, extra = 1 + Math.floor(random() * 2); k < extra; k++) newV.push(fresh());
   }
   if (newV.length === 0) newV.push(fresh());
-  // Chỉ dòng cuối được thiếu newline; đổi trạng thái newline của một dòng giữ nguyên = dòng đó đổi (id mới).
+  // Only the last line may lack a newline; flipping a line's newline state while its text stays the same counts as a change (new id).
   const wantFinal: Eol = random() < 0.3 ? '' : pickEol();
   const last = newV[newV.length - 1]!;
   newV[newV.length - 1] = last.line.eol === wantFinal ? last : fresh(wantFinal);
   for (let i = 0; i < newV.length - 1; i++) if (newV[i]!.line.eol === '') newV[i] = fresh();
   if (newV.length === oldV.length && newV.every((v, i) => v === oldV[i])) newV.push(fresh());
-  // Sau khi push, dòng cuối cũ không còn là cuối: bảo đảm nó có newline.
+  // After the push the old last line is no longer last: make sure it has a newline.
   for (let i = 0; i < newV.length - 1; i++) if (newV[i]!.line.eol === '') newV[i] = fresh();
   return { oldV, newV };
 }
 
-/** Nội dung lặp (bảng chữ nhỏ): vị trí hunk phải đúng tuyệt đối vì ngữ cảnh khớp ở nhiều nơi. */
+/** Repeated content (a small alphabet): hunk positions must be exact because the context matches in many places. */
 function generateDuplicates(random: () => number): { oldLines: Line[]; newLines: Line[] } {
   const alphabet = ['a', 'b', '', '}', 'x y'];
   const crlfBias = [0, 1, 0.4][Math.floor(random() * 3)]!;
@@ -208,7 +212,7 @@ function generateDuplicates(random: () => number): { oldLines: Line[]; newLines:
   return { oldLines, newLines };
 }
 
-// MARK: - Chạy một vòng
+// MARK: - Running one round
 
 function newRepo(): TempRepo {
   const repo = TempRepo.create({ autocrlf: 'false' });
@@ -243,7 +247,7 @@ function randomSelection(file: FileDiff, random: () => number): Map<number, Set<
 
 const idOf = (text: string): string => text.slice(0, text.indexOf('|'));
 
-/** Tập id đã chọn (xoá / thêm) từ lựa chọn trên diff, dùng cho mô hình thẻ. */
+/** Selected (deleted / added) ids taken from the diff selection, used by the tag model. */
 function selectedIds(file: FileDiff, selection: Map<number, Set<number>>) {
   const deleted = new Set<string>();
   const added = new Set<string>();
@@ -268,7 +272,7 @@ function checkSemantics(
   const oldIds = oldV.map((v) => v.id);
   const newIds = newV.map((v) => v.id);
   const common = new Set(newIds.filter((id) => oldIds.includes(id)));
-  // Hai dãy phải giữ nguyên thứ tự trong kết quả: dãy "cũ" và dãy "mới" (dòng chung nằm ở cả hai).
+  // Both sequences must keep their order in the result: the "old" and the "new" one (common lines are in both).
   const seqOld = reverse
     ? oldIds.filter((id) => common.has(id) || chosen.deleted.has(id))
     : oldIds.filter((id) => !chosen.deleted.has(id));
@@ -296,7 +300,7 @@ function checkSemantics(
     expect(line.text, `nội dung dòng ${ids[index]}`).toBe(source.text);
     const isLast = index === result.length - 1;
     if (source.eol === '') {
-      // Dòng vốn không có newline: chỉ được giữ nguyên khi vẫn là dòng cuối; nếu không thì phải nhận một newline.
+      // A line that originally had no newline may only stay that way while it is still the last one; otherwise it must gain a newline.
       if (isLast) expect(line.eol, `dòng cuối ${ids[index]} phải không có newline`).toBe('');
       else
         expect(['\n', '\r\n'], `dòng ${ids[index]} không phải dòng cuối nên cần newline`).toContain(line.eol);
@@ -323,10 +327,10 @@ function runOp(
     throw new Error(`git apply thất bại (${op}): ${applied.stderr}\n${showBytes(patch)}`);
   const actual = parseLines(op === 'discard' ? repo.readFile('data.txt') : repo.indexBlob('data.txt'));
 
-  // Nhân chứng 2: bộ áp nghiêm ngặt phải cho đúng kết quả của git, từng byte.
+  // Witness 2: the strict applier must reproduce git's result byte for byte.
   const strict = strictApply(target, patch, op !== 'stage');
   expect(showBytes(toBytes(strict)), `bộ áp nghiêm ngặt khác git (${op})`).toBe(showBytes(toBytes(actual)));
-  // Nhân chứng 3: ngữ nghĩa.
+  // Witness 3: the semantics.
   verify(file, selection, actual);
 }
 
@@ -347,20 +351,20 @@ describe('PatchBuilder ngẫu nhiên vs git thật: dòng có id duy nhất (ki�
           commitContent(repo, toBytes(oldLines));
           repo.writeFile('data.txt', toBytes(newLines));
 
-          // stage: áp xuôi vào index (index = cũ).
+          // stage: apply forward into the index (index = old).
           runOp(repo, 'stage', oldLines, random, (file, selection, result) =>
             checkSemantics(oldV, newV, selectedIds(file, selection), false, result),
           );
           expect(showBytes(repo.readFile('data.txt'))).toBe(showBytes(toBytes(newLines)));
           repo.git('reset', ['-q']);
 
-          // huỷ: áp ngược vào worktree (worktree = mới).
+          // discard: apply in reverse into the working tree (working tree = new).
           runOp(repo, 'discard', newLines, random, (file, selection, result) =>
             checkSemantics(oldV, newV, selectedIds(file, selection), true, result),
           );
           repo.writeFile('data.txt', toBytes(newLines));
 
-          // unstage: áp ngược vào index (index = mới sau `git add`).
+          // unstage: apply in reverse into the index (index = new after `git add`).
           repo.add('data.txt');
           runOp(repo, 'unstage', newLines, random, (file, selection, result) =>
             checkSemantics(oldV, newV, selectedIds(file, selection), true, result),
@@ -393,7 +397,7 @@ describe('PatchBuilder ngẫu nhiên vs git thật: nội dung lặp (vị trí 
           repo.add('data.txt');
           runOp(repo, 'unstage', newLines, random, noCheck);
 
-          // Chọn TẤT CẢ dòng thay đổi: kết quả phải đúng bằng phía đối diện, từng byte.
+          // Select ALL change lines: the result must equal the opposite side byte for byte.
           const [file] = parseDiff(repo.diffBytes('staged', 'data.txt'));
           if (file) {
             const everything = new Map<number, Set<number>>();

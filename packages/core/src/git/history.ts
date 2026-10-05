@@ -1,25 +1,26 @@
-// Dựng lịch sử đã xếp làn từ output `git log` — HÀM THUẦN (parse + chèn WIP + layout) để chạy trong Web Worker.
-// Phần chạy git nằm ở `GitRepository.logBytes()` (main thread); hai bước không còn gói chung trong một lời gọi.
+// Builds the laid-out history from `git log` output — PURE functions (parse + WIP insert + layout) so they can run in
+// a Web Worker. Running git lives in `GitRepository.logBytes()` (main thread); the two steps are no longer bundled into
+// one call.
 
 import { computeGraphLayout, type GraphRow } from '../graph/layout.ts';
 import { workingTreeCommit, type Commit } from './models.ts';
 import { parseLog } from './parsers.ts';
 
-/** Lịch sử commit đã xếp làn, sẵn sàng để vẽ. */
+/** Commit history with layout applied, ready to draw. */
 export interface History {
-  /** Có thể có commit giả WIP ở vị trí 0. */
+  /** A synthetic WIP commit may sit at position 0. */
   readonly commits: readonly Commit[];
   readonly rows: readonly GraphRow[];
-  /** Số commit thật đã tải. */
+  /** Number of real commits loaded. */
   readonly loadedCount: number;
-  /** true nếu có thể còn commit cũ hơn chưa tải (chạm giới hạn). */
+  /** True when older commits may still be missing (the limit was hit). */
   readonly mayHaveMore: boolean;
 }
 
 export interface BuildHistoryOptions {
-  /** Giới hạn đã truyền cho `logBytes` (để biết còn commit cũ hơn hay không). */
+  /** Limit passed to `logBytes` (so we know whether older commits remain). */
   limit: number;
-  /** Commit HEAD hiện tại: cha của node WIP (null nếu nhánh chưa có commit). */
+  /** Current HEAD commit: the parent of the WIP node (null when the branch has no commits). */
   headOid: string | null;
   showWorkingTree: boolean;
 }

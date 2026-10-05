@@ -1,4 +1,4 @@
-// Dựng nhanh dữ liệu mô hình cho test thuần (không cần git thật).
+// Quickly build model data for pure tests (no real git needed).
 import type { Commit, GitRef, RefKind } from '@thaigit/core';
 
 const PREFIX: Record<RefKind, string> = {

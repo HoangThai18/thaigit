@@ -16,13 +16,13 @@
   interface Props {
     nodes: readonly BranchNode[];
     depth?: number;
-    /** Hàng của một nhánh: `(ref, tên hiển thị, cấp)`. */
+    /** One branch row: `(ref, display name, depth)`. */
     leaf: Snippet<[GitRef, string, number]>;
   }
 
   let { nodes, depth = 0, leaf }: Props = $props();
 
-  /** Trạng thái mở/đóng riêng của từng thư mục ở cấp này (khoá = id node, duy nhất giữa các node anh em). */
+  /** Per-folder open/closed state at this level (key = node id, unique across sibling nodes). */
   let expanded = $state<Record<string, boolean>>({});
 
   const isOpen = (node: BranchNode): boolean => expanded[node.id] ?? folderStartsExpanded(node.leafCount);

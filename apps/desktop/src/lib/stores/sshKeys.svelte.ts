@@ -1,5 +1,5 @@
-// Khoá SSH riêng của Thaigit: store giữ `SshKeysView` mà Rust trả về (nguồn sự thật duy nhất). Khoá bí mật không bao giờ vào
-// webview; lỗi chỉ hiện câu thân thiện theo mã lỗi của Rust.
+// Thaigit's own SSH keys: the store holds the `SshKeysView` Rust returns (the single source of truth). A secret key never
+// reaches the webview, and errors are only shown as a friendly sentence per Rust's error code.
 
 import type { SshKeysView, SshUploadResult } from '@thaigit/contracts';
 import {
@@ -38,7 +38,7 @@ export const defaultSshKeysPort: SshKeysPort = {
   test: sshKeysTest,
 };
 
-/** Câu thân thiện cho lỗi của lệnh khoá SSH (theo mã lỗi của Rust, không hiện message gốc). */
+/** A friendly sentence for an SSH key command error (per Rust's error code, never the raw message). */
 export function sshErrorText(error: unknown): string {
   const text = vi.ssh.errors;
   const code = (error as { code?: unknown } | null)?.code;
@@ -53,7 +53,7 @@ export class SshKeysStore {
   view = $state.raw<SshKeysView>(EMPTY);
   busy = $state(false);
   error = $state<string | null>(null);
-  /** host → kết quả kiểm tra kết nối gần nhất. */
+  /** host → the most recent connection-check result. */
   tests = $state.raw<Record<string, 'testing' | 'ok' | 'failed'>>({});
 
   constructor(private readonly port: SshKeysPort = defaultSshKeysPort) {}
@@ -85,7 +85,7 @@ export class SshKeysStore {
     return this.apply(await this.run(() => this.port.generate(name)));
   }
 
-  /** `true` khi đã nhập (huỷ hộp chọn file thì `false`, không lỗi). */
+  /** `true` once imported (cancelling the file picker gives `false`, which is not an error). */
   async importKey(): Promise<boolean> {
     return this.apply(await this.run(() => this.port.importKey()));
   }

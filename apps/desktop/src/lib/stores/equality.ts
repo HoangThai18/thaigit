@@ -1,6 +1,6 @@
 /**
- * So sánh cấu trúc cho dữ liệu thuần (object/mảng/số/chuỗi/boolean/null) — để store bỏ qua kết quả làm mới không đổi
- * (như `value != status` của Swift): không gán lại thì không có gì phải dựng lại. Không dùng cho Map/Set/Date/vòng.
+ * Structural comparison for plain data (objects / arrays / numbers / strings / booleans / null) — so a store can skip a refresh
+ * result that did not change (like Swift's `value != status`): without a reassignment nothing rebuilds. Not for Map / Set / Date / cycles.
  */
 export function jsonEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;

@@ -1,5 +1,6 @@
-// Repository tạm cho integration test (git thật trong thư mục tạm), cô lập khỏi cấu hình git của máy:
-// GIT_CONFIG_GLOBAL=/dev/null (NUL trên Windows) + GIT_CONFIG_NOSYSTEM=1, user.name/email và commit.gpgsign=false ở cấp repo.
+// Temporary repository for integration tests (real git in a temp directory), isolated from the machine's git config:
+// GIT_CONFIG_GLOBAL=/dev/null (NUL on Windows) + GIT_CONFIG_NOSYSTEM=1, plus user.name/email and commit.gpgsign=false at
+// the repo level.
 
 import { spawnSync } from 'node:child_process';
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
@@ -11,7 +12,7 @@ import { NodeGitHost, openRepository, type NodeGitConfig } from '../../src/node/
 
 export const IS_WINDOWS = process.platform === 'win32';
 
-/** Cấu hình adapter Node cô lập khỏi `~/.gitconfig` và cấu hình hệ thống. `extraEnv` thêm biến vào môi trường gốc. */
+/** Node adapter config isolated from `~/.gitconfig` and the system config. `extraEnv` adds variables to the base environment. */
 export function isolatedConfig(extraEnv: Record<string, string> = {}): NodeGitConfig {
   return {
     baseEnv: {
@@ -28,7 +29,7 @@ function rawResult(cwd: string, args: readonly string[], config: NodeGitConfig, 
   return spawnSync('git', [...args], { cwd, env, input, maxBuffer: 256 * 1024 * 1024 });
 }
 
-/** Chạy git thật KHÔNG qua chính sách (chỉ để dựng/kiểm dữ liệu trong test). Trả stdout; mã thoát ≠ 0 thì ném lỗi. */
+/** Runs real git WITHOUT the policy (only for setting up / checking test data). Returns stdout; throws on a non-zero exit code. */
 export function rawGit(
   cwd: string,
   args: readonly string[],
@@ -43,7 +44,7 @@ export function rawGit(
   return result.stdout.toString('utf8');
 }
 
-/** Như `rawGit` nhưng trả byte. */
+/** Like `rawGit` but returns bytes. */
 export function rawGitBytes(
   cwd: string,
   args: readonly string[],
@@ -57,7 +58,7 @@ export function rawGitBytes(
 }
 
 export interface TestRepo {
-  /** Gốc repo (đã realpath). */
+  /** Repo root (already realpath-ed). */
   readonly root: string;
   readonly repo: GitRepository;
   readonly config: NodeGitConfig;
@@ -65,13 +66,13 @@ export interface TestRepo {
   read(path: string): Promise<string>;
   readBytes(path: string): Promise<Uint8Array>;
   exists(path: string): Promise<boolean>;
-  /** Git thật (không qua chính sách) trong gốc repo, trả stdout. */
+  /** Real git (bypassing the policy) in the repo root, returning stdout. */
   git(...args: string[]): string;
-  /** `stageAll` rồi `commit` bằng chính API của repository. */
+  /** `stageAll` then `commit`, using the repository's own API. */
   commitAll(message: string): Promise<void>;
 }
 
-/** Thư mục tạm (realpath) cho một bài test; luôn dọn dù test lỗi. */
+/** Realpath-ed temp directory for one test; always cleaned up, even when the test fails. */
 export async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await realpath(await mkdtemp(join(tmpdir(), 'thaigit-test-')));
   try {
@@ -81,7 +82,7 @@ export async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T
   }
 }
 
-/** Dựng repo tạm trong `dir` (đã tồn tại): init `main`, user.name/email, tắt ký commit. */
+/** Build a temp repo inside `dir` (which must exist): init `main`, user.name/email, commit signing off. */
 export async function createTestRepoIn(
   dir: string,
   config: NodeGitConfig = isolatedConfig(),
@@ -126,7 +127,7 @@ function wrap(repo: GitRepository, config: NodeGitConfig): TestRepo {
   };
 }
 
-/** Chạy `fn` với một repo tạm; dọn sau khi xong. */
+/** Run `fn` with a temp repo; cleaned up afterwards. */
 export async function withTestRepo<T>(
   fn: (t: TestRepo) => Promise<T>,
   config: NodeGitConfig = isolatedConfig(),
@@ -138,12 +139,12 @@ export async function withTestRepo<T>(
   });
 }
 
-/** Nội dung nhiều dòng "line 1", "line 2", … */
+/** Multi-line content "line 1", "line 2", … */
 export function numberedLines(count: number, prefix = 'line'): string[] {
   return Array.from({ length: count }, (_, index) => `${prefix} ${index + 1}`);
 }
 
-/** Ghi script thực thi (POSIX) và trả đường dẫn. Chỉ dùng ở test bỏ qua trên Windows. */
+/** Write an executable script (POSIX) and return its path. Only for tests skipped on Windows. */
 export async function writeExecutableScript(path: string, body: string): Promise<string> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `#!/bin/sh\n${body}\n`);
@@ -151,7 +152,7 @@ export async function writeExecutableScript(path: string, body: string): Promise
   return path;
 }
 
-/** Remote bare cục bộ có sẵn một commit "init" (a.txt = "1\n") trên `main`. Trả đường dẫn thư mục bare. */
+/** Local bare remote pre-loaded with one "init" commit (a.txt = "1\n") on `main`. Returns the bare directory path. */
 export async function createBareRemote(
   parent: string,
   config: NodeGitConfig = isolatedConfig(),
@@ -167,7 +168,7 @@ export async function createBareRemote(
   return bare;
 }
 
-/** Clone `source` vào `<parent>/<name>` bằng `GitHost.clone` rồi mở bằng bộ chuyển Node, đặt danh tính commit cho repo đó. */
+/** Clone `source` into `<parent>/<name>` with `GitHost.clone`, then open it with the Node adapters and set a commit identity for that repo. */
 export async function cloneTestRepo(
   parent: string,
   source: string,
@@ -183,7 +184,7 @@ export async function cloneTestRepo(
   return wrap(await openRepository(destination, { ...config, log }), config);
 }
 
-/** Chờ tới khi `condition` đúng (thăm dò 20 ms một lần); quá hạn thì ném lỗi. */
+/** Wait until `condition` holds (polling every 20 ms); throws on timeout. */
 export async function waitFor(
   condition: () => Promise<boolean> | boolean,
   timeoutMs = 10_000,
@@ -195,7 +196,7 @@ export async function waitFor(
   }
 }
 
-/** File tồn tại chưa. */
+/** Whether the file exists. */
 export async function fileExists(path: string): Promise<boolean> {
   return stat(path).then(
     () => true,
@@ -203,7 +204,7 @@ export async function fileExists(path: string): Promise<boolean> {
   );
 }
 
-/** Tiến trình `pid` còn sống không (tín hiệu 0 chỉ kiểm tra, không gửi gì). */
+/** Whether process `pid` is still alive (signal 0 only checks, it sends nothing). */
 export function isProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -214,8 +215,9 @@ export function isProcessAlive(pid: number): boolean {
 }
 
 /**
- * Script "treo" giả lập ssh/mạng chậm: ghi pid vào `<dir>/<name>.pid` rồi ngủ lâu (`exec` nên pid chính là của tiến
- * trình ngủ). Trả đường dẫn script và hàm đọc pid (chờ tới khi script đã chạy).
+ * A "hanging" script simulating slow ssh/network: it writes its pid to `<dir>/<name>.pid` and then sleeps for a long
+ * time (`exec`, so that pid IS the sleeping process's). Returns the script path and a pid reader (waits until the script
+ * has started).
  */
 export async function createHangScript(
   dir: string,

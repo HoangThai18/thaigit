@@ -57,7 +57,7 @@
   const lfsPointer = $derived(lfsPointerOf(presentation));
   const split = $derived(prefs.value.diffLayout === 'split');
   const ignoreWhitespace = $derived(prefs.value.diffIgnoreWhitespace);
-  /** Ngôn ngữ để tô màu cú pháp (theo đuôi file); `null` = không tô. */
+  /** Language for syntax highlighting (from the file extension); `null` = no highlighting. */
   const language = $derived(file ? languageFor(file.change.path) : null);
 
   function toggleWhitespace(): void {
@@ -86,12 +86,12 @@
   );
   const workingTree = $derived(file !== null && isWorkingTreeSource(file.source));
   const unstaged = $derived(file?.source.kind === 'unstaged');
-  /** Bấm chọn được từng dòng (thay đổi chưa commit, file thường). */
+  /** Lines can be individually picked (uncommitted changes, ordinary files). */
   const pickable = $derived(workingTree && diff.supportsPartial);
   const selected = $derived(diff.selectedCount);
-  // Không dùng `$state` được (biến `state` ở trên che mất rune); chỉ đọc trong hàm xử lý phím nên không cần phản ứng.
+  // Can't be `$state` (the `state` variable above shadows the rune); it's only read inside the key handler so it needs no reactivity.
   const list: { current?: VirtualList<Row> } = {};
-  /** Hàng đầu tiên đang thấy: nhảy tới hunk trước / sau tính từ chỗ đang đọc. */
+  /** Top visible line: previous / next hunk jumps relative to where the user is reading. */
   let firstVisible = 0;
   const hunkRows = $derived(rows.flatMap((row, index) => (row.kind === 'hunk' ? [index] : [])));
   const siblings = $derived(diff.siblings);
@@ -725,7 +725,7 @@
     padding-right: 16px;
   }
 
-  /* Tô màu cú pháp (loại token của Prism / refractor); màu ở theme/tokens.css cho cả sáng lẫn tối. */
+  /* Syntax highlighting (Prism / refractor token kinds); the colours live in theme/tokens.css for both light and dark. */
   .tok-comment,
   .tok-prolog,
   .tok-doctype,

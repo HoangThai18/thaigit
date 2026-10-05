@@ -1,4 +1,4 @@
-// Quy tắc của app: giao diện không bao giờ hiện lỗi thô (stderr của git, message của Error, mã lỗi OS, stack trace).
+// App rule: the UI never surfaces a raw error (git's stderr, an Error's message, an OS error code, a stack trace).
 import { describe, expect, it } from 'vitest';
 import { AdapterError, CancelledError, GitError, RepositoryError } from '@thaigit/core';
 import { friendlyError } from '../src/lib/errors/friendly.ts';

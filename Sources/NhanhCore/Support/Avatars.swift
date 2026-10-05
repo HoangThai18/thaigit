@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// Repository trên github.com, tách từ URL remote (https://, ssh://, git@github.com:…).
+/// A repository on github.com, parsed out of a remote URL (https://, ssh://, git@github.com:…).
 public struct GitHubRepoRef: Sendable, Hashable {
     public let owner: String
     public let name: String
@@ -16,7 +16,7 @@ public struct GitHubRepoRef: Sendable, Hashable {
         if let scheme = text.range(of: "://") {
             text = String(text[scheme.upperBound...])
         } else if let colon = text.firstIndex(of: ":"), !text[..<colon].contains("/") {
-            // Dạng scp: git@github.com:owner/repo.git
+            // scp form: git@github.com:owner/repo.git
             text = text[..<colon] + "/" + text[text.index(after: colon)...]
         } else {
             return nil
@@ -34,18 +34,18 @@ public struct GitHubRepoRef: Sendable, Hashable {
     }
 }
 
-/// Địa chỉ ảnh đại diện theo email người commit.
+/// An avatar address looked up by commit author email.
 public enum AvatarSource {
     public static func normalize(_ email: String) -> String {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    /// SHA-256 của email đã chuẩn hoá (dạng hex): tên file cache, và mã Gravatar dùng.
+    /// SHA-256 of the normalised email (hex): the cache file name and the Gravatar code.
     public static func hash(_ email: String) -> String {
         SHA256.hash(data: Data(normalize(email).utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Email ẩn của GitHub: "12345+ten@users.noreply.github.com" → (12345, "ten"); "ten@users.noreply.github.com" → (nil, "ten").
+    /// GitHub's hidden email: "12345+ten@users.noreply.github.com" → (12345, "ten"); "ten@users.noreply.github.com" → (nil, "ten").
     public static func githubNoreply(_ email: String) -> (id: Int?, login: String)? {
         let normalized = normalize(email)
         let suffix = "@users.noreply.github.com"
@@ -64,16 +64,16 @@ public enum AvatarSource {
         return URL(string: "https://github.com/\(encoded).png?size=\(size)")
     }
 
-    /// `d=404`: không có ảnh thì Gravatar trả 404 (không trả ảnh mặc định) để app vẽ chữ viết tắt.
+    /// `d=404`: Gravatar 404s when there's no image (it never serves a default image) so the app can draw initials.
     public static func gravatarURL(email: String, size: Int) -> URL? {
         URL(string: "https://gravatar.com/avatar/\(hash(email))?s=\(size)&d=404")
     }
 
-    /// API GitHub: commit mới nhất của tác giả trong repo — tài khoản GitHub gắn với email đó kèm `avatar_url`.
+    /// GitHub API: the author's most recent commit in the repo — the GitHub account behind that email carries `avatar_url`.
     public static func githubCommitsRequest(repo: GitHubRepoRef, email: String, token: String? = nil) -> URLRequest? {
         var components = URLComponents(string: "https://api.github.com")
         components?.path = "/repos/\(repo.owner)/\(repo.name)/commits"
-        // Mã hoá cả "+" (a+b@x.vn): để nguyên thì GitHub hiểu là dấu cách.
+        // Encode "+" too (a+b@x.vn): left as-is GitHub reads it as a space.
         var allowed = CharacterSet.urlQueryAllowed
         allowed.remove(charactersIn: "+&=")
         guard let author = normalize(email).addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
@@ -86,7 +86,7 @@ public enum AvatarSource {
         return request
     }
 
-    /// `[0].author.avatar_url` của kết quả API commit (author là null khi email không gắn với tài khoản nào).
+    /// The `[0].author.avatar_url` of a commits-API result (author is null when the email isn't tied to any account).
     public static func parseCommitAvatar(_ data: Data, size: Int) -> URL? {
         struct Item: Decodable {
             struct Author: Decodable { let avatar_url: String? }
@@ -99,12 +99,12 @@ public enum AvatarSource {
     }
 }
 
-/// Kết quả tìm ảnh đại diện của một email.
+/// The result of looking up an avatar address for an email.
 public enum AvatarResult: Sendable, Equatable {
     case found(Data)
-    /// Không nguồn nào có ảnh.
+    /// No source has an image.
     case missing
-    /// Lỗi tạm (mạng, máy chủ, hết lượt API, token hết hạn…): lát nữa thử lại.
+    /// A temporary failure (network, server, API rate limit, expired token…): retry later.
     case unavailable
 
     public var data: Data? {
@@ -113,15 +113,16 @@ public enum AvatarResult: Sendable, Equatable {
     }
 }
 
-/// Tải và cache ảnh đại diện trên đĩa. Thứ tự: email ẩn GitHub → API GitHub của repo (nếu repo nằm trên GitHub) →
-/// Gravatar. Không ai có ảnh thì nhớ "không có" vài ngày để khỏi hỏi lại; lỗi mạng thì không nhớ gì.
+/// Downloads and disk-caches avatars. Order: GitHub hidden email → the repo's GitHub API (when the repo is
+/// on GitHub) → Gravatar. When nobody has an image, "none" is remembered for a few days so we don't ask
+/// again; a network error remembers nothing.
 public actor AvatarFetcher {
     public static let imageLifetime: TimeInterval = 7 * 24 * 3600
     public static let missingLifetime: TimeInterval = 3 * 24 * 3600
 
     private let cacheDirectory: URL?
     private let transport: GitHubHTTPTransport
-    /// API GitHub hết lượt (60 lần/giờ khi không đăng nhập): bỏ qua tới thời điểm này.
+    /// GitHub API rate limit hit (60/hour when not signed in): skip until this moment.
     private var githubBlockedUntil = Date.distantPast
 
     public init(cacheDirectory: URL?, session: URLSession? = nil) {
@@ -138,7 +139,7 @@ public actor AvatarFetcher {
         }
     }
 
-    /// `transport`: gửi một request HTTP — test thay bằng máy chủ giả riêng của từng test (không gọi mạng thật).
+    /// `transport`: performs one HTTP request — tests substitute their own fake server (never the real network).
     public init(cacheDirectory: URL?, transport: @escaping GitHubHTTPTransport) {
         self.cacheDirectory = cacheDirectory
         self.transport = transport
@@ -148,18 +149,19 @@ public actor AvatarFetcher {
     private enum Lookup {
         case found(Data)
         case missing
-        /// Lỗi mạng / máy chủ: lần sau thử lại.
+        /// Network / server error: try again later.
         case unavailable
     }
 
-    /// Byte ảnh (PNG/JPEG) của người có email này, hoặc nil nếu không có ảnh / không tải được.
+    /// The image bytes (PNG/JPEG) of the person with this email, or nil when there's no image / it can't be downloaded.
     public func avatar(email: String, repo: GitHubRepoRef?, size: Int, token: String? = nil) async -> Data? {
         await lookupAvatar(email: email, repo: repo, size: size, token: token).data
     }
 
-    /// Như `avatar`, nhưng phân biệt "không có ảnh" với lỗi tạm (để app thử lại sau). "Không có" chỉ được nhớ khi mọi
-    /// nguồn đều trả lời rõ ràng; nhớ riêng trường hợp chưa hỏi API GitHub (không có `repo`) để lần hỏi có repo GitHub
-    /// vẫn hỏi GitHub.
+    /// Like `avatar` but distinguishes "no avatar" from a temporary failure (so the app can retry later).
+    /// "None" is only remembered when every source answered explicitly; the case where the GitHub API was
+    /// never asked (no `repo`) is remembered separately so a later lookup that does have a GitHub repo still
+    /// asks GitHub.
     public func lookupAvatar(email: String, repo: GitHubRepoRef?, size: Int, token: String? = nil) async -> AvatarResult {
         let key = AvatarSource.hash(email)
         if let cached = cached(key, askedGitHub: repo != nil) { return cached.isEmpty ? .missing : .found(cached) }
@@ -208,8 +210,8 @@ public actor AvatarFetcher {
                 githubBlockedUntil = reset.map { Date(timeIntervalSince1970: $0) } ?? Date().addingTimeInterval(3600)
                 if http.statusCode != 200 { return .unavailable }
             }
-            // 401: token hết hạn / bị thu hồi — lỗi tạm, đăng nhập lại là hỏi được.
-            // 404/409/422: repo riêng tư (chưa đăng nhập), repo rỗng, email lạ — coi như GitHub không có ảnh.
+            // 401: the token expired / was revoked — a temporary error, signing in again fixes it.
+            // 404/409/422: a private repo (not signed in), an empty repo, an unknown email — treat as GitHub having no image.
             guard http.statusCode == 200 else {
                 return (400..<500).contains(http.statusCode) && http.statusCode != 401 ? .missing : .unavailable
             }
@@ -225,8 +227,8 @@ public actor AvatarFetcher {
         return .found(data)
     }
 
-    // MARK: Cache trên đĩa: <hash>.img là ảnh; <hash>.none là "không có ảnh" (đã hỏi cả API GitHub),
-    // <hash>.nogithub.none là "không có ảnh" khi chưa hỏi API GitHub (repo không ở GitHub).
+    // MARK: On-disk cache: <hash>.img is the image; <hash>.none is "no avatar" (the GitHub API was already asked);
+    // <hash>.nogithub.none is "no avatar" when the GitHub API was never asked (the repo isn't on GitHub).
 
     private func cached(_ key: String, askedGitHub: Bool) -> Data? {
         guard let cacheDirectory else { return nil }

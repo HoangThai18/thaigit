@@ -1,4 +1,4 @@
-// Lõi AI: lọc / quét bí mật / ngân sách token (trên git thật), đọc SSE, hoàn thiện chữ của model.
+// AI core: filtering / secret scanning / token budgeting (on real git), SSE reading, and finalising the model's text.
 
 import { describe, expect, it } from 'vitest';
 import {

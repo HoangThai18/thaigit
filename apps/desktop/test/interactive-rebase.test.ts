@@ -34,7 +34,7 @@ async function until(condition: () => boolean, what: string, timeoutMs = 8000): 
   }
 }
 
-/** gốc → một → hai → ba, mỗi commit một file. */
+/** root → one → two → three, one file per commit. */
 async function openStore(setup?: (git: (...args: string[]) => string, root: string) => void) {
   const test = await openTestPort(
     setup ??
@@ -115,13 +115,13 @@ describe('rebase tương tác trên repo thật', () => {
     await beginInteractiveRebase(store, base.commit);
     const session = rebaseEditor.current!;
     expect(session.rows.map((step) => step.commit.subject)).toEqual(['ba', 'hai', 'một']);
-    session.move(2, 0); // "một" lên trên cùng (mới nhất)
+    session.move(2, 0); // "một" to the very top (newest)
     session.setAction(1, 'reword'); // ba
     session.setMessage(1, 'Ba — message mới');
-    session.setAction(2, 'squash'); // hai gộp vào… commit bên dưới không còn: hai đang dưới cùng
+    session.setAction(2, 'squash'); // hai squashes into… the commit below it is gone: hai is now the bottom one
     expect(session.problem).toBe('leadingSquash');
     session.setAction(2, 'pick');
-    session.setAction(0, 'fixup'); // một gộp vào "ba"
+    session.setAction(0, 'fixup'); // "một" is squashed into "ba"
     const before = store.headOid;
     await runInteractiveRebase(store, session);
     expect(rebaseEditor.current).toBeNull();

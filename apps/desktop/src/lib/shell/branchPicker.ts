@@ -1,5 +1,6 @@
-// Lọc nhánh cho hộp "Chuyển nhánh" (port SwitchBranchSheet trong Sheets.swift): chưa gõ gì thì là các nhánh local gần đây;
-// gõ thì tìm trong mọi nhánh local + remote (không phân biệt hoa / thường và dấu), nhánh local trước, khớp từ đầu tên trước.
+// Branch filtering for the "Switch branch" box (a port of SwitchBranchSheet in Sheets.swift): with nothing
+// typed it lists recently used local branches; once typed it searches all local + remote branches (case- and
+// diacritic-insensitive), local branches first and prefix matches first.
 
 import { refName, type GitRef } from '@thaigit/core';
 import { foldText } from '../format/natural.ts';
@@ -7,7 +8,7 @@ import { foldText } from '../format/natural.ts';
 export const RECENT_LIMIT = 40;
 export const RESULT_LIMIT = 100;
 
-/** Phần sau dấu `/` cuối của tên nhánh remote ("origin/feature/x" → "feature/x" khi remote là `origin`). */
+/** The part after the last `/` of a remote branch name ("origin/feature/x" → "feature/x" when the remote is `origin`). */
 function shortName(ref: GitRef, remotes: readonly string[]): string {
   const name = refName(ref);
   if (ref.kind !== 'remoteBranch') return name;
@@ -40,7 +41,7 @@ export function filterBranches(
     .map((item) => item.ref);
 }
 
-/** Mặc định chọn nhánh khác nhánh hiện tại (Enter là chuyển ngay, giống `git checkout -`). */
+/** Default selection is a branch other than the current one (Enter switches to it right away, like `git checkout -`). */
 export function defaultChoice(items: readonly GitRef[]): number {
   if (items.length === 0) return -1;
   const index = items.findIndex((ref) => !ref.isHead);

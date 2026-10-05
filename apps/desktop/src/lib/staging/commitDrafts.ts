@@ -1,11 +1,12 @@
-// Bản nháp commit theo từng repo (khoá: đường dẫn gốc repo), lưu ở localStorage của webview: đóng app, đổi repo hay mở lại
-// cửa sổ vẫn còn message đang gõ dở. Ghi trễ một nhịp (gõ phím liên tục), ghi ngay khi trang sắp đóng. Dữ liệu đọc ra luôn
-// được kiểm lại vì localStorage có thể bị sửa / hỏng.
+// Per-repo commit drafts (keyed by the repo's root path), stored in the webview's localStorage: closing the
+// app, switching repo or reopening the window keeps a half-typed message. Writes are debounced (typing
+// continuously), immediate when the page is about to close. Data read back is always revalidated because
+// localStorage can be edited or corrupted.
 
 import { browserStorage, type KeyValueStorage } from '../stores/prefs.svelte.ts';
 
 export const DRAFTS_KEY = 'thaigit.commitDrafts.v1';
-/** Giữ tối đa chừng này repo (bỏ bản nháp cũ nhất) để localStorage không phình mãi. */
+/** Keep drafts for at most this many repos (oldest dropped) so localStorage can't grow forever. */
 export const DRAFTS_MAX = 50;
 const SAVE_DELAY_MS = 400;
 
@@ -15,7 +16,7 @@ export interface CommitDraftText {
 }
 
 interface StoredDraft extends CommitDraftText {
-  /** Lần sửa cuối (ms) — để bỏ bản cũ nhất khi vượt trần. */
+  /** Last edit time (ms) — used to drop the oldest draft once the cap is hit. */
   readonly at: number;
 }
 
@@ -40,7 +41,7 @@ export class CommitDrafts {
 
   constructor(private readonly storage: KeyValueStorage | null = browserStorage()) {}
 
-  /** Bản nháp đã lưu của repo (rỗng nếu chưa có). Bản đang chờ ghi được ưu tiên. */
+  /** The repo's saved draft (empty when there is none). A pending write wins over the stored one. */
   load(root: string): CommitDraftText {
     const waiting = this.pending.get(root);
     if (waiting) return waiting;
@@ -48,14 +49,14 @@ export class CommitDrafts {
     return stored ? { summary: stored.summary, body: stored.body } : { summary: '', body: '' };
   }
 
-  /** Ghi (trễ một nhịp). Tóm tắt và mô tả đều trống thì xoá bản nháp của repo. */
+  /** Write (debounced). When both summary and description are blank the repo's draft is deleted. */
   save(root: string, draft: CommitDraftText): void {
     this.pending.set(root, { summary: draft.summary, body: draft.body });
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.flush(), SAVE_DELAY_MS);
   }
 
-  /** Ghi ngay mọi bản đang chờ (trang sắp đóng, hoặc test). */
+  /** Flush every pending write immediately (page about to close, or a test). */
   flush(): void {
     clearTimeout(this.timer);
     this.timer = undefined;
@@ -77,7 +78,7 @@ export class CommitDrafts {
       if (kept.length === 0) this.storage.setItem(DRAFTS_KEY, '{}');
       else this.storage.setItem(DRAFTS_KEY, JSON.stringify(Object.fromEntries(kept)));
     } catch {
-      // Hết dung lượng / bị chặn: bản nháp chỉ sống trong phiên này.
+      // Out of quota / blocked: the draft only lives for this session.
     }
   }
 

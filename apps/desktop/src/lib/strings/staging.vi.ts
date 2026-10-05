@@ -1,11 +1,11 @@
 /**
- * Chuỗi của phần stage / diff / commit / hoàn tác. Truy cập qua `vi.staging.*`. Văn phong bám theo app Swift (StagingView,
- * DiffPane, RepoModel+Actions).
+ * Strings for the stage / diff / commit / undo area. Reached through `vi.staging.*`. Wording follows the
+ * Swift app (StagingView, DiffPane, RepoModel+Actions).
  */
 export const staging = {
   diffPlaceholder: 'Chọn một file để xem diff.',
 
-  // Danh sách thay đổi
+  // Change list
   unstagedTitle: 'Chưa stage',
   stagedTitle: 'Đã stage',
   conflictsTitle: 'Xung đột',

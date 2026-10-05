@@ -1,11 +1,12 @@
 import Foundation
 
-/// Repo thiếu lịch sử / nhánh của remote: clone nông (`--depth`) hoặc remote chỉ fetch vài nhánh (`--single-branch`, refspec
-/// sửa tay — IDE, CI, GitLab hay dùng). Khi đó nhánh như `main` trên remote không bao giờ về máy, kể cả khi bấm Fetch.
+/// A repo missing history / branches from its remote: a shallow clone (`--depth`) or a remote that only fetches a few branches
+/// (`--single-branch`, a hand-edited refspec — what IDEs, CI and GitLab often do). Then a branch like `main` on the remote
+/// never reaches the machine, not even when you press Fetch.
 public struct HistoryGaps: Equatable, Sendable {
-    /// Clone nông: thiếu commit cũ (`git rev-parse --is-shallow-repository`).
+    /// A shallow clone: older commits are missing (`git rev-parse --is-shallow-repository`).
     public var shallow: Bool
-    /// Remote có refspec fetch nhưng không cái nào lấy `refs/heads/*`.
+    /// The remote has fetch refspecs but none of them fetches `refs/heads/*`.
     public var narrowRemotes: [String]
 
     public static let none = HistoryGaps(shallow: false, narrowRemotes: [])
@@ -19,7 +20,7 @@ public struct HistoryGaps: Equatable, Sendable {
 }
 
 extension GitParsers {
-    /// Refspec fetch có lấy mọi nhánh của remote không (`[+]refs/heads/*:…`; bỏ qua refspec loại trừ `^…`).
+    /// Whether the fetch refspecs cover every branch of the remote (`[+]refs/heads/*:…`; exclude refspecs (`^…`) are ignored).
     public static func tracksAllBranches(_ refspecs: [String]) -> Bool {
         refspecs.contains { spec in
             let body = spec.hasPrefix("+") ? String(spec.dropFirst()) : spec
@@ -27,8 +28,8 @@ extension GitParsers {
         }
     }
 
-    /// Output `git config -z --get-regexp '^remote\..+\.fetch$'` ("khoá\ngiá trị\0"…) → refspec theo tên remote. Tên remote
-    /// giữ nguyên hoa thường và có thể chứa dấu chấm.
+    /// `git config -z --get-regexp '^remote\..+\.fetch$'` output ("key\nvalue\0"…) → refspecs keyed by remote name. A remote
+    /// name keeps its case and may contain dots.
     public static func fetchRefspecs(_ output: String) -> [String: [String]] {
         var byRemote: [String: [String]] = [:]
         for entry in output.split(separator: "\0", omittingEmptySubsequences: true) {
@@ -44,11 +45,11 @@ extension GitParsers {
 }
 
 extension GitRepository {
-    /// Xem `HistoryGaps`. Chỉ đọc (rev-parse + config), rẻ — gọi lại mỗi lần refs đổi được. Lỗi → coi như không thiếu gì.
+    /// Look at `HistoryGaps`. Read-only (rev-parse + config), cheap — safe to call on every refs change. A failure is treated as "nothing missing".
     public func historyGaps() async -> HistoryGaps {
-        // git quá cũ không hiểu cờ này thì in lại nguyên chữ → không phải "true" → coi như đủ lịch sử.
+        // A git too old to know this flag echoes it back verbatim → not "true" → treated as having full history.
         async let shallowOutput = try? runner.output(["rev-parse", "--is-shallow-repository"])
-        // Không có khoá nào khớp: git thoát mã 1 → không có refspec.
+        // No key matched: git exits with code 1 → no refspecs.
         async let refspecOutput = try? runner.output(["config", "-z", "--get-regexp", "^remote\\..+\\.fetch$"])
         async let remoteList = try? remotes()
         let shallow = (await shallowOutput)?.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
@@ -60,13 +61,13 @@ extension GitRepository {
         return HistoryGaps(shallow: shallow, narrowRemotes: narrow)
     }
 
-    /// Cho `remote` theo dõi mọi nhánh: THÊM `+refs/heads/*:refs/remotes/<remote>/*`, giữ refspec cũ
+    /// Make `remote` track every branch: ADD `+refs/heads/*:refs/remotes/<remote>/*`, keeping the old refspecs
     /// (`git remote set-branches --add <remote> '*'`).
     public func trackAllBranches(remote: String) async throws {
         try await runner.run(["remote", "set-branches", "--add", "--", remote, "*"])
     }
 
-    /// Lấy phần lịch sử còn thiếu của clone nông từ `remote` (`git fetch --unshallow`).
+    /// Fetch the missing history of a shallow clone from `remote` (`git fetch --unshallow`).
     public func unshallow(remote: String, onProgress: (@Sendable (String) -> Void)? = nil) async throws {
         let urls = await remoteURLs(remote, push: false)
         try await runner.run(["fetch", "--progress", "--unshallow", "--", remote], credentialURLs: urls, onProgress: onProgress)

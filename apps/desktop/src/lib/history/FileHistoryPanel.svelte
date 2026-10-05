@@ -21,7 +21,7 @@
 
   const history = $derived(store.fileHistory);
   const path = $derived(history.path ?? '');
-  /** Commit đang xem: diff đang mở, không thì commit đang blame. */
+  /** The commit on screen: the open diff if there is one, otherwise the commit being blamed. */
   const openSha = $derived(
     store.diff.file?.source.kind === 'commit'
       ? store.diff.file.source.sha

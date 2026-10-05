@@ -1,6 +1,7 @@
-// IP thật của client. Sau reverse proxy, địa chỉ socket là của proxy → chỉ tin `X-Real-IP` khi peer nằm trong
-// TRUSTED_PROXY (proxy của mình ghi đè header này; client tự gửi thì bị bỏ qua). Khoá giới hạn: IPv4 theo từng địa chỉ
-// (CGNAT phổ biến ở VN — không gom /24), IPv6 gom theo /64 (một máy thường có cả dải /64).
+// The client's real IP. Behind a reverse proxy the socket address belongs to the proxy, so `X-Real-IP` is trusted only
+// when the peer is inside TRUSTED_PROXY (our proxy overwrites that header; a client sending it itself is ignored).
+// Rate-limit keys: IPv4 per address (CGNAT is common in Vietnam — no /24 grouping), IPv6 grouped by /64 (a single machine
+// usually owns a whole /64).
 
 import { isIP } from 'node:net';
 
@@ -8,7 +9,7 @@ function ipv4ToInt(ip: string): number {
   return ip.split('.').reduce((acc, part) => (acc << 8) + Number(part), 0) >>> 0;
 }
 
-/** Mở rộng IPv6 thành 8 nhóm hex 4 ký tự (hỗ trợ "::" và đuôi IPv4). */
+/** Expand IPv6 into 8 groups of 4 hex digits (handles "::" and an IPv4 suffix). */
 function expandIpv6(ip: string): string[] | null {
   let address = ip.toLowerCase();
   const zone = address.indexOf('%');
@@ -30,7 +31,7 @@ function expandIpv6(ip: string): string[] | null {
   );
 }
 
-/** "::ffff:1.2.3.4" → "1.2.3.4"; IP khác giữ nguyên. */
+/** "::ffff:1.2.3.4" → "1.2.3.4"; other IPs are kept as-is. */
 export function normalizeIp(ip: string): string {
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
   return mapped?.[1] ?? ip;
@@ -63,7 +64,7 @@ export function isTrustedProxy(peer: string, trusted: readonly string[]): boolea
   return trusted.some((range) => inRange(ip, range));
 }
 
-/** IP của client: header của proxy tin cậy, nếu không thì địa chỉ socket. */
+/** Client IP: the trusted proxy's header when present, otherwise the socket address. */
 export function clientIp(peer: string, realIpHeader: string | undefined, trusted: readonly string[]): string {
   const ip = normalizeIp(peer);
   if (realIpHeader !== undefined && isTrustedProxy(ip, trusted)) {
@@ -73,7 +74,7 @@ export function clientIp(peer: string, realIpHeader: string | undefined, trusted
   return ip;
 }
 
-/** Khoá dùng cho giới hạn theo IP: IPv4 nguyên địa chỉ, IPv6 theo /64. */
+/** Key used for per-IP limits: the whole IPv4 address, IPv6 by /64. */
 export function rateKey(ip: string): string {
   if (isIP(ip) !== 6) return ip;
   const groups = expandIpv6(ip);

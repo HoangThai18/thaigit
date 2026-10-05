@@ -1,5 +1,5 @@
-// SQLite (node:sqlite, có sẵn trong Node 24 — không cần thư viện native). WAL; migration CHỈ THÊM, đánh số trong
-// `schema_meta.schema_version`. Code cũ gặp DB có schema mới hơn → từ chối khởi động (tránh ghi sai cấu trúc).
+// SQLite (node:sqlite, built into Node 24 — no native dependency needed). WAL; migrations only ADD, versioned in
+// `schema_meta.schema_version`. Old code meeting a newer schema refuses to start (avoiding writes in the wrong shape).
 
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 export type Db = DatabaseSync;
 
 const MIGRATIONS: readonly string[] = [
-  // 1 — AI + thống kê + lượt tải. Không cột nào chứa nội dung diff/message, IP hay ID gốc.
+  // 1 — AI + analytics + downloads. No column holds diff/message content, IPs or raw ids.
   `
   CREATE TABLE ai_installs (
     id_hash TEXT PRIMARY KEY,
@@ -102,7 +102,7 @@ export function openDatabase(path: string): Db {
   return db;
 }
 
-/** Chạy `work` trong một transaction (BEGIN IMMEDIATE: khoá ghi ngay, tránh hai request đọc-rồi-ghi chồng nhau). */
+/** Run `work` inside a transaction (BEGIN IMMEDIATE: takes the write lock up front so two requests cannot interleave read-then-write). */
 export function transaction<T>(db: Db, work: () => T): T {
   db.exec('BEGIN IMMEDIATE');
   try {
@@ -115,7 +115,7 @@ export function transaction<T>(db: Db, work: () => T): T {
   }
 }
 
-/** Kiểm DB còn đọc được (cho /healthz). */
+/** Check that the database is still readable (for /healthz). */
 export function pingDatabase(db: Db): boolean {
   try {
     db.prepare('SELECT 1').get();

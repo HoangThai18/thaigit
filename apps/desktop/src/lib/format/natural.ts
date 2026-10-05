@@ -1,6 +1,7 @@
 /**
- * So sánh tên "tự nhiên" như `localizedStandardCompare` của Foundation (Finder): không phân biệt hoa/thường và dấu, số được
- * so theo giá trị ("f2" < "f10"). Dùng để xếp nhánh và tag trong sidebar. Hai tên chỉ khác hoa/thường vẫn có thứ tự ổn định.
+ * "Natural" name comparison like Foundation's `localizedStandardCompare` (Finder): case- and
+ * diacritic-insensitive, with numbers compared by value ("f2" < "f10"). Used to sort branches and tags
+ * in the sidebar. Two names differing only in case still get a stable order.
  */
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
@@ -12,7 +13,7 @@ export function compareNatural(a: string, b: string): number {
 
 const folded = new Map<string, string>();
 
-/** Chữ thường, bỏ dấu (Unicode NFD) — để lọc "tinh-tien" khớp "Tính-Tiền" như `localizedStandardContains`. Có nhớ đệm. */
+/** Lowercase and strip diacritics (Unicode NFD) so a filter matches "tinh-tien" against "Tính-Tiền", like `localizedStandardContains`. Memoised. */
 export function foldText(text: string): string {
   let value = folded.get(text);
   if (value === undefined) {
@@ -28,7 +29,7 @@ export function foldText(text: string): string {
   return value;
 }
 
-/** `text` có chứa `query` không (không phân biệt hoa/thường và dấu). `query` nên là kết quả của `foldText`. */
+/** Whether `text` contains `query` (case- and diacritic-insensitive). `query` should already be the output of `foldText`. */
 export function containsFolded(text: string, foldedQuery: string): boolean {
   return foldedQuery === '' || foldText(text).includes(foldedQuery);
 }

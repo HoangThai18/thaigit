@@ -1,24 +1,24 @@
 import Foundation
 
-/// Việc làm với một commit trong interactive rebase (như GitKraken).
+/// What to do with one commit during an interactive rebase (like GitKraken).
 public enum RebaseAction: String, Sendable, CaseIterable {
-    /// Giữ nguyên.
+    /// Keep as-is.
     case pick
-    /// Giữ thay đổi, sửa lời commit.
+    /// Keep the changes, edit the commit message.
     case reword
-    /// Gộp vào commit phía trước (cũ hơn), nối lời của cả hai.
+    /// Squash into the preceding (older) commit, joining both messages.
     case squash
-    /// Gộp vào commit phía trước, bỏ lời của commit này.
+    /// Squash into the preceding commit, dropping this commit's message.
     case fixup
-    /// Bỏ commit.
+    /// Drop the commit.
     case drop
 }
 
-/// Một dòng của kế hoạch rebase. Kế hoạch xếp từ cũ tới mới, đúng thứ tự git áp dụng.
+/// One line of a rebase plan. A plan is ordered old → new, the order git applies it in.
 public struct RebaseStep: Sendable, Equatable, Identifiable {
     public var commit: Commit
     public var action: RebaseAction
-    /// Lời commit mới khi `action == .reword`.
+    /// The new commit message when `action == .reword`.
     public var message: String?
 
     public init(commit: Commit, action: RebaseAction = .pick, message: String? = nil) {
@@ -33,7 +33,7 @@ public struct RebaseStep: Sendable, Equatable, Identifiable {
 public enum RebasePlan {
     public static let unchanged = String(localized: "Chưa có thay đổi nào.")
 
-    /// Lý do kế hoạch không chạy được (nil là hợp lệ).
+    /// Why the plan can't run (nil means it's fine).
     public static func problem(_ steps: [RebaseStep], original: [Commit]) -> String? {
         if steps.isEmpty { return String(localized: "Không có commit nào để rebase.") }
         if steps.contains(where: { $0.commit.isMerge }) {
@@ -52,14 +52,14 @@ public enum RebasePlan {
         return nil
     }
 
-    /// Kế hoạch dựng sẵn cho thao tác nhanh trên một commit (menu chuột phải): mọi commit `pick`, riêng `sha` làm `action`.
+    /// A prebuilt plan for a quick action on one commit (right-click menu): every commit `pick`, with `sha` set to `action`.
     public static func single(_ commits: [Commit], sha: String, action: RebaseAction, message: String? = nil) -> [RebaseStep] {
         commits.map { commit in
             commit.id == sha ? RebaseStep(commit: commit, action: action, message: message) : RebaseStep(commit: commit)
         }
     }
 
-    /// Đổi chỗ `sha` với commit liền sau (`up` — mới hơn) hoặc liền trước (cũ hơn); nil khi không có commit để đổi chỗ.
+    /// Swap `sha` with the immediately following commit (`up` — newer) or the preceding one (`down` — older); nil when there's nothing to swap.
     public static func swapped(_ commits: [Commit], sha: String, up: Bool) -> [RebaseStep]? {
         var steps = commits.map { RebaseStep(commit: $0) }
         guard let index = steps.firstIndex(where: { $0.commit.id == sha }) else { return nil }
@@ -69,8 +69,9 @@ public enum RebasePlan {
         return steps
     }
 
-    /// Nội dung file todo cho `git rebase -i`. Sửa lời commit = `pick` rồi `exec git commit --amend` với file lời
-    /// mới (không cần mở trình soạn thảo); `messageFile(i)` là đường dẫn file lời cho dòng thứ i.
+    /// The todo file content for `git rebase -i`. Rewording a message is `pick` followed by
+    /// `exec git commit --amend` with the new message file (no editor needed); `messageFile(i)` is the message
+    /// file path for line i.
     static func todo(_ steps: [RebaseStep], messageFile: (Int) -> String) -> String {
         var lines: [String] = []
         for (index, step) in steps.enumerated() {
@@ -87,7 +88,7 @@ public enum RebasePlan {
         return lines.joined(separator: "\n") + "\n"
     }
 
-    /// Bọc trong nháy đơn cho shell ('a b' → 'a b', it's → 'it'\''s').
+    /// Wrapped in single quotes for the shell ('a b' → 'a b', it's → 'it'\''s').
     static func shellQuote(_ text: String) -> String {
         "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
@@ -105,17 +106,17 @@ public enum RebaseError: LocalizedError, Sendable {
 
 public enum InteractiveRebaseResult: Sendable, Equatable {
     case done
-    /// Rebase xong nhưng trả lại thay đổi chưa commit (đã tự cất) bị xung đột — thay đổi vẫn còn trong stash.
+    /// The rebase finished but the returned uncommitted changes (which it had stashed itself) conflicted — the changes are still in the stash.
     case autostashConflict
 }
 
 extension GitRepository {
-    /// `ancestor` có nằm trong lịch sử của `descendant` không.
+    /// Whether `ancestor` is in `descendant`'s history.
     public func isAncestor(_ ancestor: String, of descendant: String) async -> Bool {
         (try? await runner.run(["merge-base", "--is-ancestor", ancestor, descendant])) != nil
     }
 
-    /// Các commit sẽ được viết lại khi interactive rebase từ sau `base` tới HEAD, cũ trước mới sau.
+    /// The commits an interactive rebase from after `base` up to HEAD would rewrite, oldest first.
     public func rebaseCommits(after base: String) async throws -> [Commit] {
         guard await isAncestor(base, of: "HEAD") else {
             throw RebaseError.notOnCurrentBranch(base)
@@ -125,9 +126,10 @@ extension GitRepository {
         return GitParsers.parseLog(output.stdout)
     }
 
-    /// Interactive rebase nhánh hiện tại lên `base` theo kế hoạch `steps` (cũ trước mới sau): git đọc file todo do
-    /// Thaigit soạn sẵn qua GIT_SEQUENCE_EDITOR, không mở trình soạn thảo nào. Thay đổi chưa commit được tự cất rồi
-    /// trả lại (`--autostash`). Gặp xung đột thì git dừng giữa chừng như rebase thường (Tiếp tục / Bỏ qua / Huỷ).
+    /// Interactive-rebases the current branch onto `base` following the plan `steps` (old → new): git reads a todo
+    /// file Thaigit composed up front through GIT_SEQUENCE_EDITOR, so no editor is opened. Uncommitted changes are
+    /// stashed automatically and restored afterwards (`--autostash`). On a conflict git stops midway like a
+    /// normal rebase (Continue / Skip / Cancel).
     public func interactiveRebase(onto base: String, steps: [RebaseStep]) async throws -> InteractiveRebaseResult {
         let directory = gitDir.appendingPathComponent("thaigit-rebase", isDirectory: true)
         try? FileManager.default.removeItem(at: directory)
@@ -140,7 +142,7 @@ extension GitRepository {
         try Data(RebasePlan.todo(steps, messageFile: messageFile).utf8).write(to: todo)
         let output = try await runner.run(["rebase", "-i", "--autostash", base],
                                           environment: ["GIT_SEQUENCE_EDITOR": "cp " + RebasePlan.shellQuote(todo.path)])
-        // File lời commit còn cần khi rebase dừng vì xung đột (bước exec chạy lúc "Tiếp tục"); xong thì dọn.
+        // The commit message file is still needed when the rebase stops on a conflict (the exec step runs when you press Continue); clean it up once done.
         if operationState() == nil { try? FileManager.default.removeItem(at: directory) }
         let text = output.stdoutString + output.stderrString
         return text.contains("autostash resulted in conflicts") ? .autostashConflict : .done

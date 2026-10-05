@@ -2,11 +2,11 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// "Tài khoản GitHub cho repo này": gán owner (của remote origin, hoặc owner bị GitHub từ chối) cho một tài khoản, và —
-/// sau khi người dùng xác nhận ở đây — ghi tên / email commit của tài khoản vào config LOCAL của repo.
+/// "GitHub account for this repo": assign an owner (the origin remote's, or one GitHub refused) to an account and —
+/// after the user confirms here — write that account's commit name / email into the repo's LOCAL config.
 struct GitHubRepoAccountSheet: View {
     @Bindable var model: RepoModel
-    /// Owner cần gán; nil: owner của remote origin.
+    /// The owner that needs assigning; nil: the origin remote's owner.
     let owner: String?
     @Environment(\.dismiss) private var dismiss
     private let github = GitHubAccountManager.shared
@@ -15,7 +15,7 @@ struct GitHubRepoAccountSheet: View {
 
     private var targetOwner: String? { owner ?? model.originOwner }
 
-    /// Owner là owner của origin: mới ghi danh tính commit vào repo này.
+    /// The owner is the origin's owner: only then is the commit identity written into this repo.
     private var isRepoOwner: Bool {
         guard let originOwner = model.originOwner else { return targetOwner == nil }
         return targetOwner?.caseInsensitiveCompare(originOwner) == .orderedSame
@@ -64,7 +64,7 @@ struct GitHubRepoAccountSheet: View {
     @ViewBuilder
     private var form: some View {
         if let targetOwner, owner == nil, let originURL = model.originURL, !GitHubRemoteURL.isHTTPS(originURL) {
-            // SSH (git@github.com:…) hoặc https://www.github.com: không đi qua credential helper của Thaigit.
+            // SSH (git@github.com:…) or https://www.github.com: doesn't go through Thaigit's credential helper.
             Text("Remote origin (\(originURL)) không đi qua HTTPS tới github.com — SSH dùng SSH key của máy — nên ở đây chỉ ghi được tên & email commit của một tài khoản. Gán owner \(targetOwner) chỉ có tác dụng với remote https://github.com/\(targetOwner)/….")
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -119,7 +119,7 @@ struct GitHubRepoAccountSheet: View {
 
     private func confirm() {
         guard let selected else { return }
-        // Owner chính là login của tài khoản đã chọn: quy tắc tự động đã khớp, không cần gán thêm.
+        // The owner is exactly the selected account's login: the automatic rule already matched, no extra assignment needed.
         let current = github.resolution(forOwner: targetOwner)
         if let targetOwner, !(current?.match == .login && current?.profile.login == selected.login) {
             github.assign(owner: targetOwner, to: selected.login)

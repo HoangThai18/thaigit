@@ -49,7 +49,7 @@ describe('InlineDiff.changedRanges (port inlineHighlightFindsChangedMiddle)', ()
   });
 
   it('không xé chữ + dấu kết hợp (tiếng Việt dạng NFD)', () => {
-    // "ệ" = e + dấu nặng + dấu mũ; "ể" = e + dấu hỏi + dấu mũ: cùng chữ cái gốc, khác dấu.
+    // "ệ" = e + dot below + circumflex; "ể" = e + hook above + circumflex: same base letter, different marks.
     const oldText = 'Việt';
     const newText = 'Viẻ̂t';
     const ranges = changedRanges(oldText, newText)!;
@@ -177,7 +177,7 @@ describe('buildPresentation', () => {
       [null, 'e1'],
       [null, 'e2'],
     ]);
-    // Cả hai phía của dòng ngữ cảnh là cùng một đối tượng dòng.
+    // Both sides of a context line are the very same line object.
     const first = presentation.hunks[0]!.splitRows[0]!;
     expect(first.left).toBe(first.right);
   });

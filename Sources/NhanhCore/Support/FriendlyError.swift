@@ -1,13 +1,13 @@
 import Foundation
 
-/// Lỗi mà mô tả (`userMessage`) đã là câu tiếng Việt do Thaigit tự soạn, không chèn lỗi hệ thống — hiện thẳng được.
+/// An error whose `userMessage` is already a sentence Thaigit wrote, with no system error text mixed in — displayed as-is.
 public protocol UserFacingError: Error {
     var userMessage: String { get }
 }
 
-/// Chuyển MỌI lỗi thành một câu tiếng Việt dễ hiểu. Quy tắc của app: giao diện không bao giờ hiện stderr của git, mô tả lỗi của
-/// hệ điều hành, mã lỗi hay nội dung exception — người dùng chỉ thấy câu ở đây. Chi tiết kỹ thuật vẫn xem được trong
-/// "Nhật ký lệnh git" (người dùng tự mở).
+/// Turns EVERY error into one understandable sentence. App rule: the UI never shows git's stderr, an OS
+/// error description, an error code or the contents of an exception — the user only sees a sentence from
+/// here. Technical detail stays available in "git command log", which the user opens themselves.
 public enum FriendlyError {
     public static let unexpected = String(localized: "Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.")
     public static let gitFailed = String(localized: "Git không thực hiện được thao tác này. Xem chi tiết trong “Nhật ký lệnh git” (nút Mở ▸ Nhật ký lệnh git…).")
@@ -15,7 +15,7 @@ public enum FriendlyError {
     public static let network = String(localized: "Không kết nối được — kiểm tra mạng rồi thử lại.")
     public static let fileAccess = String(localized: "Không đọc / ghi được file trên máy — kiểm tra quyền truy cập và dung lượng ổ đĩa.")
 
-    /// Mẫu lỗi git quen thuộc → câu thân thiện (theo thứ tự ưu tiên; so không phân biệt hoa thường).
+    /// Well-known git error patterns → friendly sentence (in priority order; matched case-insensitively).
     static let gitPatterns: [(needles: [String], message: String)] = [
         (["Please tell me who you are", "empty ident", "unable to auto-detect email address"],
          String(localized: "Chưa đặt tên và email cho git — chạy git config --global user.name / user.email rồi thử lại.")),
@@ -48,7 +48,7 @@ public enum FriendlyError {
         (["git-lfs", "git: 'lfs' is not a git command"], String(localized: "Chưa cài Git LFS — cài bằng brew install git-lfs rồi chạy git lfs install.")),
     ]
 
-    /// Câu thân thiện cho output của một lệnh git thất bại.
+    /// A friendly sentence for the output of a failed git command.
     public static func gitMessage(forOutput output: String) -> String {
         for pattern in gitPatterns where pattern.needles.contains(where: { output.range(of: $0, options: .caseInsensitive) != nil }) {
             return pattern.message
@@ -56,7 +56,7 @@ public enum FriendlyError {
         return gitFailed
     }
 
-    /// Câu thân thiện cho một lỗi bất kỳ.
+    /// A friendly sentence for any error.
     public static func message(for error: any Error) -> String {
         switch error {
         case let error as UserFacingError: return error.userMessage
@@ -106,7 +106,7 @@ public enum FriendlyError {
     static func message(for error: GitHubRepoAPIError) -> String {
         switch error {
         case .rejected(let text):
-            // Thông báo của GitHub (tiếng Anh): chỉ nhận vài trường hợp quen thuộc.
+            // GitHub's message (English): only a few familiar cases are recognised.
             if text.range(of: "already exists", options: .caseInsensitive) != nil { return String(localized: "Đã có Pull Request cho nhánh này.") }
             if text.range(of: "No commits between", options: .caseInsensitive) != nil {
                 return String(localized: "Hai nhánh không có commit nào khác nhau nên chưa tạo được Pull Request.")
@@ -135,7 +135,7 @@ extension RebaseError: UserFacingError {
 }
 
 extension GitFlowStepError {
-    /// "Dừng ở bước …" + câu thân thiện thay cho output thô của git.
+    /// "Stopped at …" plus a friendly sentence in place of git's raw output.
     public var userMessage: String {
         var text = String(localized: "Dừng ở bước: \(step).")
         if !remaining.isEmpty { text += String(localized: " Còn lại: ") + remaining.joined(separator: "; ") + "." }

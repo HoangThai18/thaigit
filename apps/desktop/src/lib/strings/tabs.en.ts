@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `tabs.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `tab.vi.ts` (same keys, same parameters). */
 import type { tabs as source } from './tabs.vi.ts';
 import type { Translation } from './types.ts';
 

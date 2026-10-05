@@ -1,5 +1,5 @@
-// Gọi Hermes qua API kiểu OpenAI (`/chat/completions`, `stream: true`) — Ollama, llama.cpp server, vLLM, Hermes Agent
-// API server… đều nói chuẩn này. Không tự thử lại (thử lại làm gấp đôi tải lên máy đang nghẽn).
+// Calls Hermes through the OpenAI-style API (`/chat/completions`, `stream: true`) — Ollama, llama.cpp server, vLLM and the
+// Hermes Agent API server all speak it. No automatic retry (a retry doubles the load on an already-stalled machine).
 
 import type { AiUsage } from '@thaigit/contracts';
 import type { Config } from '../env.ts';
@@ -30,7 +30,7 @@ function headers(config: Config['hermes']): Record<string, string> {
   };
 }
 
-/** Tách luồng SSE kiểu OpenAI (chỉ cần "data:"; frame "[DONE]" kết thúc). */
+/** Split an OpenAI-style SSE stream (only "data:" matters; the "[DONE]" frame ends it). */
 async function* dataLines(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   const decoder = new TextDecoder();
   const reader = body.getReader();
@@ -56,8 +56,9 @@ function asCount(value: unknown): number {
 }
 
 /**
- * Stream một completion. `signal` huỷ từ phía app (người dùng bấm Huỷ / mất kết nối); timeout tổng do cấu hình.
- * Lỗi mạng / HTTP / định dạng → `UpstreamError('unavailable')`.
+ * Stream one completion. `signal` cancels from the app side (the user pressed Cancel / the connection dropped); the overall
+ * timeout comes from config.
+ * Network / HTTP / format errors → `UpstreamError('unavailable')`.
  */
 export async function* streamChat(
   config: Config['hermes'],
@@ -125,7 +126,7 @@ export async function* streamChat(
   }
 }
 
-/** Kiểm model còn chạy: `GET /models` trả 200 và có đúng model đã cấu hình (hoặc server chỉ phục vụ một model). */
+/** Is the model still serving: does `GET /models` return 200 and list the configured model (or serve only one model)? */
 export async function checkModel(config: Config['hermes'], fetchImpl: Fetch = fetch): Promise<boolean> {
   try {
     const response = await fetchImpl(`${config.baseUrl}/models`, {

@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `lfs.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `lf.vi.ts` (same keys, same parameters). */
 import type { lfs as source } from './lfs.vi.ts';
 import type { Translation } from './types.ts';
 

@@ -1,5 +1,5 @@
-// Bộ chuyển `Exec` cho Node (test, công cụ dòng lệnh): cùng chính sách với Rust — LUÔN gọi `validateGitCommand` trước,
-// đối số dựng bằng `buildGitArgv` (cờ `-c` + `--no-ext-diff --no-textconv`), env bằng `buildGitEnv`.
+// Node adapter for `Exec` (tests, CLI tools): same policy as Rust — ALWAYS validates with `validateGitCommand` first,
+// builds args with `buildGitArgv` (`-c` flags plus `--no-ext-diff --no-textconv`) and env with `buildGitEnv`.
 
 import { realpath } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -10,13 +10,13 @@ import { relativeTo } from '../support/paths.ts';
 import { gitEnvFor, spawnGit, type NodeGitConfig } from './process.ts';
 
 export interface NodeExecOptions extends NodeGitConfig {
-  /** Thư mục chạy git: gốc working tree của repo. */
+  /** Directory git runs in: the repo's working-tree root. */
   cwd: string;
-  /** Git dir của repo — cần để chấp nhận `GIT_INDEX_FILE` (chỉ đường dẫn nằm trong git dir). */
+  /** The repo's git dir — needed to accept `GIT_INDEX_FILE` (only paths inside the git dir are allowed). */
   gitDir?: string;
 }
 
-/** Thông báo tiếng Việt cho một vi phạm chính sách. */
+/** Human-readable message for a policy violation. */
 export function describePolicyViolation(violation: PolicyViolation): string {
   const detail = 'detail' in violation ? `: ${violation.detail}` : '';
   return `Lệnh git ${violation.sub} bị chính sách chặn (${violation.code}${detail}).`;
@@ -40,14 +40,14 @@ export class NodeExec implements Exec {
       cwd: this.options.cwd,
       env: gitEnvFor(this.options, request.profile ?? 'interactive', callerEnv),
       stdin: request.stdin,
-      // Chỉ lệnh mạng huỷ được (huỷ theo bậc: SIGTERM rồi SIGKILL); lệnh ghi không bao giờ bị giết giữa chừng.
+      // Only network commands are cancellable (cancelled in stages: SIGTERM then SIGKILL); a write command must never be killed mid-way.
       cancellable: request.kind === 'network',
       signal: request.signal,
       onStderrLine: request.onStderrLine,
     });
   }
 
-  /** `GIT_INDEX_FILE` chỉ được trỏ vào file nằm trong git dir (kiểm sau khi giải symlink thư mục chứa nó). */
+  /** `GIT_INDEX_FILE` may only point at a file inside the git dir (checked after resolving symlinks in its directory). */
   private async assertInsideGitDir(sub: string, value: string): Promise<void> {
     const reject = (): never => {
       throw new AdapterError('policy', 'GIT_INDEX_FILE phải là đường dẫn nằm trong git dir của repo.', {

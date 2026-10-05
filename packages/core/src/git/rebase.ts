@@ -1,5 +1,6 @@
-// Rebase tương tác (port RebasePlan của GitRepository+Rebase.swift): kế hoạch xếp cũ → mới, mỗi commit một thao tác. Chỉ phần
-// thuần (kiểm kế hoạch) ở đây — chạy thật là lệnh có kiểu `TypedGit.rebaseInteractive` (Rust tự soạn file todo).
+// Interactive rebase (port of RebasePlan in GitRepository+Rebase.swift): a plan ordered oldest → newest, one action per
+// commit. Only the pure part (plan validation) lives here — actually running it is the typed command
+// `TypedGit.rebaseInteractive` (Rust composes the todo file itself).
 
 import type { RebaseAction, RebaseStepRequest } from '@thaigit/contracts';
 import { isMergeCommit, type Commit } from './models.ts';
@@ -8,27 +9,27 @@ export type { RebaseAction } from '@thaigit/contracts';
 
 export const REBASE_ACTIONS: readonly RebaseAction[] = ['pick', 'reword', 'squash', 'fixup', 'drop'];
 
-/** Một dòng của kế hoạch. */
+/** One line of the plan. */
 export interface RebaseStep {
   readonly commit: Commit;
   readonly action: RebaseAction;
-  /** Lời commit mới khi `action === 'reword'`. */
+  /** New commit message when `action === 'reword'`. */
   readonly message?: string;
 }
 
-/** Lý do kế hoạch không chạy được (giao diện tự dịch ra câu). */
+/** Why the plan cannot run (the UI turns this into a sentence). */
 export type RebasePlanProblem =
-  /** Không có commit nào để rebase. */
+  /** No commits to rebase. */
   | 'empty'
-  /** Đoạn có commit merge — chưa hỗ trợ (git -i bỏ merge, làm phẳng lịch sử). */
+  /** The range contains a merge commit — unsupported (`git rebase -i` drops merges, flattening history). */
   | 'merge'
-  /** Commit cũ nhất còn lại là squash / fixup: không có gì phía trước để gộp vào. */
+  /** The oldest remaining commit is a squash / fixup: nothing before it to merge into. */
   | 'leadingSquash'
-  /** Reword mà để trống message. */
+  /** A reword with an empty message. */
   | 'emptyMessage'
-  /** Bỏ hết mọi commit. */
+  /** Every commit is dropped. */
   | 'allDropped'
-  /** Giống hệt ban đầu. */
+  /** Identical to the original. */
   | 'unchanged';
 
 export function rebasePlanProblem(
@@ -49,7 +50,7 @@ export function rebasePlanProblem(
   return null;
 }
 
-/** Kế hoạch dạng gửi qua IPC (chỉ sha + thao tác + message). */
+/** Plan in the shape sent over IPC (sha + action + message only). */
 export function rebaseRequest(steps: readonly RebaseStep[]): RebaseStepRequest[] {
   return steps.map((step) =>
     step.action === 'reword'
@@ -58,5 +59,5 @@ export function rebaseRequest(steps: readonly RebaseStep[]): RebaseStepRequest[]
   );
 }
 
-/** Rebase xong nhưng trả lại thay đổi chưa commit (đã tự cất) bị xung đột — thay đổi vẫn nằm trong stash. */
+/** The rebase finished but the auto-stashed uncommitted changes conflicted — the changes are still in the stash. */
 export type InteractiveRebaseResult = 'done' | 'autostashConflict';

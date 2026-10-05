@@ -1,10 +1,10 @@
-// Lọc khối <think>…</think> ngay trong luồng (Hermes 4 là model lai có lập luận): phần suy nghĩ không gửi về app. Thẻ
-// có thể bị cắt ngang giữa hai chunk nên giữ lại phần đuôi có thể là đầu của thẻ.
+// Filters <think>…</think> blocks right inside the stream (Hermes 4 is a hybrid reasoning model): the reasoning is never sent
+// to the app. A tag can be split across two chunks, so the tail that could start a tag is held back.
 
 const OPEN = '<think>';
 const CLOSE = '</think>';
 
-/** Độ dài phần đuôi của `text` trùng với phần đầu của `tag` (để chờ chunk sau). */
+/** Length of the `text` tail that is also a prefix of `tag` (waiting for the next chunk). */
 function partialSuffix(text: string, tag: string): number {
   const lower = text.toLowerCase();
   for (let length = Math.min(tag.length - 1, text.length); length > 0; length -= 1) {
@@ -16,7 +16,7 @@ function partialSuffix(text: string, tag: string): number {
 export class ThinkFilter {
   #inThink = false;
   #pending = '';
-  /** Đã phát chữ thật nào chưa (để bỏ khoảng trắng đầu sau khối suy nghĩ). */
+  /** Whether any real text has been emitted yet (used to drop leading whitespace after a reasoning block). */
   #started = false;
 
   push(chunk: string): string {
@@ -50,7 +50,7 @@ export class ThinkFilter {
     return this.#emit(out);
   }
 
-  /** Hết luồng: phần chờ không thành thẻ thì trả ra (trừ khi đang trong khối suy nghĩ). */
+  /** End of stream: a pending fragment that never became a tag is emitted (unless we are inside a reasoning block). */
   end(): string {
     const rest = this.#inThink ? '' : this.#pending;
     this.#pending = '';

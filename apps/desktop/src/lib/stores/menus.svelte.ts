@@ -1,5 +1,5 @@
-// Menu nổi dùng chung (menu thả xuống của nút thanh công cụ và menu chuột phải): một menu tại một thời điểm, vẽ bằng
-// MenuHost. Mục menu là dữ liệu thuần (tiêu đề + hàm chạy) — tiêu đề có thể chứa tên nhánh do repo đặt, luôn vẽ dạng chữ.
+// Shared popup menus (a toolbar button's dropdown and the context menu): one menu at a time, drawn by MenuHost. Items are
+// plain data (a title plus a function to run) — a title may contain a repo-chosen branch name, so it is always drawn as text.
 
 import type { IconName } from '../ui/icons.ts';
 
@@ -11,9 +11,9 @@ export type MenuItem =
       readonly icon?: IconName;
       readonly disabled?: boolean;
       readonly destructive?: boolean;
-      /** Phím tắt chỉ để hiển thị ("Ctrl+Shift+L"). */
+      /** A display-only shortcut ("Ctrl+Shift+L"). */
       readonly shortcut?: string;
-      /** Dấu ✓ (mục đang chọn). */
+      /** A ✓ mark (the item is currently selected). */
       readonly checked?: boolean;
     }
   | {
@@ -26,7 +26,7 @@ export type MenuItem =
   | { readonly kind: 'separator' }
   | { readonly kind: 'header'; readonly title: string };
 
-/** Mục chạy được (không phải vách ngăn / tiêu đề / menu con). */
+/** A runnable item (not a separator / heading / submenu). */
 export type MenuAction = Extract<MenuItem, { run: () => void }>;
 
 export function isMenuAction(item: MenuItem): item is MenuAction {
@@ -38,15 +38,15 @@ export interface OpenMenu {
   readonly items: readonly MenuItem[];
   readonly x: number;
   readonly y: number;
-  /** Rộng tối thiểu (menu thả xuống rộng bằng nút). */
+  /** Minimum width (the dropdown is as wide as the button). */
   readonly minWidth: number;
-  /** Phần tử mở menu: trả tiêu điểm về đó khi đóng. */
+  /** The element that opened the menu: focus returns there on close. */
   readonly opener: HTMLElement | null;
-  /** Mở bằng bàn phím: chọn sẵn mục đầu tiên. */
+  /** Open via keyboard: preselect the first item. */
   readonly focusFirst: boolean;
 }
 
-/** Bỏ vách ngăn thừa (đầu, cuối, hai vách liền nhau) sau khi lọc mục theo điều kiện. */
+/** Drop redundant separators (at the start, at the end, two in a row) after filtering items by a predicate. */
 export function tidyMenu(items: readonly (MenuItem | null | false | undefined)[]): MenuItem[] {
   const result: MenuItem[] = [];
   for (const item of items) {
@@ -62,20 +62,20 @@ export class MenuStore {
   current = $state.raw<OpenMenu | null>(null);
   private serial = 0;
 
-  /** Menu thả xuống dưới `element` (căn trái theo nút). */
+  /** The dropdown under `element` (left-aligned with the button). */
   openBelow(element: HTMLElement, items: readonly MenuItem[], options: { focusFirst?: boolean } = {}): void {
     const rect = element.getBoundingClientRect();
     this.show(items, rect.left, rect.bottom + 4, rect.width, element, options.focusFirst ?? false);
   }
 
-  /** Menu chuột phải tại vị trí con trỏ. */
+  /** The context menu at the pointer position. */
   openAt(event: MouseEvent, items: readonly MenuItem[]): void {
     event.preventDefault();
     const opener = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     this.show(items, event.clientX, event.clientY, 0, opener, false);
   }
 
-  /** Menu tại một điểm trên màn hình (vd. chỗ vừa thả khi kéo-thả). */
+  /** A menu at a point on screen (e.g. where an item was just dropped after a drag). */
   openAtPoint(x: number, y: number, items: readonly MenuItem[]): void {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.show(items, x, y, 0, opener, false);
@@ -88,7 +88,7 @@ export class MenuStore {
     if (restoreFocus && menu.opener?.isConnected) menu.opener.focus({ preventScroll: true });
   }
 
-  /** Chạy một mục: đóng menu trước (mục có thể mở hộp thoại). */
+  /** Run one item: close the menu first (an item may open a dialog). */
   run(item: MenuItem): void {
     if (!isMenuAction(item) || item.disabled) return;
     this.close();

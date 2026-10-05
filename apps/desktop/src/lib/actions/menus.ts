@@ -1,5 +1,5 @@
-// Nội dung menu chuột phải (port phần "Menu ngữ cảnh" của RepoModel+Actions.swift): commit trên graph, dòng WIP, nhánh / tag,
-// stash, file thay đổi. Chỉ dựng dữ liệu (MenuItem) — vẽ ở MenuHost.
+// Context-menu content (a port of the "Context menu" part of RepoModel+Actions.swift): commits on the graph, the WIP row,
+// branches / tags, stashes, changed files. It only builds the data (MenuItem) — MenuHost draws it.
 
 import {
   isWorkingTreeCommit,
@@ -55,8 +55,8 @@ function refIcon(ref: GitRef): IconName {
   return ref.kind === 'localBranch' ? 'laptop' : ref.kind === 'remoteBranch' ? 'cloud' : 'tag';
 }
 
-/** Menu của một hàng trên graph: các nhánh / tag trỏ vào commit (menu con), rồi thao tác trên commit. */
-/** Menu của viên "+N" trên graph: mọi nhánh / tag bị gom, mỗi cái một menu con (Checkout, Merge, Push…). */
+/** The menu of a graph row: the branches / tags pointing at that commit (as submenus), then the commit's operations. */
+/** The menu of the graph's "+N" pill: every collapsed branch / tag, each with its own submenu (Checkout, Merge, Push…). */
 export function labelsMenu(store: RepoStore, labels: readonly RefLabel[]): MenuItem[] {
   const refs = labels.filter((label) => !label.isDetachedHead).flatMap((label) => label.refs);
   return [
@@ -193,7 +193,7 @@ export function commitMenu(store: RepoStore, entry: GraphEntry): MenuItem[] {
   ]);
 }
 
-/** Commit dạng patch (áp lại được bằng `git am`) vào clipboard. */
+/** Copy the commit as a patch (reappliable with `git am`) to the clipboard. */
 async function copyPatch(store: RepoStore, commit: Commit): Promise<void> {
   let patch: string;
   try {
@@ -233,7 +233,7 @@ export function workingTreeMenu(store: RepoStore): MenuItem[] {
   ];
 }
 
-/** Menu của một nhánh local / nhánh remote / tag (sidebar, viên nhãn trên graph). */
+/** The menu of a local branch / remote branch / tag (sidebar, label pill on the graph). */
 export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
   const current = store.currentBranch;
   const name = refName(ref);
@@ -395,7 +395,7 @@ export function stashMenu(store: RepoStore, entry: Stash): MenuItem[] {
   ];
 }
 
-/** Menu của một file thay đổi (danh sách WIP, file trong commit / stash). */
+/** The menu of a changed file (the WIP list, a file inside a commit / stash). */
 export function fileMenu(store: RepoStore, change: FileChange, source: DiffSource): MenuItem[] {
   const items: (MenuItem | null)[] = [
     { title: vi.branches.menuOpenDiff, icon: 'compare', run: () => store.diff.open(change, source) },
@@ -471,8 +471,8 @@ export function fileMenu(store: RepoStore, change: FileChange, source: DiffSourc
 }
 
 /**
- * Lịch sử file / Blame (như GitKraken): file chưa từng commit (chưa track, mới thêm) thì không có gì để xem. Với file của một
- * commit, blame tại chính commit đó; file đã xoá thì không blame được.
+ * File history / blame (like GitKraken): a file that was never committed (untracked, newly added) has nothing to show. For a file
+ * at a given commit, blame at that very commit; a deleted file cannot be blamed.
  */
 function historyItems(store: RepoStore, change: FileChange, source: DiffSource): MenuItem[] {
   if (source.kind === 'stash' || source.kind === 'conflict') return [];
@@ -492,7 +492,7 @@ function historyItems(store: RepoStore, change: FileChange, source: DiffSource):
   return items;
 }
 
-/** Mở ứng dụng ngoài (terminal, trình soạn thảo, trình quản lý file); lỗi chỉ báo câu thân thiện. */
+/** Open an external app (terminal, editor, file manager); errors are only reported as a friendly sentence. */
 export async function osAction(store: RepoStore, run: () => Promise<void> | undefined): Promise<void> {
   try {
     await run();
@@ -501,7 +501,7 @@ export async function osAction(store: RepoStore, run: () => Promise<void> | unde
   }
 }
 
-/** Mục liên quan tới máy chủ từ xa của repo: tạo Pull Request và gán tài khoản cho owner (chỉ khi remote nói chuyện với GitHub / GitLab / Bitbucket). */
+/** Items related to the repo's remote host: create a Pull Request and assign an account to the owner (only when the remote talks to GitHub / GitLab / Bitbucket). */
 export function repoForgeItems(store: RepoStore): MenuItem[] {
   const target = targetOf(store);
   if (target === null) return [];
@@ -520,7 +520,7 @@ export function repoForgeItems(store: RepoStore): MenuItem[] {
   ]);
 }
 
-/** Mục "mở ra ngoài" của repo (menu Thêm trên thanh công cụ). */
+/** The repo's "open externally" items (the Add menu on the toolbar). */
 export function repoOsItems(store: RepoStore): MenuItem[] {
   const port = store.port;
   return tidyMenu([

@@ -1,15 +1,15 @@
 import Foundation
 import Security
 
-/// Nơi cất token GitHub (mỗi tài khoản một mục theo login). App dùng `KeychainTokenStore`; test dùng bản trong bộ nhớ
-/// (không đụng Keychain thật).
+/// Where GitHub tokens are stored (one entry per account, keyed by login). The app uses `KeychainTokenStore`; tests use
+/// the in-memory version (never touching the real Keychain).
 public protocol GitHubTokenStore: Sendable {
     func readToken(account login: String) throws -> String?
     func saveToken(_ token: String, account login: String) throws
     func deleteToken(account login: String) throws
 }
 
-/// Token chỉ trong bộ nhớ (chế độ kiểm thử tự động của app — không đụng Keychain thật, không bật hộp hỏi quyền).
+/// Tokens kept in memory only (the app's automated test mode — no real Keychain, no permission prompt).
 public final class InMemoryGitHubTokenStore: GitHubTokenStore, @unchecked Sendable {
     private let lock = NSLock()
     private var tokens: [String: String] = [:]
@@ -29,8 +29,8 @@ public final class InMemoryGitHubTokenStore: GitHubTokenStore, @unchecked Sendab
     }
 }
 
-/// Token trong Keychain của macOS: mật khẩu chung (generic password), service `com.phanthai.thaigit.github`,
-/// account = login, chỉ đọc được sau lần mở khoá đầu tiên, không đồng bộ iCloud.
+/// Tokens in the macOS Keychain: a generic password with service `com.phanthai.thaigit.github` and account = login,
+/// readable only after the first unlock, no iCloud sync.
 public struct KeychainTokenStore: GitHubTokenStore {
     public static let defaultService = "com.phanthai.thaigit.github"
     public let service: String
@@ -85,14 +85,14 @@ public struct KeychainTokenStore: GitHubTokenStore {
     }
 }
 
-/// Nơi lưu phần không bí mật (UserDefaults trong app, bộ nhớ khi test — test không ghi file cài đặt nào).
+/// Where the non-secret part is stored (UserDefaults in the app, memory in tests — tests write no settings file).
 public protocol GitHubSettingsStorage: Sendable {
     func data(forKey key: String) -> Data?
     func setData(_ data: Data?, forKey key: String)
 }
 
 public struct UserDefaultsSettingsStorage: GitHubSettingsStorage, @unchecked Sendable {
-    // UserDefaults an toàn đa luồng; @unchecked chỉ vì SDK chưa đánh dấu Sendable.
+    // UserDefaults is thread-safe; @unchecked only because the SDK doesn't mark it Sendable.
     private let defaults: UserDefaults
 
     public init(_ defaults: UserDefaults = .standard) {
@@ -106,8 +106,8 @@ public struct UserDefaultsSettingsStorage: GitHubSettingsStorage, @unchecked Sen
     }
 }
 
-/// Lưu các tài khoản GitHub: danh sách, mặc định, owner đã gán, danh tính commit trong `storage` (UserDefaults);
-/// token từng tài khoản trong `tokens` (Keychain) theo login — token không bao giờ nằm trong UserDefaults.
+/// Stores the GitHub accounts: the list, the default, the assigned owner and the commit identity in `storage`
+/// (UserDefaults); each account's token in `tokens` (Keychain) keyed by login — a token never sits in UserDefaults.
 public struct GitHubAccountStore: Sendable {
     public static let stateKey = "githubAccounts"
     public let storage: any GitHubSettingsStorage
@@ -128,9 +128,10 @@ public struct GitHubAccountStore: Sendable {
         storage.setData(state.isEmpty && state.ownerAssignments.isEmpty ? nil : try? JSONEncoder().encode(state), forKey: Self.stateKey)
     }
 
-    /// Thêm (hoặc đăng nhập lại) một tài khoản: lưu token của tài khoản đó — không đụng token của tài khoản khác.
-    /// Login trên GitHub đã đổi (cùng id, khác hoa/thường hoặc tên mới): xoá token cất theo login cũ để không để lại
-    /// mục Keychain mồ côi — xoá TRƯỚC khi lưu vì Keychain có thể so tên tài khoản không phân biệt hoa thường.
+    /// Add (or sign in again) an account: stores that account's token — other accounts' tokens are untouched.
+    /// A GitHub login changed (same id, different case or a new name): delete the token stored under the old login
+    /// so no orphaned Keychain entry is left — delete it BEFORE storing, because the Keychain compares account
+    /// names case-insensitively.
     @discardableResult
     public func addAccount(_ account: GitHubAccount, token: String, organizations: [String]?,
                            to state: GitHubAccountsState) throws -> GitHubAccountsState {
@@ -144,9 +145,9 @@ public struct GitHubAccountStore: Sendable {
         return updated
     }
 
-    /// Xoá một tài khoản: chỉ xoá token của tài khoản đó; tài khoản mặc định chuyển sang tài khoản còn lại.
-    /// Danh sách luôn được cập nhật; lỗi xoá token khỏi Keychain được trả về để báo người dùng.
-    /// Token vẫn còn hiệu lực trên GitHub tới khi người dùng thu hồi (OAuth App không tự thu hồi được nếu không có
+    /// Remove an account: only that account's token is removed; the default account moves to a remaining one.
+    /// The list is always updated; a failure to remove the token from the Keychain is returned so the user can be
+    /// told. The token stays valid on GitHub until the user revokes it (an OAuth App can't revoke it by itself,
     /// client secret).
     public func removeAccount(login: String, from state: GitHubAccountsState) -> (state: GitHubAccountsState, tokenError: (any Error)?) {
         var updated = state
@@ -161,20 +162,21 @@ public struct GitHubAccountStore: Sendable {
     }
 }
 
-/// Tài khoản + token GitHub dùng chung giữa các luồng: lệnh git (qua `GitEnvironmentStore`) và API (ảnh đại diện…)
-/// chọn token theo owner bằng cùng một bảng (`GitHubCredentialSet`, dựng một lần rồi giữ tới khi danh sách tài khoản /
-/// token đổi). Token chưa nạp thì đọc Keychain khi cần — NGOÀI khoá chính (Keychain có thể chờ người dùng bấm "Cho
-/// phép"), chỉ một luồng đọc một lúc để không hỏi trùng lặp.
+/// GitHub account + token shared across flows: git commands (via `GitEnvironmentStore`) and the API (avatars…)
+/// pick the token by owner through the same table (`GitHubCredentialSet`, built once and kept until the
+/// account / token list changes). A token that isn't loaded yet is read from the Keychain on demand —
+/// OUTSIDE the main lock (the Keychain can wait for the user to click "Allow"), with only one reader at a
+/// time so the prompt isn't repeated.
 public final class GitHubTokenProvider: @unchecked Sendable {
     private let lock = NSLock()
-    /// Chỉ một luồng đọc kho token một lúc. Không bao giờ giữ `lock` trong lúc đọc.
+    /// Only one task reads the token store at a time. Never hold `lock` while reading.
     private let loadLock = NSLock()
     private let tokenStore: any GitHubTokenStore
     private var state: GitHubAccountsState
     private var tokens: [String: String] = [:]
-    /// Login đã đọc Keychain mà không có token (hoặc lỗi) — không đọc lại liên tục.
+    /// A login whose Keychain read came back without a token (or failed) — don't read it again in a loop.
     private var unavailable: Set<String> = []
-    /// Bảng đã dựng (`isCacheValid`): dựng bảng owner tốn vài chục ms khi tài khoản thuộc hàng trăm tổ chức.
+    /// A built table (`isCacheValid`): building the owner table takes tens of ms when accounts span hundreds of organisations.
     private var cachedSet: GitHubCredentialSet?
     private var isCacheValid = false
 
@@ -183,7 +185,7 @@ public final class GitHubTokenProvider: @unchecked Sendable {
         self.tokenStore = tokenStore
     }
 
-    /// Cập nhật danh sách tài khoản (giữ token đã nạp của tài khoản còn trong danh sách).
+    /// Update the account list (keeping already loaded tokens of accounts still in the list).
     public func update(state newState: GitHubAccountsState) {
         lock.lock()
         defer { lock.unlock() }
@@ -194,7 +196,7 @@ public final class GitHubTokenProvider: @unchecked Sendable {
         isCacheValid = false
     }
 
-    /// Token vừa nhận khi đăng nhập (nil: quên token của tài khoản).
+    /// The token just received on sign-in (nil: forget the account's token).
     public func setToken(_ token: String?, for login: String) {
         lock.lock()
         defer { lock.unlock() }
@@ -203,7 +205,7 @@ public final class GitHubTokenProvider: @unchecked Sendable {
         isCacheValid = false
     }
 
-    /// Nạp token của mọi tài khoản chưa nạp (gọi ở luồng nền lúc mở app). Trả về lỗi Keychain theo login.
+    /// Load the tokens of every account that doesn't have one (called on a background task at launch). Returns per-login Keychain errors.
     @discardableResult
     public func loadTokens() -> [String: any Error] {
         loadMissing()
@@ -215,7 +217,7 @@ public final class GitHubTokenProvider: @unchecked Sendable {
         return tokens[login] != nil
     }
 
-    /// Token của đúng tài khoản `login` (nạp từ Keychain nếu chưa nạp). Gọi được từ mọi luồng.
+    /// The token of exactly the account `login` (loaded from the Keychain when needed). Callable from any task.
     public func token(login: String) -> String? {
         loadMissing()
         lock.lock()
@@ -223,8 +225,8 @@ public final class GitHubTokenProvider: @unchecked Sendable {
         return tokens[login]
     }
 
-    /// Token cho owner (người dùng / tổ chức trên github.com) theo đúng bảng mà lệnh git dùng; nil nếu tài khoản của
-    /// owner chưa có token. Gọi được từ mọi luồng.
+    /// The token for an owner (a user / organisation on github.com) following exactly the table git commands use; nil when
+    /// the owner's account has no token. Callable from any task.
     public func token(forOwner owner: String?) -> String? {
         loadMissing()
         lock.lock()
@@ -232,7 +234,7 @@ public final class GitHubTokenProvider: @unchecked Sendable {
         return credentialSetLocked()?.credential(forOwner: owner)?.token
     }
 
-    /// Bảng cho credential helper của lệnh git (chỉ gồm tài khoản đã nạp token). nil nếu chưa có tài khoản nào.
+    /// The table for git's credential helper (only accounts whose token is loaded). nil when there's no account yet.
     public func credentialSet(helperPath: String) -> GitHubCredentialSet? {
         lock.lock()
         defer { lock.unlock() }
@@ -251,14 +253,14 @@ public final class GitHubTokenProvider: @unchecked Sendable {
         state.profiles.map(\.login).filter { tokens[$0] == nil && !unavailable.contains($0) }
     }
 
-    /// Đọc kho token cho các tài khoản chưa nạp, ngoài `lock`; chỉ khoá lại để ghi kết quả.
+    /// Read the tokens of accounts that aren't loaded, outside `lock`; it is only re-locked to write the results.
     @discardableResult
     private func loadMissing() -> [String: any Error] {
         let needsLoading = lock.withLock { !pendingLoginsLocked().isEmpty }
         guard needsLoading else { return [:] }
         loadLock.lock()
         defer { loadLock.unlock() }
-        // Luồng khác có thể vừa nạp xong trong lúc chờ.
+        // Another task may have finished loading while we were waiting.
         let pending = lock.withLock { pendingLoginsLocked() }
         var loaded: [String: String] = [:]
         var errors: [String: any Error] = [:]
@@ -272,7 +274,7 @@ public final class GitHubTokenProvider: @unchecked Sendable {
             }
         }
         lock.withLock {
-            // Trong lúc đọc, tài khoản có thể vừa bị xoá hoặc vừa đăng nhập lại (`setToken`): giữ trạng thái mới đó.
+            // While we were reading, the account may have been removed or signed in again (`setToken`): keep that newer state.
             let logins = Set(state.profiles.map(\.login))
             for login in pending where logins.contains(login) && tokens[login] == nil && !unavailable.contains(login) {
                 if let token = loaded[login] { tokens[login] = token } else { unavailable.insert(login) }

@@ -1,7 +1,7 @@
 import type { WorkingTreeStatus } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
 
-/** Tóm tắt thay đổi chưa commit cho dòng WIP của graph ("✎ 3 file sửa   ＋ 2 file mới   ● 1 đã stage"). Như `workingTreeSummary` của Swift. */
+/** Summary of uncommitted changes for the graph's WIP row ("✎ 3 modified   ＋ 2 added   ● 1 staged"). Mirrors Swift's `workingTreeSummary`. */
 export function workingTreeSummary(
   status: Pick<WorkingTreeStatus, 'staged' | 'unstaged' | 'conflicts'>,
 ): string {

@@ -2,15 +2,15 @@ import { Commands, type OpenedRepo } from '@thaigit/contracts';
 import { call } from './invoke.ts';
 import type { GitInfo, OpenSource, PickedFolder, RecentRepo, RepoHealth } from './types.ts';
 
-/** Repo trên github.com: `owner` + `name` (Rust ghép thành URL, không nhận URL thô từ webview). */
+/** Repo on github.com: `owner` + `name` (Rust builds the URL; raw URLs are never accepted from the webview). */
 export interface GithubRepoRef {
   readonly owner: string;
   readonly name: string;
 }
 
-// --- chọn thư mục / mở repo (đường dẫn chỉ đến từ Rust: hộp thoại native, "Mở bằng", danh sách gần đây) ---------------
+// --- folder picking / opening a repo (paths only ever come from Rust: native dialog, "Open With", recent list) -
 
-/** Hộp thoại native chọn thư mục. `null` = người dùng bấm Huỷ. Dùng token trả về cho `openRepo` / `cloneRepo` / `initRepo`. */
+/** Native folder picker. `null` = the user hit Cancel. Feed the returned token to `openRepo` / `cloneRepo` / `initRepo`. */
 export function pickRepoFolder(): Promise<PickedFolder | null> {
   return call<PickedFolder | null>(Commands.pickRepoFolder);
 }
@@ -31,26 +31,26 @@ export function forgetRecentRepo(id: string): Promise<void> {
   return call<void>(Commands.forgetRecentRepo, { id });
 }
 
-/** Thư mục hệ điều hành đưa vào lúc khởi động (argv / "Mở bằng"): lấy một lần, dạng token. */
+/** Folder the OS handed us at startup (argv / "Open With"): read once, as a token. */
 export function takeLaunchFolders(): Promise<PickedFolder[]> {
   return call<PickedFolder[]>(Commands.takeLaunchPaths);
 }
 
-// --- sức khoẻ repo ------------------------------------------------------------------------------------------------------
+// --- repo health ----------------------------------------------------------------------------------------------
 
 export function repoHealth(repoId: string): Promise<RepoHealth> {
   return call<RepoHealth>(Commands.repoHealth, { repoId });
 }
 
-/** Gỡ khoá mồ côi do `repoHealth` báo — chỉ gọi sau khi người dùng xác nhận. */
+/** Remove an orphaned lock reported by `repoHealth` — only call after the user confirms. */
 export function removeStaleLock(repoId: string, path: string): Promise<void> {
   return call<void>(Commands.removeStaleLock, { repoId, path });
 }
 
 /**
- * Ảnh đại diện người commit dạng data URL (`null` = không có ảnh / không tải được). Rust tải và cache; webview
- * không tự gọi mạng được nên phải đi qua IPC. `github` là repo trên github.com của repo đang mở (thiếu thì bỏ
- * qua nguồn API GitHub) — Rust tự dựng URL và tự chọn token.
+ * Commit-author avatar as a data URL (`null` = none / download failed). Rust downloads and caches it;
+ * the webview has no network access of its own so it must go through IPC. `github` is the open repo's
+ * github.com repo (omit it to skip the GitHub API source) — Rust builds the URL and picks the token.
  */
 export function avatarLookup(email: string, github: GithubRepoRef | null): Promise<string | null> {
   return call<string | null>(Commands.avatarLookup, {
@@ -60,23 +60,23 @@ export function avatarLookup(email: string, github: GithubRepoRef | null): Promi
   });
 }
 
-// --- git (định vị) ------------------------------------------------------------------------------------------------------
+// --- git (discovery) ------------------------------------------------------------------------------------------
 
 export function locateGit(): Promise<GitInfo> {
   return call<GitInfo>(Commands.gitLocate);
 }
 
-/** `null` = tự tìm. Chỉ nhận một trong `GitInfo.candidates` (Rust không cho webview trỏ git tới file tuỳ ý). */
+/** `null` = auto-detect. Only one of `GitInfo.candidates` is accepted (Rust won't let the webview point git at an arbitrary file). */
 export function setGitPath(path: string | null): Promise<GitInfo> {
   return call<GitInfo>(Commands.setGitPath, { path });
 }
 
-/** Chọn file git bằng hộp thoại native. `null` = Huỷ. */
+/** Pick the git binary with the native dialog. `null` = Cancel. */
 export function pickGitPath(): Promise<GitInfo | null> {
   return call<GitInfo | null>(Commands.pickGitPath);
 }
 
-/** Webview mới tải xong: huỷ op con và bỏ watcher của phiên cũ (Rust cũng tự làm khi trang tải lại). */
+/** A new webview has finished loading: cancel the child ops and drop the previous session's watchers (Rust also does this itself on a page reload). */
 export function sessionReset(): Promise<void> {
   return call<void>(Commands.sessionReset);
 }

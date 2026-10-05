@@ -1,8 +1,8 @@
-// Một số hàm chỉ dùng ở test chạy trên Unix.
+// A few helpers used only by tests running on Unix.
 #![allow(dead_code)]
 
-//! Công cụ dùng chung cho test: repo git thật trong thư mục tạm, cô lập khỏi cấu hình/askpass của máy. Không bao giờ
-//! chạm repo thật của người dùng.
+//! Shared test tooling: a real git repo in a temp directory, isolated from the machine's config and askpass. It never
+//! touches the user's real repos.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -19,14 +19,14 @@ use crate::pathutil::canonical;
 use crate::policy::EnvMap;
 use crate::registry::{OpenSource, OpenedRepo};
 
-/// Git của máy test (PATH, rồi các vị trí thường gặp).
+/// The test machine's git (PATH first, then the usual locations).
 pub fn system_git() -> PathBuf {
     let mut dirs: Vec<PathBuf> = std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect()).unwrap_or_default();
     dirs.extend(["/usr/bin", "/opt/homebrew/bin", "/usr/local/bin"].iter().map(PathBuf::from));
     crate::locate::find_in_dirs(&dirs).expect("máy chạy test phải có git")
 }
 
-/// Env gốc sạch: không có `GIT_ASKPASS`/`SSH_ASKPASS`/biến VS Code, cấu hình git toàn cục/hệ thống bị vô hiệu, HOME riêng.
+/// Clean base env: no `GIT_ASKPASS`/`SSH_ASKPASS`/VS Code variables, global/system git config disabled, own HOME.
 pub fn clean_env(home: &Path) -> EnvMap {
     let mut env = EnvMap::default();
     let path = std::env::var_os("PATH").unwrap_or_else(|| OsString::from("/usr/bin:/bin"));
@@ -34,7 +34,7 @@ pub fn clean_env(home: &Path) -> EnvMap {
     env.set("HOME", home.as_os_str());
     env.set("USERPROFILE", home.as_os_str());
     env.set("XDG_CONFIG_HOME", home.join(".config").into_os_string());
-    // Một file thật trong HOME tạm (không phải /dev/null) để `git config --global` ghi được mà không chạm máy thật.
+    // A real file in the temp HOME (not /dev/null) so `git config --global` can write without touching the machine.
     env.set("GIT_CONFIG_GLOBAL", home.join(".gitconfig").into_os_string());
     env.set("GIT_CONFIG_NOSYSTEM", "1");
     env.set("LANG", "en_US.UTF-8");
@@ -52,7 +52,7 @@ pub struct TestRepo {
     dir: tempfile::TempDir,
     root: PathBuf,
     home: PathBuf,
-    /// Thư mục đầu PATH để test đặt chương trình giả (vd. `git-remote-<vcs>`).
+    /// The first PATH entry, where tests put fake programs (e.g. `git-remote-<vcs>`).
     bin: PathBuf,
 }
 
@@ -73,7 +73,7 @@ impl TestRepo {
         repo
     }
 
-    /// Đường dẫn đúng như `tempdir` trả về (trên macOS đi qua symlink `/var` → `/private/var`).
+    /// Exactly the path `tempdir` returns (on macOS that goes through the `/var` → `/private/var` symlink).
     pub fn root(&self) -> &Path {
         &self.root
     }
@@ -117,14 +117,14 @@ impl TestRepo {
         command
     }
 
-    /// Chạy git (panic nếu thất bại), trả stdout.
+    /// Run git (panics on failure), returning stdout.
     pub fn git(&self, args: &[&str]) -> String {
         let output = self.command(args).output().expect("chạy được git");
         assert!(output.status.success(), "git {args:?} thất bại: {}", String::from_utf8_lossy(&output.stderr));
         String::from_utf8_lossy(&output.stdout).into_owned()
     }
 
-    /// Chạy git, trả (mã thoát, stdout, stderr) kể cả khi lỗi.
+    /// Run git, returning (exit code, stdout, stderr) even on failure.
     pub fn git_raw(&self, args: &[&str]) -> (i32, String, String) {
         let output = self.command(args).output().expect("chạy được git");
         (
@@ -134,7 +134,7 @@ impl TestRepo {
         )
     }
 
-    /// Chạy git với stdin, trả (mã thoát, stdout, stderr).
+    /// Run git with stdin, returning (exit code, stdout, stderr).
     pub fn git_stdin(&self, args: &[&str], stdin: &str) -> (i32, String, String) {
         use std::io::Write;
         let mut child = self.command(args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("chạy được git");
@@ -173,14 +173,14 @@ impl TestRepo {
     }
 }
 
-/// `Core` cô lập cho test + repo tạm đã mở.
+/// An isolated `Core` for tests + an already-open temp repo.
 pub async fn core_with(repo: &TestRepo) -> (Arc<Core>, tempfile::TempDir) {
     let data = tempfile::tempdir().unwrap();
     let core = Core::for_tests(data.path(), repo.env()).await;
     (core, data)
 }
 
-/// Như `core_with` nhưng dựng sẵn credential server với tài khoản cho (test token → git).
+/// Like `core_with` but with a credential server pre-loaded with the accounts to use (test token → git).
 pub async fn core_with_credential(repo: &TestRepo, accounts: Arc<Accounts>) -> (Arc<Core>, tempfile::TempDir) {
     let data = tempfile::tempdir().unwrap();
     let core = Core::for_tests_with_accounts(data.path(), repo.env(), accounts).await;
@@ -208,7 +208,7 @@ pub fn request(repo_id: &str, op_id: &str, kind: ExecKind, sub: &str, args: &[&s
     }
 }
 
-/// Chạy `exec_git` với bộ gom frame; trả kết quả lệnh và các frame đã nhận.
+/// Runs `exec_git` with a frame collector; returns the command result and the frames received.
 pub async fn run(core: &Arc<Core>, window: &str, request: GitExecRequest) -> (crate::errors::Result<()>, Arc<CollectSink>) {
     let sink = Arc::new(CollectSink::default());
     let result = core.exec_git(window, request, sink.clone(), Arc::new(AtomicBool::new(false))).await;

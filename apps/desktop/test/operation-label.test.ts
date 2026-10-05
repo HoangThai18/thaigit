@@ -1,5 +1,6 @@
-// Nhãn tiến trình của thao tác dở dang lấy từ bảng chuỗi theo ngôn ngữ đang dùng — lõi không hardcode tiếng Việt,
-// nên giao diện tiếng Anh không lọt chữ "Đang merge" (port `String(localized:)` của bản Swift).
+// Progress label of an in-flight operation, taken from the string table in the active language — the core
+// never hardcodes Vietnamese, so the English UI can't leak "Đang merge" (a port of Swift's
+// `String(localized:)`).
 import { describe, expect, it } from 'vitest';
 import { operationTitle } from '../src/lib/operationLabel.ts';
 import { en } from '../src/lib/strings.en.ts';

@@ -1,12 +1,12 @@
 import Foundation
 
-/// Login + token của một tài khoản GitHub. In ra (description, dump, thông báo lỗi của test) không bao giờ lộ token.
+/// Login + token of one GitHub account. Printing it (description, dump, a test's error message) never exposes the token.
 public struct GitHubCredential: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     public let login: String
     public let token: String
 
-    /// nil nếu login/token rỗng hoặc chứa ký tự điều khiển / khoảng trắng (giao thức credential của git là từng dòng
-    /// `key=value`, xuống dòng sẽ chèn được dòng lạ).
+    /// nil when the login / token is empty or contains control characters / whitespace (git's credential protocol is
+    /// line-based `key=value`, so a newline would smuggle in an extra line).
     public init?(login: String, token: String) {
         guard Self.isSafe(login), Self.isSafe(token) else { return nil }
         self.login = login
@@ -22,21 +22,22 @@ public struct GitHubCredential: Sendable, Equatable, CustomStringConvertible, Cu
     public var customMirror: Mirror { Mirror(self, children: ["login": login, "token": "<ẩn>"]) }
 }
 
-/// Các tài khoản đã nạp được token + bảng owner → tài khoản, đưa cho credential helper của Thaigit.
+/// The accounts that have a loaded token plus the owner → account table, handed to Thaigit's credential helper.
 public struct GitHubCredentialSet: Sendable, Equatable {
-    /// Đường dẫn script `github-credential.sh` (xem `GitHubCredentialHelper`).
+    /// Path of the `github-credential.sh` script (see `GitHubCredentialHelper`).
     public let helperPath: String
-    /// Tài khoản đã nạp được token.
+    /// Accounts that have a loaded token.
     public let accounts: [GitHubCredential]
-    /// owner (viết thường) → login, dựng từ danh sách ĐẦY ĐỦ (kể cả tài khoản chưa có token). Owner không có trong bảng
-    /// dùng tài khoản mặc định.
+    /// owner (lowercased) → login, built from the FULL list (including accounts without a token). An owner not in the
+    /// table uses the default account.
     public let owners: [String: String]
-    /// Tài khoản mặc định của danh sách đầy đủ (có thể chưa có token).
+    /// The default account of the full list (it may not have a token).
     public let defaultLogin: String
 
-    /// Dựng từ danh sách tài khoản + token đã nạp (login → token). nil nếu chưa tài khoản nào có token.
-    /// Owner của tài khoản không đọc được token KHÔNG rơi về tài khoản khác (kể cả khi đó là tài khoản mặc định): lệnh git
-    /// tới owner đó không có token, git báo lỗi xác thực và app gợi ý đăng nhập lại đúng tài khoản ấy.
+    /// Built from the account list plus the loaded tokens (login → token). nil when no account has a token.
+    /// An owner whose account has no readable token does NOT fall back to another account (not even the default):
+    /// a git command to that owner has no token, git reports an auth failure and the app suggests signing in
+    /// again as exactly that account.
     public init?(helperPath: String, state: GitHubAccountsState, tokens: [String: String]) {
         let available = state.profiles.compactMap { profile in
             tokens[profile.login].flatMap { GitHubCredential(login: profile.login, token: $0) }
@@ -52,45 +53,41 @@ public struct GitHubCredentialSet: Sendable, Equatable {
         self.defaultLogin = defaultLogin
     }
 
-    /// Cùng bảng, đường dẫn helper khác (không dựng lại bảng owner).
+    /// The same table with a different helper path (the owner table isn't rebuilt).
     public func withHelperPath(_ path: String) -> GitHubCredentialSet {
         GitHubCredentialSet(helperPath: path, accounts: accounts, owners: owners, defaultLogin: defaultLogin)
     }
 
-    /// Tài khoản (đã có token) có login này, không phân biệt hoa thường.
+    /// The (token-bearing) account with this login, case-insensitively.
     public func account(login: String) -> GitHubCredential? {
         accounts.first { $0.login.caseInsensitiveCompare(login) == .orderedSame }
     }
 
-    /// Tài khoản cho owner (khớp bảng, không thì mặc định). nil nếu tài khoản đó chưa có token.
+    /// The account for an owner (table lookup, otherwise the default). nil when that account has no token.
     public func credential(forOwner owner: String?) -> GitHubCredential? {
         let login = owner.flatMap(GitHubAccountsState.normalizedOwner).flatMap { owners[$0] } ?? defaultLogin
         return accounts.first { $0.login == login }
     }
 
-    /// Tài khoản cho một địa chỉ https://github.com — đúng như script helper chọn: username trong URL
-    /// (`https://alice@github.com/…`) trùng login một tài khoản có token thì dùng tài khoản đó, không thì theo owner.
+    /// The account for a https://github.com address — exactly as the helper script chooses: a username in the URL
+    /// (`https://alice@github.com/…`) matching a token-bearing account wins, otherwise it's by owner.
     public func credential(forURL url: String) -> GitHubCredential? {
         if let user = GitHubRemoteURL.username(of: url), let account = account(login: user) { return account }
         return credential(forOwner: GitHubRemoteURL.owner(of: url))
     }
 }
 
-/// Đưa token GitHub cho git mà không ghi vào cấu hình hay tham số lệnh.
-///
-/// Chỉ khi lệnh thật sự chạm một remote HTTPS trên github.com (người gọi truyền địa chỉ đích đọc từ cấu hình remote —
-/// xem `GitRunner.run(credentialURLs:)`) và đã có tài khoản, `GitRunner` thêm:
-///
-///     -c credential.https://github.com.helper=
-///     -c credential.https://github.com.helper=!'<Application Support>/Thaigit/github-credential.sh'
-///     -c credential.https://github.com.useHttpPath=true
-///
-/// Giá trị rỗng xoá các helper của người dùng nhưng CHỈ với URL https://github.com (git so khớp cấu hình theo URL),
-/// host khác (gitlab.com…) vẫn dùng helper sẵn có. `useHttpPath` để git gửi `path=owner/repo` cho helper — helper chọn
-/// token theo owner. Token nằm trong biến môi trường của riêng tiến trình git đó, và chỉ token của các tài khoản dùng cho
-/// những remote đó; tham số lệnh (và nhật ký lệnh) chỉ có đường dẫn script. Mọi tiến trình con của lệnh — kể cả hook
-/// của chính repo (pre-push, reference-transaction…), filter, merge driver — vẫn thấy các biến này trong lúc lệnh chạy;
-/// lệnh không chạm github.com (remote GitLab, thư mục trên máy, `fetch .`, lệnh local) thì không có biến token nào.
+/// Hands a GitHub token to git without writing it into config or the command's arguments.
+/// Only when the command really touches an HTTPS remote on github.com (the caller passes the destination addresses read
+/// from the remote config — see `GitRunner.run(credentialURLs:)`) and there's an account, `GitRunner` adds:
+/// An empty value clears the user's helpers but ONLY for the https://github.com URL (git matches config by URL),
+/// so other hosts (gitlab.com…) keep using the existing helpers. `useHttpPath` makes git send `path=owner/repo` to
+/// the helper — the helper picks the token by owner. The token lives in environment variables of that git
+/// process alone, and only the tokens of the accounts used for those remotes; the command's arguments (and the
+/// command log) only ever contain the script path. Every child process of the command — including the repo's
+/// own hooks (pre-push, reference-transaction…), filters, merge drivers — still sees these variables while the
+/// command runs; a command that doesn't touch github.com (a GitLab remote, a local folder, `fetch .`, a local
+/// command) gets no token variables at all.
 public enum GitCredentialInjection {
     public static let helperKey = "credential.https://github.com.helper"
     public static let useHttpPathKey = "credential.https://github.com.useHttpPath"
@@ -99,11 +96,11 @@ public enum GitCredentialInjection {
     public static let defaultVariable = "THAIGIT_GITHUB_DEFAULT"
     public static func userVariable(_ index: Int) -> String { "THAIGIT_GITHUB_USER_\(index)" }
     public static func tokenVariable(_ index: Int) -> String { "THAIGIT_GITHUB_TOKEN_\(index)" }
-    /// Chỉ số trong bảng owner cho owner của tài khoản chưa có token: helper không trả lời gì.
+    /// Index in the owner table for an owner whose account has no token: the helper answers nothing.
     public static let missingIndex = "-"
 
     public struct Additions: Sendable, Equatable {
-        /// Đặt TRƯỚC tên lệnh git (tuỳ chọn `-c` toàn cục).
+        /// Placed BEFORE the git command name (or as a global `-c`).
         public var arguments: [String]
         public var environment: [String: String]
 
@@ -116,9 +113,10 @@ public enum GitCredentialInjection {
         public var isEmpty: Bool { arguments.isEmpty && environment.isEmpty }
     }
 
-    /// Phần thêm vào một lệnh git chạm các địa chỉ `urls`. Không có địa chỉ HTTPS nào tới github.com, hoặc chưa có tài
-    /// khoản nào có token, thì không thêm gì (helper trả lời rỗng sẽ làm hỏng xác thực bằng helper riêng của người dùng).
-    /// Bảng owner chỉ gồm owner của các địa chỉ đó; owner mà tài khoản chưa có token ghi chỉ số `missingIndex`.
+    /// The part added to a git command touching the addresses `urls`. With no HTTPS address to github.com, or when
+    /// no account has a token, nothing is added (an empty helper answer would break authentication through the
+    /// user's own helper). The owner table only holds the owners of those addresses; an owner whose account has
+    /// no token gets `missingIndex`.
     public static func additions(forURLs urls: [String], credentials: GitHubCredentialSet?) -> Additions {
         guard let credentials else { return .none }
         let targets = urls.filter(GitHubRemoteURL.isHTTPS)
@@ -131,7 +129,7 @@ public enum GitCredentialInjection {
         }
         var owners: [String: String] = [:]
         for url in targets {
-            // https://alice@github.com/…: script chọn theo username, không cần bảng owner.
+            // https://alice@github.com/…: the script chooses by username, no owner table needed.
             if let user = GitHubRemoteURL.username(of: url), let account = credentials.account(login: user) {
                 _ = index(of: account)
                 continue
@@ -145,7 +143,7 @@ public enum GitCredentialInjection {
             environment[userVariable(index)] = account.login
             environment[tokenVariable(index)] = account.token
         }
-        // Owner ngoài bảng (GitHub chuyển hướng repo đã đổi owner…): chỉ khi lệnh dùng đúng một tài khoản mới dùng nó.
+        // An owner outside the table (GitHub redirected a repo that changed owner…): only used when the command ends up using exactly one account.
         if accounts.count == 1 { environment[defaultVariable] = "0" }
         environment[ownersVariable] = owners.map { "\($0.key):\($0.value)" }.sorted().joined(separator: ",")
         return Additions(
@@ -159,19 +157,21 @@ public enum GitCredentialInjection {
     }
 }
 
-/// Script credential helper cho https://github.com, cài vào `~/Library/Application Support/Thaigit/` (như askpass.sh).
+/// The credential helper script for https://github.com, installed into `~/Library/Application Support/Thaigit/` (like askpass.sh).
 public enum GitHubCredentialHelper {
     public static let fileName = "github-credential.sh"
 
     public static let script = #"""
     #!/bin/sh
-    # Thaigit — credential helper cho https://github.com (git gọi: <script> get|store|erase).
-    # Chọn tài khoản theo owner trong path=owner/repo (git gửi path nhờ credential.https://github.com.useHttpPath=true):
-    # bảng THAIGIT_GITHUB_OWNERS="owner:i,…" → tài khoản i ("-": tài khoản chưa có token, không trả lời); không khớp thì
-    # THAIGIT_GITHUB_DEFAULT (không đặt: không trả lời). URL có username (https://alice@github.com/…) trùng login một
-    # tài khoản thì dùng tài khoản đó. Username / token của tài khoản i nằm trong THAIGIT_GITHUB_USER_i /
-    # THAIGIT_GITHUB_TOKEN_i — biến môi trường của riêng tiến trình git, không ghi ra đĩa. Chỉ trả lời "get": store /
-    # erase bỏ qua để token không bị chép vào helper khác (osxkeychain) và token người dùng tự lưu không bị xoá.
+    # Thaigit — credential helper for https://github.com (git calls: <script> get|store|erase).
+    # Pick the account by the owner in path=owner/repo (git sends the path thanks to
+    # credential.https://github.com.useHttpPath=true): the table THAIGIT_GITHUB_OWNERS="owner:i,…" maps to
+    # account i ("-": an account without a token, answer nothing); with no match, THAIGIT_GITHUB_DEFAULT is used
+    # (unset: answer nothing). When the URL carries a username (https://alice@github.com/…) that matches an
+    # account's login, that account wins. Account i's username / token live in THAIGIT_GITHUB_USER_i /
+    # THAIGIT_GITHUB_TOKEN_i — environment variables of that git process alone, never on disk. Only "get" is
+    # answered: store / erase are ignored so the token isn't copied into another helper (osxkeychain) and a
+    # token the user saved themselves isn't deleted.
     [ "$1" = "get" ] || exit 0
     set -f
     owner=""
@@ -219,13 +219,13 @@ public enum GitHubCredentialHelper {
 
     """#
 
-    /// Thư mục cài mặc định: ~/Library/Application Support/Thaigit.
+    /// Default install directory: ~/Library/Application Support/Thaigit.
     public static func defaultDirectory() -> URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
             .appendingPathComponent("Thaigit", isDirectory: true)
     }
 
-    /// Ghi script (quyền 0755) vào `directory` nếu nội dung khác bản hiện có; trả về đường dẫn.
+    /// Write the script (mode 0755) into `directory` when its content differs from the current one; returns the path.
     @discardableResult
     public static func install(in directory: URL) throws -> URL {
         let fileManager = FileManager.default
@@ -239,26 +239,26 @@ public enum GitHubCredentialHelper {
         return url
     }
 
-    /// Giá trị `credential.<url>.helper`: `!'<đường dẫn>'`. Git chạy qua shell (`'<đường dẫn>' get`), nháy đơn giữ
-    /// nguyên dấu cách trong "Application Support"; dấu nháy đơn trong đường dẫn được thoát thành `'\''`.
+    /// The `credential.<url>.helper` value: `!'<path>'`. Git runs it through a shell (`'<path>' get`), so single quotes
+    /// keep the spaces in "Application Support" intact; single quotes inside the path are escaped as `'\''`.
     public static func configValue(path: String) -> String {
         "!'" + path.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
     }
 }
 
-/// Lỗi xác thực / quyền khi fetch / pull / push tới remote HTTPS trên github.com — để gợi ý đăng nhập hoặc đổi tài khoản.
+/// An authentication / permission failure when fetching / pulling / pushing to an HTTPS remote on github.com — used to suggest signing in or switching account.
 public struct GitHubAuthFailure: Sendable, Equatable {
     public enum Kind: Sendable, Equatable {
-        /// Thiếu hoặc sai thông tin đăng nhập (401, không có helper nào trả lời…).
+        /// Missing or wrong credentials (401, no helper answered…).
         case unauthenticated
-        /// Đăng nhập được nhưng không có quyền (403 "Permission to … denied").
+        /// Signed in but not permitted (403 "Permission to … denied").
         case forbidden
-        /// GitHub trả "Repository not found" (404) — repo riêng tư mà tài khoản đang dùng không thấy.
+        /// GitHub answered "Repository not found" (404) — a private repo the current account can't see.
         case notFound
     }
 
     public let kind: Kind
-    /// Owner trong URL bị từ chối (`https://github.com/<owner>/…`), nếu đọc được.
+    /// The owner in the URL that was refused (`https://github.com/<owner>/…`), when it could be read.
     public let owner: String?
 
     public init(kind: Kind, owner: String?) {
@@ -266,13 +266,13 @@ public struct GitHubAuthFailure: Sendable, Equatable {
         self.owner = owner
     }
 
-    /// Đọc từ các DÒNG LỖI của git, mỗi dòng nêu đúng URL bị từ chối — không lấy URL github.com bất kỳ trong output
-    /// (`fetch --all` in "From https://github.com/<owner khác>" của remote thành công trước lỗi của remote hỏng):
-    ///  - `Authentication failed for '<url>'`, `could not read Username|Password for '<url>'`,
-    ///    `unable to access '<url>': … error: 401` → thiếu / sai đăng nhập;
-    ///  - `unable to access '<url>': … error: 403` (kèm `Permission to <owner>/… denied to …`) → không có quyền;
-    ///  - `repository '<url>' not found` → không thấy repo.
-    /// URL phải đúng https://github.com (không khớp github.cong-ty.com); dòng "From …" / "To …" bỏ qua.
+    /// Read from git's ERROR LINES, each naming the exact URL that was refused — never from any github.com URL
+    /// in the output (`fetch --all` prints "From https://github.com/<other owner>" for remotes that succeeded
+    /// before the broken one failed):
+    ///    `unable to access '<url>': … error: 401` → missing / wrong credentials;
+    ///  - `unable to access '<url>': … error: 403` (with `Permission to <owner>/… denied to …`) → no permission;
+    ///  - `repository '<url>' not found` → repo not visible.
+    /// The URL must be exactly https://github.com (github.cong-ty.com must not match); "From …" / "To …" lines are ignored.
     public static func detect(in error: GitError) -> GitHubAuthFailure? {
         var permissionOwner: String?
         for rawLine in error.combinedOutput.split(whereSeparator: \.isNewline) {
@@ -300,7 +300,7 @@ public struct GitHubAuthFailure: Sendable, Equatable {
         return nil
     }
 
-    /// `<prefix>'<url>'` trong dòng lỗi → `<url>`.
+    /// `<prefix>'<url>'` in an error line → `<url>`.
     private static func quotedURL(in line: String, after prefix: String) -> String? {
         guard let start = line.range(of: prefix + "'", options: .caseInsensitive) else { return nil }
         let rest = line[start.upperBound...]
@@ -308,7 +308,7 @@ public struct GitHubAuthFailure: Sendable, Equatable {
         return String(rest[..<end])
     }
 
-    /// Đúng https://github.com (có thể kèm username), không phải host khác chứa chữ "github.com".
+    /// Exactly https://github.com (optionally with a username), not another host merely containing "github.com".
     private static func isGitHub(_ url: String) -> Bool {
         guard let components = URLComponents(string: url) else { return false }
         return components.scheme?.lowercased() == "https" && components.host?.lowercased() == "github.com"

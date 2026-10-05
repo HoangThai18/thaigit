@@ -1,8 +1,8 @@
 import Foundation
 import NhanhCore
 
-/// Một lần merge từ repository khác: nhánh `branch` của `source` (thư mục trên máy hoặc URL) vào nhánh `target` của repo
-/// đang mở. Được nhớ theo từng repo để lần sau chỉ cần bấm "Merge lại".
+/// One merge from another repository: branch `branch` of `source` (a local folder or a URL) into branch `target` of the
+/// open repo. Remembered per repo so next time only "Merge again" is needed.
 struct ForeignMergeSource: Codable, Hashable, Identifiable {
     var source: String
     var branch: String
@@ -10,7 +10,7 @@ struct ForeignMergeSource: Codable, Hashable, Identifiable {
 
     var id: String { [source, branch, target].joined(separator: "\n") }
     var isLocal: Bool { source.hasPrefix("/") }
-    /// Tên ngắn của repo nguồn: "/Users/a/du-an-a" → "du-an-a", "git@github.com:cty/b.git" → "b".
+    /// A short name for the source repo: "/Users/a/project-a" → "project-a", "git@github.com:org/b.git" → "b".
     var repositoryName: String { GitRepository.defaultDirectoryName(forCloneURL: source) }
     var label: String { String(localized: "\(branch) của \(repositoryName)") }
 }
@@ -19,7 +19,7 @@ extension RepoModel {
     private static let savedSourcesKey = "foreignMergeSources"
     private static let savedSourcesLimit = 5
 
-    /// Nguồn đã merge gần đây của repo này, mới nhất trước.
+    /// This repo's recently merged sources, newest first.
     var savedForeignMergeSources: [ForeignMergeSource] {
         Self.loadSavedSources()[rootPath] ?? []
     }
@@ -29,8 +29,8 @@ extension RepoModel {
         return (try? JSONDecoder().decode([String: [ForeignMergeSource]].self, from: data)) ?? [:]
     }
 
-    /// Nhớ nguồn (bỏ "user:mật-khẩu@" của URL — không lưu bí mật vào UserDefaults; lần sau git hỏi lại qua credential
-    /// helper / hộp thoại nếu cần).
+    /// Remember a source (stripping "user:password@" from the URL — never store a secret in UserDefaults; next time git asks
+    /// again through the credential helper / dialog if it needs to).
     private func rememberForeignMergeSource(_ request: ForeignMergeSource) {
         var source = request
         source.source = GitRepository.anonymizedSource(request.source)
@@ -52,10 +52,12 @@ extension RepoModel {
         sheet = .mergeFromRepository(target: target)
     }
 
-    /// Merge nhánh của repository khác vào nhánh đích, không thêm remote. Fetch nhánh nguồn TRƯỚC, rồi mới checkout nhánh
-    /// đích (nếu khác nhánh hiện tại — như thả nhánh lên nhánh để merge) và merge: nguồn lỗi thì HEAD không đổi; git từ
-    /// chối merge ngay sau khi đã checkout thì quay lại HEAD cũ. Huỷ được tới hết bước fetch. Nguồn là thư mục trên máy
-    /// thì không cần mạng hay đăng nhập. `previousHead`: HEAD trước lần thử đầu (nút "Vẫn merge" truyền lại).
+    /// Merge another repository's branch into the target branch without adding a remote. The source branch is fetched
+    /// FIRST, and only then is the target branch checked out (when it isn't the current one — like dropping a branch
+    /// onto another to merge) and merged: a failing source leaves HEAD unchanged; git refusing the merge right
+    /// after the checkout goes back to the old HEAD. Cancellable up to the end of the fetch. A local folder
+    /// source needs no network and no sign-in. `previousHead`: HEAD before the first attempt (the "Merge anyway"
+    /// button passes it back).
     func mergeFromRepository(_ request: ForeignMergeSource, allowUnrelatedHistories: Bool = false, previousHead original: HeadState? = nil) {
         rememberForeignMergeSource(request)
         let label = request.label
@@ -69,7 +71,7 @@ extension RepoModel {
         let progress = progressReporter()
         perform(String(localized: "Merge \(label) vào \(target)"), showsProgress: true, cancellable: true) { [weak self] repo in
             try await repo.fetchForeignBranch(request.branch, fromRepository: request.source, onProgress: progress)
-            // Từ đây checkout + merge chạy tới cùng: dừng `git merge` giữa chừng để lại index nửa vời.
+            // From here the checkout + merge always run to completion: stopping `git merge` halfway would leave a half-written index.
             self?.busy?.canCancel = false
             try await repo.mergeFetchedForeignBranch(request.branch, fromRepository: request.source,
                                                      into: switches ? target : nil, allowUnrelatedHistories: allowUnrelatedHistories)
@@ -91,7 +93,7 @@ extension RepoModel {
             } ?? goBack)
         } onError: { [weak self] error in
             guard let self else { return false }
-            // Đã checkout nhánh đích nhưng git từ chối merge: Thaigit đã (hoặc không) quay lại HEAD cũ — nói rõ.
+            // The target branch was checked out but git refused the merge: Thaigit did (or did not) get back to the old HEAD — say so explicitly.
             let failure = error as? ForeignMergeFailure
             let mergeError = failure?.underlying ?? error
             let whereNow = failure.map { failure in

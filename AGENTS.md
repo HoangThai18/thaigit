@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Hướng dẫn cho agent lập trình (Claude Code, Codex, Cursor, Gemini…) làm việc trong repo Thaigit. Code, chú thích, chuỗi giao diện và commit message đều viết bằng tiếng Việt như phần còn lại của repo.
+Hướng dẫn cho agent lập trình (Claude Code, Codex, Cursor, Gemini…) làm việc trong repo Thaigit. Code, chuỗi giao diện và commit message viết bằng tiếng Việt như phần còn lại của repo; **chú thích trong code viết bằng tiếng Anh** (repo mở nguồn) — và chỉ chú thích chỗ cần: giải thích *tại sao* / quyết định thiết kế, cảnh báo gotcha, doc public API (`///` cho Rust / Swift), MARK chia mục. Không chú thích lại cái mà tên hàm đã nói, không chú thích từng dòng cho dễ đọc.
 
 ## Repo gồm gì
 

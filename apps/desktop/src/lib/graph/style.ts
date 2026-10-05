@@ -1,6 +1,6 @@
 import { stripBidi } from '../format/bidi.ts';
 
-/** Kích thước graph — giống GraphStyle.swift để hai bản trông như nhau. */
+/** Graph metrics — kept identical to GraphStyle.swift so both apps look the same. */
 export const GraphStyle = {
   rowHeight: 30,
   laneWidth: 20,
@@ -8,7 +8,7 @@ export const GraphStyle = {
   lineWidth: 2,
   nodeRadius: 9.5,
   mergeNodeRadius: 5,
-  /** Chỉ số màu đặc biệt của làn WIP (nét đứt), như `GraphLayout.workingTreeColor`. */
+  /** Colour index of the WIP lane (dashed stroke), like `GraphLayout.workingTreeColor`. */
   workingTreeColor: -1,
 } as const;
 
@@ -20,9 +20,9 @@ export function graphWidth(lanes: number): number {
   return GraphStyle.leftPadding * 2 + Math.max(lanes, 1) * GraphStyle.laneWidth;
 }
 
-/** Chữ cái đầu của tên ("Phan Thái" → "PT", "thai" → "TH") — như GraphStyle.initials. */
+/** Initials from a name ("Phan Thái" → "PT", "thai" → "TH") — like GraphStyle.initials. */
 export function initials(name: string): string {
-  // Ký tự điều khiển bidi (U+202E…) vô hình nên không được thành "chữ cái đầu".
+  // Invisible bidi control characters (U+202E…) must not become the "first letter".
   const words = stripBidi(name)
     .split(/[ ._-]+/u)
     .filter((word) => word.length > 0);
@@ -33,7 +33,7 @@ export function initials(name: string): string {
   return Array.from(first).slice(0, 2).join('').toUpperCase();
 }
 
-/** Bảng 12 màu làn đọc từ token CSS (--lane-0 … --lane-11); làn i dùng màu i mod 12. */
+/** Table of the 12 lane colours read from CSS tokens (--lane-0 … --lane-11); lane i uses colour i mod 12. */
 export function readLaneColors(element: Element): string[] {
   const style = getComputedStyle(element);
   return Array.from(

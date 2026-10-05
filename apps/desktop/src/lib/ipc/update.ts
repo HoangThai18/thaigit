@@ -9,14 +9,14 @@ import {
 } from '@thaigit/contracts';
 import { call } from './invoke.ts';
 
-// Cập nhật tự động: mọi quyết định (kênh, phiên bản hợp lệ, chữ ký, khi nào cài) nằm ở Rust; webview chỉ hỏi và nghe.
+// Automatic updates: every decision (channel, valid version, signature, when to install) lives in Rust; the webview only asks and listens.
 
-/** Kiểm bản mới của kênh hiện tại; `null` = đang ở bản mới nhất. */
+/** Check for a newer build of the current channel; `null` = already up to date. */
 export function updateCheck(): Promise<UpdateInfo | null> {
   return call<UpdateInfo | null>(Commands.updateCheck);
 }
 
-/** Tải + kiểm chữ ký + cài bản `updateCheck` vừa báo; app tự khởi động lại (Windows: trình cài chạy rồi app thoát). */
+/** Download + verify the signature + install the build `updateCheck` just reported; the app restarts itself (on Windows the installer runs and the app exits). */
 export function updateInstall(): Promise<void> {
   return call<void>(Commands.updateInstall);
 }
@@ -25,7 +25,7 @@ export function updateSetChannel(channel: UpdateChannel): Promise<void> {
   return call<void>(Commands.updateSetChannel, { channel });
 }
 
-/** Báo Rust giao diện đã dựng xong (chế độ an toàn đếm khởi động hỏng). */
+/** Tell Rust the UI has finished rendering (safe mode counts bad startups). */
 export function appReady(): Promise<void> {
   return call<void>(Commands.appReady);
 }

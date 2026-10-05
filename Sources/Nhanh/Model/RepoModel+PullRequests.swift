@@ -2,15 +2,15 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Danh sách Pull Request đang mở của repo trên GitHub (remote mặc định), tải qua API.
+/// The repo's open Pull Requests on GitHub (default remote), loaded through the API.
 struct PullRequestList: Equatable {
     enum State: Equatable {
         case idle
-        /// Remote mặc định không ở github.com — sidebar ẩn mục PULL REQUESTS.
+        /// The default remote isn't on github.com — the sidebar hides the PULL REQUESTS section.
         case notGitHub
         case loading
         case loaded
-        /// Repo riêng tư (hoặc không thấy) khi chưa đăng nhập GitHub.
+        /// A private repo (or not visible) while not signed in to GitHub.
         case needsLogin
         case failed(String)
     }
@@ -18,10 +18,10 @@ struct PullRequestList: Equatable {
     var state: State = .idle
     var items: [GitHubPullRequest] = []
     var repo: GitHubRepoRef?
-    /// Tên remote (trên máy) của repo GitHub đó, ví dụ "origin".
+    /// The local remote name of that GitHub repo, e.g. "origin".
     var remoteName: String?
     var loadedAt: Date?
-    /// PR trong cùng repo theo tên nhánh (PR từ fork không có nhánh trên remote này).
+    /// The PR in the same repo, by branch name (a forked PR has no branch on this remote).
     var byHeadBranch: [String: GitHubPullRequest] = [:]
 
     init(state: State = .idle, items: [GitHubPullRequest] = [], repo: GitHubRepoRef? = nil, remoteName: String? = nil,
@@ -40,7 +40,7 @@ struct PullRequestList: Equatable {
 }
 
 extension RepoModel {
-    /// Remote (tên + repo GitHub) dùng cho Pull Request: remote mặc định nếu ở GitHub, không thì remote GitHub đầu tiên.
+    /// The remote (name + GitHub repo) used for Pull Requests: the default remote when it's GitHub, otherwise the first GitHub remote.
     var githubRemote: (name: String, repo: GitHubRepoRef)? {
         let ordered = remotes.filter { $0.name == defaultRemote } + remotes
         for remote in ordered {
@@ -49,22 +49,22 @@ extension RepoModel {
         return nil
     }
 
-    /// Có tài khoản GitHub dùng được cho owner của repo (để tạo PR) — không đọc token ở đây.
+    /// Whether a usable GitHub account exists for the repo's owner (to create a PR) — no token is read here.
     var canUseGitHubAccount: Bool {
         guard let owner = githubRemote?.repo.owner else { return false }
         return GitHubAccountManager.shared.resolution(forOwner: owner) != nil
     }
 
-    // MARK: - Tải danh sách
+    // MARK: - Loading the list
 
-    /// Tải lại PR đang mở (sau khi mở repo, đổi remote, fetch). Không tải lại nếu vừa tải trong 20 giây, trừ khi `force`.
+    /// Reload the open PRs (after opening the repo, changing the remote, a fetch). Not reloaded if it ran less than 20 seconds ago, unless `force`.
     func loadPullRequests(force: Bool = false) {
         guard let github = githubRemote else {
             pullRequestsTask?.cancel()
             if pullRequests.state != .notGitHub { pullRequests = PullRequestList(state: .notGitHub) }
             return
         }
-        // Kịch bản chụp ảnh không gọi GitHub thật.
+        // A screenshot run never calls the real GitHub.
         if AutomationHarness.isActive { return }
         let repo = github.repo, remoteName = github.name
         if !force, pullRequests.repo == repo, pullRequests.state == .loading { return }
@@ -75,7 +75,7 @@ extension RepoModel {
         }
         pullRequests.state = .loading
         pullRequestsTask = Task {
-            // Token của tài khoản ứng với owner (có thể phải đọc Keychain): lấy ngoài luồng chính, chỉ gửi tới api.github.com.
+            // The token of the account matching the owner (may require a Keychain read): fetched off the main actor, sent only to api.github.com.
             let token = await Task.detached { GitHubAccountManager.shared.apiToken(forOwner: repo.owner) }.value
             do {
                 let items = try await GitHubRepoAPI().openPullRequests(in: repo, token: token)
@@ -97,7 +97,7 @@ extension RepoModel {
         }
     }
 
-    /// PR đang mở từ một nhánh: nhánh remote của repo GitHub, hoặc nhánh local theo dõi nhánh đó.
+    /// An open PR from a branch: the GitHub repo's remote branch, or the local branch tracking it.
     func pullRequest(for ref: GitRef) -> GitHubPullRequest? {
         guard !pullRequests.byHeadBranch.isEmpty, let remote = pullRequests.remoteName else { return nil }
         let branch: String
@@ -114,7 +114,7 @@ extension RepoModel {
         return pullRequests.byHeadBranch[branch]
     }
 
-    /// Gắn số PR vào nhãn nhánh trên graph (gọi khi dựng nhãn).
+    /// Attach PR numbers to the branch labels on the graph (called while building the labels).
     func markPullRequests(in labels: inout [RefLabel]) {
         guard !pullRequests.byHeadBranch.isEmpty else { return }
         for index in labels.indices where !labels[index].isTag && !labels[index].isDetachedHead {
@@ -124,9 +124,9 @@ extension RepoModel {
         }
     }
 
-    // MARK: - Thao tác với một PR
+    // MARK: - Working with one PR
 
-    /// Bấm vào PR: nhảy tới commit đầu nhánh của PR trên graph (nếu đã có trên máy).
+    /// Clicking a PR: jump to the commit at the tip of its branch on the graph (when it's already on the machine).
     func revealPullRequest(_ pull: GitHubPullRequest) {
         if row(for: .commit(pull.headSHA)) != nil {
             reveal(commit: pull.headSHA)
@@ -140,8 +140,8 @@ extension RepoModel {
               ])
     }
 
-    /// Checkout nhánh của PR: PR trong cùng repo thì checkout nhánh remote (tạo nhánh local theo dõi nó);
-    /// PR từ fork thì lấy `refs/pull/N/head` về nhánh local `pr/N`.
+    /// Check out a PR's branch: a same-repo PR checks out the remote branch (creating a local branch tracking it);
+    /// a forked PR fetches `refs/pull/N/head` into the local branch `pr/N`.
     func checkoutPullRequest(_ pull: GitHubPullRequest) {
         guard let github = githubRemote else { return }
         let remote = github.name, repo = github.repo
@@ -149,7 +149,7 @@ extension RepoModel {
             if let remoteRef = remoteBranches.first(where: { $0.remoteName == remote && $0.shortBranchName == pull.headBranch }) {
                 checkout(remoteRef)
             } else {
-                // Chưa fetch nhánh này: fetch remote rồi checkout.
+                // This branch hasn't been fetched yet: fetch the remote, then check out.
                 let progress = progressReporter()
                 perform("Fetch \(remote)", showsProgress: true, cancellable: true, refresh: [.refs, .status]) { repo in
                     try await repo.fetch(remote: remote, prune: false, onProgress: progress)
@@ -218,7 +218,7 @@ extension RepoModel {
         return items
     }
 
-    /// Mục menu của nhánh: mở PR đang có, hoặc tạo PR mới từ nhánh này (remote GitLab: tạo Merge Request).
+    /// A branch's menu item: open its existing PR, or create a new one from that branch (on a GitLab remote: create a Merge Request).
     func pullRequestMenuItems(for ref: GitRef) -> [MenuItemSpec] {
         if let forge = forgeRemote, forge.kind == .gitlab, ref.kind != .tag {
             if ref.kind == .remoteBranch, ref.remoteName != forge.name { return [] }
@@ -240,9 +240,9 @@ extension RepoModel {
         }]
     }
 
-    // MARK: - Tạo PR
+    // MARK: - Creating a PR
 
-    /// Mở hộp tạo PR (remote GitLab: Merge Request) cho nhánh `ref` (mặc định: nhánh hiện tại).
+    /// Open the create-PR dialog (on a GitLab remote: Merge Request) for branch `ref` (the current branch by default).
     func beginCreatePullRequest(from ref: GitRef? = nil) {
         guard let forge = forgeRemote else {
             toast(.info, String(localized: "Repo này chưa có remote trên GitHub hoặc GitLab"))
@@ -257,7 +257,7 @@ extension RepoModel {
         sheet = .createPullRequest(head: ref.kind == .remoteBranch ? ref.shortBranchName : ref.name)
     }
 
-    /// Nhánh local tên `head` cần push trước khi tạo PR (chưa có trên remote GitHub hoặc còn commit chưa push).
+    /// The local branch `head` that has to be pushed before creating a PR (not on the GitHub remote yet, or with commits still unpushed).
     func pendingPush(forPullRequestHead head: String) -> PushRequest? {
         guard let remote = forgeRemote?.name,
               let local = localBranches.first(where: { $0.name == head }) else { return nil }
@@ -269,7 +269,7 @@ extension RepoModel {
         return PushRequest(localBranch: local.name, remote: remote, remoteBranch: local.name, setUpstream: true, force: false)
     }
 
-    /// Tên nhánh trên GitHub ứng với `head` (nhánh local đã có upstream thì lấy tên nhánh upstream).
+    /// The branch name on GitHub matching `head` (a local branch with an upstream uses that upstream's branch name).
     func pullRequestHeadBranch(_ head: String) -> String {
         if let local = localBranches.first(where: { $0.name == head }), let upstream = local.upstream,
            let target = splitUpstream(upstream), target.remote == forgeRemote?.name {
@@ -278,8 +278,8 @@ extension RepoModel {
         return head
     }
 
-    /// Push (nếu cần) rồi gửi PR lên GitHub (remote GitLab: Merge Request). Chỉ gửi tiêu đề / mô tả / tên nhánh người dùng vừa xem
-    /// trong hộp thoại.
+    /// Push (if needed) then send the PR to GitHub (on a GitLab remote: a Merge Request). Only the title / description / branch name
+    /// the user just reviewed in the dialog are sent.
     func createPullRequest(_ new: NewPullRequest, pushFirst push: PushRequest?) {
         if let forge = forgeRemote, forge.kind == .gitlab, let project = forge.gitlab {
             createMergeRequest(new, in: project, pushFirst: push)
@@ -298,7 +298,7 @@ extension RepoModel {
             created = try await GitHubRepoAPI().createPullRequest(new, in: repo, token: token)
         } onSuccess: { [weak self] in
             guard let self, let created else { return }
-            // Mở luôn review của PR vừa tạo để gán người review / người xử lý.
+            // Open the review of the just-created PR right away so reviewers / assignees can be set.
             let request = created.forgeRequest
             var actions = [ToastAction(title: String(localized: "Xem & gán reviewer")) { [weak self] in self?.openReview(request) }]
             if let url = created.webURL {

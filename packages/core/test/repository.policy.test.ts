@@ -1,6 +1,6 @@
-// Mọi thao tác công khai của GitRepository phải qua được validator chính sách (git-policy.json) mà không bị chặn nhầm,
-// và loại khoá (`kind`) phải đúng theo chính sách. Dùng Exec giả ghi lại lệnh → không cần git thật, chạy nhanh, và là
-// danh sách lệnh để harness 4a (Rust) đối chiếu: Rust phải chấp nhận đúng các lệnh này.
+// Every public GitRepository operation must pass the policy validator (git-policy.json) without being wrongly blocked,
+// and its lock `kind` must match the policy. Uses a fake Exec that records commands → no real git, fast, and it
+// doubles as the command list for the phase-4a Rust harness, which must accept exactly these commands.
 
 import { validateGitCommand } from '@thaigit/contracts';
 import vectors from '@thaigit/contracts/git-policy.vectors.json' with { type: 'json' };
@@ -286,7 +286,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
       expect(request.kind, `${request.sub} ${request.args.join(' ')}`).toBe(
         execKindOf(request.sub, request.args),
       );
-      // Mọi lệnh chạy trong đúng repo đã mở: không có đối số nào chọn thư mục/cấu hình khác.
+      // Every command runs inside exactly the opened repo: no argument selects a different directory or config.
       expect(
         request.args.some(
           (arg) => arg === '-C' || arg.startsWith('--git-dir') || arg.startsWith('--work-tree'),
@@ -341,7 +341,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     expect(execKindOf('remote', ['get-url', 'origin'])).toBe('read');
     expect(execKindOf('remote', ['prune', 'origin'])).toBe('write');
     expect(execKindOf('remote', ['set-url'])).toBe('write');
-    // Khớp theo TOÀN BỘ hình dạng args: `-v` đứng trước subcommand khác không phải dạng chỉ-đọc, `remote show` hỏi máy chủ.
+    // Matching considers the WHOLE args shape: a different subcommand after `-v` is not a read-only form, and `remote show` talks to the server.
     expect(execKindOf('remote', ['--verbose'])).toBe('read');
     expect(execKindOf('remote', ['-v', 'update'])).toBe('write');
     expect(execKindOf('remote', ['-v', 'add', 'x', 'https://example.com/x.git'])).toBe('write');
@@ -359,7 +359,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     const { kinds } = vectors as unknown as { kinds: { sub: string; args: string[]; kind: string | null }[] };
     expect(kinds.length).toBeGreaterThan(30);
     for (const vector of kinds) {
-      // Lạ → `write` (khoá chặt nhất); còn lại khớp đúng cột `kind` của ca.
+      // Unknown → `write` (the tightest lock); every other case matches the `kind` column of the case.
       expect(execKindOf(vector.sub, vector.args), `${vector.sub} ${JSON.stringify(vector.args)}`).toBe(
         vector.kind ?? 'write',
       );

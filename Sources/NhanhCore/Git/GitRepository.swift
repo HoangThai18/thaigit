@@ -6,7 +6,7 @@ public enum RepositoryError: LocalizedError, Sendable {
     case invalidName(String)
     case notUTF8(String)
     case changedOnDisk(String)
-    /// Revert một commit mà thay đổi của nó đã được đảo ngược từ trước.
+    /// Revert a commit whose changes were already undone beforehand.
     case nothingToRevert(String)
 
     public var errorDescription: String? {
@@ -21,14 +21,14 @@ public enum RepositoryError: LocalizedError, Sendable {
     }
 }
 
-/// Lịch sử commit đã xếp làn, sẵn sàng để vẽ.
+/// Lane-assigned commit history, ready to draw.
 public struct History: Sendable {
-    /// Có thể có commit giả WIP ở vị trí 0.
+    /// There may be a synthetic WIP commit at position 0.
     public let commits: [Commit]
     public let rows: [GraphRow]
-    /// Số commit thật đã tải.
+    /// How many real commits were loaded.
     public let loadedCount: Int
-    /// true nếu có thể còn commit cũ hơn chưa tải (chạm giới hạn).
+    /// true when older commits may exist that aren't loaded yet (a limit was hit).
     public let mayHaveMore: Bool
 }
 
@@ -39,14 +39,14 @@ public enum WorkingDiffKind: Sendable {
 }
 
 public enum MergeStyle: String, Sendable, CaseIterable {
-    /// Fast-forward nếu có thể (mặc định của git).
+    /// Fast-forward when possible (git's default).
     case automatic
     case noFastForward
     case fastForwardOnly
     case squash
 }
 
-/// Repository Git trên đĩa và mọi thao tác Thaigit dùng. Mỗi hàm chạy một hoặc vài lệnh `git`.
+/// A Git repository on disk plus every operation Thaigit performs. Each function runs one or a few `git` commands.
 public struct GitRepository: Sendable {
     public let root: URL
     public let gitDir: URL
@@ -64,7 +64,7 @@ public struct GitRepository: Sendable {
         self.runner = runner
     }
 
-    /// Tìm repository chứa thư mục `url`.
+    /// Find the repository containing directory `url`.
     public static func open(at url: URL, environment: GitEnvironmentStore,
                             logger: (@Sendable (GitCommandRecord) -> Void)? = nil) async throws -> GitRepository {
         var isDirectory: ObjCBool = false
@@ -90,7 +90,7 @@ public struct GitRepository: Sendable {
                              runner: GitRunner(environmentStore: environment, workingDirectory: root, logger: logger))
     }
 
-    // MARK: - Đọc dữ liệu
+    // MARK: - Reading data
 
     public func refs() async throws -> [GitRef] {
         let text = try await runner.output(["for-each-ref", "--format=\(GitParsers.refFormat)", "refs/heads", "refs/remotes", "refs/tags"])
@@ -130,7 +130,7 @@ public struct GitRepository: Sendable {
         }
     }
 
-    /// Tải lịch sử và xếp làn (chạy ở luồng nền).
+    /// Load history and assign lanes (runs on a background task).
     @concurrent
     public func history(limit: Int, order: LogOrder, head: HeadState, showWorkingTree: Bool,
                         includeRemotes: Bool = true, includeTags: Bool = true,
@@ -152,12 +152,12 @@ public struct GitRepository: Sendable {
         try await runner.output(["show", "-s", "--format=%B", sha, "--"])
     }
 
-    /// Commit dạng patch email (như `git format-patch -1 --stdout`) — áp lại được bằng `git am`.
+    /// A commit as an email-formatted patch (like `git format-patch -1 --stdout`) — reappliable with `git am`.
     public func commitPatch(_ sha: String) async throws -> String {
         try await runner.output(["show", "--format=email", "--patch", "--stat", "--binary", "--no-color", sha, "--"])
     }
 
-    /// File thay đổi trong commit (so với cha đầu tiên; commit gốc so với cây rỗng).
+    /// The files changed in a commit (against its first parent; a root commit against the empty tree).
     public func changedFiles(commit sha: String, parent: String?) async throws -> [FileChange] {
         var args = ["diff-tree", "-r", "-z", "--name-status", "-M", "--no-commit-id"]
         if let parent { args += [parent, sha] } else { args += ["--root", sha] }
@@ -175,11 +175,14 @@ public struct GitRepository: Sendable {
         return DiffParser.parse(output.stdout).first
     }
 
-    /// Diff của file trong working tree / index. Parse thẳng từ byte của git (không qua chuỗi giải mã lỏng): dòng giữ
-    /// nguyên "\r", file không phải UTF-8 bị đánh dấu `isValidUTF8 = false` nên không stage/huỷ từng dòng được.
-    /// `--no-textconv`: patch phải dựng từ byte thật, và repo lạ có thể đặt `diff.<driver>.textconv` thành lệnh tuỳ ý
-    /// (như `core.fsmonitor`) — chỉ xem diff không được chạy lệnh của repo.
-    /// `ignoreWhitespace` (`-w`): chỉ để xem — patch dựng từ diff này không áp được, nên app tắt stage từng phần khi bật.
+    /// A file's diff in the working tree / index. Parsed straight from git's bytes (never through a leniently
+    /// decoded string): lines keep their "\r", and a non-UTF-8 file is flagged `isValidUTF8 = false` so it can't
+    /// be staged / discarded line by line.
+    /// `--no-textconv`: the patch has to be built from real bytes, and an untrusted repo may set
+    /// `diff.<driver>.textconv` to an arbitrary command (like `core.fsmonitor`) — merely viewing a diff must
+    /// never run a command from the repo.
+    /// `ignoreWhitespace` (`-w`): display only — a patch built from such a diff doesn't apply, so the app turns
+    /// off partial staging while it's on.
     public func workingDiff(_ change: FileChange, kind: WorkingDiffKind, context: Int = 3,
                             ignoreWhitespace: Bool = false) async throws -> FileDiff? {
         let common = ["--no-color", "--no-ext-diff", "--no-textconv", "-U\(context)", "--src-prefix=a/", "--dst-prefix=b/"]
@@ -196,7 +199,7 @@ public struct GitRepository: Sendable {
         return DiffParser.parse(output.stdout).first
     }
 
-    /// Nội dung blob, ví dụ "HEAD:path", ":path" (index), "<sha>:path".
+    /// A blob's content, e.g. "HEAD:path", ":path" (the index), "<sha>:path".
     public func blob(_ spec: String) async throws -> Data {
         try await runner.run(["cat-file", "blob", spec]).stdout
     }
@@ -225,14 +228,14 @@ public struct GitRepository: Sendable {
         try await runner.run(["config"] + (global ? ["--global"] : []) + [key, value])
     }
 
-    /// Kiểm tra tên nhánh/tag hợp lệ theo quy tắc của git.
+    /// Whether a branch / tag name is valid by git's rules.
     public func isValidRefName(_ name: String, branch: Bool) async -> Bool {
         guard !name.isEmpty else { return false }
         let args = branch ? ["check-ref-format", "--branch", name] : ["check-ref-format", "refs/tags/\(name)"]
         return (try? await runner.run(args)) != nil
     }
 
-    // MARK: - Trạng thái thao tác dở dang
+    // MARK: - In-flight operation state
 
     public func operationState() -> RepoOperation? {
         let fm = FileManager.default
@@ -261,16 +264,16 @@ public struct GitRepository: Sendable {
         return nil
     }
 
-    /// Thay message gợi ý (MERGE_MSG) của thao tác dở: `revert --continue` / `cherry-pick --continue` commit bằng message này.
+    /// Replace an in-flight operation's suggested message (MERGE_MSG): `revert --continue` / `cherry-pick --continue` commit with this message.
     public func setPendingCommitMessage(_ message: String) throws {
         try Data((message + "\n").utf8).write(to: gitDir.appendingPathComponent("MERGE_MSG"), options: .atomic)
     }
 
-    /// Message gợi ý khi đang merge (MERGE_MSG/SQUASH_MSG), đã bỏ các dòng chú thích; xuống dòng luôn là "\n".
+    /// The suggested message while merging (MERGE_MSG / SQUASH_MSG) with the comment lines stripped; line endings are always "\n".
     public func pendingCommitMessage() -> String? {
         for name in ["MERGE_MSG", "SQUASH_MSG"] {
             guard let text = try? String(contentsOf: gitDir.appendingPathComponent(name), encoding: .utf8) else { continue }
-            // Tách theo scalar "\n" ("\r\n" là MỘT Character nên `split(separator: "\n")` không tách được message CRLF).
+            // Split on the "\n" scalar ("\r\n" is ONE Character in Swift, so `split(separator: "\n")` can't split a CRLF message).
             let lines = text.unicodeScalars.split(separator: "\n", omittingEmptySubsequences: false)
                 .map { line in String(line.last == "\r" ? line.dropLast() : line) }
                 .filter { !$0.hasPrefix("#") }
@@ -304,7 +307,7 @@ public struct GitRepository: Sendable {
     }
 
     public func unstageAll(headExists: Bool) async throws {
-        // Reset có pathspec để không xoá trạng thái merge đang dở.
+        // Reset with a pathspec so an in-flight merge state isn't cleared.
         if headExists {
             try await runner.run(["reset", "-q", "HEAD", "--", "."])
         } else {
@@ -312,14 +315,14 @@ public struct GitRepository: Sendable {
         }
     }
 
-    /// Bỏ thay đổi chưa stage của file đã track (khôi phục từ index).
+    /// Discard a tracked file's unstaged changes (restore from the index).
     public func discard(paths: [String]) async throws {
         guard !paths.isEmpty else { return }
         try await runner.run(["restore", "--worktree", "--pathspec-from-file=-", "--pathspec-file-nul"],
                              input: paths.nulSeparatedData, environment: Self.literalPathspecs)
     }
 
-    /// Chuyển file chưa track vào Thùng rác (có thể khôi phục). Trả về vị trí mới trong Thùng rác.
+    /// Move an untracked file to the Trash (recoverable). Returns its new location in the Trash.
     public func trashUntracked(paths: [String]) throws -> [String: URL] {
         var moved: [String: URL] = [:]
         for path in paths {
@@ -331,21 +334,21 @@ public struct GitRepository: Sendable {
         return moved
     }
 
-    /// Ảnh chụp toàn bộ thay đổi đã track (index + worktree) thành một commit stash lơ lửng,
-    /// không đụng tới working tree — dùng để "Hoàn tác" sau khi huỷ thay đổi.
+    /// Snapshot every tracked change (index + working tree) as a dangling stash commit,
+    /// leaving the working tree untouched — used to offer "Undo" after discarding changes.
     public func snapshotChanges() async throws -> String? {
         let sha = try await runner.output(["stash", "create"]).trimmingCharacters(in: .whitespacesAndNewlines)
         return sha.isEmpty ? nil : sha
     }
 
-    /// Khôi phục nội dung working tree của các file từ một commit (không đổi index).
+    /// Restore the working-tree content of files from a commit (the index is untouched).
     public func restoreWorkingFiles(from rev: String, paths: [String]) async throws {
         guard !paths.isEmpty else { return }
         try await runner.run(["restore", "--source=\(rev)", "--worktree", "--pathspec-from-file=-", "--pathspec-file-nul"],
                              input: paths.nulSeparatedData, environment: Self.literalPathspecs)
     }
 
-    /// - Parameter unidiffZero: patch dựng từ diff không có dòng ngữ cảnh (`-U0`) — git apply chỉ nhận khi có cờ này.
+    /// - Parameter unidiffZero: the patch is built from a diff with no context lines (`-U0`) — git apply only accepts it with this flag.
     public func applyPatch(_ patch: String, cached: Bool, reverse: Bool, unidiffZero: Bool = false) async throws {
         var args = ["apply", "--whitespace=nowarn", "--recount"]
         if cached { args.append("--cached") }
@@ -376,12 +379,12 @@ public struct GitRepository: Sendable {
         try await runner.run(args, input: Data(message.utf8))
     }
 
-    /// Đưa nhánh hiện tại về `rev` giữ nguyên thay đổi (dùng để hoàn tác commit).
+    /// Move the current branch back to `rev`, keeping the changes (used to undo a commit).
     public func softReset(to rev: String) async throws {
         try await runner.run(["reset", "--soft", rev])
     }
 
-    /// Xoá commit đầu tiên của nhánh (nhánh trở lại trạng thái chưa có commit), giữ index.
+    /// Remove the branch's first commit (the branch goes back to having no commits), keeping the index.
     public func undoInitialCommit() async throws {
         try await runner.run(["update-ref", "-d", "HEAD"])
     }
@@ -404,7 +407,7 @@ public struct GitRepository: Sendable {
         }
     }
 
-    /// Tạo nhánh local theo dõi nhánh remote rồi checkout.
+    /// Create a local branch tracking a remote branch, then check it out.
     public func checkoutTracking(remoteBranch: String, localName: String) async throws {
         try await runner.run(["switch", "-c", localName, "--track", remoteBranch])
     }
@@ -425,13 +428,13 @@ public struct GitRepository: Sendable {
         try await runner.run(["branch", "--unset-upstream", branch])
     }
 
-    /// Đặt ref về một object cụ thể (dùng để khôi phục nhánh/tag đã xoá).
+    /// Point a ref at a specific object (used to restore a deleted branch / tag).
     public func updateRef(_ fullName: String, to object: String) async throws {
         try await runner.run(["update-ref", fullName, object])
     }
 
-    /// Fast-forward nhánh không phải nhánh hiện tại tới upstream của nó. `fetch .` chỉ chép ref trong repo, không chạm
-    /// mạng nên không có token GitHub.
+    /// Fast-forward a branch that isn't the current one to its upstream. `fetch .` only copies refs inside the repo
+    /// and never touches the network, so it needs no GitHub token.
     public func fastForward(branch: String, to upstream: String) async throws {
         try await runner.run(["fetch", ".", "\(upstream):refs/heads/\(branch)"])
     }
@@ -450,7 +453,7 @@ public struct GitRepository: Sendable {
         try await runner.run(args)
     }
 
-    /// Rebase nhánh `branch` (mặc định nhánh hiện tại) lên `ref`. Có `branch` thì git tự checkout nhánh đó trước.
+    /// Rebase branch `branch` (the current one by default) onto `ref`. With a `branch`, git checks it out first.
     public func rebase(onto ref: String, branch: String? = nil) async throws {
         try await runner.run(["rebase", ref] + (branch.map { [$0] } ?? []))
     }
@@ -459,11 +462,13 @@ public struct GitRepository: Sendable {
         try await runner.run(["cherry-pick"] + (mainline.map { ["-m", String($0)] } ?? []) + [sha])
     }
 
-    /// Revert `sha` (commit merge cần `mainline`, thường là 1 = cha thứ nhất). `commit: false` (`--no-commit`) chỉ
-    /// stage thay đổi đảo ngược: git để lại REVERT_HEAD (thao tác "Đang revert") và message gợi ý trong MERGE_MSG,
-    /// người dùng xem lại rồi tự commit (hoặc `revert --continue`, huỷ bằng `revert --abort`).
-    /// Commit đã được đảo ngược từ trước thì `--no-commit` không stage gì mà vẫn để REVERT_HEAD (commit tiếp sẽ gói thay
-    /// đổi đang làm dở vào "commit revert"): huỷ ngay thao tác đó và ném `RepositoryError.nothingToRevert`.
+    /// Revert `sha` (a merge commit needs `mainline`, usually 1 = the first parent). `commit: false` (`--no-commit`)
+    /// only stages the reverse changes: git leaves REVERT_HEAD behind (the "Reverting" operation) and a suggested
+    /// message in MERGE_MSG for the user to review and commit themselves (or `revert --continue`, cancelled with
+    /// `revert --abort`).
+    /// When the commit was already reverted, `--no-commit` stages nothing yet still leaves REVERT_HEAD (the next
+    /// commit would bundle the in-progress change into the "revert commit"): cancel that operation at once and
+    /// throw `RepositoryError.nothingToRevert`.
     public func revert(_ sha: String, mainline: Int? = nil, commit: Bool = true) async throws {
         try await runner.run(["revert", commit ? "--no-edit" : "--no-commit"] + (mainline.map { ["-m", String($0)] } ?? []) + [sha])
         guard !commit, operationState() == .reverting else { return }
@@ -478,7 +483,7 @@ public struct GitRepository: Sendable {
         try await runner.run(["reset", "-q", "--\(mode.rawValue)", rev])
     }
 
-    /// Hoàn tác merge/rebase vừa xong mà vẫn giữ thay đổi local chưa commit.
+    /// Undo a just-finished merge / rebase while keeping uncommitted local changes.
     public func resetKeepingLocalChanges(to rev: String) async throws {
         try await runner.run(["reset", "-q", "--merge", rev])
     }
@@ -515,9 +520,9 @@ public struct GitRepository: Sendable {
         }
     }
 
-    // MARK: - Xung đột
+    // MARK: - Conflicts
 
-    /// Giải quyết xung đột bằng toàn bộ phiên bản của một bên.
+    /// Resolve a conflict by taking one whole side.
     public func resolveConflict(path: String, kind: ConflictKind, useOurs: Bool) async throws {
         let sideMissing: Bool
         if useOurs {
@@ -539,8 +544,8 @@ public struct GitRepository: Sendable {
                              input: paths.nulSeparatedData, environment: Self.literalPathspecs)
     }
 
-    /// Đọc file dạng UTF-8 CHẶT (giữ BOM): ném `RepositoryError.notUTF8` thay vì trả chuỗi đã thay byte lỗi bằng
-    /// U+FFFD — ghi chuỗi đó trở lại sẽ làm hỏng mọi ký tự không phải ASCII của file Latin-1/CP1258.
+    /// Read a file as STRICT UTF-8 (keeping the BOM): throws `RepositoryError.notUTF8` rather than returning a string
+    /// where bad bytes became U+FFFD — writing that string back would corrupt every non-ASCII character of a Latin-1 / CP1258 file.
     public func readWorkingFile(_ path: String) throws -> String {
         let data = try Data(contentsOf: root.appendingPathComponent(path))
         guard let text = UTF8Text.decodeStrict(data) else { throw RepositoryError.notUTF8(path) }
@@ -555,8 +560,8 @@ public struct GitRepository: Sendable {
         try data.write(to: root.appendingPathComponent(path), options: .atomic)
     }
 
-    /// Ghi đè file chỉ khi nội dung trên đĩa vẫn đúng `expected` (bản app đã đọc). File được sửa bên ngoài trong lúc
-    /// đang giải xung đột thì ném `RepositoryError.changedOnDisk` thay vì ghi đè mất phần sửa đó.
+    /// Overwrite a file only while its on-disk content still matches `expected` (the copy the app read). A file modified
+    /// elsewhere while the conflict was being resolved throws `RepositoryError.changedOnDisk` instead of silently overwriting that edit.
     public func replaceWorkingFile(_ path: String, data: Data, expecting expected: Data) throws {
         guard workingFileData(path) == expected else { throw RepositoryError.changedOnDisk(path) }
         try writeWorkingFile(path, data: data)
@@ -564,10 +569,11 @@ public struct GitRepository: Sendable {
 
     // MARK: - Remote
 
-    /// Địa chỉ mà lệnh mạng tới `remote` thật sự chạm — để chỉ đưa token GitHub của đúng tài khoản (xem
-    /// `GitRunner.run(credentialURLs:)`). Đọc `remote.<tên>.url` / `pushurl` qua `git remote -v` (đã áp `insteadOf` /
-    /// `pushInsteadOf`): fetch dùng URL đầu tiên, push dùng mọi URL push. `remote` nil: mọi remote (`fetch --all`). Tên
-    /// không phải remote đã cấu hình (URL / đường dẫn gõ thẳng) thì chính nó là địa chỉ. Đọc lỗi thì không có địa chỉ nào.
+    /// The addresses a network command to `remote` really touches — so only the right account's GitHub token is
+    /// passed (see `GitRunner.run(credentialURLs:)`). Read from `remote.<name>.url` / `pushurl` via `git remote -v`
+    /// (which has already applied `insteadOf` / `pushInsteadOf`): fetch uses the first URL, push uses every push
+    /// URL. A nil `remote` means all remotes (`fetch --all`). A name that isn't a configured remote (a URL /
+    /// path typed by hand) is itself the address. A read failure means no addresses.
     public func remoteURLs(_ remote: String?, push: Bool) async -> [String] {
         guard let text = try? await runner.output(["remote", "-v"]) else { return remote.map { [$0] } ?? [] }
         var urls: [String] = []
@@ -587,8 +593,8 @@ public struct GitRepository: Sendable {
         return urls
     }
 
-    /// Remote mà `git pull` (không tham số) fetch: `branch.<nhánh hiện tại>.remote`, không có thì remote duy nhất, rồi
-    /// "origin" — như git. "." (nhánh theo dõi nhánh local) không chạm mạng.
+    /// The remote that a bare `git pull` fetches: `branch.<current branch>.remote`, else the only remote, else
+    /// "origin" — like git. "." (a branch tracking a local branch) never touches the network.
     func pullRemote() async -> String? {
         let branch = (try? await runner.output(["symbolic-ref", "--quiet", "--short", "HEAD"]))?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -629,7 +635,7 @@ public struct GitRepository: Sendable {
         try await runner.run(args, credentialURLs: await remoteURLs(remote, push: true), onProgress: onProgress)
     }
 
-    /// Đẩy một commit bất kỳ lên nhánh trên remote (dùng để khôi phục nhánh remote vừa xoá).
+    /// Push an arbitrary commit to a branch on a remote (used to restore a just-deleted remote branch).
     public func pushCommit(_ sha: String, remote: String, branch: String, onProgress: (@Sendable (String) -> Void)? = nil) async throws {
         try await runner.run(["push", "--progress", remote, "\(sha):refs/heads/\(branch)"],
                              credentialURLs: await remoteURLs(remote, push: true), onProgress: onProgress)
@@ -683,12 +689,12 @@ public struct GitRepository: Sendable {
         try await runner.run(["stash", "drop", selector])
     }
 
-    /// Đưa lại một commit stash vào danh sách stash (hoàn tác "xoá stash").
+    /// Put a stash commit back into the stash list (undoing "drop stash").
     public func stashStore(sha: String, message: String) async throws {
         try await runner.run(["stash", "store", "-m", message, sha])
     }
 
-    /// File trong stash: thay đổi đã track (so với HEAD lúc stash) + file chưa track (cha thứ 3).
+    /// A file inside a stash: tracked changes (against HEAD at stash time) plus untracked files (third parent).
     public func stashFiles(_ stash: Stash) async throws -> [FileChange] {
         var files = try await changedFiles(commit: stash.sha, parent: stash.parents.first)
         if stash.parents.count >= 3 {
@@ -719,7 +725,7 @@ public struct GitRepository: Sendable {
         try await runner.run(["tag", "-d", name])
     }
 
-    // MARK: - Tạo / clone repository
+    // MARK: - Creating / cloning a repository
 
     public static func clone(url: String, to destination: URL, environment: GitEnvironmentStore,
                              onProgress: (@Sendable (String) -> Void)? = nil) async throws {
@@ -740,7 +746,7 @@ public struct GitRepository: Sendable {
         try await runner.run(args)
     }
 
-    /// Tên thư mục mặc định khi clone từ URL ("https://github.com/a/b.git" → "b").
+    /// The default directory name when cloning from a URL ("https://github.com/a/b.git" → "b").
     public static func defaultDirectoryName(forCloneURL url: String) -> String {
         var trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
         while trimmed.hasSuffix("/") { trimmed.removeLast() }

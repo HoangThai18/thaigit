@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Issue của GitHub (repo này) và Jira (giao cho mình): tạo nhánh từ issue, gắn issue vào commit message, mở trên web.
+/// GitHub issues (for this repo) and Jira issues assigned to you: create a branch from an issue, attach the issue to a commit message, open it on the web.
 struct IssuesSheet: View {
     enum Source: String, CaseIterable, Identifiable {
         case github = "GitHub"
@@ -186,7 +186,7 @@ private struct IssueRow: View {
     }
 }
 
-/// Kết nối Jira Cloud: site, email, API token. Kiểm tra với Jira trước khi lưu.
+/// Connecting to Jira Cloud: site, email, API token. Validated with Jira before being stored.
 private struct JiraConnectForm: View {
     let onConnected: () -> Void
     @State private var site = ""

@@ -6,11 +6,11 @@
 -->
 <script lang="ts" module>
   export interface VisibleRange {
-    /** Hàng đầu tiên thấy được (không tính vùng đệm). */
+    /** First visible row (excluding the buffer zone). */
     start: number;
-    /** Hàng sau hàng cuối thấy được. */
+    /** The row after the last visible one. */
     end: number;
-    /** Chiều cao khung nhìn (px). */
+    /** Viewport height (px). */
     height: number;
   }
 </script>
@@ -21,18 +21,18 @@
   interface Props {
     items: readonly T[];
     rowHeight: number;
-    /** Số hàng dựng thêm ở mỗi phía ngoài vùng thấy. */
+    /** Rows rendered beyond the visible range on each side. */
     overscan?: number;
-    /** Khoá ổn định cho mỗi hàng (mặc định: chỉ số). */
+    /** Stable key per row (default: the index). */
     key?: (item: T, index: number) => string | number;
     row: Snippet<[T, number]>;
     overlay?: Snippet<[VisibleRange]>;
-    /** Báo vùng đang thấy (để tải thêm khi gần cuối). */
+    /** Report the visible range (to load more when nearing the end). */
     onrange?: (range: VisibleRange & { scrollTop: number }) => void;
     label?: string;
-    /** Bề ngang vùng nội dung (không gồm thanh cuộn) — để căn tiêu đề cột với hàng. */
+    /** Horizontal extent of the content (excluding the scrollbar) — used to align the column header with the rows. */
     contentWidth?: number;
-    /** Bề ngang tối thiểu của nội dung (CSS, vd. "calc(120ch + 80px)"): có thì cuộn ngang được (diff dòng dài). */
+    /** Minimum horizontal width of the content (CSS, e.g. "calc(120ch + 80px)"): when set, horizontal scrolling is possible (long diff lines). */
     minContentWidth?: string;
   }
 
@@ -64,8 +64,8 @@
   });
 
   /**
-   * Cuộn để hàng `index` hiện ra; `center` đặt hàng ở giữa (như chọn nhánh ở sidebar → nhảy tới commit), `top` đặt hàng lên
-   * đầu khung (nhảy tới hunk trong diff).
+   * Scroll so row `index` becomes visible; `center` puts the row in the middle (like picking a branch in the
+   * sidebar → jump to its commit), `top` puts it at the top of the viewport (jumping to a diff hunk).
    */
   export function scrollToIndex(index: number, mode: 'nearest' | 'center' | 'top' = 'nearest'): void {
     if (!viewport || index < 0 || index >= items.length) return;
@@ -87,7 +87,7 @@
             : bottom - viewport.clientHeight;
   }
 
-  /** Số hàng đầy đủ nằm gọn trong khung nhìn (cho PageUp/PageDown). */
+  /** Number of whole rows that fit in the viewport (for PageUp/PageDown). */
   export function pageSize(): number {
     return Math.max(1, Math.floor((viewport?.clientHeight ?? 0) / rowHeight) - 1);
   }

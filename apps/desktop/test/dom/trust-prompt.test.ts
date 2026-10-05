@@ -1,4 +1,4 @@
-// TrustPrompt dựng bằng Svelte thật: danh sách findings trùng không được làm đứng cả lượt cập nhật, và hộp thoại phải nhận focus.
+// TrustPrompt built with real Svelte: duplicate findings must not break the whole update, and the dialog must take focus.
 import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 import TrustPrompt from '../../src/lib/shell/TrustPrompt.svelte';

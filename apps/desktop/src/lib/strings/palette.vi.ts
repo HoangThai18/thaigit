@@ -1,5 +1,5 @@
 /**
- * Chuỗi của command palette (Ctrl/⌘ + P). Truy cập qua `vi.palette.*`.
+ * Strings for the command palette (Ctrl/⌘ + P). Reached through `vi.palette.*`.
  */
 export const palette = {
   title: 'Lệnh',

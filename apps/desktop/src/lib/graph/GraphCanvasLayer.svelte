@@ -14,21 +14,21 @@
 
   interface Props {
     entries: readonly GraphEntry[];
-    /** `graphVersion` của store: đổi khi dữ liệu graph đổi (kể cả khi `entries` cùng độ dài). */
+    /** Store `graphVersion`: changes whenever graph data changes, even when `entries` keeps the same length. */
     version: number;
     headOid: string | null;
-    /** Độ rộng cột Graph (px CSS). */
+    /** Graph column width (CSS px). */
     width: number;
-    /** Khoảng cách từ mép trái hàng tới cột Graph (px). */
+    /** Distance from the row's left edge to the Graph column (px). */
     left: number;
-    /** Hàng đầu và hàng sau hàng cuối đang thấy. */
+    /** First visible row and the row after the last visible one. */
     start: number;
     end: number;
-    /** Đổi khi bảng màu đổi (sáng/tối). */
+    /** Changes when the colour scheme flips (light/dark). */
     themeVersion: number;
-    /** Ảnh đại diện tác giả đã tải; `version` của nó cũng là một phần của điều kiện vẽ lại. */
+    /** Downloaded author avatars; its `version` is part of the repaint condition too. */
     avatars: AvatarStore;
-    /** Email người đang commit: node dòng WIP vẽ avatar của chính người đó. */
+    /** Email of the current committer: the WIP row node draws that person's avatar. */
     wipEmail: string | null;
   }
 
@@ -36,7 +36,7 @@
     $props();
 
   const ROW = GraphStyle.rowHeight;
-  /** Giới hạn cạnh canvas (px thiết bị) để an toàn trên WebKit. */
+  /** Canvas edge limit (device px) to stay safe on WebKit. */
   const MAX_CANVAS_PX = 8192;
   const MIN_PAD_ROWS = 24;
 
@@ -46,8 +46,9 @@
   let windowLast = $state(0);
 
   /**
-   * Theo dõi đổi DPR (kéo cửa sổ sang màn hình khác, zoom, đổi tỉ lệ hiển thị Windows 125%/150%). `matchMedia` chỉ báo MỘT lần
-   * nên phải gắn lại sau mỗi lần; thêm `resize` làm lưới an toàn vì một số WebView không phát sự kiện media query khi đổi DPR.
+   * Track DPR changes (dragging the window to another screen, zoom, Windows 125%/150% display scaling).
+   * `matchMedia` fires only ONCE per value, so the listener has to be re-armed after every fire; the extra
+   * `resize` listener is a safety net because some WebViews skip the media query event on DPR changes.
    */
   $effect(() => {
     let query: MediaQueryList | undefined;
@@ -75,7 +76,7 @@
     };
   });
 
-  /** Chọn cửa sổ vẽ: chỉ dời khi vùng thấy tới gần mép (hoặc dữ liệu/DPR đổi), để không vẽ lại mỗi khung hình. */
+  /** Painting window: it only moves once the visible range nears an edge (or data/DPR changes), so scrolling does not repaint every frame. */
   $effect(() => {
     const total = entries.length;
     void version;
@@ -129,14 +130,14 @@
     };
   }
 
-  /** Vẽ cửa sổ hàng hiện tại. Chạy sau khi DOM (top/height của canvas) đã cập nhật, trước khi trình duyệt vẽ khung hình. */
+  /** Paint the current row window. Runs after the DOM (canvas top/height) has been updated and before the browser paints a frame. */
   $effect(() => {
     const element = canvas;
     if (!element) return;
     void version;
     void themeVersion;
-    // Ảnh đại diện tải xong giữa chừng: `version` của store tăng, canvas phải vẽ lại ngay (nếu không thì chấm đó
-    // chỉ có avatar sau khi cuộn hoặc đổi dữ liệu).
+    // An avatar finished loading mid-window: the store's `version` bumps, so the canvas must repaint right
+    // away — otherwise that dot only shows its avatar after a scroll or a data refresh.
     void avatars.version;
     const first = windowFirst;
     const last = Math.min(windowLast, entries.length);
@@ -170,7 +171,7 @@
   .graph-canvas {
     position: absolute;
     pointer-events: none;
-    /* Trong suốt: nền hàng (chọn/rê chuột) nhìn xuyên qua. */
+    /* Transparent: the row background (selected/hovered) has to show through. */
     background: transparent;
   }
 </style>

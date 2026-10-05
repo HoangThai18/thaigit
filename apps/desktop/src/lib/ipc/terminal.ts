@@ -1,5 +1,5 @@
-// Terminal thật trong cửa sổ repo: Rust chạy shell của máy qua PTY ở thư mục repo; webview chỉ chọn repo, gửi phím gõ và
-// kích thước, nhận output (byte thô) qua Channel.
+// A real terminal inside the repo window: Rust runs the machine's shell over a PTY in the repo directory;
+// the webview only picks the repo, sends keystrokes and sizes, and receives raw output bytes via a Channel.
 import { Channel } from '@tauri-apps/api/core';
 import type { TerminalEvent } from '@thaigit/contracts';
 import { Commands } from './commands.ts';
@@ -17,7 +17,7 @@ function decodeBase64(data: string): Uint8Array {
   return bytes;
 }
 
-/** Mở shell ở thư mục gốc của repo; trả id phiên. */
+/** Open a shell at the repo's root directory; returns the session id. */
 export function terminalOpen(
   repoId: string,
   cols: number,

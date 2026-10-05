@@ -1,6 +1,7 @@
-// Tô màu cú pháp cho diff (như GitKraken): refractor (ngữ pháp của Prism) trả CÂY token, không phải chuỗi HTML — mỗi đoạn được
-// vẽ bằng text thường trong <span class>, nên không cần `{@html}`. Tô theo từng dòng (diff chỉ có các hunk rời) nên chuỗi /
-// comment nhiều dòng có thể tô chưa đúng — chấp nhận được, đúng như phần lớn công cụ diff.
+// Syntax highlighting for diffs (like GitKraken): refractor (Prism's grammars) returns a token TREE, not an
+// HTML string — every piece is rendered as plain text inside a <span class>, so no `{@html}` is needed.
+// Highlighting runs line by line (a diff only has disjoint hunks), so multi-line strings / comments can come
+// out slightly wrong — acceptable, and true of most diff tools.
 
 import { refractor } from 'refractor/lib/core.js';
 import bash from 'refractor/lang/bash.js';
@@ -130,7 +131,7 @@ const BY_NAME: Readonly<Record<string, string>> = {
   '.editorconfig': 'ini',
 };
 
-/** Ngôn ngữ (tên refractor) theo đường dẫn file; `null` = không tô. */
+/** Language (refractor name) for a file path; `null` = no highlighting. */
 export function languageFor(path: string): string | null {
   const name = (path.split('/').pop() ?? '').toLowerCase();
   const byName = BY_NAME[name];
@@ -140,7 +141,7 @@ export function languageFor(path: string): string | null {
   return BY_EXTENSION[name.slice(dot + 1)] ?? null;
 }
 
-/** Một đoạn chữ của dòng, kèm loại token (`keyword`, `string`…; `null` = chữ thường). */
+/** One piece of a line's text plus its token kind (`keyword`, `string`…; `null` = plain text). */
 export interface SyntaxToken {
   readonly text: string;
   readonly type: string | null;
@@ -177,10 +178,10 @@ const MAX_LINE = 2000;
 const CACHE_LIMIT = 20_000;
 const cache = new Map<string, readonly SyntaxToken[]>();
 
-/** File component (Svelte / Vue): dòng mở đầu bằng thẻ thì tô kiểu markup, còn lại (script, biểu thức) kiểu TypeScript. */
+/** Component files (Svelte / Vue): a line starting with a tag is highlighted as markup, the rest (script, expressions) as TypeScript. */
 const COMPONENT_TAG_LINE = /^\s*<\/?[A-Za-z!]/;
 
-/** Token của một dòng (có bộ nhớ đệm). Dòng quá dài hoặc ngôn ngữ lạ → một đoạn chữ thường. */
+/** Tokens of one line (memoised). A very long line or an unknown language → a single plain-text piece. */
 export function tokenizeLine(text: string, requested: string | null): readonly SyntaxToken[] {
   const language =
     requested === 'component' ? (COMPONENT_TAG_LINE.test(text) ? 'markup' : 'typescript') : requested;
@@ -200,7 +201,7 @@ export function tokenizeLine(text: string, requested: string | null): readonly S
   return tokens;
 }
 
-/** Đoạn để vẽ: token cú pháp, cắt thêm ở ranh giới vùng đổi trong dòng (`<mark>`). */
+/** The pieces to draw: syntax tokens, further split at intra-line change boundaries (`<mark>`). */
 export interface LineSegment {
   readonly text: string;
   readonly type: string | null;

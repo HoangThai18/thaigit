@@ -1,7 +1,7 @@
-// Dòng thời gian snapshot của working tree (đặc tả chung: packages/contracts/snapshot.json). Mỗi worktree một ref
-// `refs/worktree/thaigit/snapshots`; mỗi mốc là một mục reflog của nó (kiểu refs/stash) nên `git log --all` chỉ thấy tối đa
-// một commit thừa. Commit snapshot = tree của TOÀN BỘ working tree (tôn trọng .gitignore) dựng qua index tạm trong git dir —
-// không bao giờ đụng index thật, nhánh, stash hay HEAD của người dùng.
+// Working-tree snapshot timeline (shared spec: packages/contracts/snapshot.json). Each worktree gets one ref
+// `refs/worktree/thaigit/snapshots`; each marker is an entry in ITS reflog (refs/stash style) so `git log --all` sees at
+// most one extra commit. A snapshot commit is the tree of the ENTIRE working tree (respecting .gitignore) built via a
+// temporary index in the git dir — it never touches the real index, branches, stash or the user's HEAD.
 
 import {
   formatSnapshotMessage,
@@ -19,36 +19,37 @@ import type { GitRepository } from './repository.ts';
 import { GitError, GitRunner } from './runner.ts';
 
 export interface SnapshotEntry {
-  /** Vị trí trong reflog (0 = mới nhất) — dùng để xoá (`ref@{index}`). */
+  /** Position in the reflog (0 = newest) — used to delete (`ref@{index}`). */
   readonly index: number;
   readonly sha: string;
   readonly tree: string;
-  /** Thời điểm chụp (giây). */
+  /** Capture time (seconds). */
   readonly time: number;
   readonly reason: SnapshotReason;
-  /** Số file khác HEAD lúc chụp; null khi không rõ. */
+  /** Files differing from HEAD at capture time; null when unknown. */
   readonly files: number | null;
 }
 
 export interface SnapshotTakeOptions {
   /**
-   * Chạy nền (mặc định với lý do `auto`): repo đang bận thì bỏ qua (lỗi `busy`), không ghi Nhật ký lệnh, không bao giờ hỏi
-   * đăng nhập. `false` khi người dùng bấm (mốc trước khi khôi phục): xếp hàng như thao tác thường.
+   * Background by default (reason `auto`): a busy repo is skipped (`busy` error), nothing goes to the Command log, and it
+   * never prompts for sign-in. `false` when the user clicked (the marker taken right before a restore): queues like a normal
+   * operation.
    */
   background?: boolean;
 }
 
 export interface SnapshotRestoreResult {
-  /** Mốc chụp ngay trước khi khôi phục — khôi phục về nó là Hoàn tác. */
+  /** Marker captured right before a restore — restoring to it is the Undo action. */
   readonly before: SnapshotEntry;
-  /** File được ghi lại / xoá khỏi working tree theo mốc. */
+  /** Files rewritten / removed from the working tree according to the marker. */
   readonly restored: readonly string[];
-  /** File chưa track tạo sau mốc, đã dời vào thùng rác của app. */
+  /** Untracked files created after the marker, moved into the app's trash. */
   readonly trashed: readonly string[];
 }
 
 export interface SnapshotPruneOptions {
-  /** Giây. */
+  /** Seconds. */
   now: number;
   keepDays: number;
   keepCount: number;
@@ -56,9 +57,9 @@ export interface SnapshotPruneOptions {
 
 const REF = snapshotSpec.ref;
 const LITERAL_PATHSPECS = { GIT_LITERAL_PATHSPECS: '1' } as const;
-/** `reflog delete` nhận nhiều mục một lần; chia lô để dòng lệnh không quá dài. */
+/** `reflog delete` accepts several entries at once; batch them to keep the command line short. */
 const PRUNE_BATCH = 100;
-/** Số đường dẫn mỗi lần `ls-files … -- <đường dẫn>` (giữ dòng lệnh dưới giới hạn ~32 KB của Windows). */
+/** Paths per `ls-files … -- <paths>` call (keeps the command line under Windows' ~32 KB limit). */
 const PATH_BATCH = 100;
 const LOG_FIELD = '\x1f';
 
@@ -66,27 +67,27 @@ function isStaleIndexLock(error: unknown): boolean {
   return error instanceof GitError && error.contains('.lock') && error.contains('exists');
 }
 
-/** Đường dẫn `path` nằm trong phạm vi `paths` (đúng file hoặc nằm trong thư mục); `null` = mọi đường dẫn. */
+/** Is `path` in scope for `paths` (the exact file, or inside one of the directories); `null` = every path. */
 function inScope(path: string, paths: readonly string[] | null): boolean {
   return paths === null || paths.some((scope) => path === scope || path.startsWith(`${scope}/`));
 }
 
 export class SnapshotStore {
-  /** Runner không ghi Nhật ký lệnh: chụp tự động mỗi vài phút sẽ làm ngập nhật ký. */
+  /** The runner does not write to the Command log: automatic captures every few minutes would flood it. */
   private readonly quiet: GitRunner;
 
   constructor(private readonly repo: GitRepository) {
     this.quiet = new GitRunner(repo.runner.exec);
   }
 
-  /** Các mốc, mới nhất trước (bỏ qua mục reflog không phải snapshot của Thaigit, nhưng giữ đúng chỉ số reflog). */
+  /** The markers, newest first (reflog entries that are not Thaigit snapshots are skipped, but real reflog indexes are kept). */
   async list(limit?: number): Promise<SnapshotEntry[]> {
     return this.read(this.repo.runner, limit);
   }
 
   /**
-   * Chụp working tree. Cây giống hệt mốc mới nhất → trả mốc đó, không tạo mốc mới. Lỗi `busy` (repo đang có thao tác ghi) khi
-   * chạy nền: người gọi bỏ qua lần này.
+   * Capture the working tree. A tree identical to the newest marker's returns that marker instead of creating a new one.
+   * A `busy` error (a write operation is in progress) while running in the background: the caller skips this round.
    */
   async take(reason: SnapshotReason, options: SnapshotTakeOptions = {}): Promise<SnapshotEntry> {
     const background = options.background ?? reason === 'auto';
@@ -98,7 +99,7 @@ export class SnapshotStore {
       await runner.run('add', ['-A'], { env: { GIT_INDEX_FILE: indexFile }, profile });
     } catch (error) {
       if (!isStaleIndexLock(error)) throw error;
-      // Khoá mồ côi khi app bị tắt giữa lúc `git add`: index tạm chỉ là bộ đệm, dựng lại từ đầu.
+      // An orphaned lock when the app is killed mid-`git add` is harmless: the temporary index is only a buffer and is rebuilt from scratch.
       indexFile = await this.repo.fs.prepareSnapshotIndex(true);
       await runner.run('add', ['-A'], { env: { GIT_INDEX_FILE: indexFile }, profile });
     }
@@ -136,19 +137,20 @@ export class SnapshotStore {
     return entry ?? { index: 0, sha, tree, time: Math.floor(Date.now() / 1000), reason, files };
   }
 
-  /** File khác nhau giữa hai mốc (`from` → `to`). */
+  /** Files differing between two markers (`from` → `to`). */
   async changes(from: string, to: string): Promise<FileChange[]> {
     return this.repo.changedFiles(to, from);
   }
 
-  /** Diff một file giữa hai mốc (byte thô, như diff của commit). */
+  /** Diff one file between two markers (raw bytes, like a commit diff). */
   async diffBytes(from: string, to: string, file: FileChange): Promise<Uint8Array> {
     return this.repo.commitDiffBytes(to, from, file);
   }
 
   /**
-   * Đưa working tree (toàn bộ, hoặc chỉ `paths` — file hay thư mục) về như mốc `target`. Luôn chụp mốc "trước khôi phục" trước;
-   * chỉ ghi working tree (index, nhánh, stash giữ nguyên). File chưa track tạo sau mốc được dời vào thùng rác của app thay vì xoá.
+   * Restore the working tree (entirely, or only `paths` — files or directories) to match `target`. A "before restore"
+   * marker is always captured first; only the working tree is written (index, branches and stash stay untouched).
+   * Untracked files created after the marker are moved into the app's trash rather than deleted.
    */
   async restore(target: string, paths: readonly string[] | null): Promise<SnapshotRestoreResult> {
     const before = await this.take('before-restore', { background: false });
@@ -164,10 +166,10 @@ export class SnapshotStore {
     const changes = parseNameStatus(diff.stdout).filter((change) => inScope(change.path, paths));
     if (changes.length === 0) return { before, restored: [], trashed: [] };
 
-    // Có ở hiện tại mà không có trong mốc: file đã track thì `restore --source` tự xoá; file chưa track thì dời vào thùng rác.
+    // Present now but absent from the marker: `restore --source` deletes tracked files itself; untracked ones go to the trash.
     const added = changes.filter((change) => change.kind === 'added').map((change) => change.path);
     const trackedPaths = new Set<string>();
-    // `ls-files` không có `--pathspec-from-file`: đường dẫn đứng sau `--` (chia lô cho dòng lệnh Windows).
+    // `ls-files` has no `--pathspec-from-file`: paths go after `--` (batched for the Windows command-line limit).
     for (let start = 0; start < added.length; start += PATH_BATCH) {
       const batch = added.slice(start, start + PATH_BATCH);
       const out = await runner.run('ls-files', ['-z', '--cached', '--', ...batch], {
@@ -188,7 +190,7 @@ export class SnapshotStore {
     return { before, restored, trashed: untracked };
   }
 
-  /** Xoá mốc quá hạn / quá số lượng (luật chung `selectExpiredSnapshots`); trả số mốc đã xoá. */
+  /** Delete markers past their age / count limit (shared rule `selectExpiredSnapshots`); returns how many were deleted. */
   async prune(options: SnapshotPruneOptions): Promise<number> {
     const entries = await this.readTimes(this.quiet);
     const expired = selectExpiredSnapshots(entries, options.now, options.keepDays, options.keepCount);
@@ -220,7 +222,7 @@ export class SnapshotStore {
     return entries;
   }
 
-  /** Mọi mục reflog (kể cả không phải snapshot) — luật dọn tính trên chỉ số reflog thật. */
+  /** Every reflog entry (including non-snapshots) — the pruning rules work on real reflog indexes. */
   private async readTimes(runner: GitRunner): Promise<{ index: number; time: number }[]> {
     if (!(await this.exists(runner))) return [];
     const out = await runner.text('log', ['-g', '-z', '--format=%ct', REF, '--']);

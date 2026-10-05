@@ -2,9 +2,9 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Thẻ SSH trong Cài đặt: khoá SSH riêng của Thaigit, cất trong Keychain (như 1Password).
+/// The SSH tab in Settings: Thaigit's own SSH keys, stored in the Keychain (like 1Password).
 struct SSHSettings: View {
-    /// github.com, gitlab.com và host của các tài khoản GitLab tự host.
+    /// github.com, gitlab.com and the hosts of the self-hosted GitLab accounts.
     private var testHosts: [String] {
         var hosts = ["github.com", "gitlab.com"]
         for host in gitlab.accounts.map(\.host) where !hosts.contains(host) { hosts.append(host) }

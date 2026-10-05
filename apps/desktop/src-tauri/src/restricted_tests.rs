@@ -1,6 +1,7 @@
-//! Trust gate end-to-end với git THẬT: repo lạ có khoá/hook chạy lệnh → mở không chạy gì, chế độ hạn chế vô hiệu hoá TỪNG
-//! LOẠI khoá (mỗi test có "đối chứng": cùng cấu hình chạy bằng git trần thì lệnh có chạy), tin tưởng thì mở khoá.
-//! Mọi "lệnh của repo" chỉ là script `touch <marker>` trong thư mục tạm — không có gì nguy hiểm thật sự.
+//! The trust gate end-to-end with REAL git: an untrusted repo with a command-running key / hook → opening runs nothing, and
+//! restricted mode disables EACH KIND of key on its own (every test has a "control": plain git with the same config does run
+//! it); trusting unlocks it. Every "repo command" is just a `touch <marker>` script in a temp directory — nothing is actually
+//! dangerous.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -39,7 +40,7 @@ impl Fx {
         let _ = std::fs::remove_file(self.marker(name));
     }
 
-    /// Script thực thi được: `touch marker` rồi chạy `rest`.
+    /// An executable script: `touch marker` then run `rest`.
     fn script(&self, name: &str, rest: &str) -> PathBuf {
         let path = self.repo.tmp().join(format!("script-{name}.sh"));
         std::fs::write(&path, format!("#!/bin/sh\ntouch '{}'\n{rest}\n", self.marker(name).display())).unwrap();
@@ -61,7 +62,7 @@ impl Fx {
         sink.collect()
     }
 
-    /// Lệnh git nội bộ (không qua validate) với đúng ghi đè của repo — dùng cho lệnh mà chính sách không cho JS gọi.
+    /// An internal git command (not through validate) with exactly the repo's overrides — for the commands policy does not let JS call.
     async fn internal(&self, opened: &OpenedRepo, sub: &str, args: &[&str], profile: EnvProfile, stdin: Option<&str>) -> Collected {
         let entry = self.core.registry.get(&opened.repo_id).unwrap();
         let entry = self.core.fresh_entry(entry).await.unwrap();
@@ -133,11 +134,11 @@ async fn hooks_never_run_before_trust_and_run_after() {
     let out = fx.exec(&opened, "c1", ExecKind::Write, "commit", &["--allow-empty", "-m", "chưa tin"]).await;
     assert_eq!(out.exit.unwrap().code, 0, "{}", out.stderr_text());
     assert!(!fx.ran("hook"), "hook của repo lạ không được chạy");
-    // đối chứng: git trần chạy hook
+    // control: plain git runs the hook
     assert_eq!(fx.repo.git_raw(&["commit", "-q", "--allow-empty", "-m", "đối chứng"]).0, 0);
     assert!(fx.ran("hook"), "đối chứng: hook có chạy khi không có chế độ hạn chế");
     fx.clear("hook");
-    // tin tưởng → hook chạy
+    // trusted → the hook runs
     let trusted = fx.core.trust_repo(&opened.repo_id).await.unwrap();
     assert_eq!(trusted.trust, "trusted");
     fx.exec(&trusted, "c2", ExecKind::Write, "commit", &["--allow-empty", "-m", "đã tin"]).await;
@@ -175,7 +176,7 @@ async fn fsmonitor_command_never_runs_even_after_trust() {
     let trusted = fx.core.trust_repo(&opened.repo_id).await.unwrap();
     fx.exec(&trusted, "s2", ExecKind::Read, "status", &["--porcelain=v2"]).await;
     assert!(!fx.ran("fsm"), "kể cả sau khi tin cậy");
-    // đối chứng
+    // control
     fx.repo.git(&["status", "--porcelain"]);
     assert!(fx.ran("fsm"), "đối chứng: git trần chạy lệnh fsmonitor");
 }
@@ -200,12 +201,12 @@ async fn filter_clean_smudge_and_process_are_neutralised_in_restricted_mode() {
     let out = fx.exec(&opened, "f1", ExecKind::Write, "add", &["--", "a.txt"]).await;
     assert_eq!(out.exit.unwrap().code, 0, "{}", out.stderr_text());
     assert!(!fx.ran("clean") && !fx.ran("process"), "clean/process của repo lạ không được chạy");
-    // smudge: git checkout -- (ghi lại file ở working tree)
+    // smudge: git checkout -- (writes the file back into the working tree)
     fx.repo.write("a.txt", "thay đổi 2\n");
     fx.exec(&opened, "f2", ExecKind::Write, "checkout", &["--", "a.txt"]).await;
     assert!(!fx.ran("smudge"), "smudge của repo lạ không được chạy");
 
-    // đối chứng bằng git trần (mỗi loại phải có tác dụng thật)
+    // control with plain git (each kind must actually have an effect)
     fx.repo.write("a.txt", "thay đổi 3\n");
     let _ = fx.repo.git_raw(&["add", "a.txt"]);
     assert!(fx.ran("clean") || fx.ran("process"), "đối chứng: bộ lọc chạy khi không có chế độ hạn chế");
@@ -223,13 +224,13 @@ async fn textconv_and_external_diff_drivers_are_neutralised() {
     fx.config("diff.x.textconv", &format!("sh {}", textconv.display()));
     let opened = fx.open().await;
     assert_eq!(opened.trust, "unknown");
-    // `cat-file --textconv` không đi qua `--no-textconv` của chính sách nên kiểm đúng cơ chế ghi đè.
+    // `cat-file --textconv` does not go through the policy's `--no-textconv`, so it verifies the override mechanism itself.
     let out = fx.internal(&opened, "cat-file", &["--textconv", "HEAD:a.txt"], EnvProfile::Background, None).await;
     assert!(out.exit.is_some());
     assert!(!fx.ran("textconv"), "textconv của repo lạ bị vô hiệu (git báo lỗi thay vì chạy lệnh của repo)");
     assert_eq!(fx.repo.git_raw(&["cat-file", "--textconv", "HEAD:a.txt"]).0, 0);
     assert!(fx.ran("textconv"), "đối chứng: git trần chạy textconv");
-    // diff thông thường qua chính sách luôn thêm --no-textconv --no-ext-diff
+    // a normal diff through the policy always gets --no-textconv --no-ext-diff
     fx.clear("textconv");
     fx.repo.write("a.txt", "khác\n");
     fx.exec(&opened, "d1", ExecKind::Read, "diff", &["--cached"]).await;
@@ -259,7 +260,7 @@ async fn custom_merge_driver_is_replaced_by_a_failing_one_so_conflicts_surface()
     assert_ne!(out.exit.unwrap().code, 0, "driver giả `false` → báo xung đột thay vì coi như gộp xong");
     assert!(!fx.ran("merge"), "merge driver của repo lạ không được chạy");
     fx.exec(&opened, "m2", ExecKind::Write, "merge", &["--abort"]).await;
-    // đối chứng
+    // control
     let _ = fx.repo.git_raw(&["merge", "--no-edit", "feat"]);
     assert!(fx.ran("merge"), "đối chứng: git trần chạy merge driver");
 }
@@ -274,7 +275,7 @@ async fn credential_helpers_are_reset_and_askpass_is_blanked() {
     let opened = fx.open().await;
     assert_eq!(opened.trust, "unknown");
     let query = "protocol=https\nhost=example.com\n\n";
-    // hồ sơ interactive: không có GIT_ASKPASS của Thaigit nên `core.askpass` của repo sẽ được dùng nếu không bị ghi đè
+    // the interactive profile: without Thaigit's GIT_ASKPASS the repo's `core.askpass` would be used, unless it is overridden
     let out = fx.internal(&opened, "credential", &["fill"], EnvProfile::Interactive, Some(query)).await;
     assert!(out.exit.is_some());
     assert!(!fx.ran("cred"), "credential.helper của repo lạ bị đặt lại");
@@ -287,7 +288,7 @@ async fn credential_helpers_are_reset_and_askpass_is_blanked() {
 #[tokio::test]
 async fn user_credential_helpers_survive_the_reset() {
     let fx = Fx::new().await;
-    // helper của người dùng (global) phải còn dùng được, helper của repo thì không.
+    // the user's (global) helper must remain usable; the repo's helper must not.
     let user_helper = fx.script("user-cred", "if [ \"$1\" = get ]; then echo username=tôi; echo password=mật-khẩu; fi");
     std::fs::write(fx.repo.home().join(".gitconfig"), format!("[credential]\n\thelper = !sh {}\n", user_helper.display())).unwrap();
     let repo_helper = fx.script("repo-cred", "exit 0");
@@ -315,7 +316,7 @@ async fn ssh_command_and_git_proxy_are_neutralised_for_network_ops() {
     let out = fx.exec(&opened, "n2", ExecKind::Network, "ls-remote", &["git://example.invalid/x"]).await;
     assert_ne!(out.exit.unwrap().code, 0);
     assert!(!fx.ran("proxy"), "core.gitProxy của repo lạ không được chạy");
-    // đối chứng
+    // control
     let _ = fx.repo.git_raw(&["ls-remote", "ssh://127.0.0.1:1/x"]);
     assert!(fx.ran("ssh"), "đối chứng: sshCommand chạy với git trần");
     let _ = fx.repo.git_raw(&["ls-remote", "git://example.invalid/x"]);
@@ -324,7 +325,7 @@ async fn ssh_command_and_git_proxy_are_neutralised_for_network_ops() {
 
 #[tokio::test]
 async fn custom_upload_and_receive_pack_block_network_until_trusted() {
-    // git chỉ nhận giá trị đầu tiên của `remote.<tên>.uploadpack` nên không ghi đè bằng `-c`/GIT_CONFIG được: chặn mạng.
+    // git accepts only the first value of `remote.<name>.uploadpack`, so it cannot be overridden with `-c`/GIT_CONFIG: block the network.
     let fx = Fx::new().await;
     let bare = fx.repo.tmp().join("remote.git");
     fx.repo.git(&["clone", "-q", "--bare", &fx.repo.root().to_string_lossy(), &bare.to_string_lossy()]);
@@ -346,9 +347,9 @@ async fn custom_upload_and_receive_pack_block_network_until_trusted() {
         assert!(sink.frames().is_empty());
     }
     assert!(!fx.ran("uploadpack"), "không có gì chạy trước khi tin cậy");
-    // lệnh cục bộ vẫn chạy; remote chỉ-đọc (get-url) không liên lạc máy chủ nên không bị chặn
+    // local commands still run; a read-only remote call (get-url) does not talk to a server, so it is not blocked
     fx.exec(&opened, "l1", ExecKind::Read, "remote", &["get-url", "origin"]).await;
-    // đối chứng + sau khi tin cậy thì dùng được
+    // control + usable again once trusted
     assert_eq!(fx.repo.git_raw(&["ls-remote", "origin"]).0, 0);
     assert!(fx.ran("uploadpack"), "đối chứng: upload-pack tuỳ chỉnh chạy với git trần");
     fx.clear("uploadpack");
@@ -361,7 +362,7 @@ async fn custom_upload_and_receive_pack_block_network_until_trusted() {
 #[tokio::test]
 async fn remote_helper_vcs_override_fails_closed() {
     let fx = Fx::new().await;
-    // `remote.origin.vcs = evil` làm git chạy chương trình `git-remote-evil` trong PATH.
+    // `remote.origin.vcs = evil` makes git run the `git-remote-evil` program from PATH.
     let helper = fx.repo.bin().join("git-remote-evil");
     std::fs::write(&helper, format!("#!/bin/sh\ntouch '{}'\nexit 1\n", fx.marker("vcs").display())).unwrap();
     make_executable(&helper);
@@ -420,15 +421,15 @@ async fn unneutralisable_keys_and_background_fetch_block_network_in_restricted_m
     let (result, sink) = run(&fx.core, "main", request(&opened.repo_id, "n1", ExecKind::Network, "fetch", &["origin"])).await;
     assert_eq!(result.unwrap_err().code(), "untrusted");
     assert!(sink.frames().is_empty());
-    // lệnh đọc/ghi cục bộ vẫn chạy trong chế độ hạn chế
+    // local read/write commands still run in restricted mode
     fx.exec(&opened, "r1", ExecKind::Read, "status", &["--porcelain=v2"]).await;
     fx.exec(&opened, "w1", ExecKind::Write, "commit", &["--allow-empty", "-m", "cục bộ"]).await;
-    // tin tưởng → fetch được
+    // trusted → fetch works
     let trusted = fx.core.trust_repo(&opened.repo_id).await.unwrap();
     let out = fx.exec(&trusted, "n2", ExecKind::Network, "fetch", &["origin"]).await;
     assert_eq!(out.exit.unwrap().code, 0, "{}", out.stderr_text());
 
-    // repo chưa tin cậy (khoá vô hiệu hoá được) cho lệnh mạng thủ công nhưng KHÔNG cho auto-fetch
+    // an untrusted repo (with neutralisable keys) allows manual network commands but NOT autofetch
     let fx = Fx::new().await;
     let bare = fx.repo.tmp().join("remote.git");
     fx.repo.git(&["clone", "-q", "--bare", &fx.repo.root().to_string_lossy(), &bare.to_string_lossy()]);
@@ -450,7 +451,7 @@ async fn config_changed_after_opening_is_picked_up_before_the_next_command() {
     fx.repo.write_bytes(".git/hooks/pre-commit", b"#!/bin/sh\nexit 0\n");
     let opened = fx.open().await;
     assert_eq!(opened.trust, "unknown");
-    // sau khi mở, một tiến trình khác thêm bộ lọc chạy lệnh vào .git/config
+    // after opening, another process adds a command-running filter to .git/config
     let script = fx.script("late", "cat");
     fx.repo.write(".gitattributes", "*.txt filter=late\n");
     std::thread::sleep(Duration::from_millis(20));
@@ -469,13 +470,13 @@ async fn trust_is_remembered_per_path_and_asked_again_when_the_key_set_changes()
     let opened = fx.open().await;
     assert_eq!(opened.trust, "unknown");
     fx.core.trust_repo(&opened.repo_id).await.unwrap();
-    // phiên mới (cùng thư mục dữ liệu): đã nhớ
+    // a new session (same data directory): remembered
     let again = Core::for_tests(fx._data.path(), fx.repo.env()).await;
     assert_eq!(open(&again, &fx.repo).await.trust, "trusted");
-    // đổi giá trị khoá chạy lệnh → hỏi lại
+    // changing a command-running key's value → ask again
     fx.config("core.sshCommand", "touch /tmp/khác");
     assert_eq!(open(&again, &fx.repo).await.trust, "unknown");
-    // thêm khoá mới → hỏi lại
+    // a new key appears → ask again
     fx.config("core.sshCommand", &script.to_string_lossy());
     assert_eq!(open(&again, &fx.repo).await.trust, "trusted");
     fx.config("core.fsmonitor", "x");
@@ -486,7 +487,7 @@ async fn trust_is_remembered_per_path_and_asked_again_when_the_key_set_changes()
 async fn open_repo_resolves_subfolders_worktrees_and_rejects_non_repos() {
     let fx = Fx::new().await;
     fx.repo.write("src/deep/x.rs", "x");
-    // mở thư mục con → gốc repo
+    // opening a subdirectory → the repo root
     let sub = fx.repo.root().join("src/deep");
     let picked = fx.core.registry.grant_folder(&sub);
     let opened = fx.core.open_repo(crate::registry::OpenSource::Picked { token: picked.token }).await.unwrap();
@@ -494,7 +495,7 @@ async fn open_repo_resolves_subfolders_worktrees_and_rejects_non_repos() {
     assert!(opened.git_dir.ends_with(".git"));
     // cùng repo → cùng repoId
     assert_eq!(fx.open().await.repo_id, opened.repo_id);
-    // worktree liên kết: gitDir riêng, commonDir chung → cùng khoá
+    // a linked worktree: its own gitDir, shared commonDir → the same lock
     fx.repo.git(&["branch", "wt-branch"]);
     let wt = fx.repo.tmp().join("wt");
     fx.repo.git(&["worktree", "add", "-q", &wt.to_string_lossy(), "wt-branch"]);
@@ -506,14 +507,12 @@ async fn open_repo_resolves_subfolders_worktrees_and_rejects_non_repos() {
     let key_a = fx.core.registry.get(&opened.repo_id).unwrap().common_key.clone();
     let key_b = fx.core.registry.get(&wt_opened.repo_id).unwrap().common_key.clone();
     assert_eq!(key_a, key_b, "khoá theo commonDir chung cho mọi worktree");
-    // không phải repo
     let plain = fx.repo.tmp().join("plain");
     std::fs::create_dir_all(&plain).unwrap();
     let picked = fx.core.registry.grant_folder(&plain);
     assert_eq!(fx.core.open_repo(crate::registry::OpenSource::Picked { token: picked.token }).await.unwrap_err().code(), "not-found");
-    // token đã dùng / bịa
+    // an already-used / made-up token
     assert_eq!(fx.core.open_repo(crate::registry::OpenSource::Picked { token: "bịa".into() }).await.unwrap_err().code(), "not-found");
-    // danh sách gần đây
     let recent = fx.core.registry.recent_list();
     assert!(recent.iter().any(|r| r.id == opened.repo_id));
     let reopened = fx.core.open_repo(crate::registry::OpenSource::Recent { id: opened.repo_id.clone() }).await.unwrap();
@@ -532,13 +531,14 @@ async fn recent_entry_for_a_deleted_folder_is_forgotten() {
     assert!(!core.registry.recent_list().iter().any(|r| r.id == opened.repo_id), "mục không còn tồn tại bị bỏ khỏi danh sách");
 }
 
-// --- cấu hình đổi hiệu lực SAU lần quét: `include` tới file đã track, `includeIf onbranch:` -------------------------------------
+// --- Config becoming effective AFTER the scan: `include` of a tracked file, `includeIf onbranch:` --------------------
 //
-// Ghi đè của chế độ hạn chế dựng từ lần quét lúc mở. Hai đường làm lần quét đó cũ đi mà `.git/config` không đổi: nội dung file
-// được include (đã track) đổi khi chuyển nhánh, hoặc `includeIf onbranch:` bật/tắt theo HEAD.
+// The restricted-mode overrides are built from the scan at open time. Two paths make that scan stale while `.git/config`
+// stays unchanged: the content of an included file (tracked) changes on a branch switch, or `includeIf onbranch:` turns
+// on and off with HEAD.
 
-/// Repo có `.gitattributes` (đã track) ánh xạ `*.x` vào bộ lọc `evil`; nhánh `evil` định nghĩa `filter.evil.clean` trong `file`.
-/// Trả về tên marker của script (chạy = bộ lọc đã được thực thi). Đang đứng ở `main`, file vô hại, CHƯA có khoá include nào.
+/// A repo with a tracked `.gitattributes` mapping `*.x` to the `evil` filter; the `evil` branch defines `filter.evil.clean` in `file`.
+/// Returns the marker name of the script (it ran = the filter was executed). Standing on `main`, the file is harmless, and there is NOT YET any include key.
 fn evil_branch_fixture(fx: &Fx, file: &str) -> &'static str {
     fx.repo.write(file, "[x]\n\ta = 1\n");
     fx.repo.write(".gitattributes", "*.x filter=evil\n");
@@ -560,14 +560,14 @@ async fn include_of_a_tracked_file_cannot_smuggle_a_filter_in_through_a_branch_s
     assert_eq!(opened.trust, "unknown", "include.path là khoá cần hỏi tin cậy");
     assert!(opened.findings.iter().any(|f| f.starts_with("include.path")), "{:?}", opened.findings);
 
-    // Người dùng chuyển nhánh ở terminal: `.git/config` không đổi nhưng cấu hình hiệu lực đã có `filter.evil.clean`.
+    // The user switches branch in a terminal: `.git/config` is unchanged but the effective config now has `filter.evil.clean`.
     fx.repo.git(&["checkout", "-q", "evil"]);
     fx.repo.write("payload.x", "dữ liệu\n");
     let (result, sink) = run(&fx.core, "main", request(&opened.repo_id, "a1", ExecKind::Write, "add", &["--", "payload.x"])).await;
     assert!(!fx.ran(marker), "bộ lọc của repo lạ không được chạy (chế độ hạn chế bị vượt qua sau khi chuyển nhánh)");
     assert_eq!(result.unwrap_err().code(), "untrusted", "lệnh có thể chạy bộ lọc bị chặn tới khi tin tưởng");
     assert!(sink.frames().is_empty());
-    // đối chứng: git trần chạy bộ lọc (mỗi loại phải có tác dụng thật)
+    // control: plain git runs the filter (each kind must actually have an effect)
     fx.repo.git(&["add", "payload.x"]);
     assert!(fx.ran(marker), "đối chứng: bộ lọc chạy khi không có chế độ hạn chế");
 }
@@ -575,7 +575,7 @@ async fn include_of_a_tracked_file_cannot_smuggle_a_filter_in_through_a_branch_s
 #[tokio::test]
 async fn include_if_onbranch_cannot_switch_a_filter_on_by_changing_head() {
     let fx = Fx::new().await;
-    // MỘT file tĩnh (không cần track) định nghĩa bộ lọc; chỉ `includeIf onbranch:evil` kéo nó vào.
+    // ONE static file (no need to track it) defines the filter; only `includeIf onbranch:evil` pulls it in.
     fx.repo.write(".gitattributes", "*.x filter=evil\n");
     fx.repo.commit_all("attrs");
     fx.repo.git(&["branch", "evil"]);
@@ -604,7 +604,7 @@ async fn fail_closed_repo_still_allows_plain_object_reads_and_everything_after_t
     assert_eq!(opened.trust, "unknown");
     let id = opened.repo_id.as_str();
 
-    // Đọc thuần tuý (không thể chạy bộ lọc/driver/gpg): chạy được.
+    // Purely read-only (cannot run a filter / driver / gpg): allowed.
     for (op, sub, args) in [
         ("p1", "log", vec!["-z", "--format=%H%x1f%s", "--all"]),
         ("p2", "rev-parse", vec!["--verify", "HEAD"]),
@@ -618,7 +618,7 @@ async fn fail_closed_repo_still_allows_plain_object_reads_and_everything_after_t
         let out = fx.exec(&opened, op, ExecKind::Read, sub, &args).await;
         assert_eq!(out.exit.unwrap().code, 0, "{sub} {args:?}: {}", out.stderr_text());
     }
-    // Mọi lệnh có thể chạy lệnh do cấu hình chỉ định: bị chặn với mã `untrusted` (UI → "Tin tưởng repo để tiếp tục").
+    // Every command that could run something from the config: blocked with code `untrusted` (the UI shows "Trust the repo to continue").
     for (op, kind, sub, args) in [
         ("b1", ExecKind::Read, "status", vec!["--porcelain=v2"]),
         ("b2", ExecKind::Read, "diff", vec![]),
@@ -639,7 +639,7 @@ async fn fail_closed_repo_still_allows_plain_object_reads_and_everything_after_t
         ("b18", ExecKind::Read, "cat-file", vec!["--filters", "HEAD:a.txt"]),
         ("b19", ExecKind::Write, "tag", vec!["v1"]),
         ("b20", ExecKind::Network, "fetch", vec!["--all"]),
-        // blame trên working tree đọc file qua bộ lọc clean của repo.
+        // blame over the working tree reads the file through the repo's clean filter.
         ("b21", ExecKind::Read, "blame", vec!["--porcelain", "--", "a.txt"]),
     ] {
         let (result, sink) = run(&fx.core, "main", request(id, op, kind, sub, &args)).await;
@@ -648,12 +648,12 @@ async fn fail_closed_repo_still_allows_plain_object_reads_and_everything_after_t
     }
     assert!(!fx.ran(marker));
 
-    // Tin tưởng: tập khoá hiện tại được chấp nhận nên mọi lệnh chạy lại.
+    // Trusted: the current key set was accepted, so every command runs again.
     let trusted = fx.core.trust_repo(id).await.unwrap();
     assert_eq!(trusted.trust, "trusted");
     let out = fx.exec(&trusted, "t1", ExecKind::Read, "status", &["--porcelain=v2"]).await;
     assert_eq!(out.exit.unwrap().code, 0);
-    // ...nhưng nội dung được include đổi sau đó (chuyển nhánh) thì lần mở sau phải hỏi lại vì tập khoá đã khác.
+    // ...but when the included content changes later (a branch switch), the next open must ask again because the key set differs.
     fx.repo.git(&["checkout", "-q", "evil"]);
     let reopened = open(&fx.core, &fx.repo).await;
     assert_eq!(reopened.trust, "unknown", "tập khoá chạy lệnh đã đổi (có filter.evil.clean) → hỏi lại");
@@ -662,10 +662,10 @@ async fn fail_closed_repo_still_allows_plain_object_reads_and_everything_after_t
 
 #[tokio::test]
 async fn gpg_program_from_a_branch_dependent_include_is_pinned_before_it_can_appear() {
-    // `log --format=%G?` chạy `gpg.program` cho commit có chữ ký; khoá nằm trong file include nên lần quét lúc mở không thấy.
+    // `log --format=%G?` runs `gpg.program` for a signed commit; the key lives in an include file the open-time scan did not see.
     let fx = Fx::new().await;
     fx.repo.git(&["branch", "evil"]);
-    // commit mang header `gpgsig` giả: đủ để git thử kiểm chữ ký (gọi chương trình gpg)
+    // a commit with a fake `gpgsig` header: enough for git to attempt verification (i.e. call the gpg program)
     let head = fx.repo.git(&["rev-parse", "HEAD"]).trim().to_string();
     let tree = fx.repo.git(&["rev-parse", "HEAD^{tree}"]).trim().to_string();
     let commit = format!(
@@ -680,12 +680,12 @@ async fn gpg_program_from_a_branch_dependent_include_is_pinned_before_it_can_app
     let opened = fx.open().await;
     assert_eq!(opened.trust, "unknown");
     fx.repo.git(&["checkout", "-q", "evil"]);
-    // đối chứng: git trần (HEAD = evil nên includeIf bật) chạy gpg.program của repo
+    // control: plain git (HEAD = evil, so includeIf is on) runs the repo's gpg.program
     let _ = fx.repo.git_raw(&["log", "-1", "--format=%H %G?", "signed"]);
     assert!(fx.ran("gpg"), "đối chứng: git trần chạy gpg.program");
     fx.clear("gpg");
 
-    // Ghi đè dựng từ một lần quét CŨ (lúc đó file include chưa kéo khoá gpg nào vào): chỉ nhờ ghim sẵn mà chương trình không chạy.
+    // Overrides built from an OLD scan (at that time the include file pulled in no gpg key): only the pre-pinning stops the program.
     let stale = crate::trust::build_restrictions(&[], &fx.core.empty_hooks_dir);
     let entry = fx.core.registry.get(&opened.repo_id).unwrap();
     let output = fx
@@ -706,13 +706,13 @@ async fn gpg_program_from_a_branch_dependent_include_is_pinned_before_it_can_app
         .unwrap();
     assert!(output.stdout().contains(sha.trim()), "lệnh log phải chạy xong: {}", output.stdout());
     assert!(!fx.ran("gpg"), "gpg.program được ghim sẵn nên chương trình của repo không bao giờ chạy, kể cả khi lần quét đã cũ");
-    // và qua đường chính thức
+    // and through the official path
     let out = fx.exec(&opened, "g1", ExecKind::Read, "log", &["-1", "--format=%H %G?", "signed"]).await;
     assert!(out.exit.is_some());
     assert!(!fx.ran("gpg"));
 }
 
-/// Mọi file `file:` mà `git config --list --show-origin` báo (kể cả file include, config global) và HEAD phải nằm trong vân tay.
+/// Every `file:` source `git config --list --show-origin` reports (include files and the global config included) plus HEAD must be in the fingerprint.
 #[tokio::test]
 async fn fingerprint_covers_every_show_origin_file_the_include_targets_and_head() {
     let fx = Fx::new().await;
@@ -726,7 +726,7 @@ async fn fingerprint_covers_every_show_origin_file_the_include_targets_and_head(
     let opened = fx.open().await;
     let entry = fx.core.registry.get(&opened.repo_id).unwrap();
 
-    // Danh sách origin theo đúng lệnh quét (git THẬT), phân giải từ gốc repo như lần quét.
+    // The origin list from the exact scan command (REAL git), resolved from the repo root just like during the scan.
     let (_, raw, _) = fx.repo.git_raw(&["config", "--list", "--show-scope", "--show-origin", "-z"]);
     let entries = crate::trust::parse_config_list(raw.as_bytes());
     let origins: Vec<PathBuf> = entries
@@ -741,7 +741,7 @@ async fn fingerprint_covers_every_show_origin_file_the_include_targets_and_head(
         assert!(watched.contains(origin), "vân tay thiếu {origin:?}; đang theo dõi {watched:?}");
     }
     assert!(origins.iter().any(|o| o.ends_with("seed.inc")) && origins.iter().any(|o| o.ends_with("absolute.inc")) && origins.iter().any(|o| o.ends_with(".gitconfig")));
-    // HEAD (cho includeIf onbranch:) và đích include CHƯA tồn tại (git bỏ qua nó nên không có trong origin) cũng được theo dõi.
+    // HEAD (for includeIf onbranch:) and include targets that DO NOT EXIST YET (git skips them, so they are not in the origin list) are tracked too.
     let all: Vec<&Path> = entry.fingerprint.paths().collect();
     assert!(all.iter().any(|p| p.ends_with(".git/HEAD")), "{all:?}");
     assert!(all.iter().any(|p| p.ends_with("absent.inc")), "{all:?}");
@@ -761,21 +761,21 @@ async fn untrusted_entry_is_rescanned_when_head_an_included_file_or_the_global_c
 
     let same = fx.core.fresh_entry(entry.clone()).await.unwrap();
     assert!(Arc::ptr_eq(&entry, &same), "không có gì đổi → không quét lại");
-    // HEAD đổi (chuyển nhánh)
+    // HEAD changes (a branch switch)
     fx.repo.git(&["checkout", "-q", "-b", "other"]);
     let after_head = fx.core.fresh_entry(same.clone()).await.unwrap();
     assert!(!Arc::ptr_eq(&same, &after_head), "HEAD đổi → quét lại");
-    // file được include đổi nội dung (cùng độ dài: chỉ băm nội dung phát hiện được nếu mtime trùng)
+    // an included file changes content (same length: only hashing detects it when mtime is identical)
     fx.repo.write("seed.inc", "[x]\n\ta = 2\n");
     let after_include = fx.core.fresh_entry(after_head.clone()).await.unwrap();
     assert!(!Arc::ptr_eq(&after_head, &after_include), "file include đổi → quét lại");
-    // config global đổi → giá trị trung tính của người dùng được cập nhật theo
+    // the global config changes → the user's neutral values are picked up accordingly
     assert_eq!(ssh(&after_include).as_deref(), Some("ssh -i A"));
     std::fs::write(fx.repo.home().join(".gitconfig"), "[core]\n\tsshCommand = ssh -i B\n").unwrap();
     let after_global = fx.core.fresh_entry(after_include.clone()).await.unwrap();
     assert!(!Arc::ptr_eq(&after_include, &after_global));
     assert_eq!(ssh(&after_global).as_deref(), Some("ssh -i B"));
-    // repo đã tin cậy thì không bao giờ quét lại (không có ghi đè nào để làm mới)
+    // a trusted repo is never rescanned (there are no overrides to refresh)
     assert_eq!(fx.core.trust_repo(&opened.repo_id).await.unwrap().trust, "trusted");
     let trusted = fx.core.registry.get(&opened.repo_id).unwrap();
     std::fs::write(fx.repo.home().join(".gitconfig"), "[core]\n\tsshCommand = ssh -i C\n").unwrap();
@@ -784,7 +784,7 @@ async fn untrusted_entry_is_rescanned_when_head_an_included_file_or_the_global_c
 
 #[tokio::test]
 async fn sequence_editor_and_trailer_commands_of_an_untrusted_repo_never_run() {
-    // `sequence.editor` thắng `GIT_EDITOR=true` nên không thể dựa vào biến môi trường; `trailer.<token>.cmd` chạy khi `commit --trailer`.
+    // `sequence.editor` beats `GIT_EDITOR=true`, so an env var alone cannot help; `trailer.<token>.cmd` runs on `commit --trailer`.
     let fx = Fx::new().await;
     fx.repo.write("b.txt", "b\n");
     fx.repo.commit_all("second");
@@ -803,7 +803,7 @@ async fn sequence_editor_and_trailer_commands_of_an_untrusted_repo_never_run() {
     let out = fx.exec(&opened, "c1", ExecKind::Write, "commit", &["--allow-empty", "-m", "m", "--trailer", "sign=abc"]).await;
     assert_eq!(out.exit.unwrap().code, 0, "{}", out.stderr_text());
     assert!(!fx.ran("trailer"), "trailer.<token>.cmd của repo lạ không được chạy");
-    // đối chứng: git trần chạy cả hai
+    // control: plain git runs both
     let _ = fx.repo.git_raw(&["rebase", "-i", "HEAD~1"]);
     assert!(fx.ran("seq-editor"), "đối chứng: git trần chạy sequence.editor");
     let _ = fx.repo.git_raw(&["commit", "--allow-empty", "-m", "m2", "--trailer", "sign=abc"]);
@@ -817,11 +817,11 @@ async fn trust_only_covers_the_findings_the_user_was_shown() {
     fx.config("include.path", "../seed.inc");
     let opened = fx.open().await;
     assert!(opened.findings.iter().all(|f| !f.starts_with("filter.")), "{:?}", opened.findings);
-    // Chuyển nhánh ngoài app rồi một lệnh đọc: entry được quét lại và đã có `filter.evil.clean`, nhưng người dùng chưa thấy.
+    // Branch switched outside the app, then a read command: the entry is rescanned and already has `filter.evil.clean`, but the user has not seen it.
     fx.repo.git(&["checkout", "-q", "evil"]);
     fx.exec(&opened, "r1", ExecKind::Read, "log", &["-1", "--format=%H"]).await;
     assert!(fx.core.registry.get(&opened.repo_id).unwrap().findings.iter().any(|f| f.display.starts_with("filter.evil.clean")));
-    // Bấm "Tin tưởng" theo danh sách CŨ → không có hiệu lực với phần mới; trả lại danh sách mới để xem.
+    // Pressing "Trust" with the OLD list has no effect on the new part; a new list is returned for review.
     let after = fx.core.trust_repo(&opened.repo_id).await.unwrap();
     assert_eq!(after.trust, "unknown", "tập khoá đã đổi so với bản đã hiển thị: phải hỏi lại");
     assert!(after.findings.iter().any(|f| f.starts_with("filter.evil.clean")), "{:?}", after.findings);
@@ -829,10 +829,10 @@ async fn trust_only_covers_the_findings_the_user_was_shown() {
     let (result, _) = run(&fx.core, "main", request(&opened.repo_id, "a1", ExecKind::Write, "add", &["--", "payload.x"])).await;
     assert_eq!(result.unwrap_err().code(), "untrusted");
     assert!(!fx.ran(marker));
-    // Bấm lần hai (đã thấy danh sách có `filter.evil.clean`) mới tin tưởng.
+    // Pressing it a second time (after seeing the list with `filter.evil.clean`) trusts it.
     let after = fx.core.trust_repo(&opened.repo_id).await.unwrap();
     assert_eq!(after.trust, "trusted");
-    // Quyết định gắn với tập khoá: mở lại vẫn tin cậy khi tập không đổi.
+    // The decision is tied to the key set: reopening stays trusted while the set is unchanged.
     assert_eq!(open(&fx.core, &fx.repo).await.trust, "trusted");
 }
 
@@ -852,7 +852,7 @@ async fn git_lfs_waits_for_trust_and_its_standard_hooks_are_not_findings() {
         assert_eq!(result.unwrap_err().code(), "untrusted", "{args:?}");
         assert!(sink.frames().is_empty());
     }
-    // `lfs version` không cài gì nên chạy được (git-lfs có thể không có trên máy chạy test: chỉ cần không bị chặn).
+    // `lfs version` installs nothing, so it may run (git-lfs may be absent on the test machine: it just must not be blocked).
     let (result, _) = run(&fx.core, "main", request(&opened.repo_id, "l4", ExecKind::Read, "lfs", &["version"])).await;
     assert!(result.is_ok());
     assert!(std::fs::read_dir(&fx.core.empty_hooks_dir).map(|dir| dir.count() == 0).unwrap_or(true));

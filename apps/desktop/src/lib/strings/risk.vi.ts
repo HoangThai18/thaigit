@@ -1,5 +1,5 @@
 /**
- * Chuỗi của dải cảnh báo rủi ro trên panel thay đổi. Truy cập qua `vi.risk.*`.
+ * Strings for the risk warning strip on the changes panel. Reached through `vi.risk.*`.
  */
 export const risk = {
   title: 'Nên xem lại trước khi commit',

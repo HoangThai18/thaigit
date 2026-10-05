@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `ai.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `a.vi.ts` (same keys, same parameters). */
 import type { ai as source } from './ai.vi.ts';
 import type { Translation } from './types.ts';
 

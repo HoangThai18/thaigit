@@ -10,7 +10,7 @@
 
   interface Props {
     flags: readonly RiskFlag[];
-    /** Nút ✕: ẩn dải cho tới khi có cờ mới. */
+    /** The ✕ button: hide the strip until a new flag appears. */
     ondismiss?: () => void;
   }
 

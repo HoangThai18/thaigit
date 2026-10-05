@@ -1,5 +1,6 @@
-// Phủ các thao tác còn lại của GitRepository (merge/rebase/cherry-pick/revert/reset, trạng thái dở dang, pull 3 chế độ,
-// tag/remote, stash, log…). Mọi lệnh đều đi qua NodeExec + validator thật nên một lệnh hợp lệ bị chặn nhầm sẽ làm test lỗi.
+// Covers the remaining GitRepository operations (merge/rebase/cherry-pick/revert/reset, in-progress state, the three pull
+// modes, tags/remotes, stash, log…). Every command goes through the real NodeExec and validator, so a valid command
+// wrongly blocked by policy fails the tests.
 
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -45,7 +46,7 @@ async function commitFile(t: TestRepo, path: string, content: string, message: s
   return t.repo.resolveCommit('HEAD');
 }
 
-/** main: base → ours; other: base → theirs (cùng sửa a.txt → xung đột khi gộp). Đứng ở main. */
+/** main: base → ours; other: base → theirs (both edit a.txt → conflict on merge). HEAD is on main. */
 async function diverge(t: TestRepo): Promise<{ base: string; ours: string; theirs: string }> {
   const base = await commitFile(t, 'a.txt', 'x\n', 'base');
   await t.repo.createBranch('other', null, true);
@@ -70,14 +71,14 @@ describe('Trạng thái thao tác dở dang (đọc từ git dir qua RepoFs)', (
       expect(operation).toEqual({ kind: 'rebasing', step: 1, total: 2, headName: 'main' });
       expect((await t.repo.status()).conflicts).toEqual([{ path: 'a.txt', kind: 'bothModified' }]);
 
-      // Bỏ qua commit xung đột: commit còn lại áp dụng sạch, rebase xong.
+      // Skip the conflicting commit: the remaining ones apply cleanly and the rebase finishes.
       if (!operation) throw new Error('phải đang rebase');
       await t.repo.skip(operation);
       expect(await t.repo.operationState()).toBeNull();
       expect(await t.read('a.txt')).toBe('theirs\n');
       expect(await t.read('b.txt')).toBe('b\n');
 
-      // Lần nữa từ trạng thái ban đầu, nhưng giải quyết tay rồi tiếp tục.
+      // Once again from the initial state, but resolving by hand and continuing.
       await t.repo.reset(originalTip, 'hard');
       await expect(t.repo.rebase('other')).rejects.toBeInstanceOf(GitError);
       await t.write('a.txt', 'gộp tay\n');
@@ -156,7 +157,7 @@ describe('Trạng thái thao tác dở dang (đọc từ git dir qua RepoFs)', (
       expect(await t.repo.operationState()).toEqual({ kind: 'bisecting' });
       await t.repo.abort({ kind: 'bisecting' });
       expect(await t.repo.operationState()).toBeNull();
-      // `bisect run` (chạy lệnh tuỳ ý) bị chính sách chặn.
+      // `bisect run` (runs an arbitrary command) is blocked by policy.
       await expect(t.repo.runner.run('bisect', ['run', 'sh', '-c', 'id'])).rejects.toMatchObject({
         code: 'policy',
       });
@@ -298,7 +299,7 @@ describe('merge / cherry-pick / revert / reset', () => {
       await t.repo.hardReset();
       expect(await t.read('a.txt')).toBe('1\n');
 
-      // `reset --merge` giữ thay đổi CHƯA stage ở file khác (dùng để hoàn tác pull).
+      // `reset --merge` keeps UNSTAGED changes in other files (used to undo a pull).
       await commitFile(t, 'a.txt', '3\n', 'c3');
       await t.write('keep.txt', 'đang sửa\n');
       await t.repo.resetKeepingLocalChanges(c1);
@@ -428,7 +429,7 @@ describe('nhánh, stash, log, lịch sử file', () => {
   it('logBytes: includeRemotes/includeTags/includeHead và thứ tự topo/date', () =>
     withTestRepo(async (t) => {
       const c1 = await commitFile(t, 'a.txt', '1\n', 'c1');
-      // Commit chỉ có trên HEAD detached, rồi tag thêm một commit không thuộc nhánh nào.
+      // A commit only reachable from a detached HEAD, then tag a commit that belongs to no branch.
       await t.repo.switchDetached(c1);
       const detachedTip = await commitFile(t, 'd.txt', 'd\n', 'trên detached');
       await t.repo.createTag('chi-tag', detachedTip, null);
@@ -489,7 +490,7 @@ describe('blame', () => {
       ]);
       expect(blame.commits.get(first)?.summary).toBe('tạo a');
 
-      // Tại commit cũ: chỉ có nội dung của commit đó.
+      // At the old commit: only that commit's content.
       expect((await t.repo.blame('a.txt', first)).lines.map((line) => line.text)).toEqual(['một', 'hai']);
 
       await t.write('a.txt', 'một\nhai sửa\nba\nbốn chưa commit\n');
@@ -501,7 +502,7 @@ describe('blame', () => {
 });
 
 describe('lịch sử lớn qua NodeExec', () => {
-  /** Luồng fast-import: `count` commit tuyến tính trên main, cứ 100 commit lại có một nhánh phụ merge vào. */
+  /** fast-import stream: `count` linear commits on main, with a side branch merged in every 100 commits. */
   function fastImportStream(count: number): Uint8Array {
     const parts: string[] = [];
     let mark = 0;
@@ -535,7 +536,7 @@ describe('lịch sử lớn qua NodeExec', () => {
       const head = await t.repo.resolveCommit('main');
       const bytes = await t.repo.logBytes({ limit: 100_000, order: 'date', includeHead: true });
       const history = buildHistory(bytes, { limit: 100_000, headOid: head, showWorkingTree: true });
-      // 4000 vòng tạo commit trên main, trong đó 39 vòng (n chia hết cho 100) tạo thêm một commit nhánh phụ.
+      // 4000 commits on main, of which 39 rounds (n divisible by 100) add one side-branch commit.
       expect(history.loadedCount).toBe(4000 + 39);
       expect(history.mayHaveMore).toBe(false);
       expect(history.commits[0] && isWorkingTreeCommit(history.commits[0])).toBe(true);
@@ -667,7 +668,7 @@ describe('isValidRefName: bản TS khớp `git check-ref-format`', () => {
 });
 
 describe('remote cục bộ: pull 3 chế độ, tag, upstream, fast-forward', () => {
-  /** origin bare + hai bản sao: `a` (repo đang test) và `b` (người khác). */
+  /** A bare origin plus two clones: `a` (the repo under test) and `b` (somebody else). */
   async function setup(parent: string): Promise<{ bare: string; a: TestRepo; b: TestRepo }> {
     const config = isolatedConfig();
     const bare = await createBareRemote(parent, config);
@@ -740,7 +741,7 @@ describe('remote cục bộ: pull 3 chế độ, tag, upstream, fast-forward', (
       expect(error).toBeInstanceOf(GitError);
       expect((error as GitError).contains('Not possible to fast-forward')).toBe(true);
       expect(await a.repo.resolveCommit('HEAD')).toBe(head);
-      // Lệnh fetch đã chạy trước nên remote-tracking đã mới nhất (behind 1).
+      // The fetch already ran, so remote-tracking is up to date (behind 1).
       expect((await a.repo.status()).behind).toBe(1);
     }));
 
@@ -757,7 +758,7 @@ describe('remote cục bộ: pull 3 chế độ, tag, upstream, fast-forward', (
       const status = await a.repo.status();
       expect([status.ahead, status.behind]).toEqual([1, 0]);
 
-      // Cùng sửa a.txt → xung đột khi rebase.
+      // Both edit a.txt → conflict while rebasing.
       await a.write('a.txt', 'của a\n');
       await a.commitAll('a sửa a.txt');
       await pushFrom(b, 'a.txt', 'của b\n', 'b sửa a.txt');
@@ -817,7 +818,7 @@ describe('remote cục bộ: pull 3 chế độ, tag, upstream, fast-forward', (
     withTempDir(async (parent) => {
       const { bare, a, b } = await setup(parent);
       await pushFrom(b, 'b1.txt', '1\n', 'b1');
-      // Có `signal` (chưa huỷ): lệnh chạy trong nhóm tiến trình riêng nhưng vẫn phải chạy xong bình thường.
+      // With a `signal` that was never triggered: the command runs in its own process group and still finishes normally.
       await a.repo.fetch({ remote: 'origin', profile: 'background', signal: new AbortController().signal });
       expect((await a.repo.status()).behind).toBe(1);
 
@@ -849,7 +850,7 @@ describe('remote cục bộ: pull 3 chế độ, tag, upstream, fast-forward', (
       await a.repo.setUpstream('dev', 'origin/dev');
       expect((await a.repo.refs()).find((ref) => refName(ref) === 'dev')?.upstream).toBe('origin/dev');
 
-      // dev ở `a` tụt sau origin/dev; đứng ở main rồi fast-forward nhánh dev (không phải nhánh hiện tại).
+      // dev on `a` lags behind origin/dev; while on main, fast-forward the dev branch (which is not the current branch).
       await a.repo.switchTo('main');
       await b.write('dev.txt', '2\n');
       await b.commitAll('dev 2');
@@ -860,14 +861,14 @@ describe('remote cục bộ: pull 3 chế độ, tag, upstream, fast-forward', (
       expect(await a.repo.resolveCommit('dev')).toBe(await a.repo.resolveCommit('origin/dev'));
       expect(await a.repo.resolveCommit('dev')).not.toBe(before);
 
-      // Xoá nhánh remote rồi khôi phục bằng đúng commit cũ.
+      // Delete a remote branch, then restore it to exactly the old commit.
       const tip = await a.repo.resolveCommit('origin/dev');
       await a.repo.deleteRemoteBranch('origin', 'dev');
       expect(rawGit(bare, ['branch', '--list', 'dev'])).toBe('');
       await a.repo.pushCommit(tip, 'origin', 'dev');
       expect(rawGit(bare, ['rev-parse', 'dev']).trim()).toBe(tip);
 
-      // Remote bị xoá nhánh → upstream "gone" sau fetch --prune.
+      // The remote deleted a branch → upstream reports "gone" after fetch --prune.
       await b.repo.fetch({});
       b.git('push', 'origin', '--delete', 'dev');
       await a.repo.fetch({ prune: true });

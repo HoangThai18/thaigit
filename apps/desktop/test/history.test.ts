@@ -1,4 +1,4 @@
-// Merge / xung đột / cherry-pick / revert / reset / nhánh / tag / huỷ tất cả / menu chuột phải — trên repo git thật.
+// Merge / conflict / cherry-pick / revert / reset / branch / tag / abort-all / context menu — on a real git repo.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -47,8 +47,8 @@ interface Fixture {
 }
 
 /**
- * main: base ← "main sửa a" ; feature: base ← "feature sửa a" ← "feature thêm f" (a.txt sửa khác nhau ở hai nhánh →
- * merge feature vào main xung đột). Nhánh `gon` đã merge vào main.
+ * main: base ← "main edits a"; feature: base ← "feature edits a" ← "feature adds f" (a.txt is edited differently
+ * on the two branches, so merging feature into main conflicts). Branch `gon` is already merged into main.
  */
 async function openBranchy(): Promise<Fixture> {
   const test = await openTestPort((git, root) => {
@@ -146,7 +146,7 @@ describe('merge và giải xung đột', () => {
     );
     expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe('một\nHAI (main)\nHAI (feature)\nba\n');
     expect(store.status.conflicts).toHaveLength(0);
-    // Đã giải xong: trình giải tự đóng.
+    // Conflict already resolved: the resolver closes itself.
     await until(() => store.diff.file === null, 'đóng trình giải');
 
     await commit(store);
@@ -290,7 +290,7 @@ describe('cherry-pick / revert / reset / rebase', () => {
     expect(store.operation?.kind).toBe('rebasing');
     await continueOperation(store);
     expect(lastToast(toasts)).toBe('Còn 1 file xung đột chưa giải quyết');
-    // Khi rebase, "Current" (ours) là nhánh đích (feature): giữ thay đổi của main là chọn Incoming.
+    // During a rebase, "Current" (ours) is the target branch (feature): keeping main's changes means picking Incoming.
     await resolveWhole(store, store.status.conflicts[0]!, false);
     await continueOperation(store);
     expect(store.operation).toBeNull();
@@ -347,7 +347,7 @@ describe('nhánh / tag / huỷ tất cả', () => {
     const creating = beginCreateTag(store, head, head.slice(0, 7), dialogs);
     await until(() => dialogs.current?.kind === 'form', 'form tag');
     const form = dialogs.current;
-    // Repo không có remote: không có ô "Push tag lên …".
+    // A repo with no remote: no "Push tag to …" entry.
     expect(form?.kind === 'form' && form.fields.map((field) => field.id)).toEqual(['name', 'message']);
     dialogs.submit({ name: 'v1.0', message: 'Bản đầu' });
     await creating;

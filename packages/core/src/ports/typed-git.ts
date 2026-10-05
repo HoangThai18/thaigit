@@ -1,17 +1,18 @@
 import type { RebaseResult, RebaseStepRequest } from '@thaigit/contracts';
 
 /**
- * Lệnh git có kiểu — không đi qua `Exec.run` vì validator chặn (ghi cấu hình tuỳ ý, URL remote là chỗ chạy lệnh, rebase
- * tương tác cần sequence editor). Rust: `git_config_set` (key thuộc `configSetAllowlist`), `git_remote_add` /
- * `git_remote_set_url` (URL đã kiểm), `git_rebase_interactive` (kế hoạch có cấu trúc, Rust tự soạn todo).
+ * Typed git commands — they do not go through `Exec.run` because the validator blocks them (arbitrary config writes,
+ * remote URLs as a command-execution vector, interactive rebase needing a sequence editor). In Rust:
+ * `git_config_set` (key in `configSetAllowlist`), `git_remote_add` / `git_remote_set_url` (validated URL),
+ * `git_rebase_interactive` (structured plan, Rust composes the todo file).
  */
 export interface TypedGit {
   configSet(key: string, value: string, scope: 'local' | 'global'): Promise<void>;
   remoteAdd(name: string, url: string): Promise<void>;
   remoteSetUrl(name: string, url: string): Promise<void>;
   /**
-   * Thêm worktree trong `<destToken>/<name>` (token do hộp thoại chọn thư mục cấp). `createBranch`: tạo nhánh mới `branch` từ
-   * `start` (null = HEAD); không thì checkout nhánh có sẵn. Trả đường dẫn worktree mới.
+   * Add a worktree under `<destToken>/<name>` (the token comes from a folder-picking dialog). `createBranch`: create a new
+   * branch `branch` from `start` (null = HEAD); otherwise check out the existing branch. Returns the new worktree path.
    */
   worktreeAdd(
     destToken: string,
@@ -20,6 +21,6 @@ export interface TypedGit {
     createBranch: boolean,
     start: string | null,
   ): Promise<string>;
-  /** `git rebase -i --autostash <onto>` theo kế hoạch; mã thoát ≠ 0 trả về (không ném) để phía gọi dựng `GitError`. */
+  /** `git rebase -i --autostash <onto>` following the plan; a non-zero exit code is returned (not thrown) so the caller can build a `GitError`. */
   rebaseInteractive(onto: string, steps: readonly RebaseStepRequest[]): Promise<RebaseResult>;
 }

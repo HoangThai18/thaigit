@@ -1,7 +1,7 @@
 import Foundation
 
-/// Dữ liệu đã chuẩn bị sẵn để vẽ diff (tính ở luồng nền): chữ hiển thị (tab → khoảng trắng),
-/// vùng tô đậm trong dòng, cặp dòng cho chế độ hai cột.
+/// Presentation data prepared for drawing a diff (computed on a background task): display text (tabs →
+/// spaces), bold regions within a line, and the line pairs for the two-column mode.
 public struct DiffPresentation: Sendable {
     public struct Line: Sendable, Hashable {
         public let index: Int
@@ -42,7 +42,7 @@ public struct DiffPresentation: Sendable {
         var maxNumber = 0
         for hunk in diff.hunks {
             let displayTexts = hunk.lines.map { displayText($0.text) }
-            // Tô đậm tính trên chữ đã đổi tab để khớp vị trí hiển thị.
+            // Bold ranges are computed on the tab-expanded text so they line up with the display.
             let displayHunk = DiffHunk(
                 id: hunk.id, header: hunk.header, oldStart: hunk.oldStart, oldCount: hunk.oldCount,
                 newStart: hunk.newStart, newCount: hunk.newCount, section: hunk.section,
@@ -63,7 +63,7 @@ public struct DiffPresentation: Sendable {
         return DiffPresentation(diff: diff, hunks: hunks, maxLineLength: maxLength, maxLineNumber: maxNumber)
     }
 
-    /// Tab → 4 dấu cách, bỏ một "\r" cuối dòng (file CRLF — `DiffLine.text` vẫn giữ để dựng patch), cắt dòng quá dài.
+    /// Tabs → 4 spaces, one trailing "\r" removed (CRLF file — `DiffLine.text` still keeps it for patch building), over-long lines truncated.
     static func displayText(_ text: String) -> String {
         var value = text.replacingOccurrences(of: "\t", with: "    ")
         if value.hasSuffix("\r") { value.removeLast() }
@@ -73,7 +73,7 @@ public struct DiffPresentation: Sendable {
         return value
     }
 
-    /// Ghép dòng xoá thứ k với dòng thêm thứ k trong mỗi khối thay đổi.
+    /// Pair the k-th deleted line with the k-th added line inside each change block.
     static func splitRows(_ lines: [Line]) -> [SplitRow] {
         var rows: [SplitRow] = []
         var index = 0

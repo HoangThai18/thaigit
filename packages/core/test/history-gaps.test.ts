@@ -1,4 +1,4 @@
-// Repo thiếu nhánh / lịch sử của remote (clone `--single-branch` / `--depth`): phát hiện và lấy đủ — git thật.
+// Repos missing remote branches / history (`--single-branch`, `--depth` clones): detection and fetching the rest — real git.
 
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -52,7 +52,7 @@ describe('historyGaps / trackAllBranches / unshallow', () => {
       rawGit(seed, ['commit', '--allow-empty', '-m', 'feature'], config);
       rawGit(seed, ['push', bare, 'feature/x'], config);
 
-      // `--depth` bị bỏ qua với đường dẫn cục bộ — phải dùng URL file://.
+      // `--depth` is ignored for local paths — a file:// URL is required.
       const dir = join(parent, 'shallow');
       rawGit(
         parent,
@@ -72,7 +72,7 @@ describe('historyGaps / trackAllBranches / unshallow', () => {
       const names = (await repo.refs()).map((ref) => ref.fullName);
       expect(names).toContain('refs/remotes/origin/feature/x');
       expect((await repo.log({ limit: 50, order: 'topo', includeHead: true })).length).toBe(4);
-      // Refspec cũ vẫn còn (chỉ THÊM refspec mọi nhánh).
+      // The old refspec is kept (the all-branches refspec is only ADDED).
       expect(rawGit(dir, ['config', '--get-all', 'remote.origin.fetch'], config).trim().split('\n')).toEqual([
         '+refs/heads/main:refs/remotes/origin/main',
         '+refs/heads/*:refs/remotes/origin/*',

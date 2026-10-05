@@ -1,10 +1,12 @@
 /**
- * Trạng thái và hành động của MỘT repo đang mở (port `RepoModel.swift`): nạp refs/status/stash/remote song song, quyết định
- * có nạp lại lịch sử không bằng "dấu vân tay" ref, dựng graph (xếp làn + nhãn), nhận sự kiện `repo-changed`, theo dõi chọn
- * commit/stash + tải chi tiết, và hàng đợi thao tác ghi (4a chỉ đọc, nhưng hàng đợi có sẵn hình dạng cho các phase sau).
+ * State and actions of ONE open repo (a port of `RepoModel.swift`): loads refs / status / stash / remotes in parallel, decides
+ * whether to reload history using a ref "fingerprint", builds the graph (lanes + labels), receives `repo-changed` events,
+ * tracks the commit / stash selection plus detail loading, and provides a queue for write operations (4a is read-only, but the
+ * queue already has the shape later phases need).
  *
- * Phản ứng (Svelte 5): mảng lớn (entries, refs…) dùng `$state.raw` — thay cả mảng khi đổi, không bọc proxy sâu. Mỗi trường là
- * một signal riêng nên component chỉ phụ thuộc đúng thứ nó đọc (sidebar không đọc `status`/`selection`).
+ * Reactivity (Svelte 5): big arrays (entries, refs…) use `$state.raw` — replace the whole array on change instead of wrapping
+ * it in a deep proxy. Each field is its own signal, so a component depends only on what it actually reads (the sidebar never reads
+ * `status`/`selection`).
  */
 import {
   CancelledError,
@@ -56,9 +58,9 @@ import { jsonEqual } from './equality.ts';
 import { COMMIT_LIMIT_MAX, prefs as globalPrefs, type PrefsData, type PrefsStore } from './prefs.svelte.ts';
 import { toasts as globalToasts, describeError, type ToastAction, type ToastStore } from './toasts.svelte.ts';
 
-// MARK: - Kiểu
+// MARK: - Types
 
-/** Phạm vi làm mới (cờ bit như `RefreshScope` của Swift). */
+/** A refresh scope (bit flags like Swift's `RefreshScope`). */
 export const Scope = { status: 1, refs: 2, history: 4, all: 7 } as const;
 export type RefreshScope = number;
 
@@ -89,26 +91,26 @@ export interface ScrollRequest {
 export interface PerformOptions {
   showsProgress?: boolean;
   cancellable?: boolean;
-  /** Phạm vi làm mới sau khi xong (mặc định status + refs; lịch sử tự nạp lại khi dấu vân tay ref đổi). */
+  /** The refresh scope to run afterwards (default status + refs; history reloads by itself when the ref fingerprint changes). */
   refresh?: RefreshScope;
   onSuccess?: () => void;
-  /** Trả `true` nếu đã tự xử lý lỗi (khỏi hiện toast mặc định). */
+  /** Return `true` when the error was already handled (so the default toast is skipped). */
   onError?: (error: unknown) => boolean;
 }
 
 export interface RepoStoreOptions {
   prefs?: PrefsStore;
   toasts?: ToastStore;
-  /** Mặc định `navigator.clipboard.writeText`. */
+  /** Defaults to `navigator.clipboard.writeText`. */
   clipboard?: (text: string) => Promise<void>;
-  /** Trễ trước khi tải chi tiết commit khi lướt phím mũi tên (Swift: 35 ms). */
+  /** Delay before loading commit details while arrowing through keys (Swift: 35 ms). */
   detailsDelayMs?: number;
   /**
-   * Lõi Rust từ chối lệnh vì repo chưa được tin tưởng (cấu hình đổi sau khi mở, có `include` trỏ vào file trong repo…):
-   * nút "Xem lại cấu hình repo" trên thông báo gọi hàm này để hỏi tin tưởng lại.
+   * Rust refused a command because the repo is not trusted (the config changed after opening, an `include` pointing into a repo
+   * file…): the "Review repo config" button on the notification calls this to ask for trust again.
    */
   onUntrusted?: () => void;
-  /** Kho bản nháp commit theo repo (mặc định localStorage của webview). */
+  /** The per-repo commit draft store (defaults to the webview's localStorage). */
   drafts?: CommitDrafts;
 }
 
@@ -124,7 +126,7 @@ async function settle<T>(promise: Promise<T>): Promise<Settled<T>> {
 
 const NO_LABELS: readonly RefLabel[] = Object.freeze([]);
 const REFRESH_ERROR_TAG = 'refresh-error';
-/** Số thứ tự cửa sổ repo (cùng một repo mở lại là một chủ sở hữu toast khác). */
+/** A serial number for the repo window (reopening the same repo is a different toast owner). */
 let storeSerial = 0;
 
 export function sameSelection(a: RepoSelection, b: RepoSelection): boolean {
@@ -135,8 +137,8 @@ export function sameSelection(a: RepoSelection, b: RepoSelection): boolean {
 }
 
 /**
- * Dấu vân tay quyết định có nạp lại lịch sử không: đổi ref/HEAD/tuỳ chọn hiển thị thì lịch sử đổi, còn đổi ahead/behind hay
- * file làm việc thì không. Giống `makeFingerprint` của Swift.
+ * The fingerprint deciding whether history reloads: changing refs / HEAD / display options changes the history, changing
+ * ahead / behind or the working tree does not. Same idea as Swift's `makeFingerprint`.
  */
 export function makeFingerprint(
   refs: readonly Pick<GitRef, 'fullName' | 'target'>[],
@@ -159,32 +161,32 @@ export class RepoStore {
   readonly commandLog = new CommandLog();
   private readonly prefs: PrefsStore;
   private readonly toasts: ToastStore;
-  /** Bản nháp commit theo repo: ô soạn đọc lại khi mở repo và ghi mỗi khi người dùng gõ. */
+  /** The per-repo commit draft: the editor reads it back when a repo is opened and it is written on every keystroke. */
   readonly drafts: CommitDrafts;
   private readonly clipboard: (text: string) => Promise<void>;
   private readonly detailsDelayMs: number;
   private readonly onUntrusted: (() => void) | undefined;
 
-  // --- dữ liệu repository ---
+  // --- repository data ---
   refs = $state.raw<readonly GitRef[]>([]);
-  /** Đã lọc + xếp sẵn mỗi khi refs đổi (repo lớn có hàng nghìn ref — không tính lại khi dựng giao diện). */
+  /** Filtered and sorted whenever refs change (a big repo has thousands — never recomputed while rendering). */
   localBranches = $state.raw<readonly GitRef[]>([]);
   remoteBranches = $state.raw<readonly GitRef[]>([]);
   tags = $state.raw<readonly GitRef[]>([]);
   status = $state.raw<WorkingTreeStatus>(EMPTY_STATUS);
   stashes = $state.raw<readonly Stash[]>([]);
   remotes = $state.raw<readonly Remote[]>([]);
-  /** Các worktree của repo (gồm chính worktree đang mở). */
+  /** The repo's worktrees (including the currently open one). */
   worktrees = $state.raw<readonly Worktree[]>([]);
   submodules = $state.raw<readonly Submodule[]>([]);
-  /** Mẫu Git LFS trong `.gitattributes` gốc (rỗng = repo không dùng LFS). */
+  /** Git LFS patterns from the root `.gitattributes` (empty = the repo does not use LFS). */
   lfsPatterns = $state.raw<readonly LfsPattern[]>([]);
-  /** Phiên bản git-lfs trên máy: `undefined` = chưa kiểm, `null` = chưa cài. */
+  /** The git-lfs version on this machine: `undefined` = not checked yet, `null` = not installed. */
   lfsVersion = $state.raw<string | null | undefined>(undefined);
   operation = $state.raw<RepoOperation | null>(null);
-  /** Repo chỉ theo dõi vài nhánh của remote / clone nông → thanh báo "Fetch đầy đủ từ remote". */
+  /** The repo tracks only a few remote branches / is a shallow clone → show the "Fetch everything from the remote" bar. */
   historyGaps = $state.raw<HistoryGaps>(NO_HISTORY_GAPS);
-  /** Người dùng bấm "Để sau" trên thanh báo đó (chỉ trong phiên này). */
+  /** The user pressed "Later" on that bar (this session only). */
   historyGapsDismissed = $state(false);
   entries = $state.raw<readonly GraphEntry[]>([]);
   graphVersion = $state(0);
@@ -192,54 +194,55 @@ export class RepoStore {
   mayHaveMoreCommits = $state(false);
   isLoadingHistory = $state(false);
   hasLoaded = $state(false);
-  /** Lỗi nạp lịch sử gần nhất (để graph báo thay vì "chưa có commit"). */
+  /** The most recent history-load error (so the graph reports it instead of "no commits"). */
   historyError = $state<string | null>(null);
   commitLimit: number;
   /**
-   * Lần tải thêm lịch sử gần nhất bị lỗi: dừng mọi lần tải thêm TỰ ĐỘNG (cuộn gần cuối graph) — nếu không, lỗi bền sẽ khiến
-   * giao diện gọi `git log` lặp mãi. Chỉ thao tác của người dùng (`loadMoreHistory(true)`) mới xoá cờ và thử lại.
+   * The most recent "load more history" attempt failed: stop every AUTOMATIC extra load (scrolling near the bottom of the graph)
+   * — otherwise a persistent failure would make the UI call `git log` forever. Only a user action (`loadMoreHistory(true)`)
+   * clears the flag and retries.
    */
   loadMoreFailed = $state(false);
 
-  // --- chọn, chi tiết ---
+  // --- selection, details ---
   selection = $state.raw<RepoSelection>({ kind: 'none' });
   details = $state.raw<CommitDetails | null>(null);
   isLoadingDetails = $state(false);
   scrollRequest = $state.raw<ScrollRequest | null>(null);
 
-  // --- giao diện ---
+  // --- UI ---
   busy = $state.raw<BusyState | null>(null);
-  /** Lần fetch / pull thành công gần nhất (ms, `Date.now()`), để tự fetch không chạy ngay sau khi người dùng vừa fetch. */
+  /** The most recent successful fetch / pull (ms, `Date.now()`), so autofetch does not run right after the user's own fetch. */
   lastFetch = $state<number | null>(null);
-  /** File đang mở ở vùng giữa (thay graph) và các dòng đang chọn để stage từng dòng. */
+  /** The file open in the centre pane (replacing the graph) plus the lines selected for per-line staging. */
   readonly diff: DiffStore;
-  /** Nhánh ẩn / "chỉ hiện" (solo) trên graph, nhớ riêng cho từng repo (actions/graphFilter.ts). */
+  /** Hidden / "solo" branches on the graph, remembered per repo (actions/graphFilter.ts). */
   graphFilter = $state.raw<GraphRefFilter>(NO_REF_FILTER);
-  /** Thao tác git gần nhất hoàn tác được (nút Undo trên thanh công cụ, như GitKraken) — lấy từ nút "Hoàn tác" của thông báo. */
+  /** The most recent undoable git operation (the toolbar Undo button, like GitKraken) — taken from a notification's "Undo" button. */
   lastUndo = $state.raw<{ title: string; fingerprint: string; run: () => void } | null>(null);
-  /** Thông báo có "Hoàn tác" vừa hiện, chưa làm mới xong: chốt dấu vân tay sau lần làm mới của thao tác. */
+  /** A notification with an "Undo" button has just appeared and has not finished refreshing: lock the fingerprint until that operation's refresh completes. */
   pendingUndoFingerprint = $state(false);
-  /** Ô soạn commit (giữ khi chuyển qua lại giữa WIP và commit khác). */
+  /** The commit editor (kept when switching between WIP and other commits). */
   commitDraft = $state({ summary: '', body: '', amend: false });
-  /** Dòng thời gian (snapshot tự động) — panel bên phải thay cho chi tiết khi mở. */
+  /** The timeline (automatic snapshots) — replaces the right-hand details panel when open. */
   readonly timeline: TimelineStore;
-  /** Lịch sử một file — panel bên phải thay cho chi tiết khi mở. */
+  /** A file's history — replaces the right-hand details panel when open. */
   readonly fileHistory: FileHistoryStore;
-  /** Review một Pull Request / Merge Request — panel bên phải thay cho chi tiết khi mở. */
+  /** Reviewing a Pull Request / Merge Request — replaces the right-hand details panel when open. */
   readonly review: ReviewStore;
-  /** Blame một file — vùng giữa (thay graph) khi mở, dưới diff nếu có diff đang mở. */
+  /** Blame of a file — the centre pane (replacing the graph) when open, below the diff when a diff is open. */
   readonly blame: BlameStore;
-  /** Cờ rủi ro của thay đổi chưa commit (dải cảnh báo trên panel WIP). */
+  /** Risk flags of the uncommitted changes (the warning strip on the WIP panel). */
   readonly risks: RiskStore;
 
-  // --- nội bộ (không phản ứng) ---
+  // --- internal (non-reactive) ---
   private rowIndex = new Map<string, number>();
   private refIndex = new Map<string, GitRef>();
   private rawCommits: Commit[] = [];
   private refsFingerprint = '';
-  /** Giới hạn commit TRƯỚC lần tải thêm đang chờ/chạy (khác `null` = đang tải thêm); lỗi thì trả `commitLimit` về đây. */
+  /** The commit limit BEFORE a pending / running "load more" (different from `null` = a load is running); on error it falls back to `commitLimit`. */
   private loadMoreBase: number | null = null;
-  /** Chủ sở hữu mọi toast của store này (gỡ hết khi `dispose`) và tag riêng cho lỗi làm mới (không đè/xoá nhầm repo khác). */
+  /** The owner of every toast of this store (all removed on `dispose`) plus its own tag for refresh errors (so another repo's toast is never overwritten / removed). */
   private readonly ownerId: string;
   private readonly refreshErrorTag: string;
   private active = false;
@@ -281,7 +284,7 @@ export class RepoStore {
       log: this.commandLog,
       typed: port.typedGit,
     });
-    // Getter trong object literal bên dưới có `this` của riêng nó, nên cần tên khác để trỏ về store.
+    // A getter in the object literal below has its own `this`, so the store needs a different name to refer back to.
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const store = this;
     this.diff = new DiffStore({
@@ -349,12 +352,12 @@ export class RepoStore {
     });
   }
 
-  /** App đang chạy (hoặc xếp hàng) thao tác ghi trên repo này. */
+  /** The app is running (or queueing) a write operation on this repo. */
   get isPerforming(): boolean {
     return this.runningOperations > 0;
   }
 
-  /** Nghe "working tree đổi" (sự kiện watcher) — bộ lập lịch snapshot dùng. Trả hàm gỡ. */
+  /** Listen for "the working tree changed" (the watcher event) — the snapshot scheduler uses this. Returns an unsubscribe function. */
   onWorkingTreeChange(listener: () => void): () => void {
     this.workingTreeListeners.add(listener);
     return () => this.workingTreeListeners.delete(listener);
@@ -364,7 +367,7 @@ export class RepoStore {
     return this.git.name;
   }
 
-  /** Cài đặt đang dùng (kiểu pull, fetch --prune, tự fetch…) cho các thao tác ở `actions/`. */
+  /** The preferences in effect (pull mode, fetch --prune, autofetch…) for the operations in `actions/`. */
   get preferences(): PrefsData {
     return this.prefs.value;
   }
@@ -373,9 +376,9 @@ export class RepoStore {
     return this.port.info.root;
   }
 
-  // MARK: - Vòng đời
+  // MARK: - Lifecycle
 
-  /** Nạp lần đầu và bắt đầu nghe `repo-changed`. Gọi một lần. */
+  /** Load once and start listening for `repo-changed`. Call it once. */
   async start(): Promise<void> {
     if (this.active || this.disposed) return;
     this.active = true;
@@ -389,13 +392,13 @@ export class RepoStore {
     }
   }
 
-  /** Dừng theo dõi và bỏ kết quả của mọi việc đang chạy dở. */
+  /** Stop watching and discard the result of everything still in flight. */
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
     this.active = false;
     this.detailsToken++;
-    // Toast của repo đã đóng mang nút gọi vào store này (Xem lại cấu hình, Tải thêm…): bấm vào sẽ tác động lên repo không còn mở.
+    // A toast of the closed repo may carry a button calling into this store (Review config, Load more…): clicking it would act on a repo that is no longer open.
     this.toasts.dismissOwner(this.ownerId);
     this.diff.close();
     this.risks.dispose();
@@ -405,7 +408,7 @@ export class RepoStore {
     if (stop) await stop().catch(() => undefined);
   }
 
-  // MARK: - Thuộc tính tiện dụng
+  // MARK: - Convenience accessors
 
   get headOid(): string | null {
     return headOid(this.status.head);
@@ -427,7 +430,7 @@ export class RepoStore {
     }
   }
 
-  /** "main ↑2 ↓1 · Đang merge" — dòng phụ dưới tên repo. */
+  /** "main ↑2 ↓1 · Merging" — the subtitle under the repo name. */
   get branchSubtitle(): string {
     const parts = [this.headDescription];
     if (this.status.ahead > 0) parts.push(`↑${this.status.ahead}`);
@@ -436,12 +439,12 @@ export class RepoStore {
     return parts.join(' ');
   }
 
-  /** Ref của nhánh đang checkout (không có khi HEAD tách rời / repo chưa có commit). */
+  /** The checked-out branch's ref (absent when HEAD is detached / the repo has no commits). */
   get currentBranchRef(): GitRef | undefined {
     return this.localBranches.find((ref) => ref.isHead);
   }
 
-  /** Remote dùng khi push nhánh chưa có upstream: remote của upstream hiện tại, rồi `origin`, rồi remote đầu tiên. */
+  /** The remote to push to for a branch without an upstream: the current upstream's remote, then `origin`, then the first remote. */
   get defaultRemote(): string | null {
     const upstream = this.currentBranchRef?.upstream;
     const fromUpstream = upstream ? this.splitUpstream(upstream)?.remote : undefined;
@@ -449,14 +452,14 @@ export class RepoStore {
     return this.remotes.find((remote) => remote.name === 'origin')?.name ?? this.remotes[0]?.name ?? null;
   }
 
-  /** Nhánh local gần đây nhất (nhánh hiện tại đứng đầu) — menu đổi nhánh chỉ liệt kê chừng này. */
+  /** The most recent local branches (the current one first) — the branch switch menu lists only these. */
   recentLocalBranches(limit: number): readonly GitRef[] {
     if (this.localBranches.length <= limit) return this.localBranches;
     const rank = (ref: GitRef): number => (ref.isHead ? Number.POSITIVE_INFINITY : (ref.date ?? 0));
     return [...this.localBranches].sort((a, b) => rank(b) - rank(a)).slice(0, limit);
   }
 
-  /** Tách "origin/feature/x" thành remote + nhánh theo danh sách remote (remote có `/` trong tên vẫn đúng). */
+  /** Split "origin/feature/x" into remote + branch using the remote list (a remote whose name contains `/` still works). */
   splitUpstream(upstream: string): { remote: string; branch: string } | null {
     const match = [...this.remotes]
       .sort((a, b) => b.name.length - a.name.length)
@@ -473,7 +476,7 @@ export class RepoStore {
     return !isStatusClean(this.status) || this.operation !== null;
   }
 
-  /** Hàng của mục đang chọn (phản ứng theo `selection` và `graphVersion`). */
+  /** The row of the selected item (reactive to `selection` and `graphVersion`). */
   get selectedRow(): number | null {
     void this.graphVersion;
     return this.rowFor(this.selection);
@@ -499,13 +502,13 @@ export class RepoStore {
     return this.refIndex.get(fullName);
   }
 
-  // MARK: - Làm mới dữ liệu
+  // MARK: - Refreshing data
 
   refreshEverything(): void {
     this.requestRefresh(Scope.all);
   }
 
-  /** Gộp các yêu cầu đang chờ thành một lượt làm mới kế tiếp (không phải debounce: lượt đang chạy không bị huỷ). */
+  /** Merge the pending requests into one next refresh pass (not a debounce: a running pass is never cancelled). */
   requestRefresh(scope: RefreshScope): void {
     this.pendingRefresh |= scope;
     if (this.refreshTask !== null || this.disposed || this.pendingRefresh === 0) return;
@@ -537,8 +540,8 @@ export class RepoStore {
     const wantsStatus = (scope & Scope.status) !== 0 || first;
     const git = this.git;
 
-    // Lần đầu: lịch sử chạy song song với refs/status. HEAD chưa biết nên luôn thêm `HEAD` vào log; repo mà HEAD chưa có
-    // commit nhưng vẫn có nhánh khác được xử lý bên dưới.
+    // The first time: history runs in parallel with refs / status. HEAD is still unknown, so `HEAD` is always added to the log; a repo whose HEAD has no
+    // commit but which has other branches is handled below.
     const firstLog = first ? settle(this.fetchLog(true)) : null;
     const [
       statusResult,
@@ -570,7 +573,7 @@ export class RepoStore {
         this.toasts.dismissTag(this.refreshErrorTag);
         if (!jsonEqual(statusResult.value, this.status)) this.status = statusResult.value;
         this.risks.schedule();
-        // Diff của thay đổi chưa commit đang mở: nạp lại (file vừa sửa / stage) hoặc đóng nếu file không còn.
+        // A diff of uncommitted changes is open: reload it (the file was just edited / staged) or close it when the file is gone.
         this.diff.statusDidChange();
       } else {
         this.reportRefreshFailure(vi.errors.status, statusResult.error);
@@ -591,7 +594,7 @@ export class RepoStore {
       }
     }
     if (remoteResult?.ok && !jsonEqual(remoteResult.value, this.remotes)) this.remotes = remoteResult.value;
-    // Worktree / submodule / LFS chỉ để hiện ở sidebar: lỗi (git cũ, repo lạ) thì giữ danh sách cũ, không báo.
+    // Worktrees / submodules / LFS only feed the sidebar: on error (old git, untrusted repo) keep the old lists and report nothing.
     if (worktreeResult?.ok && !jsonEqual(worktreeResult.value, this.worktrees))
       this.worktrees = worktreeResult.value;
     if (submoduleResult?.ok && !jsonEqual(submoduleResult.value, this.submodules)) {
@@ -601,7 +604,7 @@ export class RepoStore {
       this.lfsPatterns = lfsPatternResult.value;
     }
     if (lfsVersionResult?.ok) this.lfsVersion = lfsVersionResult.value;
-    // Lỗi khi kiểm (git quá cũ…) không đáng báo: chỉ là không hiện thanh gợi ý.
+    // An error while probing (git too old…) is not worth reporting: it just means no hint bar is shown.
     if (gapsResult?.ok && !jsonEqual(gapsResult.value, this.historyGaps)) this.historyGaps = gapsResult.value;
     if (operationResult?.ok && !jsonEqual(operationResult.value, this.operation)) {
       this.operation = operationResult.value;
@@ -637,7 +640,7 @@ export class RepoStore {
     const byName = (a: GitRef, b: GitRef): number => compareNatural(refName(a), refName(b));
     this.localBranches = value.filter((ref) => ref.kind === 'localBranch').sort(byName);
     this.remoteBranches = value.filter((ref) => ref.kind === 'remoteBranch').sort(byName);
-    // Tag mới nhất (theo tên số lớn) lên trước, như Swift (`orderedDescending`).
+    // The newest tag (by numeric name) first, like Swift (`orderedDescending`).
     this.tags = value.filter((ref) => ref.kind === 'tag').sort((a, b) => byName(b, a));
   }
 
@@ -653,18 +656,18 @@ export class RepoStore {
     });
   }
 
-  /** Đổi bộ lọc nhánh trên graph: lưu theo repo rồi nạp lại lịch sử. */
+  /** Change the graph's branch filter: persist it per repo, then reload history. */
   setGraphFilter(filter: GraphRefFilter): void {
     this.graphFilter = filter;
     saveGraphFilter(this.rootPath, filter);
     this.requestRefresh(Scope.history);
   }
 
-  /** Nạp lịch sử + xếp làn rồi dựng graph. `pending`: log đã chạy sẵn song song ở lần nạp đầu. */
+  /** Load history, lay out the lanes, then build the graph. `pending`: the log already ran in parallel during the first load. */
   private async loadHistory(pending: Promise<Settled<Uint8Array>> | null): Promise<void> {
     this.isLoadingHistory = true;
-    // Lần nạp này dùng giới hạn đã nới (do `loadMoreHistory`) hay không: `fetchLog` chạy ngay bên dưới nên `commitLimit` lúc này chính là
-    // giá trị nó dùng. Chỉ lần nạp ĐÓ mới được xoá `loadMoreBase` / trả giới hạn về cũ — lần nạp khác đang chạy dở không liên quan.
+    // Whether this load uses the raised limit (from `loadMoreHistory`) or not: `fetchLog` runs right below, so `commitLimit` here is exactly
+    // the value it uses. Only THAT load may clear `loadMoreBase` / put the limit back — an unrelated load in flight is not affected.
     const raisedFrom = this.loadMoreBase;
     try {
       const head = headOid(this.status.head);
@@ -677,15 +680,15 @@ export class RepoStore {
         this.refs.length > 0 &&
         !this.disposed
       ) {
-        // HEAD chưa có commit (nhánh mồ côi) nhưng repo vẫn có nhánh khác: chạy lại không kèm `HEAD`.
+        // HEAD has no commits yet (an orphan branch) but the repo has other branches: run again without `HEAD`.
         result = await settle(this.fetchLog(false));
       }
       if (this.disposed) return;
       if (!result.ok) {
         this.historyError = describeError(result.error);
         if (raisedFrom !== null && this.loadMoreBase === raisedFrom) {
-          // Tải thêm hỏng: bỏ giới hạn đã nới (không thì lần sau nới tiếp trên nền hỏng), dừng tải thêm tự động, và cho người
-          // dùng một nút thử lại ngay trên thông báo.
+          // Loading more failed: drop the raised limit (otherwise the next attempt raises it again on top of the failure), stop the automatic
+          // loading, and give the user a Retry button right in the notification.
           this.commitLimit = raisedFrom;
           this.loadMoreFailed = true;
           this.reportFailure(vi.errors.history, result.error, {
@@ -708,7 +711,7 @@ export class RepoStore {
     }
   }
 
-  /** WIP vừa hiện/ẩn: dựng lại từ commit đã tải, không chạy lại git. */
+  /** WIP just shown / hidden: rebuild from the commits already loaded, without running git again. */
   private relayoutGraph(): void {
     const history = buildHistory(this.rawCommits, {
       limit: this.commitLimit,
@@ -718,14 +721,15 @@ export class RepoStore {
     this.applyGraph(history.commits, history.rows);
   }
 
-  /** Còn commit cũ hơn VÀ giới hạn chưa chạm trần (`COMMIT_LIMIT_MAX`): đã chạm trần thì tải thêm cũng vô ích. */
+  /** Older commits remain AND the limit has not hit its cap (`COMMIT_LIMIT_MAX`): once the cap is hit, loading more is pointless. */
   get canLoadMore(): boolean {
     return this.mayHaveMoreCommits && this.commitLimit < COMMIT_LIMIT_MAX;
   }
 
   /**
-   * Tải thêm commit cũ hơn: nới giới hạn (kẹp ≤ `COMMIT_LIMIT_MAX`) rồi nạp lại lịch sử (như Swift). Lời gọi TỰ ĐỘNG (cuộn gần
-   * cuối graph) bị bỏ qua khi lần tải thêm trước hỏng (`loadMoreFailed`); `byUser = true` (bấm nút) thì thử lại và xoá cờ.
+   * Load older commits: raise the limit (clamped to ≤ `COMMIT_LIMIT_MAX`), then reload history (like Swift). An AUTOMATIC call
+   * (scrolling near the bottom of the graph) is ignored while the previous attempt failed (`loadMoreFailed`); `byUser = true`
+   * (a button click) retries and clears the flag.
    */
   loadMoreHistory(byUser = false): void {
     if (this.disposed || !this.canLoadMore || this.isLoadingHistory || this.loadMoreBase !== null) return;
@@ -757,7 +761,7 @@ export class RepoStore {
     this.validateSelection();
   }
 
-  /** Cập nhật nhãn nhánh/tag trên graph mà không dựng lại cả lịch sử (vd. đổi upstream). */
+  /** Update the graph's branch / tag labels without rebuilding the whole history (e.g. an upstream change). */
   private refreshLabels(): void {
     const labels = this.labelsByCommit();
     let next: GraphEntry[] | undefined;
@@ -774,7 +778,7 @@ export class RepoStore {
   }
 
   private labelsByCommit(): Map<string, RefLabel[]> {
-    // Nhánh đang ẩn (hoặc ngoài nhóm solo) không có nhãn; nhánh đang checkout và tag luôn hiện.
+    // A hidden branch (or one outside the solo group) has no label; the checked-out branch and tags are always shown.
     const current = this.currentBranch;
     const filter = this.graphFilter;
     const refs = refFilterActive(filter)
@@ -811,9 +815,9 @@ export class RepoStore {
     }
   }
 
-  // MARK: - Theo dõi file
+  // MARK: - Watching files
 
-  /** Sự kiện đã debounce/lọc gitignore ở Rust: đổi thành phạm vi làm mới rồi chạy luôn, không debounce thêm. */
+  /** An event already debounced / gitignore-filtered in Rust: turn it into a refresh scope and run immediately, with no extra debounce. */
   handleChange(event: RepoChangedEvent): void {
     if (!this.active || this.disposed) return;
     let scope = 0;
@@ -824,14 +828,14 @@ export class RepoStore {
     if (event.kinds.includes('workingTree') || event.kinds.includes('rescan')) {
       for (const listener of this.workingTreeListeners) listener();
     }
-    // Đang chạy thao tác của chính app: việc làm mới diễn ra ngay sau khi thao tác xong (xem `perform`).
+    // The app's own operation is running: the refresh happens right after it finishes (see `perform`).
     if (this.runningOperations > 0) this.fileSystemPending |= scope;
     else this.requestRefresh(scope);
   }
 
-  // MARK: - Chọn commit / stash
+  // MARK: - Selecting commits / stashes
 
-  /** Người dùng chọn (graph, sidebar, tìm kiếm): luôn đóng Dòng thời gian / Lịch sử file / Review để panel phải hiện đúng mục vừa chọn. */
+  /** The user's selection (graph, sidebar, search): always closes the Timeline / File history / Review so the panel shows exactly what was selected. */
   select(next: RepoSelection, reveal = false): void {
     this.timeline.close();
     this.fileHistory.close();
@@ -839,11 +843,11 @@ export class RepoStore {
     this.applySelection(next, reveal);
   }
 
-  /** Chọn mà không đóng Dòng thời gian — lựa chọn tự động khi nạp / làm mới (vd. WIP biến mất sau khi khôi phục). */
+  /** Select without closing the Timeline — used for automatic selection after a load / refresh (e.g. WIP disappearing after a restore). */
   private applySelection(next: RepoSelection, reveal = false): void {
     if (!sameSelection(next, this.selection)) {
       this.selection = next;
-      // Như Swift: chọn commit / stash / WIP khác thì đóng file đang xem (diff, blame), quay về graph.
+      // Like Swift: selecting another commit / stash / WIP closes the open file (diff, blame) and returns to the graph.
       this.diff.close();
       this.blame.close();
       this.loadDetails();
@@ -855,8 +859,8 @@ export class RepoStore {
   }
 
   /**
-   * Chọn commit `sha` và cuộn tới nó; trả `true` nếu đã chọn. Commit ngoài phần đã tải thì không chọn gì, báo kèm nút "Tải thêm"
-   * và trả `false` — nơi gọi (sidebar) không được coi như đã chọn.
+   * Select commit `sha` and scroll to it; `true` when it got selected. A commit outside the loaded range selects nothing, reports it
+   * with a "Load more" button, and returns `false` — the caller (sidebar) must not treat that as a selection.
    */
   reveal(sha: string): boolean {
     if (this.rowIndex.has(sha)) {
@@ -892,7 +896,7 @@ export class RepoStore {
         }
         this.isLoadingDetails = true;
         void (async () => {
-          // Trễ một chút để lướt nhanh bằng phím mũi tên không tạo quá nhiều lệnh git.
+          // A short delay so fast arrowing does not spawn too many git commands.
           await new Promise((resolve) => setTimeout(resolve, this.detailsDelayMs));
           if (token !== this.detailsToken) return;
           const result = await settle(this.git.commitDetails(commit));
@@ -945,14 +949,14 @@ export class RepoStore {
     }
   }
 
-  // MARK: - Thông báo
+  // MARK: - Notifications
 
   showError(title: string, error: unknown, actions: readonly ToastAction[] = []): void {
     if (this.disposed) return;
     this.toasts.error(title, error, { actions, owner: this.ownerId });
   }
 
-  /** Thông báo của repo này cho các thao tác ở `actions/` (gỡ khi đóng repo, không hiện sau `dispose`). */
+  /** This repo's notifications for the operations in `actions/` (removed when the repo closes, never shown after `dispose`). */
   notify(
     style: 'info' | 'success' | 'warning',
     title: string,
@@ -967,7 +971,7 @@ export class RepoStore {
     }
   }
 
-  /** Dấu vân tay trạng thái cho nút Undo: HEAD + nhánh + danh sách file thay đổi. */
+  /** The state fingerprint guarding the Undo button: HEAD + branch + the list of changed files. */
   get undoFingerprint(): string {
     const files = [
       ...this.status.staged.map((change) => `s:${change.path}`),
@@ -977,7 +981,7 @@ export class RepoStore {
     return [this.headOid ?? '-', this.currentBranch ?? '-', ...files].join('\n');
   }
 
-  /** Nút Undo bấm được: có thao tác hoàn tác được và repo chưa đổi gì kể từ đó (tránh đè lên việc mới). */
+  /** Whether the Undo button is clickable: there is an undoable operation and the repo has not changed since (so it never overwrites newer work). */
   get canUndoLast(): boolean {
     const undo = this.lastUndo;
     return undo !== null && !this.pendingUndoFingerprint && undo.fingerprint === this.undoFingerprint;
@@ -990,7 +994,7 @@ export class RepoStore {
     undo.run();
   }
 
-  /** Toast thường của store này: có chủ sở hữu (gỡ khi đóng repo) và không hiện sau `dispose`. */
+  /** A normal toast of this store: owned (removed when the repo closes) and never shown after `dispose`. */
   private toast(
     style: 'info' | 'success',
     title: string,
@@ -1001,9 +1005,10 @@ export class RepoStore {
   }
 
   /**
-   * Báo lỗi nạp dữ liệu (status/refs/lịch sử/chi tiết) qua MỘT bộ phân loại: lỗi theo mã của lõi (`not-found`, `untrusted`) thành
-   * một cảnh báo rõ ràng chung tag — nên status, refs, lịch sử và chi tiết cùng hỏng một lý do chỉ hiện MỘT thông báo, không kèm
-   * thêm lỗi git thô. Lỗi khác hiện nguyên văn với `title` (kèm `tag` nếu có để lần sau thay lần trước).
+   * Report a data-loading error (status / refs / history / details) through ONE classifier: errors keyed by the core's codes
+   * (`not-found`, `untrusted`) become a single clear warning with a shared tag — so when status, refs, history and details all
+   * break for one reason only ONE notification appears, with no raw git error attached. Every other error is shown verbatim
+   * with its `title` (plus `tag` when present, so the next one replaces the previous).
    */
   private reportFailure(
     title: string,
@@ -1013,7 +1018,7 @@ export class RepoStore {
     if (this.disposed) return;
     const code = (error as { code?: unknown } | null)?.code;
     if (code === 'not-found') {
-      // Thư mục repo bị xoá/đổi tên: một cảnh báo rõ ràng thay vì lỗi git khó hiểu.
+      // The repo directory was deleted or renamed: one clear warning instead of a cryptic git error.
       this.toasts.error(vi.errors.repoMissing, undefined, {
         message: this.rootPath,
         tag: this.refreshErrorTag,
@@ -1050,11 +1055,12 @@ export class RepoStore {
     }
   }
 
-  // MARK: - Hàng đợi thao tác ghi
+  // MARK: - Write operation queue
 
   /**
-   * Chạy một thao tác git qua hàng đợi tuần tự (tránh tranh chấp index.lock; Rust cũng khoá theo `commonDir`), tự làm mới khi
-   * xong và hiện lỗi dạng toast. `work` nhận `signal` (chỉ lệnh `network` huỷ được). Trả khi thao tác và lần làm mới sau nó đã xong.
+   * Run a git operation through the sequential queue (avoiding index.lock contention; Rust also locks per `commonDir`), refresh
+   * automatically when it finishes and show errors as toasts. `work` receives a `signal` (only `network` commands are
+   * cancellable). Returns once both the operation and the refresh after it are done.
    */
   perform(
     title: string,
@@ -1094,14 +1100,14 @@ export class RepoStore {
       }
     };
     const task = run();
-    // Chuỗi không bao giờ reject: một thao tác hỏng không chặn các thao tác sau.
+    // The chain never rejects: a failed operation must not block the ones after it.
     this.operationChain = task.catch(() => undefined);
     return task;
   }
 
   /**
-   * Hàm nhận dòng tiến độ của git (`--progress`) cho thanh bận: chữ + phần trăm, cập nhật tối đa ~12 lần/giây (Swift: 80 ms)
-   * để repo lớn không làm giao diện giật.
+   * Handles git's `--progress` output lines for the busy bar: text + percentage, updated at most ~12 times per second (Swift:
+   * 80 ms) so a large repo does not make the UI stutter.
    */
   progressReporter(): (line: string) => void {
     return (line) => {

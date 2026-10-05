@@ -1,5 +1,5 @@
 /**
- * Chuỗi của Dòng thời gian (snapshot tự động của thư mục làm việc). Truy cập qua `vi.snapshots.*`.
+ * Strings for the Timeline (automatic snapshots of the working tree). Reached through `vi.snapshots.*`.
  */
 export const snapshots = {
   title: 'Dòng thời gian',

@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `palette.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `palett.vi.ts` (same keys, same parameters). */
 import type { palette as source } from './palette.vi.ts';
 import type { Translation } from './types.ts';
 

@@ -1,19 +1,20 @@
 import Foundation
 import NhanhCore
 
-/// Trạng thái panel Dòng thời gian (snapshot tự động của thư mục làm việc).
+/// Timeline panel state (automatic snapshots of the working tree).
 struct TimelineState {
     var isOpen = false
     var entries: [SnapshotEntry] = []
     var isLoading = false
     var selected: SnapshotEntry?
-    /// Mốc đã chọn so với "bây giờ" (mốc chụp ngay lúc chọn, nên thấy cả file chưa track).
+    /// The selected milestone compared against "now" (captured at selection time, so untracked files show up too).
     var comparison: (target: SnapshotEntry, now: SnapshotEntry, files: [FileChange])?
     var isComparing = false
 }
 
-/// Dòng thời gian: tự lưu khi working tree đổi (đợi file yên, không dày hơn khoảng tối thiểu — cùng thông số với app Tauri),
-/// xem / so sánh / khôi phục mốc có hỏi trước và Hoàn tác. Cửa sổ ẩn vẫn chụp: agent AI thường sửa file lúc app nằm nền.
+/// The timeline: captures automatically when the working tree changes (waiting for stillness, no more often than a minimum
+/// interval — the same settings as the Tauri app), and offers view / compare / restore of a milestone with a
+/// confirmation and Undo. Hidden windows still capture: an AI agent often edits files while the app is in the background.
 extension RepoModel {
     var snapshotsEnabledForRepo: Bool {
         Prefs.snapshotsEnabledValue && !Prefs.snapshotsDisabledReposValue.contains(repository.root.path)
@@ -25,13 +26,13 @@ extension RepoModel {
         var list = Prefs.snapshotsDisabledReposValue.filter { $0 != repository.root.path }
         if !enabled { list.append(repository.root.path) }
         Prefs.snapshotsDisabledReposValue = list
-        // Đổi cài đặt ngoài @Observable: gán lại để giao diện vẽ lại.
+        // A setting changed outside @Observable: reassign so the UI repaints.
         timeline.isOpen = timeline.isOpen
     }
 
-    // MARK: - Tự lưu
+    // MARK: - Auto capture
 
-    /// Working tree vừa đổi (hoặc vừa mở repo): hẹn chụp sau khi file yên, mỗi thay đổi mới đẩy lùi.
+    /// The working tree just changed (or the repo was just opened): schedule a capture once the files settle, pushed back by every new change.
     func noteWorkingTreeChangeForSnapshots() {
         snapshotTask?.cancel()
         snapshotTask = Task { [weak self] in
@@ -46,7 +47,7 @@ extension RepoModel {
             try? await Task.sleep(for: .seconds(wait))
             guard !Task.isCancelled else { return }
             guard snapshotsEnabledForRepo else { return }
-            // Đang chạy thao tác của app: đợi xong rồi chụp.
+            // The app is running one of its own operations: wait for it, then capture.
             if runningOperations > 0 { continue }
             do {
                 try await repository.takeSnapshot(reason: .auto)
@@ -60,7 +61,7 @@ extension RepoModel {
                 }
                 if timeline.isOpen { await reloadTimeline() }
             } catch {
-                // Lỗi (repo hỏng, git thiếu…): bỏ lần này; khoảng tối thiểu tránh thử lại dồn dập. Chi tiết không hiện ra ngoài.
+                // A failure (broken repo, missing git…): skip this round; the minimum interval prevents a rapid retry storm. No detail ever reaches the UI.
                 lastSnapshotAt = Date()
             }
             return
@@ -131,7 +132,7 @@ extension RepoModel {
         }
     }
 
-    /// Khôi phục `paths` (nil = tất cả) về mốc đã chọn — hỏi trước, có Hoàn tác.
+    /// Restore `paths` (nil = everything) to the selected milestone — asks first, and offers Undo.
     func restoreSelectedSnapshot(paths: [String]?) {
         guard let comparison = timeline.comparison else { return }
         let count = paths?.count ?? comparison.files.count
@@ -180,7 +181,7 @@ extension RepoModel {
     }
 }
 
-/// Cờ rủi ro trước khi commit: tính lại sau mỗi lần làm mới trạng thái (gom các lần sát nhau). Chỉ là gợi ý — lỗi thì im lặng.
+/// Pre-commit risk flags: recomputed after each status refresh (close-together refreshes are batched). Advisory only — a failure stays silent.
 extension RepoModel {
     func scheduleRiskCheck() {
         riskTask?.cancel()

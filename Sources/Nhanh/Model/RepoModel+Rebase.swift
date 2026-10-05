@@ -2,8 +2,8 @@ import Foundation
 import NhanhCore
 
 extension RepoModel {
-    /// Hộp Blame cho file đang xem: file của commit thì blame tại commit đó, file đang sửa thì blame bản trên đĩa.
-    /// nil khi file đã bị xoá hoặc thuộc stash (không nằm trong lịch sử).
+    /// The Blame dialog for the file on screen: for a commit's file it blames at that commit, for a file being edited it blames the version on disk.
+    /// nil when the file was deleted or comes from a stash (not part of history).
     func blameSheet(for file: OpenFile) -> RepoSheet? {
         guard file.change.kind != .deleted else { return nil }
         switch file.source {
@@ -13,13 +13,13 @@ extension RepoModel {
         }
     }
 
-    /// Commit đang chọn trên graph (nil khi chọn WIP / stash / không chọn gì).
+    /// The commit selected on the graph (nil when the WIP / a stash is selected, or nothing is).
     var selectedCommit: Commit? {
         if case .commit(let sha) = selection { return commit(for: sha) }
         return nil
     }
 
-    /// Có interactive rebase được từ `commit` không: commit nằm trên nhánh hiện tại và không phải HEAD.
+    /// Whether an interactive rebase can start from `commit`: it is on the current branch and isn't HEAD.
     func canInteractiveRebase(from commit: Commit) -> Bool {
         !commit.isWorkingTree && commit.id != headOID && headOID != nil && operation == nil
     }
@@ -32,7 +32,7 @@ extension RepoModel {
         sheet = .interactiveRebase(base: commit.id, label: commit.shortSHA)
     }
 
-    /// Chạy kế hoạch interactive rebase (cũ trước mới sau) lên `base`. Hoàn tác = đưa nhánh về đúng commit cũ.
+    /// Run an interactive rebase plan (old → new) onto `base`. Undo = moving the branch back to exactly the old commit.
     func interactiveRebase(base: String, steps: [RebaseStep], doneTitle: String? = nil) {
         let previousHead = headOID
         let branch = currentBranch ?? "HEAD"
@@ -57,9 +57,9 @@ extension RepoModel {
         }
     }
 
-    // MARK: - Thao tác nhanh trên một commit (menu chuột phải, như GitKraken)
+    // MARK: - Quick actions on one commit (right-click menu, like GitKraken)
 
-    /// Sửa message / xoá / đổi chỗ chỉ cho commit thường (một cha) khi đang đứng trên nhánh, không có thao tác dở.
+    /// Reword / drop / reorder only apply to an ordinary commit (one parent) while on a branch with no operation in flight.
     func canRewrite(_ commit: Commit) -> Bool {
         commit.parents.count == 1 && currentBranch != nil && operation == nil
     }
@@ -69,7 +69,7 @@ extension RepoModel {
         sheet = .rewordCommit(sha: commit.id, label: commit.shortSHA)
     }
 
-    /// Sửa message của `sha` (rebase từ cha của nó).
+    /// Reword `sha` (rebasing from its parent).
     func reword(_ sha: String, message: String) {
         guard let commit = commit(for: sha), let base = commit.parents.first else { return }
         quickRebase(base: base, sha: sha, doneTitle: String(localized: "Đã sửa message commit")) { commits in
@@ -92,7 +92,7 @@ extension RepoModel {
         }
     }
 
-    /// Đổi chỗ với commit liền sau (`up`) hoặc liền trước; đưa xuống cần cha cũng là commit thường (rebase từ ông của nó).
+    /// Swap with the next (`up`) or previous commit; moving down requires an ordinary parent too (rebase from its grandparent).
     func move(_ commit: Commit, up: Bool) {
         guard canRewrite(commit), let parent = commit.parents.first else { return }
         var base = parent
@@ -108,7 +108,7 @@ extension RepoModel {
         }
     }
 
-    /// Đọc các commit sau `base`, dựng kế hoạch, kiểm rồi chạy; không dựng / không hợp lệ được thì báo lý do.
+    /// Read the commits after `base`, build a plan, validate it and run it; when it can't be built or is invalid the reason is reported.
     private func quickRebase(base: String, sha: String, doneTitle: String, plan: @escaping ([Commit]) -> [RebaseStep]?) {
         guard operation == nil else {
             toast(.warning, String(localized: "Đang \(operation?.shortName ?? "dở thao tác") — hãy hoàn tất hoặc huỷ trước"))
@@ -139,7 +139,7 @@ extension RepoModel {
         }
     }
 
-    /// Commit dạng patch (áp lại được bằng `git am`) vào clipboard.
+    /// The commit as a patch (reappliable with `git am`) on the clipboard.
     func copyPatch(_ commit: Commit) {
         Task { [weak self] in
             guard let self else { return }

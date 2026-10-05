@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Mục "Tài khoản GitLab" trong thẻ Tài khoản: gitlab.com (đăng nhập bằng mã hoặc token) và GitLab tự host (token).
+/// The "GitLab accounts" item in the Accounts tab: gitlab.com (device-code sign-in or a token) and self-hosted GitLab (token).
 struct GitLabAccountsSection: View {
     @Bindable private var gitlab = GitLabAccountManager.shared
     @State private var removing: GitLabAccount?
@@ -69,7 +69,7 @@ struct GitLabAccountsSection: View {
     }
 }
 
-/// Hộp đăng nhập gitlab.com bằng mã: hiện mã, mở trang xác nhận, chờ người dùng bấm Authorize.
+/// The gitlab.com device-code sign-in dialog: shows the code, opens the confirmation page, waits for the user to press Authorize.
 private struct GitLabLoginSheet: View {
     @Bindable private var gitlab = GitLabAccountManager.shared
     @Environment(\.dismiss) private var dismiss
@@ -113,7 +113,7 @@ private struct GitLabLoginSheet: View {
     }
 }
 
-/// Hộp thêm tài khoản GitLab bằng personal access token (gitlab.com hoặc máy chủ tự host).
+/// The dialog adding a GitLab account with a personal access token (gitlab.com or a self-hosted server).
 private struct GitLabTokenSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var host = GitLabAccountManager.defaultHost

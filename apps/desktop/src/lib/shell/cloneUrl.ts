@@ -1,13 +1,13 @@
-// Kiểm URL clone ở phía giao diện (lõi Rust kiểm lại theo git-policy): từ chối transport chạy lệnh (`ext::`, `fd::`), URL
-// bắt đầu bằng "-" (bị hiểu thành tuỳ chọn); cảnh báo URL chứa mật khẩu / token (sẽ nằm nguyên trong `.git/config`);
-// đoán tên thư mục như `git clone`.
+// Clone URL validation on the UI side (the Rust core re-checks per git-policy): reject command-running
+// transports (`ext::`, `fd::`) and URLs starting with `-` (parsed as an option); warn about URLs carrying a
+// password / token (it would sit verbatim in `.git/config`); guess the folder name like `git clone` does.
 
 import { vi } from '../strings.vi.ts';
 
 export type CloneUrlCheck =
   | {
       readonly ok: true;
-      /** "github.com" · "gitlab.example.com:2222" · `vi.welcome.cloneLocalFolder` ("thư mục trên máy"). */
+      /** "github.com" · "gitlab.example.com:2222" · `vi.welcome.cloneLocalFolder` ("a folder on this machine"). */
       readonly host: string;
       /** "HoangThai18/thaigit". */
       readonly path: string;
@@ -16,7 +16,7 @@ export type CloneUrlCheck =
     }
   | { readonly ok: false; readonly reason: 'empty' | 'dangerous' | 'invalid' };
 
-/** Tên thư mục mặc định: phần cuối đường dẫn, bỏ ".git" và "/" thừa. */
+/** Default folder name: the last path segment with ".git" and trailing "/" stripped. */
 export function defaultDirectoryName(url: string): string {
   const trimmed = url
     .trim()
@@ -62,7 +62,7 @@ export function checkCloneUrl(input: string): CloneUrlCheck {
       return { ok: false, reason: 'invalid' };
     }
   }
-  // Kiểu scp: git@github.com:owner/repo.git
+  // scp style: git@github.com:owner/repo.git
   const scp = /^(?:[^@/\s]+@)?([^:/\s]+):(?!\/\/)(.+)$/.exec(url);
   if (scp && !/^[a-z]:[\\/]/i.test(url)) {
     return {
@@ -73,7 +73,7 @@ export function checkCloneUrl(input: string): CloneUrlCheck {
       defaultName,
     };
   }
-  // Đường dẫn trên máy (/a/b, C:\a\b, ../a).
+  // Local path (/a/b, C:\a\b, ../a).
   if (/^(\/|~|\.{1,2}[\\/]|[a-z]:[\\/])/i.test(url)) {
     return { ok: true, host: vi.welcome.cloneLocalFolder, path: url, hasCredentials: false, defaultName };
   }

@@ -1,6 +1,7 @@
-//! Test IPC THẬT qua runtime giả của Tauri (không mở cửa sổ): đối số đúng như phía TypeScript gửi (camelCase, `Channel`,
-//! thân byte thô + header), dạng lỗi `{ code, message }`, ACL của `capabilities/default.json` (chỉ cửa sổ `main`, chỉ lệnh
-//! của app) — dùng `generate_context!()` thật nên capability được kiểm đúng như bản chạy.
+//! REAL IPC tests through a fake Tauri runtime (no window opened): arguments exactly as the TypeScript side sends them
+//! (camelCase, `Channel`, a raw byte body plus headers), the `{ code, message }` error shape, the ACL of
+//! `capabilities/default.json` (only the `main` window, only the app's own commands) — they use the real
+//! `generate_context!()`, so the capability is verified exactly as in a running build.
 
 use std::sync::Arc;
 
@@ -40,8 +41,8 @@ fn harness() -> Harness {
     })
 }
 
-/// URL trang của webview do CHÍNH Tauri tính (`webview.url()`), không hard-code: origin "local" của ACL khác nhau theo nền tảng —
-/// `tauri://localhost` trên macOS/Linux, `http(s)://tauri.localhost` trên Windows/Android — và `devUrl` khi build dev.
+/// The webview page URL as computed by TAURI ITSELF (`webview.url()`), never hard-coded: the ACL's "local" origin differs
+/// per platform — `tauri://localhost` on macOS/Linux, `http(s)://tauri.localhost` on Windows/Android — and is the `devUrl` in a dev build.
 fn page_url(window: &WebviewWindow<MockRuntime>) -> String {
     window.url().expect("cửa sổ giả có URL").to_string()
 }
@@ -58,7 +59,7 @@ fn request_at(url: &str, cmd: &str, body: InvokeBody, headers: tauri::http::Head
     }
 }
 
-/// Yêu cầu IPC đến từ chính trang của cửa sổ (origin local).
+/// An IPC request coming from the window's own page (the local origin).
 fn request(window: &WebviewWindow<MockRuntime>, cmd: &str, body: InvokeBody, headers: tauri::http::HeaderMap) -> InvokeRequest {
     request_at(&page_url(window), cmd, body, headers)
 }
@@ -116,7 +117,7 @@ fn errors_cross_the_ipc_boundary_as_code_and_message() {
     assert_eq!(code(&error), "not-found");
     let error = json_call(&h.main, "repo_health", json!({ "repoId": "khong-co" })).unwrap_err();
     assert_eq!(code(&error), "not-found");
-    // đối số sai kiểu → lỗi của Tauri (chuỗi), không panic
+    // an argument of the wrong type → a Tauri error (a string), no panic
     assert!(json_call(&h.main, "repo_health", json!({ "wrong": 1 })).is_err());
 }
 
@@ -133,12 +134,12 @@ fn git_exec_runs_policy_checked_commands_and_rejects_attacks() {
             }),
         )
     };
-    // Lệnh hợp lệ chạy thật (commit rỗng tạo commit mới) và command trả `()`.
+    // a valid command really runs (an empty commit creates a new one) and the command returns `()`.
     assert_eq!(call("c1", "write", "commit", json!(["--allow-empty", "-m", "qua IPC"]), Value::Null).unwrap(), Value::Null);
     assert_eq!(h.repo.git(&["rev-list", "--count", "HEAD"]).trim(), "2");
     assert_eq!(h.repo.git(&["log", "-1", "--format=%s"]).trim(), "qua IPC");
     assert_eq!(call("s1", "read", "status", json!(["--porcelain=v2"]), json!({ "GIT_OPTIONAL_LOCKS": "0" })).unwrap(), Value::Null);
-    // Tấn công bị chặn trước khi chạy, với mã `policy`.
+    // the attack is blocked before running, with code `policy`.
     let marker = h.repo.tmp().join("pwned");
     let touch = format!("touch {}", marker.display());
     for (kind, sub, args, env) in [
@@ -153,9 +154,9 @@ fn git_exec_runs_policy_checked_commands_and_rejects_attacks() {
         assert_eq!(code(&error), "policy", "{sub}: {error}");
     }
     assert!(!marker.exists());
-    // opId trùng chữ hoa/ký tự lạ
+    // an opId with uppercase / odd characters
     assert_eq!(code(&call("../x", "read", "status", json!([]), Value::Null).unwrap_err()), "policy");
-    // JS không gửi được cwd/đường dẫn tuỳ ý: trường lạ bị bỏ qua, repo không có thì not-found
+    // JS cannot send an arbitrary cwd/path: unknown fields are ignored, and a missing repo yields not-found
     let error = json_call(&h.main, "git_exec", json!({ "req": { "repoId": "/etc", "opId": "x1", "kind": "read", "sub": "status", "args": [] }, "channel": "__CHANNEL__:8" })).unwrap_err();
     assert_eq!(code(&error), "not-found");
 }
@@ -166,7 +167,7 @@ fn raw_file_io_carries_bytes_and_percent_encoded_headers() {
     let id = h.repo_id.as_str();
     let rel = "tài liệu/ghi chú.txt";
     let encoded = "t%C3%A0i%20li%E1%BB%87u/ghi%20ch%C3%BA.txt";
-    // thư mục cha chưa có → not-found; tạo rồi ghi
+    // parent directory missing → not-found; create it, then write
     std::fs::create_dir_all(h.repo.root().join("tài liệu")).unwrap();
     let payload = b"\xEF\xBB\xBFxin ch\xC3\xA0o\r\n\xE9\x00\xFF".to_vec();
     let write = |expected: &str, bytes: Vec<u8>| raw_call(&h.main, "fs_write_worktree_file", bytes, &[("x-repo-id", id), ("x-rel", encoded), ("x-expected-sha256", expected)]);
@@ -175,10 +176,10 @@ fn raw_file_io_carries_bytes_and_percent_encoded_headers() {
         InvokeResponseBody::Raw(_) => panic!("mong JSON null"),
     }
     assert_eq!(h.repo.read(rel), payload, "byte giữ nguyên qua IPC (BOM, CRLF, Latin-1, NUL)");
-    // đọc lại: thân trả về là byte thô
+    // read back: the body returns raw bytes
     let read = get_ipc_response(&h.main, request(&h.main, "fs_read_worktree_file", InvokeBody::Json(json!({ "repoId": id, "rel": rel, "maxBytes": null })), Default::default())).unwrap();
     assert!(matches!(&read, InvokeResponseBody::Raw(bytes) if *bytes == payload), "{read:?}");
-    // CAS: ghi đè với băm sai → conflict; băm đúng → ok
+    // CAS: overwriting with a wrong hash → conflict; the right hash → ok
     let wrong = write(&"0".repeat(64), b"x".to_vec()).unwrap_err();
     assert_eq!(code(&wrong), "conflict");
     let correct = {
@@ -187,16 +188,16 @@ fn raw_file_io_carries_bytes_and_percent_encoded_headers() {
     };
     write(&correct, b"v2".to_vec()).unwrap();
     assert_eq!(h.repo.read(rel), b"v2");
-    // thiếu header / thân không phải byte thô
+    // missing header / the body is not raw bytes
     assert_eq!(code(&raw_call(&h.main, "fs_write_worktree_file", vec![1], &[("x-repo-id", id)]).unwrap_err()), "policy");
     assert_eq!(code(&json_call(&h.main, "fs_write_worktree_file", json!({ "x": 1 })).unwrap_err()), "policy");
-    // phạm vi: `..`, tuyệt đối, `.git`
+    // scope: `..`, absolute, `.git`
     for bad in ["..%2Fescape.txt", "%2Fetc%2Fpasswd", ".git%2Fhooks%2Fpre-commit", ".GIT%2Fconfig", "GIT~1%2Fhooks%2Fx"] {
         let error = raw_call(&h.main, "fs_write_worktree_file", b"x".to_vec(), &[("x-repo-id", id), ("x-rel", bad), ("x-expected-sha256", "")]).unwrap_err();
         assert_eq!(code(&error), "out-of-scope", "{bad}");
     }
     assert!(!h.repo.root().join(".git/hooks/pre-commit").exists());
-    // đọc file không tồn tại → not-found (TS đổi thành null)
+    // reading a non-existent file → not-found (TS turns it into null)
     let missing = json_call(&h.main, "fs_read_worktree_file", json!({ "repoId": id, "rel": "khong-co.txt" })).unwrap_err();
     assert_eq!(code(&missing), "not-found");
     // gitignore / thùng rác
@@ -242,13 +243,13 @@ fn open_url_over_ipc_only_accepts_https() {
 #[test]
 fn capability_only_allows_the_main_window_and_app_commands() {
     let h = harness();
-    // cùng lệnh, cửa sổ khác `main` → ACL từ chối
+    // the same command from a window other than `main` → the ACL denies it
     let error = json_call(&h.other, "list_recent_repos", json!({})).unwrap_err();
     let text = error.as_str().map(str::to_string).unwrap_or_else(|| error.to_string());
     assert!(text.to_lowercase().contains("not allowed") || text.to_lowercase().contains("permission"), "{text}");
     assert!(json_call(&h.other, "git_exec", json!({ "req": { "repoId": h.repo_id, "opId": "x", "kind": "read", "sub": "status", "args": [] }, "channel": "__CHANNEL__:1" })).is_err());
     assert!(h.core.ops.is_empty());
-    // Không có đường nào tới shell / fs / dialog / opener / process từ webview.
+    // There is no path from the webview to shell / fs / dialog / opener / process.
     for command in [
         "plugin:shell|execute", "plugin:shell|spawn", "plugin:shell|open", "plugin:fs|read_file", "plugin:fs|write_file", "plugin:fs|read_dir", "plugin:fs|remove",
         "plugin:dialog|open", "plugin:dialog|save", "plugin:opener|open_path", "plugin:opener|open_url", "plugin:process|exit", "plugin:updater|check", "plugin:http|fetch",
@@ -256,16 +257,16 @@ fn capability_only_allows_the_main_window_and_app_commands() {
     ] {
         assert!(json_call(&h.main, command, json!({})).is_err(), "{command} không được phép");
     }
-    // lệnh không tồn tại
+    // a non-existent command
     assert!(json_call(&h.main, "run_shell", json!({ "cmd": "id" })).is_err());
-    // sự kiện: cửa sổ main được listen, nhưng không được emit tuỳ ý tới backend (core:event:allow-emit không được cấp)
+    // events: the main window may listen, but must not emit to the backend on its own (core:event:allow-emit is not granted)
     assert!(json_call(&h.main, "plugin:event|emit", json!({ "event": "x", "payload": 1 })).is_err());
     assert!(json_call(&h.main, "plugin:event|listen", json!({ "event": "repo-changed", "target": { "kind": "Any" }, "handler": 1 })).is_ok());
 }
 
-/// Seam S0: 5 lệnh mới (askpass/cập nhật/chế độ an toàn) phải tới được Rust từ cửa sổ `main` qua ACL thật và KHÔNG tới được từ cửa
-/// sổ khác. Không khẳng định kết quả (thân hàm do 2b/8a điền): chỉ phân biệt "ACL từ chối" (lỗi dạng chuỗi) với "lệnh chạy" (Ok hoặc
-/// lỗi `{ code, message }`).
+/// Seam S0: the 5 new commands (askpass / update / safe mode) must reach Rust from the `main` window through the real ACL and
+/// must NOT be reachable from another window. It asserts nothing about the result (2b/8a fill in the bodies): it only
+/// distinguishes "the ACL denied it" (a string error) from "the command ran" (Ok or a `{ code, message }` error).
 #[test]
 fn seam_commands_pass_the_acl_for_main_and_are_denied_elsewhere() {
     let h = harness();
@@ -284,11 +285,11 @@ fn seam_commands_pass_the_acl_for_main_and_are_denied_elsewhere() {
         let denied = json_call(&h.other, command, args.clone()).unwrap_err();
         assert!(denied.get("code").is_none(), "{command}: cửa sổ khác phải bị ACL chặn chứ không chạy lệnh: {denied}");
     }
-    // kênh lạ bị serde từ chối ngay ở biên IPC (lỗi dạng chuỗi của Tauri, không phải `{ code }`)
+    // an unknown channel is rejected by serde right at the IPC boundary (a Tauri string error, not `{ code }`)
     assert!(json_call(&h.main, "update_set_channel", json!({ "channel": "nightly" })).is_err());
 }
 
-/// Origin "local" của app trong bản chạy thật (đúng như Tauri tính: `cfg!(windows | android)` → `http://tauri.localhost`).
+/// The app's "local" origin in a real build (exactly as Tauri computes it: `cfg!(windows | android)` → `http://tauri.localhost`).
 fn production_origin() -> &'static str {
     if cfg!(any(windows, target_os = "android")) { "http://tauri.localhost/" } else { "tauri://localhost/" }
 }
@@ -297,11 +298,11 @@ fn production_origin() -> &'static str {
 fn the_production_origin_is_allowed_by_both_the_acl_and_navigation_and_foreign_origins_are_not() {
     let h = harness();
     let origin = production_origin();
-    // Điều hướng của app (lib.rs) và ACL phải cùng coi origin này là local — trên Windows là `http://tauri.localhost`.
+    // The app's navigation (lib.rs) and the ACL must both treat this origin as local — on Windows `http://tauri.localhost`.
     assert!(crate::allowed_navigation(&origin.parse().unwrap(), None), "{origin}");
     let ok = get_ipc_response(&h.main, request_at(origin, "list_recent_repos", InvokeBody::Json(json!({})), Default::default()));
     assert!(ok.is_ok(), "{origin}: {ok:?}");
-    // Trang từ origin ngoài không được gọi lệnh nào của app, dù cùng cửa sổ `main`.
+    // A page from a foreign origin must not call any of the app's commands, even in the same `main` window.
     for remote in ["https://evil.example/", "http://tauri.localhost.evil.example/", "https://tauri.localhost.evil.example/", "http://localhost:9999/"] {
         let denied = get_ipc_response(&h.main, request_at(remote, "list_recent_repos", InvokeBody::Json(json!({})), Default::default()));
         let message = denied.expect_err(remote).to_string().to_lowercase();

@@ -77,7 +77,7 @@ describe('ký tự hiển thị', () => {
     expect(codePointLength('abc')).toBe(3);
     expect(codePointLength('a😀b')).toBe(3);
     expect(codePointLength('é')).toBe(2);
-    expect(codePointLength('\ud83d')).toBe(1); // surrogate cao đứng một mình
+    expect(codePointLength('\ud83d')).toBe(1); // a lone high surrogate
   });
 
   it('isGraphemeBoundary: ASCII, đầu/cuối chuỗi, "\\r\\n", cặp thay thế, dấu kết hợp, emoji ghép, cờ', () => {
@@ -103,7 +103,7 @@ describe('ký tự hiển thị', () => {
     expect(truncateCodePoints('abcdef', 3)).toBe('abc');
     expect(truncateCodePoints('a😀b', 2)).toBe('a😀');
     expect(truncateCodePoints('ab😀😀', 3)).toBe('ab😀');
-    // Cắt giữa "e" + dấu kết hợp thì lùi về trước chữ "e".
+    // Cutting between "e" and a combining mark backs up to before the "e".
     expect(truncateCodePoints('abécd', 3)).toBe('ab');
     expect(truncateCodePoints('', 5)).toBe('');
   });

@@ -8,13 +8,13 @@ struct NhanhApp: App {
     @State private var appState: AppState
 
     init() {
-        // Trước mọi thứ đọc chuỗi: chưa chọn ngôn ngữ thì giữ tiếng Việt.
+        // Before anything reads a string: with no language chosen yet, stay Vietnamese.
         AppLanguage.applyDefault()
         _appState = State(initialValue: AppState.shared)
     }
 
     var body: some Scene {
-        // Một cửa sổ chứa nhiều tab do Thaigit tự vẽ (như GitKraken), nên ẩn thanh tiêu đề của macOS.
+        // Thaigit draws its own tabs (like GitKraken), so hide the macOS title bar.
         WindowGroup("Thaigit", id: "main") {
             RootView()
                 .environment(appState)
@@ -34,7 +34,7 @@ struct NhanhApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
-        // Thaigit tự vẽ thanh tab: tắt tab của macOS (bản cũ đã bật "always" cho app).
+        // Thaigit draws its own tab bar: turn the macOS tabs off (an older build enabled "always" for the app).
         UserDefaults.standard.removeObject(forKey: "AppleWindowTabbingMode")
         NSWindow.allowsAutomaticWindowTabbing = false
     }

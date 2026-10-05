@@ -1,5 +1,6 @@
-// Danh sách file thay đổi dạng cây thư mục (nút Path / Tree như GitKraken; port FileTree.swift): dựng thành các hàng phẳng có
-// độ sâu để vẽ trong VirtualList. Thư mục chỉ có đúng một thư mục con (và không có file) gộp thành một hàng "src/app/views".
+// Changed files as a directory tree (the Path / Tree switch like GitKraken, a port of FileTree.swift): built
+// into flat rows carrying a depth so VirtualList can draw them. A folder with exactly one subfolder and no
+// files collapses into a single "src/app/views" row.
 
 import { fileChangeName, type FileChange } from '@thaigit/core';
 import { compareNatural } from '../format/natural.ts';
@@ -7,12 +8,12 @@ import { compareNatural } from '../format/natural.ts';
 export type FileTreeRow =
   | {
       readonly kind: 'folder';
-      /** Đường dẫn đầy đủ (khoá gập / mở). */
+      /** Full path (the collapse / expand key). */
       readonly path: string;
-      /** Phần hiển thị, có thể gộp nhiều cấp. */
+      /** Display part, which may merge several levels. */
       readonly name: string;
       readonly depth: number;
-      /** Số file bên trong. */
+      /** Number of files inside. */
       readonly count: number;
     }
   | { readonly kind: 'file'; readonly change: FileChange; readonly depth: number };
@@ -27,7 +28,7 @@ function node(): Node {
   return { folders: new Map(), files: [], count: 0 };
 }
 
-/** Hàng của cây; thư mục có `path` trong `collapsed` thì ẩn phần bên trong. Thư mục trước file, mỗi nhóm xếp theo tên. */
+/** A tree row; a folder whose `path` is in `collapsed` hides its contents. Folders before files, each group sorted by name. */
 export function fileTreeRows(
   changes: readonly FileChange[],
   collapsed: ReadonlySet<string> = new Set(),
@@ -64,7 +65,7 @@ function append(
     let folder = current.folders.get(name) as Node;
     let display = name;
     let path = prefix + name;
-    // Gộp chuỗi thư mục chỉ có một thư mục con: "src" → "src/app" → "src/app/views".
+    // Merge runs of folders that have a single subfolder: "src" → "src/app" → "src/app/views".
     while (folder.files.length === 0 && folder.folders.size === 1) {
       const [childName, child] = [...folder.folders][0] as [string, Node];
       display += `/${childName}`;

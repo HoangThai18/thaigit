@@ -1,6 +1,7 @@
-// Cờ rủi ro trước khi commit (không AI): xét các thay đổi chưa commit theo luật — xoá / bỏ qua test, đổi thư viện phụ thuộc,
-// đổi CI, file lớn, bí mật (dùng lại bộ quét của AI). Chỉ cảnh báo, không chặn commit; kết quả chỉ có ĐƯỜNG DẪN, không bao giờ
-// có nội dung bí mật. Ca kiểm thử dùng chung với app Swift: packages/contracts/risk-rules.vectors.json.
+// Pre-commit risk flags (no AI): applies plain rules to uncommitted changes — deletions / skipped tests, dependency
+// changes, CI changes, large files, secrets (reusing the AI scanner). Advisory only, never blocks a commit; results
+// carry PATHS only, never secret content. Test cases are shared with the Swift app:
+// packages/contracts/risk-rules.vectors.json.
 
 import { classifyPath, findSecret } from '../ai/secret-scan.ts';
 
@@ -17,9 +18,9 @@ export type RiskCode = (typeof RISK_CODES)[number];
 export interface RiskInput {
   readonly path: string;
   readonly status: 'added' | 'modified' | 'deleted';
-  /** Dòng được thêm (không kèm dấu `+`); rỗng khi không đọc nội dung. */
+  /** Added line (without the leading `+`); empty when content was not read. */
   readonly addedLines: readonly string[];
-  /** Kích thước file hiện tại (byte); null = không rõ. */
+  /** Current file size in bytes; null = unknown. */
   readonly size: number | null;
 }
 
@@ -28,7 +29,7 @@ export interface RiskFlag {
   readonly paths: readonly string[];
 }
 
-/** Trên mức này là "file lớn". */
+/** Above this size a file counts as large. */
 export const LARGE_FILE_BYTES = 1024 * 1024;
 
 const TEST_DIRS = new Set(['test', 'tests', '__tests__', 'spec', 'specs']);
@@ -134,7 +135,7 @@ function matches(code: RiskCode, file: RiskInput): boolean {
   }
 }
 
-/** Các cờ theo thứ tự `RISK_CODES`, mỗi cờ kèm đường dẫn đã sắp xếp; không có gì đáng ngại → []. */
+/** Flags in `RISK_CODES` order, each with sorted paths; nothing concerning → []. */
 export function detectRisks(files: readonly RiskInput[]): RiskFlag[] {
   const flags: RiskFlag[] = [];
   for (const code of RISK_CODES) {

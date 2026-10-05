@@ -1,5 +1,6 @@
-// Phần Pull Request / Merge Request của repo: nạp danh sách PR đang mở (Rust gọi API bằng token đúng tài khoản), và nạp lại
-// sau mỗi lần fetch. Mọi chữ do máy chủ trả về đều hiển thị dạng text.
+// The repo's Pull Request / Merge Request area: load the list of open PRs (Rust calls the API with the
+// right account's token) and reload it after every fetch. Every string returned by a host is rendered as
+// text.
 
 import type { ForgeMergeRequest, ForgeProvider } from '@thaigit/contracts';
 import { isValidRefName } from '@thaigit/core';
@@ -9,12 +10,12 @@ import { forgeErrorText } from '../stores/accounts.svelte.ts';
 import type { RepoStore } from '../stores/repo.svelte.ts';
 import { repoForgeTarget, type RepoForgeTarget } from './target.ts';
 
-/** Repo này có nói chuyện với máy chủ app nhận ra không (GitHub / GitLab / Bitbucket). */
+/** Whether this repo talks to a host the app recognises (GitHub / GitLab / Bitbucket). */
 export function targetOf(store: RepoStore): RepoForgeTarget | null {
   return repoForgeTarget(store.remotes);
 }
 
-/** PR đang mở của repo (Rust tự chọn tài khoản theo owner). */
+/** Open PRs of the repo (Rust picks the account by owner). */
 export async function fetchMergeRequests(store: RepoStore): Promise<ForgeMergeRequest[]> {
   const target = targetOf(store);
   if (target === null) return [];
@@ -26,7 +27,7 @@ export async function fetchMergeRequests(store: RepoStore): Promise<ForgeMergeRe
   });
 }
 
-/** Nạp + phân loại lỗi cho sidebar: không có máy chủ / chưa đăng nhập / lỗi thân thiện. */
+/** Load + classify errors for the sidebar: no host / not signed in / friendly error. */
 export async function loadMergeRequests(store: RepoStore): Promise<MergeRequestState> {
   const target = targetOf(store);
   if (target === null) return { items: [], error: null, needsAccount: false };
@@ -35,7 +36,7 @@ export async function loadMergeRequests(store: RepoStore): Promise<MergeRequestS
     return { items, error: null, needsAccount: false };
   } catch (error) {
     const code = (error as { code?: unknown } | null)?.code;
-    // `not-found` / `auth`: máy chủ không có tài khoản nào truy cập được repo này (chưa đăng nhập hoặc thiếu quyền).
+    // `not-found` / `auth`: no account on that host can reach this repo (not signed in, or missing permission).
     if (code === 'not-found' || code === 'auth') return { items: [], error: null, needsAccount: true };
     return { items: [], error: forgeErrorText(error), needsAccount: false };
   }
@@ -47,18 +48,19 @@ export interface MergeRequestState {
   needsAccount: boolean;
 }
 
-/** Cách lấy nhánh của một PR về máy: refspec để fetch, ref remote-tracking nhận về, và tên nhánh local. */
+/** How to bring a PR's branch down: the refspec to fetch, the remote-tracking ref it lands in, and the local branch name. */
 export interface PullRequestCheckout {
   refspec: string;
   remoteRef: string;
   localName: string;
-  /** Nhánh nằm ngay trong repo (không phải fork): nhánh local theo dõi nhánh remote cùng tên. */
+  /** Branch already in this repo (not a fork): the local branch tracks the same-named remote branch. */
   sameRepo: boolean;
 }
 
 /**
- * PR cùng repo: fetch nhánh nguồn như bình thường. PR từ fork: GitHub để ref `refs/pull/<số>/head`, GitLab để
- * `refs/merge-requests/<số>/head` ngay trên repo đích; Bitbucket không có ref như vậy → `null` (chỉ mở trên web).
+ * PR in the same repo: fetch the source branch as usual. Forked PR: GitHub exposes ref `refs/pull/<n>/head`
+ * and GitLab `refs/merge-requests/<n>/head` on the target repo itself; Bitbucket has no such ref → `null`
+ * (web view only).
  */
 export function pullRequestCheckout(
   item: ForgeMergeRequest,
@@ -95,18 +97,19 @@ export function pullRequestCheckout(
   return null;
 }
 
-/** Cách lấy PR về máy để review: refspec cần fetch (nhánh nguồn + nhánh đích) và hai ref nhận về để so sánh. */
+/** How to bring a PR down for review: the refspec to fetch (source + target branch) and the two refs to fetch into for the comparison. */
 export interface PullRequestReview {
   refspecs: string[];
-  /** Ref đầu nhánh của PR (đã fetch). */
+  /** Head ref of the PR branch (already fetched). */
   headRef: string;
-  /** Ref nhánh đích (đã fetch): điểm tách của PR khỏi nó là mốc của "Files changed". */
+  /** Target branch ref (already fetched): the merge base of the PR against it anchors "Files changed". */
   baseRef: string;
 }
 
 /**
- * Cùng điều kiện với `pullRequestCheckout` (PR từ fork của Bitbucket không có ref để lấy → `null`, chỉ xem trên web), thêm nhánh đích.
- * Tên nhánh do máy chủ trả về nên chỉ được ghép vào refspec khi là tên nhánh hợp lệ (ký tự `:` hay `+` đổi nghĩa refspec).
+ * Same condition as `pullRequestCheckout` (a Bitbucket fork PR has no ref to fetch → `null`, web view
+ * only), plus the target branch. The branch name comes from the host, so it may only be interpolated into
+ * the refspec when it is a valid branch name (a `:` or `+` would change the refspec's meaning).
  */
 export function pullRequestReview(
   item: ForgeMergeRequest,
@@ -125,7 +128,7 @@ export function pullRequestReview(
   };
 }
 
-/** Nhãn trạng thái ngắn của một PR ở danh sách / panel review (PR đang mở và không phải nháp thì để trống). */
+/** Short status label of a PR in the list / review panel (empty for an open, non-draft PR). */
 export function requestStateLabel(item: ForgeMergeRequest): string {
   const text = vi.pullRequests;
   if (item.state === 'merged') return text.merged;

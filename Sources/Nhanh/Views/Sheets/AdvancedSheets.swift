@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Khung chung: tiêu đề, nội dung, Huỷ / nút xác nhận.
+/// A shared frame: title, content, Cancel / confirm button.
 private struct AdvancedSheetFrame<Content: View>: View {
     let title: String
     let systemImage: String

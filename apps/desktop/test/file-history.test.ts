@@ -27,7 +27,7 @@ async function until(condition: () => boolean, what: string, timeoutMs = 8000): 
 
 const LONG = 'nội dung đủ dài để git nhận ra đổi tên\ndòng hai\ndòng ba\n';
 
-/** a.txt tạo → đổi tên thành b.txt → sửa b.txt. */
+/** a.txt created → renamed to b.txt → b.txt modified. */
 async function openStore() {
   const test = await openTestPort((git, root) => {
     writeFileSync(join(root, 'a.txt'), LONG);

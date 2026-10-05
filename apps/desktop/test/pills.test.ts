@@ -54,7 +54,7 @@ describe('buildRefLabels', () => {
     expect(labelsAt(labels, 'a').map((label) => label.text)).toEqual(['main']);
     expect(labelsAt(labels, 'a')[0]).toMatchObject({ hasLocal: true, remoteCount: 1 });
     expect(labelsAt(labels, 'b').map((label) => label.text)).toEqual(['dev']);
-    // Hai remote (một cái có "/"): nhãn remote-only dùng tên đầy đủ.
+    // Two remotes (one containing "/"): a remote-only label uses the full name.
     const two = buildRefLabels([remote('team/a/dev', 'b'), remote('origin/dev', 'c')], branch('x'), {
       ...ON,
       remoteNames: ['origin', 'team/a'],
@@ -136,7 +136,7 @@ describe('layoutPills', () => {
     const layout = layoutPills(labels, 190, measure);
     expect(layout.more).not.toBeNull();
     expect(layout.pills.length + (layout.more?.count ?? 0)).toBe(labels.length);
-    // Các viên đã xếp không chạm chip "+N".
+    // The pills already placed don't touch the "+N" chip.
     const last = layout.pills[layout.pills.length - 1];
     expect((last?.x ?? 0) + (last?.width ?? 0) + PILL.gap).toBeLessThanOrEqual(layout.more?.x ?? 0);
     expect(layout.end).toBe((layout.more?.x ?? 0) + PILL.moreWidth);
@@ -162,10 +162,10 @@ describe('layoutPills', () => {
     const current: RefLabel = { ...label('main'), isCurrentBranch: true };
     const plain = layoutPills([current, label('dev')], 400, measure);
     const withBadge = layoutPills([current, label('dev')], 400, measure, 5);
-    // Badge "✎ 5" dài 3 chữ: gap 3px + 5px + đệm 8px + 18px chữ.
+    // The "✎ 5" badge is 3 characters wide: 3px gap + 5px + 8px padding + 18px text.
     const badgeCost = PILL.iconGap + PILL.badgeGap + PILL.badgePadX * 2 + 3 * 6;
     expect((withBadge.pills[0]?.width ?? 0) - (plain.pills[0]?.width ?? 0)).toBe(badgeCost);
-    // Badge nằm trong viên đầu nên viên sau chỉ dịch sang phải, không đổi bề rộng.
+    // The badge sits inside the first pill, so only the next one shifts right without changing width.
     expect(withBadge.pills[1]?.width).toBe(plain.pills[1]?.width);
     expect((withBadge.pills[1]?.x ?? 0) - (plain.pills[1]?.x ?? 0)).toBe(badgeCost);
   });
@@ -193,7 +193,7 @@ describe('pillAppearance', () => {
     const current = pillAppearance({ ...base, isCurrentBranch: true }, '#2f86e8');
     const other = pillAppearance(base, '#2f86e8');
     expect(current.rimWidth).toBeGreaterThan(other.rimWidth);
-    expect(current.top).not.toContain('/'); // không trong suốt
+    expect(current.top).not.toContain('/'); // not transparent
     expect(other.top).toContain('/ 0.88');
   });
 

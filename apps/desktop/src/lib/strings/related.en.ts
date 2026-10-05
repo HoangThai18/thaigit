@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `related.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `relate.vi.ts` (same keys, same parameters). */
 import type { related as source } from './related.vi.ts';
 import type { Translation } from './types.ts';
 

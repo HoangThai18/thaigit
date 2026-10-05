@@ -1,5 +1,6 @@
-# Sinh luồng fast-import: 30k commit, tối đa 12 nhánh feature mở cùng lúc (merge dần vào main; ref nhánh đã merge
-# vẫn giữ → ~878 nhánh) + 199 tag ≈ 1.077 ref. Dùng: python3 make-big-repo.py | git fast-import
+# Generates a fast-import stream: 30k commits, at most 12 feature branches open at a time (merged into main gradually;
+# already-merged branch refs are kept → ~878 branches) plus 199 tags ≈ 1.077 refs.
+# Usage: python3 make-big-repo.py | git fast-import
 import sys, random
 random.seed(7)
 out = sys.stdout.buffer

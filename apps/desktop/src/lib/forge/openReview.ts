@@ -1,5 +1,6 @@
-// Mở review của một PR / MR: lấy nhánh của PR và nhánh đích về máy (một lần fetch, qua hàng đợi thao tác của repo), tìm điểm tách
-// rồi liệt kê file thay đổi. PR không lấy về được (Bitbucket từ fork) thì mở trang web.
+// Open the review of a PR / MR: fetch the PR branch and the target branch locally (one fetch, through the
+// repo's operation queue), find the merge base and list the changed files. A PR that can't be fetched
+// (Bitbucket forks) opens the web page instead.
 
 import type { ForgeMergeRequest } from '@thaigit/contracts';
 import { handleNetworkError } from '../actions/errors.ts';
@@ -10,7 +11,7 @@ import type { ReviewChanges } from './review.svelte.ts';
 import { pullRequestReview, targetOf } from './pullRequests.ts';
 import type { RepoForgeTarget } from './target.ts';
 
-/** `target`: máy chủ của repo (mặc định đọc từ remote ưu tiên; test truyền sẵn để fetch từ remote cục bộ). */
+/** `target`: the repo's host (defaults to the preferred remote; tests pass it explicitly to fetch from a local remote). */
 export async function openReview(
   store: RepoStore,
   item: ForgeMergeRequest,
@@ -25,7 +26,7 @@ export async function openReview(
   const title = vi.pullRequests.reviewing;
   const token = store.review.begin(item, target.provider);
   const progress = store.progressReporter();
-  // Hộp kết quả (TS không theo dõi phép gán trong closure nên không dùng biến thường).
+  // Result box (TS doesn't track assignments made inside a closure, hence a plain variable).
   const result: { changes: ReviewChanges | null } = { changes: null };
   await store.perform(
     title,
@@ -35,7 +36,7 @@ export async function openReview(
         git.resolveCommit(plan.headRef),
         git.resolveCommit(plan.baseRef),
       ]);
-      // Hai nhánh không có lịch sử chung (hiếm): so thẳng với đầu nhánh đích.
+      // The two branches share no history (rare): diff directly against the target branch tip.
       const from = (await git.mergeBase(base, head)) ?? base;
       result.changes = { head, from, files: await git.changedFiles(head, from) };
     },
@@ -49,7 +50,7 @@ export async function openReview(
       },
     },
   );
-  // `perform` đã báo lỗi / huỷ (không có kết quả): panel hiện trạng thái thất bại để bấm thử lại.
+  // `perform` already reported an error / was cancelled (no result): the panel shows a failed state with a retry button.
   if (result.changes === null) store.review.fail(token);
   else store.review.finish(token, result.changes);
 }

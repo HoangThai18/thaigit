@@ -1,6 +1,6 @@
 import Foundation
 
-/// Kết quả `git blame`: từng dòng của file thuộc commit nào.
+/// The result of `git blame`: which commit each line of the file belongs to.
 public struct Blame: Sendable, Equatable {
     public struct CommitInfo: Sendable, Equatable {
         public var sha: String
@@ -9,17 +9,17 @@ public struct Blame: Sendable, Equatable {
         public var date: Date
         public var summary: String
 
-        /// Dòng chưa commit (blame trên working tree).
+        /// An uncommitted line (blame over the working tree).
         public var isUncommitted: Bool { sha.allSatisfy { $0 == "0" } }
         public var shortSHA: String { String(sha.prefix(7)) }
     }
 
     public struct Line: Sendable, Equatable, Identifiable {
-        /// Số dòng trong file (bắt đầu từ 1).
+        /// Line number within the file (1-based).
         public var number: Int
         public var text: String
         public var sha: String
-        /// Dòng đầu của một nhóm dòng liền nhau cùng commit (chỉ dòng này hiện tác giả / lời commit).
+        /// The first line of a run of adjacent lines from the same commit (only this line shows the author / message).
         public var startsGroup: Bool
 
         public var id: Int { number }
@@ -28,9 +28,9 @@ public struct Blame: Sendable, Equatable {
     public var lines: [Line]
     public var commits: [String: CommitInfo]
 
-    /// Parse `git blame --porcelain`: mỗi dòng mở đầu bằng "<sha> <dòng gốc> <dòng mới> [số dòng trong nhóm]",
-    /// thông tin commit (author, author-mail, author-time, summary…) chỉ có ở lần đầu commit xuất hiện, nội dung dòng
-    /// bắt đầu bằng tab. Nội dung không phải UTF-8 được giải mã lỏng (chỉ để xem).
+    /// Parse `git blame --porcelain`: each record starts with "<sha> <original line> <new line> [lines in group]",
+    /// the commit info (author, author-mail, author-time, summary…) only appears the first time a commit shows up,
+    /// and the line content starts with a tab. Non-UTF-8 content is decoded leniently (display only).
     public static func parse(_ data: Data) -> Blame {
         var lines: [Line] = []
         var commits: [String: CommitInfo] = [:]
@@ -70,8 +70,8 @@ public struct Blame: Sendable, Equatable {
 }
 
 extension GitRepository {
-    /// Blame `path` tại `rev` (nil: bản trong working tree, kể cả dòng chưa commit). `-M -C`: dòng chuyển chỗ / chép
-    /// từ file khác vẫn tính về commit gốc. `--no-textconv`: không chạy lệnh `diff.*.textconv` do repo tự đặt.
+    /// Blame `path` at `rev` (nil: the working tree version, including uncommitted lines). `-M -C`: a line that moved or
+    /// was copied from another file still counts for the original commit. `--no-textconv`: never run a `diff.*.textconv` command the repo defines.
     public func blame(path: String, at rev: String? = nil) async throws -> Blame {
         var args = ["blame", "--porcelain", "--no-textconv", "-M", "-C"]
         if let rev { args.append(rev) }

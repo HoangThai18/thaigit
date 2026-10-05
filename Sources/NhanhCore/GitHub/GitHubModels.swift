@@ -1,6 +1,6 @@
 import Foundation
 
-/// Tài khoản GitHub đã đăng nhập (từ `GET /user`). Chỉ gồm thông tin công khai — lưu được vào UserDefaults.
+/// A signed-in GitHub account (`GET /user`). Public information only — safe to store in UserDefaults.
 public struct GitHubAccount: Codable, Sendable, Equatable {
     public let id: Int64
     public let login: String
@@ -14,7 +14,7 @@ public struct GitHubAccount: Codable, Sendable, Equatable {
         self.avatarURL = avatarURL
     }
 
-    /// Tên hiển thị: tên thật nếu có, không thì login.
+    /// Display name: the real name when there is one, otherwise the login.
     public var displayName: String {
         guard let name, !name.trimmingCharacters(in: .whitespaces).isEmpty else { return login }
         return name
@@ -26,7 +26,7 @@ public struct GitHubAccount: Codable, Sendable, Equatable {
     }
 }
 
-/// Một repository trong danh sách `GET /user/repos`.
+/// A repository in the `GET /user/repos` list.
 public struct GitHubRepository: Decodable, Sendable, Equatable, Identifiable {
     public let name: String
     public let fullName: String
@@ -61,7 +61,7 @@ public struct GitHubRepository: Decodable, Sendable, Equatable, Identifiable {
         isPrivate = try container.decodeIfPresent(Bool.self, forKey: .isPrivate) ?? false
         cloneURL = try container.decode(String.self, forKey: .cloneURL)
         description = try container.decodeIfPresent(String.self, forKey: .description)
-        // Ngày sai định dạng không được làm hỏng cả trang kết quả.
+        // A date in an unexpected format must not break the whole page of results.
         let updated: String? = try? container.decodeIfPresent(String.self, forKey: .updatedAt)
         updatedAt = updated.flatMap(Self.parseDate)
     }
@@ -72,14 +72,14 @@ public struct GitHubRepository: Decodable, Sendable, Equatable, Identifiable {
     }
 }
 
-/// Mã thiết bị của OAuth Device Flow: người dùng nhập `userCode` tại `verificationURL`, app hỏi token theo `interval`.
+/// The device code of the OAuth Device Flow: the user enters `userCode` at `verificationURL` while the app polls for a token every `interval`.
 public struct GitHubDeviceCode: Sendable, Equatable {
     public let deviceCode: String
     public let userCode: String
     public let verificationURL: URL
-    /// Số giây mã còn hiệu lực.
+    /// How many seconds the code stays valid.
     public let expiresIn: Int
-    /// Số giây tối thiểu giữa hai lần hỏi token.
+    /// Minimum seconds between two token polls.
     public let interval: Int
 
     public init(deviceCode: String, userCode: String, verificationURL: URL, expiresIn: Int, interval: Int) {
@@ -92,16 +92,16 @@ public struct GitHubDeviceCode: Sendable, Equatable {
 }
 
 public enum GitHubError: LocalizedError, Equatable, Sendable {
-    /// Thiếu Client ID (nil) hoặc GitHub từ chối OAuth App (kèm lý do): app chưa bật Device Flow, Client ID sai…
+    /// A missing client ID (nil) or GitHub rejecting the OAuth App (with the reason): the app hasn't enabled the Device Flow, wrong client ID…
     case notConfigured(String?)
     case expired
     case accessDenied
-    /// Token bị thu hồi / hết hạn (HTTP 401).
+    /// The token was revoked / expired (HTTP 401).
     case unauthorized
     case network(String)
     case badResponse(Int)
     case invalidResponse
-    /// Lỗi OAuth khác GitHub trả về (mã hoặc mô tả).
+    /// Another OAuth error GitHub returned (a code or a description).
     case oauth(String)
     case keychain(Int32)
 

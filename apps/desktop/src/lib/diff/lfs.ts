@@ -1,8 +1,8 @@
-// Nhận diện diff của một file con trỏ Git LFS (để DiffPane ghi chú "nội dung thật nằm trên máy chủ LFS").
+// Recognise the diff of a Git LFS pointer file (so DiffPane can note "the real content lives on the LFS server").
 
 import { parseLfsPointer, type DiffPresentation, type LfsPointer } from '@thaigit/core';
 
-/** Con trỏ LFS ở bản mới (hoặc bản cũ, khi file bị xoá) của diff — chỉ xét diff một hunk ngắn như file con trỏ. */
+/** LFS pointer on the new side (or the old side, when the file was deleted) of the diff — only a short single-hunk diff is considered, as in a pointer file. */
 export function lfsPointerOf(presentation: DiffPresentation | null): LfsPointer | null {
   if (!presentation || presentation.hunks.length !== 1) return null;
   const lines = presentation.hunks[0]?.lines ?? [];

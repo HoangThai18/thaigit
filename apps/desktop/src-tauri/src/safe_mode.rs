@@ -1,11 +1,11 @@
-//! Chế độ an toàn khi khởi động (phase 8a). `boot.json` trong thư mục dữ liệu đếm số lần khởi động hỏng LIÊN TIẾP: mỗi lần
-//! mở app tăng bộ đếm TRƯỚC khi nạp giao diện; giao diện dựng xong thì gọi `app_ready` để đặt lại về 0. Bản lỗi làm giao diện
-//! không lên thì không gọi được `app_ready` — nên phần đếm / quyết định nằm ở Rust.
+//! Startup safe mode (phase 8a). `boot.json` in the data directory counts CONSECUTIVE failed startups: every app launch
+//! increments the counter BEFORE loading the UI; once the UI is built it calls `app_ready` to reset it to 0. A broken
+//! build whose UI never comes up cannot call `app_ready` — so the counting and the decision live in Rust.
 //!
-//! Hỏng ≥ `SAFE_MODE_AFTER` lần liên tiếp → báo bằng hộp thoại native và kiểm bản cập nhật ngay (bản sửa lỗi hiện ra trên
-//! thanh cập nhật khi giao diện lên được; không lên được thì lần mở sau vẫn kiểm).
+//! Failing ≥ `SAFE_MODE_AFTER` times in a row → report it with a native dialog and check for an update right away (the fix
+//! shows up on the update bar once the UI loads; if it does not, the next launch checks again).
 //!
-//! Kiểm thử khói (CI): `THAIGIT_SMOKE_EXIT=1` → app tự thoát mã 0 ngay sau khi giao diện gọi `app_ready`.
+//! Smoke test (CI): `THAIGIT_SMOKE_EXIT=1` → the app exits 0 right after the UI calls `app_ready`.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -17,7 +17,7 @@ use crate::errors::Result;
 use crate::store;
 
 pub const BOOT_FILE: &str = "boot.json";
-/// Số lần khởi động hỏng liên tiếp để bật chế độ an toàn.
+/// Consecutive failed startups needed before safe mode turns on.
 pub const SAFE_MODE_AFTER: u32 = 3;
 pub const SMOKE_ENV: &str = "THAIGIT_SMOKE_EXIT";
 
@@ -32,16 +32,16 @@ pub struct SafeModeState {
     path: PathBuf,
 }
 
-/// Ghi nhận một lần khởi động (coi là hỏng cho tới khi `ready`). Trả `true` nếu các lần trước đã hỏng đủ để bật chế độ an toàn.
+/// Record one startup (counted as failed until `ready`). Returns `true` when the earlier attempts already failed enough to enter safe mode.
 pub fn begin_boot(data_dir: &Path) -> bool {
     let path = data_dir.join(BOOT_FILE);
     let previous = store::read_json::<BootRecord>(&path).map(|record| record.failed_boots).unwrap_or(0);
-    // Không ghi được (đĩa đầy, quyền) thì thôi: chế độ an toàn chỉ là lưới đỡ, không được làm app không mở.
+    // If it cannot be written (full disk, permissions), skip it: safe mode is only a safety net and must never stop the app from opening.
     let _ = store::write_json(&path, &BootRecord { failed_boots: previous.saturating_add(1) });
     previous >= SAFE_MODE_AFTER
 }
 
-/// Gọi trong `setup` (sau khi có thư mục dữ liệu, trước khi dựng cửa sổ).
+/// Called in `setup` (after the data directory exists, before windows are built).
 pub fn init<R: Runtime>(app: &AppHandle<R>, data_dir: &Path) {
     let active = begin_boot(data_dir);
     app.manage(SafeModeState { active, path: data_dir.join(BOOT_FILE) });
@@ -58,13 +58,13 @@ pub fn init<R: Runtime>(app: &AppHandle<R>, data_dir: &Path) {
     if !cfg!(debug_assertions) {
         let handle = app.clone();
         tauri::async_runtime::spawn(async move {
-            // Lỗi mạng: im lặng — vòng kiểm định kỳ của updater thử lại sau.
+            // A network error stays silent — the updater's periodic check retries later.
             let _ = crate::updater::check(&handle).await;
         });
     }
 }
 
-/// `app_ready`: giao diện đã dựng xong → đặt lại bộ đếm. Gọi nhiều lần vô hại.
+/// `app_ready`: the UI is built → reset the counter. Safe to call more than once.
 pub fn ready<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     if let Some(state) = app.try_state::<SafeModeState>() {
         let _ = store::write_json(&state.path, &BootRecord::default());
@@ -72,7 +72,7 @@ pub fn ready<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     if std::env::var(SMOKE_ENV).is_ok_and(|value| value == "1") {
         let handle = app.clone();
         tauri::async_runtime::spawn(async move {
-            // Để giao diện chạy thêm chút (bắt lỗi xảy ra ngay sau khi mount) rồi mới thoát.
+            // Let the UI run a little longer (catching an error right after mount) before exiting.
             tokio::time::sleep(Duration::from_secs(2)).await;
             handle.exit(0);
         });
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn counts_consecutive_failed_boots() {
         let dir = tempfile::tempdir().unwrap();
-        // Ba lần mở mà giao diện không lên: lần thứ tư bật chế độ an toàn.
+        // Three launches without the UI: the fourth enters safe mode.
         assert!(!begin_boot(dir.path()));
         assert!(!begin_boot(dir.path()));
         assert!(!begin_boot(dir.path()));

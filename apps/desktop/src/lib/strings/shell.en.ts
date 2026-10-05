@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `shell.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `shel.vi.ts` (same keys, same parameters). */
 import type { shell as source } from './shell.vi.ts';
 import type { Translation } from './types.ts';
 
@@ -111,7 +111,7 @@ export const shell: Translation<typeof source> = {
     emptyHint:
       'Add files to the repository folder, then stage them and create the first commit in the right panel.',
     wip: '// WIP',
-    /** Badge số file chưa commit, đứng cạnh tên nhánh đang checkout. */
+    /** Badge with the uncommitted file count, next to the checked-out branch name. */
     pillPending: (count: number) => `✎ ${count}`,
     wipTooltip: 'Uncommitted changes — click to view',
     ariaLabel: 'Commit history',

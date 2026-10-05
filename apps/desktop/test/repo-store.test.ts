@@ -22,7 +22,7 @@ async function until(condition: () => boolean, what: string, timeoutMs = 8000): 
   }
 }
 
-/** Như `openStore` nhưng dùng chung một `ToastStore` do test cấp (nhiều repo cùng hiện toast). */
+/** Like `openStore` but sharing a `ToastStore` supplied by the test (several repos toasting at once). */
 async function openStoreWith(
   toasts: ToastStore,
   setup: Parameters<typeof openTestPort>[0],
@@ -51,7 +51,7 @@ async function openStore(
   return { test, store, toasts, prefs };
 }
 
-/** Bọc `exec` của port để chèn lỗi / ghi lại lệnh (các test lỗi hạ tầng). `inner` chạy lệnh thật. */
+/** Wraps a port's `exec` to inject errors / record commands (for infrastructure-failure tests). `inner` runs the real command. */
 function withExec(
   port: RepoPort,
   wrap: (request: ExecRequest, inner: (request: ExecRequest) => Promise<ExecResult>) => Promise<ExecResult>,
@@ -66,7 +66,7 @@ function withExec(
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** main: A ← B ← M (merge feature/x) ; feature/x: A ← F ; tag v1.0 trên B ; một stash. */
+/** main: A ← B ← M (merge feature/x); feature/x: A ← F; tag v1.0 on B; one stash. */
 function setupBranchy(git: (...args: string[]) => string, root: string): void {
   writeFileSync(join(root, 'a.txt'), 'một\n');
   git('add', '.');
@@ -125,7 +125,7 @@ describe('RepoStore: nạp lần đầu', () => {
     expect(store.remotes).toEqual([]);
     expect(store.historyError).toBeNull();
 
-    // a.txt đã sửa chưa commit sau stash? Stash đã cất → sạch → không có WIP.
+    // a.txt modified but uncommitted after the stash? The stash captured it → clean → no WIP.
     expect(store.hasWorkingTreeRow).toBe(false);
     expect(store.entries.map((entry) => entry.commit.subject)).toEqual([
       "Merge branch 'feature/x'",
@@ -224,7 +224,7 @@ describe('RepoStore: làm mới theo sự kiện', () => {
     expect(log).not.toHaveBeenCalled();
     expect(store.entries[0]?.commit.parents).toEqual([store.headOid]);
     expect(store.entries).toHaveLength(5);
-    // Lựa chọn commit HEAD vẫn giữ nguyên (hàng dịch xuống 1).
+    // Selecting the HEAD commit keeps its position (the row shifts down by 1).
     expect(store.selection).toEqual({ kind: 'commit', sha: store.headOid });
     expect(store.selectedRow).toBe(1);
   });
@@ -274,7 +274,7 @@ describe('RepoStore: làm mới theo sự kiện', () => {
     for (let index = 0; index < 20; index++) test.emit({ kinds: ['workingTree'] });
     await until(() => store.status.unstaged.some((change) => change.path === 'n1.txt'), 'thấy file mới');
     await store.refreshAndWait(0);
-    // Lượt đầu + tối đa một lượt gộp phần còn lại.
+    // The first round plus at most one extra round that appends the rest.
     expect(status.mock.calls.length).toBeLessThanOrEqual(2);
   });
 
@@ -320,7 +320,7 @@ describe('RepoStore: tải thêm lịch sử', () => {
 
     store.loadMoreHistory();
     expect(store.isLoadingHistory).toBe(true);
-    store.loadMoreHistory(); // gọi lặp khi đang tải: bị bỏ qua
+    store.loadMoreHistory(); // a repeat call while loading is ignored
     await until(() => !store.isLoadingHistory, 'tải thêm xong');
     expect(store.commitLimit).toBe(2200);
     expect(store.entries).toHaveLength(450);
@@ -379,14 +379,14 @@ describe('RepoStore: tải thêm lịch sử bị lỗi', () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]?.actions.map((action) => action.title)).toEqual(['Tải thêm']);
 
-    // Tự động (cuộn tới cuối) gọi lại bao nhiêu lần cũng không chạy thêm lệnh git nào.
+    // No matter how many times the automatic (scrolled to the end) load runs, it never runs another git command.
     const before = flaky.limits.length;
     for (let index = 0; index < 20; index++) store.loadMoreHistory();
     await sleep(60);
     expect(flaky.limits).toHaveLength(before);
     expect(store.isLoadingHistory).toBe(false);
 
-    // Người dùng bấm "Tải thêm" trên thông báo: thử lại thật, thành công thì cờ được xoá.
+    // The user clicks "Load more" on the notification: it really retries and clears the flag on success.
     flaky.failLog = false;
     errors[0]?.actions[0]?.run();
     await until(() => store.entries.length === 450, 'thử lại thành công');
@@ -416,7 +416,7 @@ describe('RepoStore: tải thêm lịch sử bị lỗi', () => {
     expect(store.commitLimit).toBe(COMMIT_LIMIT_MAX);
     expect(flaky.limits.at(-1)).toBe(`--max-count=${COMMIT_LIMIT_MAX}`);
 
-    // Đã chạm trần: không chạy thêm lệnh nào dù cờ "còn commit" vẫn bật, và không có nút "Tải thêm" vô dụng.
+    // The limit is reached: no further command runs even though the "more commits" flag is still on, and no useless "Load more" button appears.
     const before = flaky.limits.length;
     store.mayHaveMoreCommits = true;
     expect(store.canLoadMore).toBe(false);
@@ -667,7 +667,7 @@ describe('RepoStore — lõi Rust từ chối vì repo chưa được tin tưở
     });
     cleanups.push(() => test.cleanup());
     const inner = test.port;
-    // Như repo có `include` trỏ vào file trong repo: lõi Rust chặn status/diff tới khi người dùng tin tưởng lại.
+    // Like a repo whose `include` points at a file inside the repo: the Rust core blocks status / diff until the user trusts it again.
     const port: RepoPort = {
       info: inner.info,
       fs: inner.fs,

@@ -1,6 +1,6 @@
-// Parse unified diff (`git diff`, `git diff-tree -p`) THEO BYTE.
-// Khác bản Swift có chủ đích: tách dòng chỉ theo byte "\n", giữ "\r" trong dòng, nội dung dòng là Uint8Array
-// nguyên vẹn (không giải mã) — nhờ vậy patch dựng lại từ đây áp được đúng từng byte (CRLF, CP1252, CP1258…).
+// Parses unified diff output (`git diff`, `git diff-tree -p`) BYTE-ORIENTED.
+// Deliberately different from the Swift version: split lines on the byte "\n" only, keep "\r" inside the line, and
+// keep line content as untouched Uint8Array (no decoding) — so a patch rebuilt from here applies byte-exactly// (CRLF, CP1252, CP1258…).
 
 import { decodeUtf8Lossy, unquoteGitPath } from '../support/text.ts';
 import { LF, startsWithAscii } from './bytes.ts';
@@ -10,8 +10,8 @@ export type DiffLineKind = 'context' | 'addition' | 'deletion' | 'noNewline';
 export interface DiffLine {
   readonly kind: DiffLineKind;
   /**
-   * Byte của dòng, không gồm ký tự đánh dấu đầu dòng (" ", "+", "-") và không gồm "\n" cuối; "\r" giữ nguyên.
-   * Với `noNewline`: phần chữ sau "\ ". Là view vào buffer đầu vào — chỉ đọc, không sửa.
+   * Bytes of the line, excluding the leading marker (" ", "+", "-") and the trailing "\n"; "\r" is kept.
+   * For `noNewline`, the text after "\ ". This is a view into the input buffer — read-only.
    */
   readonly text: Uint8Array;
   readonly oldNumber: number | null;
@@ -19,15 +19,15 @@ export interface DiffLine {
 }
 
 export interface DiffHunk {
-  /** Thứ tự hunk trong file (từ 0). */
+  /** Hunk order within the file (from 0). */
   readonly id: number;
-  /** "@@ -1,5 +1,6 @@ func foo()" — giải mã lỏng, chỉ để hiển thị. */
+  /** "@@ -1,5 +1,6 @@ func foo()" — lossily decoded, display only. */
   readonly header: string;
   readonly oldStart: number;
   readonly oldCount: number;
   readonly newStart: number;
   readonly newCount: number;
-  /** Phần chữ sau "@@ ... @@" (thường là tên hàm). */
+  /** Text after "@@ ... @@" (usually a function name). */
   readonly section: string;
   readonly lines: readonly DiffLine[];
 }
@@ -35,7 +35,7 @@ export interface DiffHunk {
 export interface FileDiff {
   readonly oldPath: string | null;
   readonly newPath: string | null;
-  /** Các dòng header từ "diff --git" đến "+++" (byte, dùng lại nguyên văn khi dựng patch). */
+  /** Header lines from "diff --git" to "+++" (bytes, reused verbatim when rebuilding a patch). */
   readonly headerLines: readonly Uint8Array[];
   readonly hunks: readonly DiffHunk[];
   readonly isBinary: boolean;
@@ -60,7 +60,7 @@ export function isChangeLine(line: DiffLine): boolean {
   return line.kind === 'addition' || line.kind === 'deletion';
 }
 
-/** Chỉ số các dòng thêm/xoá trong hunk. */
+/** Indices of the added/deleted lines in the hunk. */
 export function changeLineIndices(hunk: DiffHunk): number[] {
   const indices: number[] = [];
   hunk.lines.forEach((line, index) => {
@@ -75,7 +75,7 @@ export function diffLineCount(file: FileDiff): number {
   return total;
 }
 
-/** Có thể stage/unstage/discard từng hunk hoặc từng dòng không. */
+/** Whether per-hunk or per-line stage/unstage/discard is possible. */
 export function supportsPartialStaging(file: FileDiff): boolean {
   return (
     !file.isBinary &&
@@ -97,7 +97,7 @@ export function isModeChangeOnly(file: FileDiff): boolean {
   );
 }
 
-/** Dựng dần trong lúc parse; kiểu công khai `FileDiff` chỉ-đọc. */
+/** Built up while parsing; the public `FileDiff` type is read-only. */
 interface FileBuilder {
   oldPath: string | null;
   newPath: string | null;
@@ -118,8 +118,8 @@ interface OpenHunk extends HunkHeader {
 }
 
 /**
- * Parse output dạng unified diff, có thể gồm nhiều file. Đầu vào là byte thô của git (không giải mã trước).
- * Dòng rỗng hoàn toàn trong hunk bị bỏ qua như bản Swift (git không bao giờ sinh dòng ngữ cảnh rỗng).
+ * Parse unified diff output that may span several files. Input is git's raw bytes (never decoded first).
+ * Fully empty lines inside a hunk are skipped, like in the Swift version (git never emits an empty context line).
  */
 export function parseDiff(bytes: Uint8Array): FileDiff[] {
   const files: FileDiff[] = [];
@@ -192,7 +192,7 @@ export function parseDiff(bytes: Uint8Array): FileDiff[] {
 
     if (hunkInfo === null || line.length === 0) continue;
     switch (line[0]) {
-      case 0x20: // " " ngữ cảnh
+      case 0x20: // " " context
         hunkLines.push({ kind: 'context', text: line.subarray(1), oldNumber: oldLine, newNumber: newLine });
         oldLine += 1;
         newLine += 1;
@@ -257,11 +257,11 @@ function parseHeaderLine(file: FileBuilder, line: Uint8Array): void {
   } else if (startsWithAscii(line, 'rename to ')) {
     file.newPath = unquoteGitPath(tail('rename to '));
   } else if (startsWithAscii(line, 'similarity index ')) {
-    // "similarity index 90%": bỏ dấu % cuối.
+    // "similarity index 90%": strip the trailing %.
     file.similarity = parseUnsigned(tail('similarity index ').slice(0, -1));
   } else if (startsWithAscii(line, 'Binary files ') || startsWithAscii(line, 'GIT binary patch')) {
     file.isBinary = true;
-    // File nhị phân không có dòng "---"/"+++": lấy đường dẫn từ "Binary files a/x and b/y differ".
+    // Binary files have no "---"/"+++" lines: take the path from "Binary files a/x and b/y differ".
     if (file.oldPath === null && file.newPath === null && startsWithAscii(line, 'Binary files ')) {
       const paths = binaryPaths(tail('Binary files '));
       if (paths !== null) [file.oldPath, file.newPath] = paths;
@@ -269,7 +269,7 @@ function parseHeaderLine(file: FileBuilder, line: Uint8Array): void {
   }
 }
 
-/** "a/x and b/y differ" → [x, y] (`/dev/null` → null). Thử từng chỗ " and " vì tên file có thể chứa chữ đó. */
+/** "a/x and b/y differ" → [x, y] (`/dev/null` → null). Tries every " and " because a filename may contain those. */
 function binaryPaths(rest: string): [string | null, string | null] | null {
   if (!rest.endsWith(' differ')) return null;
   const body = rest.slice(0, -' differ'.length);
@@ -283,7 +283,7 @@ function binaryPaths(rest: string): [string | null, string | null] | null {
   return null;
 }
 
-/** "a/path" → "path", "/dev/null" → null. Git thêm TAB cuối đường dẫn có dấu cách. */
+/** "a/path" → "path", "/dev/null" → null. Git appends a TAB to paths that contain spaces. */
 export function parsePath(raw: string): string | null {
   let value = raw;
   if (value.endsWith('\t')) value = value.slice(0, -1);
@@ -293,7 +293,7 @@ export function parsePath(raw: string): string | null {
   return value;
 }
 
-/** Số nguyên không âm gồm toàn chữ số thập phân (tối đa 15 chữ số); khác → null. */
+/** Non-negative integer of decimal digits only (max 15 digits); anything else → null. */
 function parseUnsigned(text: string): number | null {
   if (text.length === 0 || text.length > 15) return null;
   for (let i = 0; i < text.length; i++) {
@@ -313,7 +313,7 @@ function parseRange(text: string): { start: number; count: number } | null {
   return { start, count };
 }
 
-/** "@@ -1,5 +1,6 @@ func foo()" (dòng đã giải mã, bắt đầu bằng "@@ "). */
+/** "@@ -1,5 +1,6 @@ func foo()" (decoded line, starts with "@@ "). */
 export function parseHunkHeader(line: string): HunkHeader | null {
   const body = line.slice(3);
   const end = body.indexOf(' @@');

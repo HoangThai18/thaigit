@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `update.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `updat.vi.ts` (same keys, same parameters). */
 import type { update as source } from './update.vi.ts';
 import type { Translation } from './types.ts';
 

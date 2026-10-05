@@ -2,32 +2,32 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Thứ đang được chọn trên graph.
+/// What is selected on the graph.
 enum RepoSelection: Hashable {
     case none
     case workingTree
     case commit(String)
     case stash(String)
-    /// So sánh hai bản (commit / nhánh): `from` là bản gốc, `to` là bản đem so.
+    /// Comparing two revisions (commit / branch): `from` is the base, `to` the one compared against it.
     case compare(from: String, to: String)
 }
 
-/// Kết quả so sánh hai bản: các commit ở giữa và các file khác nhau.
+/// The result of comparing two revisions: the commits in between and the files that differ.
 struct Comparison: Equatable {
     var from: String
     var to: String
     var fromLabel: String
     var toLabel: String
     var files: [FileChange]
-    /// Commit có ở `to` mà không có ở `from`, mới trước.
+    /// Commits in `to` but not in `from`, newest first.
     var commits: [Commit]
 }
 
-/// Nguồn của file đang mở diff.
+/// The source of the file whose diff is open.
 nonisolated enum DiffSource: Hashable, Sendable {
     case commit(String)
     case stash(String)
-    /// Diff của file giữa hai bản đang so sánh.
+    /// The file's diff between the two revisions being compared.
     case compare(from: String, to: String)
     case unstaged
     case staged
@@ -46,7 +46,7 @@ nonisolated struct OpenFile: Hashable, Sendable {
     var change: FileChange
 }
 
-/// Ảnh trước/sau cho file ảnh nhị phân.
+/// Before / after images for a binary image file.
 struct ImagePair {
     var before: NSImage?
     var after: NSImage?
@@ -60,7 +60,7 @@ enum DiffState {
     case tooLarge(FileDiff)
     case conflict(ConflictFile, ConflictEntry)
     case conflictWithoutMarkers(ConflictEntry)
-    /// Xung đột trong file không phải UTF-8: chỉ chọn cả file một bên hoặc mở editor.
+    /// A conflict in a non-UTF-8 file: only "take the whole file from one side" or open the editor.
     case conflictNotUTF8(ConflictEntry)
     case message(String)
     case failed(String)
@@ -89,13 +89,13 @@ struct Toast: Identifiable, Equatable {
     var title: String
     var message: String?
     var actions: [ToastAction] = []
-    /// Nhóm thông báo để tự ẩn khi không còn đúng (ví dụ "conflict" khi đã hết xung đột).
+    /// A notification group, so it auto-dismisses once it stops applying (e.g. "conflict" once there are no conflicts left).
     var tag: String?
 
     static func == (lhs: Toast, rhs: Toast) -> Bool { lhs.id == rhs.id }
 
     var isPersistent: Bool { style == .error || style == .warning }
-    /// Thông báo có nút (ví dụ "Hoàn tác") được giữ lâu hơn.
+    /// A notification with a button (e.g. "Undo") is kept longer.
     var lifetime: Double { actions.isEmpty ? 4 : 9 }
 }
 
@@ -106,7 +106,7 @@ struct Confirmation: Identifiable {
     var confirmTitle: String
     var isDestructive: Bool = false
     var action: () -> Void
-    /// Nút thứ hai (không mặc định) giữa nút xác nhận và "Huỷ", ví dụ "Revert, chưa commit".
+    /// A second, non-default button between the confirm button and "Cancel", e.g. "Revert, don't commit".
     var secondaryTitle: String? = nil
     var secondaryAction: (() -> Void)? = nil
 }
@@ -120,7 +120,7 @@ struct PushRequest: Identifiable {
     var force: Bool
 }
 
-/// Yêu cầu khi kéo một nhánh thả lên nhánh khác hoặc lên một remote (giống GitKraken).
+/// The prompt shown when a branch is dragged onto another branch or a remote (like GitKraken).
 struct DragRequest: Identifiable {
     enum Target {
         case ref(GitRef)
@@ -150,31 +150,31 @@ enum RepoSheet: Identifiable {
     case commandLog
     case fileHistory(String)
     case switchBranch
-    /// Merge nhánh của repository khác; `target` là nhánh đích chọn sẵn (nil: tự chọn).
+    /// Merge a branch from another repository; `target` is the preselected target branch (nil: choose one).
     case mergeFromRepository(target: String?)
-    /// Đăng nhập GitHub (từ gợi ý khi fetch / pull / push bị từ chối xác thực).
+    /// Sign in to GitHub (from the suggestion shown when fetch / pull / push was denied for auth reasons).
     case githubLogin
-    /// Chọn tài khoản GitHub cho một owner (nil: owner của remote origin — "Tài khoản GitHub cho repo này").
+    /// Pick a GitHub account for an owner (nil: the owner of the origin remote — "GitHub account for this repo").
     case githubAccount(owner: String?)
-    /// Interactive rebase các commit sau `base` (như GitKraken).
+    /// Interactive rebase of the commits after `base` (like GitKraken).
     case interactiveRebase(base: String, label: String)
-    /// Sửa message một commit (menu chuột phải).
+    /// Edit one commit's message (right-click menu).
     case rewordCommit(sha: String, label: String)
-    /// Blame một file; `rev` nil là bản trong working tree.
+    /// Blame a file; a nil `rev` is the working tree version.
     case blame(path: String, rev: String?)
-    /// Tạo Pull Request trên GitHub từ nhánh `head` (tên nhánh trên remote GitHub).
+    /// Create a Pull Request on GitHub from branch `head` (the branch name on the GitHub remote).
     case createPullRequest(head: String)
-    /// Bật / tắt ký commit (GPG / SSH).
+    /// Turn commit signing on / off (GPG / SSH).
     case commitSigning
-    /// Tạo worktree mới (nhánh có sẵn hoặc nhánh mới).
+    /// Create a new worktree (an existing branch, or a new one).
     case addWorktree
-    /// Khởi tạo Git Flow (tên nhánh chính / develop, tiền tố).
+    /// Initialise Git Flow (main / develop branch names, prefixes).
     case gitFlowInit
-    /// Bắt đầu feature / release / hotfix.
+    /// Start a feature / release / hotfix.
     case gitFlowStart(GitFlowKind)
-    /// Theo dõi một kiểu file bằng Git LFS.
+    /// Track a file pattern with Git LFS.
     case lfsTrack
-    /// Issue GitHub / Jira: tạo nhánh, gắn vào commit.
+    /// A GitHub / Jira issue: create a branch, attach it to a commit.
     case issues
 
     var id: String {
@@ -214,8 +214,8 @@ struct RefreshScope: OptionSet {
     static let all: RefreshScope = [.status, .refs, .history]
 }
 
-/// Nhãn nhánh/tag hiển thị cạnh commit trên graph. Nhánh local và remote cùng tên, cùng commit
-/// được gộp thành một nhãn (biểu tượng máy tính + đám mây), giống GitKraken.
+/// A branch / tag label shown next to a commit on the graph. A local and a remote branch with the same name pointing at
+/// the same commit are merged into one label (computer + cloud icons), like GitKraken.
 struct RefLabel: Hashable, Identifiable {
     var text: String
     var isCurrentBranch = false
@@ -224,7 +224,7 @@ struct RefLabel: Hashable, Identifiable {
     var isTag = false
     var isDetachedHead = false
     var refs: [GitRef] = []
-    /// Pull Request đang mở từ nhánh này (số và tiêu đề) — vẽ biểu tượng PR trên nhãn.
+    /// An open Pull Request from this branch (number and title) — draws a PR icon on the label.
     var pullRequest: PullRequestBadge?
 
     var id: String { (isTag ? "tag:" : "ref:") + text }
@@ -252,7 +252,7 @@ struct ScrollRequest: Equatable {
     var row: Int
 }
 
-/// Mô tả menu chung, dùng cho cả NSMenu (graph) và SwiftUI contextMenu (sidebar).
+/// A shared menu description, used by both NSMenu (graph) and SwiftUI contextMenu (sidebar).
 indirect enum MenuItemSpec {
     case action(String, systemImage: String? = nil, destructive: Bool = false, enabled: Bool = true, handler: () -> Void)
     case submenu(String, systemImage: String? = nil, items: [MenuItemSpec])

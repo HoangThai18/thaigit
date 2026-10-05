@@ -2,13 +2,13 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Tên / email commit đang có hiệu lực trong repo (`git config user.name` / `user.email`: local > global).
+/// The commit name / email currently in effect in the repo (`git config user.name` / `user.email`: local > global).
 struct CommitterIdentity: Equatable {
     var name: String?
     var email: String?
 }
 
-/// Danh tính commit khác tài khoản GitHub của repo (owner của origin khớp một tài khoản) — gợi ý nhẹ trong ô commit.
+/// The commit identity of a different GitHub account than the repo's (the origin's owner matches an account) — a gentle hint in the commit box.
 struct CommitIdentityHint: Equatable {
     let owner: String
     let profile: GitHubAccountProfile
@@ -16,19 +16,19 @@ struct CommitIdentityHint: Equatable {
 }
 
 extension RepoModel {
-    // MARK: - Tài khoản GitHub của repo
+    // MARK: - The repo's GitHub accounts
 
-    /// Địa chỉ remote origin (không có origin thì remote đầu tiên).
+    /// The origin remote's address (the first remote when there is no origin).
     var originURL: String? {
         (remotes.first { $0.name == "origin" } ?? remotes.first)?.fetchURL
     }
 
-    /// Owner (người dùng / tổ chức) của remote origin trên github.com (không có origin thì remote đầu tiên).
+    /// The owner (user / organisation) of the origin remote on github.com (the first remote when there is no origin).
     var originOwner: String? {
         originURL.flatMap { GitHubRemoteURL.owner(of: $0) }
     }
 
-    /// Đọc lại tên / email commit đang dùng (sau khi mở repo hoặc đổi danh tính).
+    /// Re-read the commit name / email in use (after opening the repo or changing the identity).
     func loadCommitterIdentity() {
         let repo = repository
         Task {
@@ -38,8 +38,8 @@ extension RepoModel {
         }
     }
 
-    /// Có khi owner của origin khớp một tài khoản (tự gán, trùng login, hoặc tổ chức — không tính tài khoản mặc định
-    /// dùng cho owner lạ) mà email commit đang dùng khác email của tài khoản đó.
+    /// Present when the origin's owner matches an account (user-assigned, matching login, or an organisation — the default
+    /// account used for an unknown owner doesn't count) and the commit email in use differs from that account's email.
     var commitIdentityHint: CommitIdentityHint? {
         guard let owner = originOwner, let current = committerIdentity,
               let resolution = GitHubAccountManager.shared.resolution(forOwner: owner), resolution.match != .fallback
@@ -49,7 +49,7 @@ extension RepoModel {
         return CommitIdentityHint(owner: owner, profile: profile, current: current)
     }
 
-    /// Ghi tên / email commit vào config LOCAL của repo này (`git config user.name|user.email`, không --global).
+    /// Write the commit name / email into THIS repo's local config (`git config user.name|user.email`, no --global).
     func applyCommitIdentity(name: String, email: String) {
         perform(String(localized: "Ghi tên & email commit cho repo"), refresh: []) { repo in
             try await repo.setConfig("user.name", name, global: false)
@@ -60,10 +60,10 @@ extension RepoModel {
         }
     }
 
-    // MARK: - Lỗi xác thực GitHub
+    // MARK: - GitHub authentication errors
 
-    /// Fetch / pull / push tới remote HTTPS trên github.com bị từ chối (401 / 403 / 404) với owner X: chưa đăng nhập
-    /// thì gợi ý "Đăng nhập GitHub"; đã đăng nhập thì cho biết tài khoản nào đã dùng và gợi ý dùng tài khoản khác cho X.
+    /// A fetch / pull / push to an HTTPS remote on github.com was refused (401 / 403 / 404) for owner X: when not signed in
+    /// suggest "Sign in to GitHub"; when signed in name the account that was used and suggest a different one for X.
     func handleGitHubAuthError(_ error: any Error, operation name: String) -> Bool {
         guard let gitError = error as? GitError, let failure = GitHubAuthFailure.detect(in: gitError) else { return false }
         let github = GitHubAccountManager.shared
@@ -71,7 +71,7 @@ extension RepoModel {
             showError(String(localized: "\(name) bị GitHub từ chối — chưa đăng nhập GitHub"), error, actions: githubLoginActions(String(localized: "Đăng nhập GitHub")))
             return true
         }
-        // Tài khoản của owner chưa đọc được token (Keychain lỗi / bị từ chối): git không dùng token tài khoản khác thay vào.
+        // The owner's account token couldn't be read (Keychain failure / denied): git must not fall back to another account's token.
         if !github.loginsWithToken.contains(used.login) {
             showError(String(localized: "Chưa đọc được token của @\(used.login) — đăng nhập lại tài khoản này"), error,
                       actions: githubLoginActions(String(localized: "Đăng nhập lại @\(used.login)")))
@@ -100,7 +100,7 @@ extension RepoModel {
         return true
     }
 
-    /// Nút mở hộp đăng nhập GitHub trên thông báo (không có khi bản build chưa cấu hình Client ID).
+    /// The button that opens the GitHub sign-in dialog on the notification (absent when the build has no client ID configured).
     func githubLoginActions(_ title: String) -> [ToastAction] {
         guard GitHubAccountManager.shared.isConfigured else { return [] }
         return [ToastAction(title: title) { [weak self] in self?.sheet = .githubLogin }]

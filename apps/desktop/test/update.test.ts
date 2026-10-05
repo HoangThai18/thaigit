@@ -1,4 +1,4 @@
-// Kho cập nhật tự động với "Rust" giả: báo bản mới một lần mỗi phiên bản, hỏi trước khi cài, tiến độ, lỗi + thử lại.
+// The automatic-update store against a fake "Rust": reports a new build once per version, asks before installing, shows progress, and handles errors + retry.
 import { describe, expect, it } from 'vitest';
 import type { UpdateInfo, UpdateProgressEvent } from '@thaigit/contracts';
 import { DialogStore } from '../src/lib/stores/dialogs.svelte.ts';
@@ -71,7 +71,7 @@ describe('UpdateStore', () => {
     expect(fake.calls.install).toBe(1);
     expect(store.progress).toEqual({ phase: 'downloading', downloaded: 512, total: 1024, message: null });
     expect(store.installing).toBe(true);
-    // Đang cài thì bấm lại không cài lần hai.
+    // Clicking again while installing must not start a second install.
     await store.install(false);
     expect(fake.calls.install).toBe(1);
   });

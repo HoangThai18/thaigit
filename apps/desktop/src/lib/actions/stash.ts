@@ -1,4 +1,4 @@
-// Stash nhanh / pop / apply / xoá stash (port phần Stash của RepoModel+Actions.swift). Mọi thao tác có "Hoàn tác" khi làm được.
+// Quick stash / pop / apply / drop stash (a port of the Stash part of RepoModel+Actions.swift). Every operation offers "Undo" when it can.
 
 import { isStatusClean, stashDisplayMessage, type Stash } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
@@ -11,7 +11,7 @@ import {
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { handleConflictError } from './errors.ts';
 
-/** Cất mọi thay đổi (kể cả file mới) vào stash, không hỏi tên. */
+/** Stash every change (including new files) without asking for a name. */
 export function quickStash(store: RepoStore): Promise<void> {
   if (isStatusClean(store.status)) {
     store.notify('info', vi.branches.nothingToStash);
@@ -20,7 +20,7 @@ export function quickStash(store: RepoStore): Promise<void> {
   return stash(store, '', true);
 }
 
-/** Hỏi lời nhắn (+ có gồm file mới không) rồi stash. */
+/** Ask for a message (+ whether to include untracked files), then stash. */
 export async function beginStash(store: RepoStore, dialogs?: DialogStore): Promise<void> {
   if (isStatusClean(store.status)) {
     store.notify('info', vi.branches.nothingToStash);

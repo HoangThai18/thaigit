@@ -1,8 +1,8 @@
 import NhanhCore
 import SwiftUI
 
-/// Panel Dòng thời gian (thay chi tiết bên phải khi mở): các mốc tự lưu, chọn một mốc để thấy file khác với bây giờ — bấm file
-/// để xem diff ở giữa, khôi phục riêng file đang xem hoặc tất cả (luôn hỏi trước, có Hoàn tác).
+/// The Timeline panel (replacing the right-hand details when opened): the auto-saved milestones; pick one to see which files
+/// differ from now — click a file for its diff in the centre, and restore just the file in view or everything (always confirmed, with Undo).
 struct TimelineView: View {
     @Bindable var model: RepoModel
     @AppStorage(Prefs.relativeDates) private var relativeDates = true

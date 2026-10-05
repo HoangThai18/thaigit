@@ -1,5 +1,5 @@
-// Quota theo ngày (giờ VN) cho từng cài đặt và tính năng. Mọi thao tác trong transaction; lỗi DB → ném ra để route từ
-// chối (fail closed) chứ không cho dùng không giới hạn.
+// Daily quota (Vietnam time) per install and feature. Every operation runs in a transaction; a DB error is thrown so the
+// route refuses the request (fail closed) instead of granting unlimited use.
 
 import type { AiFeature } from '@thaigit/contracts';
 import { transaction, type Db } from '../db.ts';
@@ -15,7 +15,7 @@ export function usedToday(db: Db, day: string, idHash: string): Record<AiFeature
   return used;
 }
 
-/** Lấy một lượt nếu còn; `false` khi đã hết. */
+/** Take one unit if any remain; `false` when exhausted. */
 export function consumeQuota(
   db: Db,
   day: string,
@@ -37,7 +37,7 @@ export function consumeQuota(
   });
 }
 
-/** Trả lại lượt khi request không ra được kết quả (bận, model lỗi, người dùng huỷ trước chữ đầu). */
+/** Give the unit back when a request produced no result (busy, model error, the user cancelled before the first token). */
 export function refundQuota(db: Db, day: string, idHash: string, feature: AiFeature): void {
   db.prepare(
     'UPDATE ai_quota SET count = MAX(0, count - 1) WHERE day = ? AND id_hash = ? AND feature = ?',
@@ -49,7 +49,7 @@ export interface InstallInfo {
   blocked: boolean;
 }
 
-/** Ghi nhận cài đặt (nếu chưa có) và cho biết có phải "người quen" (thành công ở ≥ 2 ngày khác nhau) / bị chặn. */
+/** Register the install (if new) and report whether it counts as "familiar" (successful on ≥ 2 distinct days) or is blocked. */
 export function installInfo(db: Db, idHash: string, day: string): InstallInfo {
   db.prepare('INSERT OR IGNORE INTO ai_installs (id_hash, created_day, ok_days) VALUES (?, ?, 0)').run(
     idHash,
@@ -61,7 +61,7 @@ export function installInfo(db: Db, idHash: string, day: string): InstallInfo {
   return { veteran: (row?.ok_days ?? 0) >= 2, blocked };
 }
 
-/** Một request thành công: tăng số ngày dùng được (mỗi ngày tính một lần). */
+/** A successful request: increase the count of days used (counted once per day). */
 export function recordSuccess(db: Db, idHash: string, day: string): void {
   db.prepare(
     `UPDATE ai_installs SET ok_days = ok_days + 1, last_ok_day = ?

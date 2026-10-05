@@ -1,5 +1,5 @@
-//! Sổ repo của Rust: `repoId` → thư mục đã chuẩn hoá + trạng thái tin cậy; cấp "token thư mục" cho đường dẫn đến từ
-//! hộp thoại native / "Mở bằng"; danh sách repo gần đây do Rust lưu. JS không bao giờ đưa đường dẫn tuỳ ý.
+//! Rust's repo registry: `repoId` → normalised directory + trust state; it issues "folder tokens" for paths coming from a
+//! native dialog / "Open With", and stores the recent-repo list. JS never passes an arbitrary path.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -18,11 +18,11 @@ use crate::trust::{self, ConfigEntry, Finding, Restrictions, TrustStore, hex};
 const GRANT_TTL: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT: usize = 20;
 
-/// File lớn hơn mức này chỉ so theo (độ dài, mtime), không băm nội dung.
+/// Files larger than this are only compared by (length, mtime), without hashing content.
 const STAMP_HASH_LIMIT: u64 = 1024 * 1024;
 
-/// Dấu của một file: độ dài + mtime + băm nội dung. Băm để một lần sửa cùng độ dài trong cùng một nhịp mtime (ổ có độ phân giải
-/// thô, hoặc mtime bị đặt lại) vẫn bị phát hiện. `None` = không có/không đọc được.
+/// A file's fingerprint: length + mtime + content hash. Hashing so an edit that keeps the length within the same mtime
+/// tick (a coarse-resolution volume, or a reset mtime) is still detected. `None` = missing / unreadable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FileStamp {
     len: u64,
@@ -39,23 +39,23 @@ fn stamp_of(path: &Path) -> Option<FileStamp> {
     Some(FileStamp { len: metadata.len(), modified: metadata.modified().ok(), digest })
 }
 
-/// Dấu vân tay mọi file quyết định cấu hình hiệu lực của một repo chưa tin cậy: đổi → quét lại. Gồm `<commonDir>/config`,
-/// `<gitDir>/config.worktree`, `<gitDir>/HEAD` (`includeIf onbranch:` đổi hiệu lực khi chuyển nhánh) và mọi file mà lần quét
-/// đã đọc hay sẽ đọc qua `include` (xem `trust::config_files`), kể cả file chưa tồn tại lúc quét.
+/// The fingerprint of every file deciding an untrusted repo's effective config: a change → rescan. It covers `<commonDir>/config`,
+/// `<gitDir>/config.worktree`, `<gitDir>/HEAD` (`includeIf onbranch:` changes effect on a branch switch) and every file the
+/// scan read or will read through `include` (see `trust::config_files`), including files that did not exist during the scan.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ConfigFingerprint {
     files: Vec<(PathBuf, Option<FileStamp>)>,
-    /// Lần quét bị một lần ghi file xen ngang: coi như luôn đã đổi để lần chạy lệnh kế tiếp quét lại.
+    /// The scan was interrupted by a write: always treat it as changed so the next command run rescans.
     volatile: bool,
 }
 
 impl ConfigFingerprint {
-    /// File chắc chắn quyết định cấu hình hiệu lực (không cần biết kết quả quét).
+    /// Files that certainly decide the effective config (no need to know the scan result).
     pub fn base_paths(git_dir: &Path, common_dir: &Path) -> Vec<PathBuf> {
         vec![common_dir.join("config"), git_dir.join("config.worktree"), git_dir.join("HEAD")]
     }
 
-    /// Chụp dấu của các đường dẫn (bỏ trùng).
+    /// Fingerprint the given paths (deduplicated).
     pub fn capture(paths: impl IntoIterator<Item = PathBuf>) -> Self {
         let mut paths: Vec<PathBuf> = paths.into_iter().collect();
         paths.sort();
@@ -70,47 +70,47 @@ impl ConfigFingerprint {
         Self { files, volatile: false }
     }
 
-    /// Các file được theo dõi.
+    /// The tracked files.
     pub fn paths(&self) -> impl Iterator<Item = &Path> {
         self.files.iter().map(|(path, _)| path.as_path())
     }
 
-    /// Mọi file đã chụp còn nguyên như lúc chụp?
+    /// Is every fingerprinted file unchanged since it was fingerprinted?
     pub fn unchanged(&self) -> bool {
         !self.volatile && self.files.iter().all(|(path, stamp)| stamp_of(path) == *stamp)
     }
 
-    /// Mọi file có mặt trong `before` vẫn mang đúng dấu đó trong `self` (không có lần ghi nào xen vào giữa hai lần chụp)?
+    /// Does every file present in `before` still carry the same fingerprint in `self` (i.e. no write slipped in between the two snapshots)?
     pub fn consistent_with(&self, before: &Self) -> bool {
         before.files.iter().all(|(path, stamp)| self.files.iter().find(|(p, _)| p == path).is_none_or(|(_, now)| now == stamp))
     }
 
-    /// Vân tay luôn "đã đổi".
+    /// The fingerprint always reports "changed".
     pub fn into_volatile(mut self) -> Self {
         self.volatile = true;
         self
     }
 }
 
-/// Một repo đã mở. Bất biến: đổi trạng thái tin cậy = thay bằng entry mới cùng `id`.
+/// An opened repo. Immutable: changing the trust state means replacing it with a new entry with the same `id`.
 #[derive(Debug)]
 pub struct RepoEntry {
     pub id: String,
     pub root: PathBuf,
     pub git_dir: PathBuf,
     pub common_dir: PathBuf,
-    /// Khoá khoá-theo-repo: `path_key(realpath(commonDir))`.
+    /// The per-repo lock: `path_key(realpath(commonDir))`.
     pub common_key: String,
     pub trusted: bool,
     pub findings: Vec<Finding>,
     pub findings_hash: String,
     pub entries: Vec<ConfigEntry>,
-    /// Chế độ hạn chế: có khi chưa tin cậy.
+    /// Restricted mode: sometimes not trusted.
     pub restrictions: Option<Restrictions>,
     pub fingerprint: ConfigFingerprint,
 }
 
-/// Kết quả `open_repo` (khớp `OpenedRepo` trong `packages/contracts/src/ipc.ts`).
+/// The `open_repo` result (matching `OpenedRepo` in `packages/contracts/src/ipc.ts`).
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenedRepo {
@@ -136,18 +136,18 @@ impl RepoEntry {
     }
 }
 
-/// Mã định danh repo: băm đường dẫn thật của working tree (cùng repo mở ở nhiều cửa sổ → cùng id).
+/// The repo's identity code: a hash of the working tree's real path (the same repo opened in several windows gets the same id).
 pub fn repo_id_for(root: &Path) -> String {
     hex(&Sha256::digest(path_key(root).as_bytes()))[..16].to_string()
 }
 
-/// Thư mục do Rust cấp cho webview: token dùng cho `open_repo` / `git_clone` / `git_init`.
+/// A directory Rust granted to the webview: the token is used for `open_repo` / `git_clone` / `git_init`.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct PickedFolder {
     pub token: String,
-    /// Tên thư mục (hiển thị).
+    /// The folder's name (for display).
     pub name: String,
-    /// Đường dẫn đầy đủ — chỉ để hiển thị, Rust không bao giờ nhận lại đường dẫn từ JS.
+    /// The full path — display only; Rust never accepts a path back from JS.
     pub path: String,
 }
 
@@ -173,19 +173,19 @@ struct RecentFile {
 
 pub struct Registry {
     repos: RwLock<HashMap<String, Arc<RepoEntry>>>,
-    /// Băm tập khoá chạy lệnh mà webview đã được cho xem lần cuối (kết quả `open_repo`/`trust_repo`): `trust_repo` chỉ tin tưởng
-    /// đúng tập đó, không tin phần thay đổi sau đó mà người dùng chưa thấy.
+    /// Hash of the command-running key set the webview was last shown (the `open_repo`/`trust_repo` result): `trust_repo` trusts
+    /// exactly that set, not anything that changed afterwards without the user seeing it.
     reported: Mutex<HashMap<String, String>>,
     grants: Mutex<HashMap<String, Grant>>,
     recent: Mutex<Vec<RecentRepo>>,
     recent_path: PathBuf,
     launch: Mutex<Vec<PathBuf>>,
-    /// Repo cần mở trong một cửa sổ cụ thể (nhãn cửa sổ → thư mục): worktree / submodule mở sang cửa sổ mới.
+    /// The repo to open in a specific window (window label → directory): a worktree / submodule opened in a new window.
     window_launch: Mutex<HashMap<String, PathBuf>>,
     pub trust: TrustStore,
 }
 
-/// Nguồn mở repo: token từ hộp thoại/"Mở bằng"/thả file native, hoặc id trong danh sách gần đây.
+/// Where a repo open comes from: a dialog / "Open With" / native drop token, or an id in the recent list.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum OpenSource {
@@ -217,9 +217,9 @@ impl Registry {
         }
     }
 
-    // --- token thư mục -------------------------------------------------------------------------------------------
+    // MARK: - folder tokens
 
-    /// Cấp token cho một thư mục (đã canonicalize) mà người dùng vừa chọn bằng hộp thoại native.
+    /// Issue a token for a (already canonicalised) directory the user just picked with a native dialog.
     pub fn grant_folder(&self, path: &Path) -> PickedFolder {
         let token = uuid::Uuid::new_v4().simple().to_string();
         let mut grants = self.grants.lock().unwrap_or_else(|p| p.into_inner());
@@ -229,7 +229,7 @@ impl Registry {
         PickedFolder { token, name: folder_name(path), path: path.to_string_lossy().into_owned() }
     }
 
-    /// Xem token mà không huỷ (clone/init cần thử lại khi URL sai).
+    /// Look at a token without consuming it (clone / init retry when the URL was wrong).
     pub fn peek_grant(&self, token: &str) -> Result<PathBuf> {
         let grants = self.grants.lock().unwrap_or_else(|p| p.into_inner());
         grants
@@ -239,7 +239,7 @@ impl Registry {
             .ok_or_else(|| AppError::NotFound("Mã thư mục không còn hiệu lực — hãy chọn lại thư mục".into()))
     }
 
-    /// Dùng token một lần.
+    /// Consume a token (single use).
     pub fn take_grant(&self, token: &str) -> Result<PathBuf> {
         let path = self.peek_grant(token)?;
         self.grants.lock().unwrap_or_else(|p| p.into_inner()).remove(token);
@@ -250,7 +250,7 @@ impl Registry {
         self.grants.lock().unwrap_or_else(|p| p.into_inner()).remove(token);
     }
 
-    /// Đường dẫn do hệ điều hành đưa vào lúc khởi động (argv, "Mở bằng"): chờ JS lấy một lần.
+    /// A path the OS handed us at startup (argv, "Open With"): waiting for JS to take it once.
     pub fn push_launch_paths(&self, paths: Vec<PathBuf>) {
         self.launch.lock().unwrap_or_else(|p| p.into_inner()).extend(paths);
     }
@@ -260,12 +260,12 @@ impl Registry {
         paths.iter().filter_map(|p| canonical(p).ok()).filter(|p| p.is_dir()).map(|p| self.grant_folder(&p)).collect()
     }
 
-    /// Ghi repo cần mở cho cửa sổ `label` (đặt TRƯỚC khi dựng cửa sổ để nó đọc được ngay khi khởi động).
+    /// Record the repo to open for window `label` (set BEFORE the window is built so it can read it right at startup).
     pub fn set_window_launch(&self, label: &str, path: PathBuf) {
         self.window_launch.lock().unwrap_or_else(|p| p.into_inner()).insert(label.to_string(), path);
     }
 
-    /// Như `take_launch_paths` nhưng ưu tiên repo dành riêng cho cửa sổ `label` (worktree / submodule mở sang cửa sổ mới).
+    /// Like `take_launch_paths` but prefers the repo reserved for window `label` (a worktree / submodule opened in a new window).
     pub fn take_launch_paths_for(&self, label: &str) -> Vec<PickedFolder> {
         let own = self.window_launch.lock().unwrap_or_else(|p| p.into_inner()).remove(label);
         match own.and_then(|path| canonical(&path).ok()).filter(|path| path.is_dir()) {
@@ -274,7 +274,7 @@ impl Registry {
         }
     }
 
-    // --- repo ----------------------------------------------------------------------------------------------------
+    // MARK: - repos
 
     pub fn get(&self, id: &str) -> Result<Arc<RepoEntry>> {
         self.repos
@@ -291,7 +291,7 @@ impl Registry {
         entry
     }
 
-    /// Ghi nhận tập khoá chạy lệnh vừa được trả cho webview hiển thị.
+    /// Record the command-running key set that was just handed to the webview for display.
     pub fn set_reported(&self, repo_id: &str, findings_hash: &str) {
         self.reported.lock().unwrap_or_else(|p| p.into_inner()).insert(repo_id.to_string(), findings_hash.to_string());
     }
@@ -300,7 +300,7 @@ impl Registry {
         self.reported.lock().unwrap_or_else(|p| p.into_inner()).get(repo_id).cloned()
     }
 
-    // --- gần đây -------------------------------------------------------------------------------------------------
+    // MARK: - recent
 
     pub fn recent_list(&self) -> Vec<RecentRepo> {
         self.recent.lock().unwrap_or_else(|p| p.into_inner()).clone()
@@ -319,7 +319,7 @@ impl Registry {
             recent.truncate(MAX_RECENT);
             recent.clone()
         };
-        // Lỗi ghi danh sách gần đây không được làm hỏng việc mở repo.
+        // Failing to write the recent list must not break opening the repo.
         let _ = store::write_json(&self.recent_path, &RecentFile { items: snapshot });
     }
 
@@ -332,7 +332,7 @@ impl Registry {
         let _ = store::write_json(&self.recent_path, &RecentFile { items: snapshot });
     }
 
-    /// Dựng entry từ kết quả quét; trạng thái tin cậy theo `TrustStore`.
+    /// Build an entry from the scan result; the trust state comes from `TrustStore`.
     #[allow(clippy::too_many_arguments)]
     pub fn build_entry(
         &self,
@@ -369,7 +369,7 @@ impl Registry {
     }
 }
 
-/// Cờ tách rời để đánh dấu "đã ngắt kết nối khỏi webview" cho Channel của một op.
+/// A separate flag marking "detached from the webview" for an op's Channel.
 pub fn new_detach_flag() -> Arc<AtomicBool> {
     Arc::new(AtomicBool::new(false))
 }
@@ -443,12 +443,12 @@ mod tests {
         let fingerprint = ConfigFingerprint::capture([config.clone(), include.clone(), missing.clone(), config.clone()]);
         assert_eq!(fingerprint.paths().count(), 3, "bỏ trùng");
         assert!(fingerprint.unchanged());
-        // file chưa tồn tại lúc chụp mà xuất hiện sau (vd. chuyển nhánh) → đổi
+        // a file that did not exist at fingerprint time and appears later (e.g. a branch switch) → changed
         std::fs::write(&missing, "[filter \"x\"]\n").unwrap();
         assert!(!fingerprint.unchanged());
         std::fs::remove_file(&missing).unwrap();
         assert!(fingerprint.unchanged(), "xoá lại thì về như cũ");
-        // sửa cùng độ dài rồi đặt lại mtime: chỉ băm nội dung mới phát hiện được
+        // an edit keeping the length, then mtime reset: only hashing the content detects it
         let before = std::fs::metadata(&config).unwrap().modified().unwrap();
         std::fs::write(&config, "bbbb").unwrap();
         std::fs::OpenOptions::new().write(true).open(&config).unwrap().set_modified(before).unwrap();
@@ -456,7 +456,7 @@ mod tests {
         std::fs::write(&config, "aaaa").unwrap();
         std::fs::OpenOptions::new().write(true).open(&config).unwrap().set_modified(before).unwrap();
         assert!(fingerprint.unchanged());
-        // file bị xoá
+        // the file was deleted
         std::fs::remove_file(&include).unwrap();
         assert!(!fingerprint.unchanged());
     }

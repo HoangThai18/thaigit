@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `accounts.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `account.vi.ts` (same keys, same parameters). */
 import type { accounts as accountsSource, pullRequests as pullRequestsSource } from './accounts.vi.ts';
 import type { Translation } from './types.ts';
 

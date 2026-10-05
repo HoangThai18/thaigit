@@ -1,7 +1,7 @@
-//! Theo dõi thay đổi repo bằng `notify-debouncer-full`: một debounce thích nghi ở Rust (≥ 150 ms và ≥ thời gian `git status`
-//! lần trước), phân loại đường dẫn (port `classifyGitPath` của `RepoWatcher.swift`), lọc gitignore bằng crate `ignore`
-//! (`.gitignore` gốc, `info/exclude`, `core.excludesFile`; `.gitignore` lồng nhau nạp lười), tắt tiếng sự kiện khi chính app
-//! đang chạy lệnh ghi/mạng trên repo, tràn bộ đệm → `rescan`.
+//! Watches repo changes with `notify-debouncer-full`: an adaptive debounce in Rust (≥ 150 ms and ≥ the duration of the last
+//! `git status`), path classification (a port of `RepoWatcher.classifyGitPath`), gitignore filtering with the `ignore` crate
+//! (the root `.gitignore`, `info/exclude`, `core.excludesFile`; nested `.gitignore` files load lazily), muting events while
+//! the app itself runs a write/network command on the repo, and a buffer overflow → `rescan`.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -21,13 +21,13 @@ use crate::errors::{AppError, Result};
 use crate::locks::RepoLock;
 use crate::pathutil::{canonical, relative_to};
 
-/// Debounce cơ sở; thời gian giữa hai lần phát còn không nhỏ hơn thời gian `git status` lần trước.
+/// The debounce floor; the time between two emissions is never shorter than the last `git status`.
 pub const BASE_DEBOUNCE: Duration = Duration::from_millis(150);
-/// Sự kiện xảy ra trong lúc app chạy lệnh ghi/mạng (cộng khoảng ân hạn này) bị tắt tiếng: op tự làm mới khi xong.
+/// Events happening while the app runs a write/network command (plus this grace period) are muted: the op refreshes the UI itself when it finishes.
 pub const MUTE_GRACE: Duration = Duration::from_millis(500);
 const MAX_CACHED_IGNORE_DIRS: usize = 4000;
 
-/// Sự kiện `repo-changed` gửi webview (khớp `RepoChangedEvent`).
+/// The `repo-changed` event sent to the webview (matching `RepoChangedEvent`).
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoChangedEvent {
@@ -72,8 +72,8 @@ impl Change {
     }
 }
 
-/// Phân loại thay đổi bên trong thư mục `.git` (port nguyên `RepoWatcher.classifyGitPath`).
-/// Thư mục của ref snapshot (`ref` trong `packages/contracts/snapshot.json`).
+/// Classify a change inside the .git directory (a direct port of `RepoWatcher.classifyGitPath`).
+/// The snapshot ref directory (`ref` in `packages/contracts/snapshot.json`).
 const SNAPSHOT_REF_DIR: &str = "refs/worktree/thaigit/";
 
 pub fn classify_git_path(relative: &str) -> Change {
@@ -85,7 +85,7 @@ pub fn classify_git_path(relative: &str) -> Change {
     if IGNORED_PREFIXES.iter().any(|p| relative.starts_with(p)) || relative.ends_with(".lock") {
         return Change::NONE;
     }
-    // Ref snapshot per-worktree của app (`snapshot.json`), kể cả của worktree khác thấy qua common dir.
+    // The app's per-worktree snapshot refs (`snapshot.json`), including those of other worktrees visible through the common dir.
     if relative.starts_with(SNAPSHOT_REF_DIR) || relative.contains(&format!("/{SNAPSHOT_REF_DIR}")) {
         return Change::NONE;
     }
@@ -106,7 +106,7 @@ pub fn classify_git_path(relative: &str) -> Change {
     Change::NONE
 }
 
-/// Bộ lọc gitignore: `.gitignore` gốc, `.gitignore` lồng nhau (nạp lười), `info/exclude`, `core.excludesFile`.
+/// The gitignore filter: the root `.gitignore`, nested `.gitignore` files (loaded lazily), `info/exclude`, `core.excludesFile`.
 pub struct IgnoreSet {
     root: PathBuf,
     exclude_file: PathBuf,
@@ -118,7 +118,7 @@ pub struct IgnoreSet {
 fn build_matcher(root: &Path, files: &[PathBuf]) -> Gitignore {
     let mut builder = GitignoreBuilder::new(root);
     for file in files {
-        // Lỗi cú pháp một dòng không làm mất cả file; file không có thì bỏ qua.
+        // A syntax error in one line does not lose the whole file; a missing file is ignored.
         let _ = builder.add(file);
     }
     builder.build().unwrap_or_else(|_| Gitignore::empty())
@@ -137,7 +137,7 @@ impl IgnoreSet {
         }
     }
 
-    /// `.gitignore` của thư mục `rel_dir` (tương đối với gốc; rỗng = gốc) thay đổi → nạp lại lần sau.
+    /// The `.gitignore` of directory `rel_dir` (relative to the root; empty = root) changed → reload it next time.
     pub fn invalidate_dir(&self, rel_dir: &Path) {
         self.dirs.lock().unwrap_or_else(|p| p.into_inner()).remove(rel_dir);
     }
@@ -183,7 +183,7 @@ impl IgnoreSet {
         matches!(self.global.matched(prefix, is_dir), Match::Ignore(_))
     }
 
-    /// `rel` (tương đối với gốc) có bị bỏ qua không — hoặc nằm trong thư mục bị bỏ qua (git không cho "bỏ qua lại" con của thư mục bị loại).
+    /// Is `rel` (relative to the root) ignored — or inside an ignored directory (git does not allow "re-ignoring" children of an ignored directory)?
     pub fn is_ignored(&self, rel: &Path, is_dir: bool) -> bool {
         let count = rel.components().count();
         let mut prefix = PathBuf::new();
@@ -197,7 +197,7 @@ impl IgnoreSet {
     }
 }
 
-/// Phân loại đường dẫn sự kiện theo repo.
+/// Classify an event path per repo.
 pub struct Classifier {
     root: PathBuf,
     git_dir: PathBuf,
@@ -226,7 +226,7 @@ impl Classifier {
         if relative.as_os_str().is_empty() {
             return Change::NONE;
         }
-        // Siêu dữ liệu của repo lồng/submodule không phải thay đổi working tree của repo này.
+        // The metadata of a nested repo / submodule is not a working-tree change of this repo.
         if crate::pathutil::path_has_git_component(&relative) {
             return Change::NONE;
         }
@@ -246,7 +246,7 @@ pub struct WatchSpec {
     pub git_dir: PathBuf,
     pub common_dir: PathBuf,
     pub global_excludes: Option<PathBuf>,
-    /// Khoá theo repo: để tắt tiếng khi có op ghi/mạng và đọc thời gian `status`.
+    /// The per-repo lock: used to mute while a write/network op runs and to read the `status` duration.
     pub lock: Arc<RepoLock>,
 }
 
@@ -261,7 +261,7 @@ struct Shared {
     stop: AtomicBool,
 }
 
-/// Watcher của một (cửa sổ, repo). Thả handle = dừng.
+/// The watcher of one (window, repo). Dropping the handle stops it.
 pub struct WatchHandle {
     debouncer: Option<Debouncer<RecommendedWatcher, RecommendedCache>>,
     shared: Arc<Shared>,
@@ -286,7 +286,7 @@ type Emit = Arc<dyn Fn(RepoChangedEvent) + Send + Sync>;
 fn process_result(classifier: &Classifier, lock: &RepoLock, result: DebounceEventResult) -> Change {
     let events = match result {
         Ok(events) => events,
-        // Tràn bộ đệm hoặc lỗi theo dõi: không biết đã mất gì → quét lại toàn bộ.
+        // A buffer overflow or a watch error: we do not know what was missed → rescan everything.
         Err(_) => return Change::RESCAN,
     };
     let mut total = Change::NONE;
@@ -311,8 +311,8 @@ fn process_result(classifier: &Classifier, lock: &RepoLock, result: DebounceEven
     total
 }
 
-/// Bắt đầu theo dõi. Đường dẫn được chuẩn hoá `dunce` (realpath: `/tmp` → `/private/tmp`, tên 8.3 trên Windows) để khớp
-/// đường dẫn mà FSEvents/ReadDirectoryChangesW báo về.
+/// Start watching. Paths are normalised with `dunce` (realpath: `/tmp` → `/private/tmp`, short 8.3 names on Windows) so they
+/// match what FSEvents / ReadDirectoryChangesW report.
 pub fn spawn_watch(spec: WatchSpec, emit: Emit) -> Result<WatchHandle> {
     let norm = |path: &Path| canonical(path).unwrap_or_else(|_| path.to_path_buf());
     let (root, git_dir, common_dir) = (norm(&spec.root), norm(&spec.git_dir), norm(&spec.common_dir));
@@ -370,7 +370,7 @@ pub fn spawn_watch(spec: WatchSpec, emit: Emit) -> Result<WatchHandle> {
                     continue;
                 }
                 let change = std::mem::take(&mut pending.change);
-                // Thích nghi: không phát dồn dập hơn thời gian `git status` lần trước (và không dưới 150 ms).
+                // Adaptive: never emit more often than the last `git status` (and never below 150 ms).
                 let gap = BASE_DEBOUNCE.max(Duration::from_millis(lock.status_ms()));
                 pending.next_allowed = Instant::now() + gap;
                 drop(pending);
@@ -384,7 +384,7 @@ pub fn spawn_watch(spec: WatchSpec, emit: Emit) -> Result<WatchHandle> {
 }
 
 impl crate::core::Core {
-    /// `core.excludesFile` của người dùng (mở rộng `~`), hoặc vị trí mặc định của git nếu file đó có.
+    /// The user's `core.excludesFile` (`~` expanded), or git's default location when that file exists.
     async fn global_excludes_file(&self, entry: &crate::registry::RepoEntry) -> Option<PathBuf> {
         let output = self.git_plain(&entry.root, "config", &["--type=path", "--get", "core.excludesfile"], entry.restrictions.as_ref()).await.ok()?;
         let configured = output.stdout().trim().to_string();
@@ -399,7 +399,7 @@ impl crate::core::Core {
         default.is_file().then_some(default)
     }
 
-    /// `watch_repo`: bắt đầu theo dõi repo cho cửa sổ gọi (thay watcher cũ của cùng cửa sổ + repo).
+    /// `watch_repo`: start watching a repo for the calling window (replacing that window's old watcher for the same repo).
     pub async fn watch_repo(&self, window: &str, repo_id: &str) -> Result<()> {
         let entry = self.registry.get(repo_id)?;
         let global_excludes = self.global_excludes_file(&entry).await;
@@ -415,7 +415,7 @@ impl crate::core::Core {
     }
 }
 
-/// Các watcher đang chạy, gắn nhãn (cửa sổ, repo).
+/// The running watchers, tagged (window, repo).
 pub struct Watchers {
     map: Mutex<HashMap<(String, String), WatchHandle>>,
     events: Arc<dyn EventSink>,
@@ -431,7 +431,7 @@ impl Watchers {
         let events = self.events.clone();
         let label = window.to_string();
         let handle = spawn_watch(spec, Arc::new(move |event| events.repo_changed(&label, &event)))?;
-        // Thay watcher cũ của cùng (cửa sổ, repo) nếu có.
+        // Replace the old watcher for the same (window, repo) if there is one.
         let replaced = self.map.lock().unwrap_or_else(|p| p.into_inner()).insert((window.to_string(), repo_id), handle);
         drop(replaced);
         Ok(())
@@ -505,7 +505,7 @@ mod tests {
             ("sequencer/todo", Change::BOTH),
             ("BISECT_LOG", Change::BOTH),
             ("worktrees/wt/HEAD", Change::BOTH),
-            // Snapshot của Thaigit (index tạm + ref per-worktree): không phải thay đổi của người dùng.
+            // A Thaigit snapshot (temporary index + per-worktree ref) is not a user change.
             ("thaigit/snapshot.index", Change::NONE),
             ("refs/worktree/thaigit/snapshots", Change::NONE),
             ("worktrees/wt/refs/worktree/thaigit/snapshots", Change::NONE),
@@ -539,7 +539,7 @@ mod tests {
         assert!(!ignored("src/main.rs", false));
         assert!(!ignored("build", false), "`build/` chỉ khớp thư mục, không khớp file tên build");
         assert!(ignored("secret.txt", false), "info/exclude");
-        // .gitignore lồng nhau (nạp lười), ưu tiên của thư mục sâu hơn
+        // nested `.gitignore` files (loaded lazily), a deeper directory's rules win
         assert!(ignored("sub/x.tmp", false));
         assert!(ignored("sub/deep/y.tmp", false));
         assert!(!ignored("x.tmp", false), "quy tắc trong sub/ không áp cho gốc");

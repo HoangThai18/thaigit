@@ -1,6 +1,7 @@
-// Thả cái gì lên đâu thì làm gì (port `dropOptions` của RepoModel+Actions.swift): nhánh → nhánh (merge / rebase /
-// fast-forward), nhánh → nhánh remote hoặc remote (push), tag → remote (push tag); file giữa "Chưa stage" ↔ "Đã stage"
-// (stage / bỏ stage ngay, không hỏi). Luôn qua menu xác nhận với nhánh — không có gì chạy ngầm ngoài ý muốn.
+// What dropping X onto Y does (a port of `dropOptions` in RepoModel+Actions.swift): branch onto branch (merge /
+// rebase / fast-forward), branch onto a remote branch or a remote (push), tag onto a remote (push tag); a
+// file between "Unstaged" ↔ "Staged" (staged / unstaged immediately, no prompt). Anything involving a
+// branch always goes through a confirmation menu — nothing runs behind the user's back.
 
 import { refName, type GitRef } from '@thaigit/core';
 import { switchToBranch, fastForward } from '../actions/branches.ts';
@@ -21,7 +22,7 @@ function findRef(store: RepoStore, fullName: string): GitRef | undefined {
   );
 }
 
-/** Merge `source` vào `target`; `target` không phải nhánh hiện tại thì checkout trước. */
+/** Merge `source` into `target`; when `target` isn't the current branch, check it out first. */
 async function mergeInto(store: RepoStore, source: string, target: string): Promise<void> {
   if (store.currentBranch !== target) {
     await switchToBranch(store, target);
@@ -30,7 +31,7 @@ async function mergeInto(store: RepoStore, source: string, target: string): Prom
   await merge(store, source, source);
 }
 
-/** Các lựa chọn khi thả nhánh / tag `source` lên `target` (rỗng = không làm gì). */
+/** The options when dropping branch / tag `source` onto `target` (empty = do nothing). */
 export function refDropItems(store: RepoStore, source: GitRef, target: DropTarget): MenuItem[] {
   const sourceName = refName(source);
   const current = store.currentBranch;
@@ -123,7 +124,7 @@ export function canDrop(store: RepoStore, payload: DragPayload, target: DropTarg
   return refDropItems(store, payload.ref, target).some((item) => !('disabled' in item && item.disabled));
 }
 
-/** Thả xong: file thì làm ngay; nhánh / tag thì trả menu để người dùng chọn. */
+/** After a drop: files act immediately; branches / tags return the menu so the user chooses. */
 export function dropAction(store: RepoStore, payload: DragPayload, target: DropTarget): MenuItem[] | null {
   if (payload.kind === 'files') {
     if (target.kind !== 'zone' || target.zone === payload.from) return null;

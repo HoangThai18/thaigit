@@ -197,7 +197,7 @@ describe('resolveConflicts: giữ đúng từng byte ngoài vùng xung đột', 
     expect(file.endsWithNewline).toBe(false);
     expect(resolve(file, [[0, 'ours']])).toBe('x\no');
     expect(resolve(file, [[0, 'oursThenTheirs']])).toBe('x\no\nt');
-    // "Không chọn bên nào": phần chung đứng trước vẫn nguyên văn (không đụng byte ngoài vùng).
+    // "Pick neither side": the leading common part stays verbatim (no byte outside the region is touched).
     expect(resolve(file, [[0, 'neither']])).toBe('x\n');
     const crlf = parse('x\r\n<<<<<<< a\r\no\r\n=======\r\nt\r\n>>>>>>> b');
     expect(resolve(crlf, [[0, 'theirs']])).toBe('x\r\nt');
@@ -262,8 +262,8 @@ describe('parseConflictFile: file không phải UTF-8 bị từ chối', () => {
   });
 });
 
-// Kiểm thử ngẫu nhiên (PRNG cố định, lặp lại được): dựng file từ các mảnh đã biết, kết quả mong đợi tính độc lập
-// với parser bằng cách ghép đúng các mảnh đó.
+// Randomised tests (fixed PRNG, so they are reproducible): build a file from known chunks and compute the expectation
+// independently of the parser by concatenating exactly those chunks.
 describe('resolveConflicts: ngẫu nhiên — chỉ vùng xung đột bị thay', () => {
   function mulberry32(seed: number): () => number {
     let a = seed;
@@ -368,7 +368,7 @@ describe('chọn từng dòng và xem trước (như GitKraken)', () => {
     expect([...pick.ours].sort()).toEqual([0, 2]);
     expect([...pick.theirs]).toEqual([1]);
 
-    // Đoạn 2 chưa chọn: xem trước giữ dấu xung đột, chưa lưu được.
+    // Segment 2 still unselected: the preview keeps the conflict markers and cannot be saved yet.
     expect(decode(previewConflicts(file, new Map([[0, pick]])))).toBe(
       'top\nA1\nA3\nB2\nbottom\n<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> feat\nend',
     );

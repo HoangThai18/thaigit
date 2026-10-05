@@ -1,8 +1,9 @@
 /**
- * "Host" = mọi thứ giao diện cần từ bên ngoài webview: mở repo (hộp thoại native / danh sách gần đây / "Mở bằng…") và
- * một repo đã mở (`exec`, `fs`, theo dõi thay đổi, tin tưởng). App thật dùng Tauri (`core-tauri.ts`, qua lõi Rust); khi chạy
- * dev trong trình duyệt thường thì dùng cầu nối dev CHỈ-ĐỌC (`dev-bridge-client.ts`, nạp bằng `import()` có điều kiện
- * `import.meta.env.DEV` để bản build không chứa nó). Phần còn lại của giao diện chỉ biết các kiểu ở đây.
+ * A "Host" is everything the UI needs from outside the webview: opening a repo (native dialog / recent
+ * list / "Open With…") and an already-open repo (`exec`, `fs`, change watching, trust). The real app uses
+ * Tauri (`core-tauri.ts`, through the Rust core); when running dev in a plain browser it uses the
+ * read-only DEV bridge (`dev-bridge-client.ts`, loaded via a conditional `import()` guarded by
+ * `import.meta.env.DEV` so builds never contain it). The rest of the UI only knows the types here.
  */
 import type { OpenedRepo, RepoChangedEvent } from '@thaigit/contracts';
 import type { Exec, RepoFs, TypedGit } from '@thaigit/core';
@@ -17,43 +18,43 @@ import {
 import { pickRepoFolder } from '../ipc/host.ts';
 import type { PickedFolder, RecentRepo } from '../ipc/types.ts';
 
-/** Phần của một repo đã mở mà giao diện dùng. `TauriRepo` thoả sẵn kiểu này. */
+/** The part of an opened repo the UI uses. `TauriRepo` structurally satisfies this. */
 export interface RepoPort {
   readonly info: OpenedRepo;
   readonly exec: Exec;
   readonly fs: RepoFs;
   readonly typedGit?: TypedGit;
-  /** Sự kiện đã debounce/lọc gitignore ở nơi phát (Rust) — người nhận KHÔNG debounce thêm. Trả hàm dừng. */
+  /** Changes, already debounced and gitignore-filtered at the source (Rust) — receivers must NOT debounce again. Returns a stop function. */
   watch(onChange: (event: RepoChangedEvent) => void): Promise<() => Promise<void>>;
-  /** Ghi nhận tin tưởng; trả repo mới ở trạng thái `trusted`. */
+  /** Record trust; returns a new repo in the `trusted` state. */
   trust(): Promise<RepoPort>;
-  /** Tích hợp hệ điều hành (chỉ có trong app Tauri): mở terminal / trình soạn thảo / trình quản lý file tại repo. */
+  /** OS integration (Tauri app only): open a terminal / editor / file manager at the repo. */
   openInTerminal?(): Promise<void>;
   openInEditor?(relativePath?: string): Promise<void>;
   reveal?(relativePath?: string): Promise<void>;
-  /** Mở một worktree (đường dẫn git báo) / submodule (đường dẫn trong repo) của repo này trong cửa sổ mới (chỉ app Tauri). */
+  /** Open one of this repo's worktrees (path reported by git) / submodules (path inside the repo) in a new window (Tauri app only). */
   openRelated?(kind: 'worktree' | 'submodule', path: string): Promise<void>;
 }
 
 export interface Host {
   readonly kind: 'tauri' | 'dev-bridge';
-  /** Hộp thoại chọn thư mục rồi mở luôn; `null` = người dùng bấm Huỷ. */
+  /** Pick a folder then open it right away; `null` = the user hit Cancel. */
   pickAndOpenRepo(): Promise<RepoPort | null>;
   openRecent(id: string): Promise<RepoPort>;
   listRecentRepos(): Promise<RecentRepo[]>;
   forgetRecentRepo(id: string): Promise<void>;
-  /** Thư mục hệ điều hành đưa vào lúc khởi động (argv, "Mở bằng…"): mở cái đầu tiên, `null` nếu không có. */
+  /** Folder the OS handed us at startup (argv, "Open With…"): open the first one, `null` when there is none. */
   openLaunchRepo(): Promise<RepoPort | null>;
-  /** Hộp thoại chọn thư mục (nơi đặt repo clone / tạo mới); `null` = Huỷ. */
+  /** Folder picker (where a cloned / new repo goes); `null` = Cancel. */
   pickFolder(): Promise<PickedFolder | null>;
-  /** Clone `url` vào thư mục con `name` của `folder`, xong thì mở (tin sẵn). Huỷ bằng `signal`. */
+  /** Clone `url` into the `name` subfolder of `folder`, then open it (trusted). Cancel with `signal`. */
   cloneRepo(
     url: string,
     folder: PickedFolder,
     name: string,
     options: { onProgress?: (line: string) => void; signal?: AbortSignal },
   ): Promise<RepoPort>;
-  /** Tạo repo mới trong thư mục con `name` của `folder` rồi mở. */
+  /** Create a new repo in the `name` subfolder of `folder`, then open it. */
   initRepo(folder: PickedFolder, name: string): Promise<RepoPort>;
 }
 
@@ -89,8 +90,9 @@ export function createTauriHost(): Host {
 }
 
 /**
- * Chọn host: trong Tauri luôn là Tauri. Chỉ khi chạy dev (`vite`) ngoài Tauri và plugin cầu nối có chèn token thì dùng cầu
- * nối dev. `import.meta.env.DEV` là hằng `false` khi build nên nhánh này (cùng `import()` bên trong) bị loại khỏi bản phát hành.
+ * Pick the host: inside Tauri it is always Tauri. The DEV bridge is used only when running dev (`vite`)
+ * outside Tauri and the bridge plugin injected a token. `import.meta.env.DEV` is a constant `false` in a
+ * build, so this branch (and the `import()` inside it) is eliminated from releases.
  */
 export async function resolveHost(): Promise<Host> {
   if (import.meta.env.DEV && !hasTauriInternals()) {

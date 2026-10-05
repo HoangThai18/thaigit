@@ -1,5 +1,6 @@
-// Rebase tương tác: mở hộp thoại từ một commit trên graph (các commit SAU nó tới HEAD được viết lại) và chạy kế hoạch.
-// Xung đột dừng giữa chừng như rebase thường (thanh Tiếp tục / Bỏ qua / Huỷ); xong thì có Hoàn tác (đưa nhánh về như cũ).
+// Interactive rebase: open the dialog from a commit on the graph (the commits AFTER it, up to HEAD, get
+// rewritten) and run the resulting plan. Conflicts pause mid-way like a normal rebase (Continue / Skip /
+// Cancel bar); on success there is an Undo (put the branch back).
 
 import {
   rebasePlanProblem,
@@ -42,14 +43,14 @@ export async function beginInteractiveRebase(store: RepoStore, base: Commit): Pr
   rebaseEditor.open(new RebaseSession(base, branch, commits, (sha) => store.git.commitMessage(sha)));
 }
 
-/** Chạy kế hoạch đang soạn (đóng hộp thoại trước — lỗi / xung đột hiện như mọi thao tác khác). */
+/** Run the plan being edited (close the dialog first — errors / conflicts show like any other operation). */
 export async function runInteractiveRebase(store: RepoStore, session: RebaseSession): Promise<void> {
   if (session.problem !== null) return;
   rebaseEditor.close();
   await runRebasePlan(store, session.base.id, session.branch, session.steps, vi.rebase.done(session.branch));
 }
 
-/** Chạy một kế hoạch rebase (cũ → mới) lên `onto`; xong thì báo `doneText` kèm nút Hoàn tác (đưa nhánh về như cũ). */
+/** Run a rebase plan (old → new) onto `onto`; on success report `doneText` with an Undo button (restores the branch). */
 async function runRebasePlan(
   store: RepoStore,
   onto: string,
@@ -113,14 +114,14 @@ export function rebaseProblemText(value: RebasePlanProblem): string {
   }
 }
 
-// --- Thao tác nhanh trên một commit (menu chuột phải, như GitKraken): rebase tương tác dựng sẵn kế hoạch -----------------
+// --- Quick actions on one commit (right-click menu, like GitKraken): interactive rebase with a prebuilt plan ----------------
 
-/** Sửa message / xoá / đổi chỗ chỉ áp dụng cho commit thường (một cha) khi đang đứng trên nhánh, không có thao tác dở. */
+/** Edit message / drop / reorder only apply to an ordinary commit (one parent) while on a branch with no operation in flight. */
 export function canRewriteCommit(store: RepoStore, commit: Commit): boolean {
   return commit.parents.length === 1 && store.currentBranch !== null && store.operation === null;
 }
 
-/** Nhánh hiện tại + các commit sau `base` (cũ → mới) có chứa `sha`; `null` (đã báo người dùng) nếu không rebase được. */
+/** The current branch plus the commits after `base` (old → new) contain `sha`; `null` (already reported to the user) when it can't be rebased. */
 async function rewritable(
   store: RepoStore,
   base: string,
@@ -149,7 +150,7 @@ async function rewritable(
   return { branch, commits };
 }
 
-/** Kiểm kế hoạch dựng sẵn rồi chạy; kế hoạch không hợp lệ (có commit merge…) thì báo lý do. */
+/** Validate the prebuilt plan, then run it; an invalid plan (contains a merge commit…) is reported with the reason. */
 async function runQuickPlan(
   store: RepoStore,
   base: string,
@@ -218,8 +219,9 @@ export async function dropCommit(store: RepoStore, commit: Commit): Promise<void
 }
 
 /**
- * Đổi chỗ commit với commit liền sau (`up` — mới hơn) hoặc liền trước (`down` — cũ hơn) trên nhánh. Đưa xuống cần cha của
- * commit cũng là commit thường (để rebase từ ông của nó).
+ * Swap a commit with its immediate successor (`up` — newer) or predecessor (`down` — older) on the branch.
+ * Moving down requires that commit's parent to be an ordinary commit too (so the rebase can start at its
+ * grandparent).
  */
 export async function moveCommit(store: RepoStore, commit: Commit, direction: 'up' | 'down'): Promise<void> {
   const parent = commit.parents[0];

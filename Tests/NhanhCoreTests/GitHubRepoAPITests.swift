@@ -49,7 +49,7 @@ struct GitHubRepoAPITests {
     }
 
     @Test func publicRepositoryWithoutTokenAndForeignLinksAreIgnored() async throws {
-        // Chưa đăng nhập: không gửi header Authorization; trang sau ở host khác thì dừng.
+        // Not signed in: no Authorization header is sent; a next page on another host stops the walk.
         let server = FakeGitHub([.json(200, "[\(Self.pullJSON(1, head: "a"))]",
                                        headers: ["Link": #"<https://evil.example.com/pulls?page=2>; rel="next""#])])
         let pulls = try await GitHubRepoAPI(transport: server.transport).openPullRequests(in: Self.repo, token: nil)
@@ -57,7 +57,7 @@ struct GitHubRepoAPITests {
         #expect(server.requests.count == 1)
         #expect(server.requests[0].value(forHTTPHeaderField: "Authorization") == nil)
 
-        // Trang tối đa.
+        // The maximum page.
         let endless = FakeGitHub(Array(repeating: .json(200, "[]", headers: [
             "Link": #"<https://api.github.com/repos/cong-ty/web.app/pulls?page=9>; rel="next""#,
         ]), count: 5))

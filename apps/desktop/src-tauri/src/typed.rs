@@ -1,7 +1,7 @@
-//! Lệnh rủi ro cao có lệnh riêng có kiểu — KHÔNG đi qua `git_exec` (validator chặn): ghi cấu hình tuỳ ý và URL remote là
-//! chỗ chạy lệnh. `git_config_set` (khoá thuộc `configSetAllowlist`), `git_remote_add` / `git_remote_set_url` (tên remote
-//! hợp lệ, URL qua luật `url` của chính sách), `git_clone` (URL đã kiểm, thư mục đích do hộp thoại native chọn),
-//! `git_init`. Repo do app tạo/clone được tin sẵn.
+//! High-risk commands that get their own typed commands — they do NOT go through `git_exec` (the validator blocks them):
+//! arbitrary config writes and remote URLs are command-execution vectors. `git_config_set` (key in `configSetAllowlist`),
+//! `git_remote_add` / `git_remote_set_url` (valid remote name, URL through the policy's `url` rules), `git_clone` (validated
+//! URL, destination folder chosen with a native dialog), `git_init`. A repo the app created or cloned is trusted outright.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -36,10 +36,10 @@ static HELPER_SYNTAX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[A-Za-z][
 static SCHEME_URL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([A-Za-z][A-Za-z0-9+.-]*)://").expect("regex hợp lệ"));
 static REMOTE_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$").expect("regex hợp lệ"));
 
-/// Giao thức URL được nhận khi thêm remote/clone (`git+ssh`, `ssh+git` là biến thể của ssh).
+/// URL protocols accepted when adding a remote / cloning (`git+ssh`, `ssh+git` are ssh variants).
 const ALLOWED_SCHEMES: [&str; 7] = ["https", "http", "ssh", "git", "file", "git+ssh", "ssh+git"];
 
-/// Tách khoá cấu hình thành (section, subsection?, variable); không hợp lệ → `None`.
+/// Split a config key into (section, subsection?, variable); `None` when invalid.
 fn split_key(key: &str) -> Option<(&str, Option<&str>, &str)> {
     let first = key.find('.')?;
     let last = key.rfind('.')?;
@@ -51,7 +51,7 @@ fn split_key(key: &str) -> Option<(&str, Option<&str>, &str)> {
     Some((section, subsection, variable))
 }
 
-/// Khoá có thuộc `configSetAllowlist` không (`*` trong subsection khớp một subsection bất kỳ, không rỗng).
+/// Is the key in `configSetAllowlist`? (a `*` in the subsection matches any non-empty subsection)
 pub fn config_key_allowed(policy: &GitPolicy, key: &str) -> bool {
     let Some((section, subsection, variable)) = split_key(key) else { return false };
     if key.chars().any(|c| c.is_control() || c.is_whitespace() || c == '=') {
@@ -77,7 +77,7 @@ fn validate_config_value(value: &str) -> Result<()> {
     Ok(())
 }
 
-/// Tên remote hợp lệ (bộ con an toàn của `git check-ref-format`; git vẫn kiểm lần cuối).
+/// A valid remote name (a safe subset of `git check-ref-format`; git still validates as the last step).
 pub fn validate_remote_name(name: &str) -> Result<()> {
     let bad = !REMOTE_NAME.is_match(name)
         || name.contains("..")
@@ -89,8 +89,8 @@ pub fn validate_remote_name(name: &str) -> Result<()> {
     if bad { Err(AppError::policy(format!("tên remote `{name}` không hợp lệ"))) } else { Ok(()) }
 }
 
-/// URL remote/clone: luật `url` của chính sách (`ext::`, `fd::`, bắt đầu bằng `-`) cộng: không ký tự điều khiển, không cú pháp
-/// remote-helper `<x>::`, giao thức nằm trong danh sách cho phép.
+/// A remote/clone URL: the policy's `url` rules (`ext::`, `fd::`, starting with `-`) plus: no control characters, no
+/// remote-helper syntax `<x>::`, and the protocol must be in the allowlist.
 pub fn validate_remote_url(policy: &GitPolicy, url: &str) -> Result<()> {
     if url.is_empty() || url.len() > MAX_URL {
         return Err(AppError::policy("URL rỗng hoặc quá dài"));
@@ -113,7 +113,7 @@ pub fn validate_remote_url(policy: &GitPolicy, url: &str) -> Result<()> {
     Ok(())
 }
 
-/// Tên thư mục đích: một thành phần đường dẫn, không `.git`.
+/// Destination folder name: one path component, not `.git`.
 pub fn validate_dir_name(name: &str) -> Result<()> {
     let bad = name.is_empty()
         || name.len() > MAX_NAME
@@ -126,7 +126,7 @@ pub fn validate_dir_name(name: &str) -> Result<()> {
     if bad { Err(AppError::policy(format!("tên thư mục `{name}` không hợp lệ"))) } else { Ok(()) }
 }
 
-/// Tên thư mục mặc định khi clone từ URL (`https://github.com/a/b.git` → `b`), port `defaultDirectoryName`.
+/// Default folder name when cloning from a URL (`https://github.com/a/b.git` → `b`), the port of `defaultDirectoryName`.
 pub fn default_clone_dir_name(url: &str) -> String {
     let mut trimmed = url.trim();
     while let Some(rest) = trimmed.strip_suffix('/') {
@@ -138,7 +138,7 @@ pub fn default_clone_dir_name(url: &str) -> String {
 }
 
 impl Core {
-    /// `git_config_set`: khoá thuộc allowlist, phạm vi `local` (repo) hoặc `global`.
+    /// `git_config_set`: key in the allowlist, scope `local` (the repo) or `global`.
     pub async fn git_config_set(&self, repo_id: &str, key: &str, value: &str, scope: ConfigScope) -> Result<()> {
         if !config_key_allowed(policy(), key) {
             return Err(AppError::policy(format!("khoá cấu hình `{key}` không nằm trong danh sách cho phép")));
@@ -162,7 +162,7 @@ impl Core {
         self.remote_write(repo_id, "set-url", name, url).await
     }
 
-    /// URL của mọi remote của repo (đọc bằng `git remote -v`, lệnh chỉ đọc của app) — dùng để biết lệnh mạng chạm host nào.
+    /// The URLs of all of the repo's remotes (read with `git remote -v`, one of the app's read-only commands) — used to learn which hosts a network command touches.
     pub async fn remote_urls(&self, repo_id: &str) -> Result<Vec<String>> {
         let entry = self.registry.get(repo_id)?;
         let output = self.run_typed(&entry.root, "remote", &["-v".into()], entry.restrictions.as_ref()).await?;
@@ -200,7 +200,7 @@ impl Core {
         .await
     }
 
-    /// Thư mục đích từ token + tên con (tuỳ chọn). Token chỉ bị huỷ khi thành công.
+    /// Destination folder from a token + optional sub-name. The token is only consumed on success.
     fn destination(&self, token: &str, name: Option<&str>) -> Result<(PathBuf, PathBuf)> {
         let base = self.registry.peek_grant(token)?;
         let dest = match name {
@@ -213,7 +213,7 @@ impl Core {
         Ok((base, dest))
     }
 
-    /// `git_init`: tạo repo mới (nhánh mặc định `main` nếu người dùng chưa đặt `init.defaultBranch`) và mở nó (tin sẵn).
+    /// `git_init`: create a new repo (default branch `main` unless the user set `init.defaultBranch`) and open it (trusted).
     pub async fn git_init(&self, token: &str, name: Option<&str>) -> Result<OpenedRepo> {
         let (_, dest) = self.destination(token, name)?;
         std::fs::create_dir_all(&dest).map_err(|e| AppError::io("Tạo thư mục repo", &e))?;
@@ -232,8 +232,8 @@ impl Core {
         Ok(entry.opened())
     }
 
-    /// `git_clone`: stream tiến độ (stderr) qua `sink`, huỷ được (lệnh `network`), xong thì mở repo (tin sẵn).
-    /// Frame `exit` luôn được gửi cuối cùng, kể cả khi clone lỗi hoặc bị huỷ.
+    /// `git_clone`: stream progress (stderr) into `sink`, cancellable (a `network` command), then open the repo (trusted).
+    /// The `exit` frame is always sent last, even when the clone fails or is cancelled.
     #[allow(clippy::too_many_arguments)]
     pub async fn git_clone(
         self: &Arc<Self>,
@@ -281,11 +281,11 @@ impl Core {
             cancel: cancel.clone(),
             detached: detached.clone(),
         })?;
-        // Máy chủ độc hại có thể xả tin nhắn sideband vô hạn vào stderr: giới hạn như `git_exec`.
+        // A malicious host can flood stderr with unbounded sideband messages: cap it like `git_exec`.
         let limited = Arc::new(LimitedSink::new(sink.clone(), self.exec_output_limit, cancel.clone()));
         let exit = run_process(spec, limited.clone(), Some(cancel), self.timing).await?;
         if (exit.code != 0 || limited.exceeded()) && !existed_before && dest.exists() {
-            // Dọn thư mục dở dang do chính lần clone này tạo ra (git SIGKILL không kịp dọn).
+            // Clean up the half-finished directory this very clone created (a SIGKILLed git has no time to clean up).
             let _ = std::fs::remove_dir_all(&dest);
         }
         sink.send(exit_frame(exit.code, exit.cancelled));
@@ -405,7 +405,7 @@ mod tests {
 
         core.git_config_set(id, "user.name", "Phan Thái", ConfigScope::Local).await.unwrap();
         assert_eq!(repo.git(&["config", "--local", "--get", "user.name"]).trim(), "Phan Thái");
-        // giá trị bắt đầu bằng `-` không bị hiểu thành cờ
+        // a value starting with `-` is not read as an option
         core.git_config_set(id, "user.email", "-weird@example.com", ConfigScope::Local).await.unwrap();
         assert_eq!(repo.git(&["config", "--local", "--get", "user.email"]).trim(), "-weird@example.com");
         core.git_config_set(id, "branch.feature/x.remote", "origin", ConfigScope::Local).await.unwrap();
@@ -446,7 +446,7 @@ mod tests {
         }
         assert_eq!(repo.git(&["remote", "get-url", "origin"]).trim(), "git@github.com:a/b.git", "URL cũ không đổi sau khi bị chặn");
         assert!(!repo.git(&["remote"]).contains("evil"));
-        // trùng tên → git báo lỗi và Rust chuyển thành io
+        // a duplicate name → git reports the error and Rust turns it into io
         assert_eq!(core.git_remote_add(id, "origin", "https://h/x").await.unwrap_err().code(), "io");
     }
 
@@ -499,21 +499,21 @@ mod tests {
         assert!(out.stderr_text().contains("Cloning into"), "{}", out.stderr_text());
         assert!(core.ops.is_empty(), "op được gỡ khỏi bảng");
 
-        // đích đã tồn tại và không rỗng
+        // the destination already exists and is not empty
         let again = core.registry.grant_folder(&parent);
         let error = core
             .git_clone("main", &url, &again.token, Some("ban-sao"), "clone-2", sink.clone(), crate::registry::new_detach_flag())
             .await
             .unwrap_err();
         assert_eq!(error.code(), "conflict");
-        // URL / tên xấu bị chặn trước khi chạy git
+        // a bad URL / name is blocked before git runs
         for bad in ["ext::sh -c touch% /tmp/pwned", "-oProxyCommand=evil", "fd::3"] {
             let error = core.git_clone("main", bad, &again.token, Some("x"), "clone-3", sink.clone(), crate::registry::new_detach_flag()).await.unwrap_err();
             assert_eq!(error.code(), "policy", "{bad}");
         }
         let error = core.git_clone("main", &url, &again.token, Some(".git"), "clone-4", sink.clone(), crate::registry::new_detach_flag()).await.unwrap_err();
         assert_eq!(error.code(), "policy");
-        // thất bại (nguồn không tồn tại): exit frame vẫn được gửi, thư mục dở dang bị dọn
+        // a failure (nonexistent source): the exit frame is still sent and the half-finished directory is cleaned up
         let failing = Arc::new(crate::exec::CollectSink::default());
         let error = core
             .git_clone("main", "/không/có/repo.git", &again.token, Some("loi"), "clone-5", failing.clone(), crate::registry::new_detach_flag())

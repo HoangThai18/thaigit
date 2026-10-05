@@ -1,4 +1,4 @@
-// Profile: đọc và đổi tên & email Git của repo.
+// Profile: read and change the repo's Git name & email.
 import { afterEach, describe, expect, it } from 'vitest';
 import { editIdentity, loadIdentity } from '../src/lib/actions/identity.ts';
 import { DialogStore } from '../src/lib/stores/dialogs.svelte.ts';

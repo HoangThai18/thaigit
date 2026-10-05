@@ -1,10 +1,11 @@
-// Ngôn ngữ giao diện (tiếng Việt / tiếng Anh). Chọn trong Cài đặt, lưu ở localStorage của webview; chuỗi được chọn MỘT LẦN
-// lúc nạp app (`strings.vi.ts`) — đổi ngôn ngữ thì tải lại cửa sổ. File này không import gì: `strings.vi.ts` cần nó lúc nạp,
-// nên không được kéo theo module nào lại import chuỗi (vòng import). Báo Rust (`setNativeLocale`) do nơi gọi lo.
+// UI language (Vietnamese / English). Chosen in Settings, stored in the webview's localStorage; the string set
+// is picked ONCE when the app loads (`strings.vi.ts`), so changing the language reloads the window. This file
+// imports nothing: `strings.vi.ts` needs it while loading, and pulling in a module that itself imports
+// strings would be a circular import. Telling Rust (`setNativeLocale`) is the caller's job.
 
 export type Locale = 'vi' | 'en';
 
-/** Tên mỗi ngôn ngữ viết bằng chính ngôn ngữ đó (không dịch). */
+/** Each language's name written in that language itself (not translated). */
 export const LOCALES: readonly { readonly id: Locale; readonly name: string }[] = [
   { id: 'vi', name: 'Tiếng Việt' },
   { id: 'en', name: 'English' },
@@ -25,7 +26,7 @@ function storage(): LocaleStorage | null {
   }
 }
 
-/** Ngôn ngữ đã lưu; chưa chọn / không đọc được → tiếng Việt. */
+/** The stored language; never chosen / unreadable → Vietnamese. */
 export function readLocale(from: LocaleStorage | null = storage()): Locale {
   try {
     return from?.getItem(LOCALE_KEY) === 'en' ? 'en' : 'vi';
@@ -34,14 +35,14 @@ export function readLocale(from: LocaleStorage | null = storage()): Locale {
   }
 }
 
-/** Ngôn ngữ của lần nạp này. */
+/** The language of this app load. */
 export const locale: Locale = readLocale();
 
-/** Lưu lựa chọn (không tự tải lại — nơi gọi quyết định). */
+/** Store the choice (no reload here — the caller decides). */
 export function saveLocale(next: Locale, to: LocaleStorage | null = storage()): void {
   try {
     to?.setItem(LOCALE_KEY, next);
   } catch {
-    // Không ghi được (chế độ riêng tư…): lựa chọn chỉ có tác dụng tới khi đóng app.
+    // Storage unavailable (private mode…): the choice only lasts until the app closes.
   }
 }

@@ -1,5 +1,5 @@
 /**
- * Chuỗi của tab repo trong một cửa sổ (thanh tab, phím tắt, menu). Truy cập qua `vi.tabs.*`.
+ * Strings for the repo tabs inside one window (tab bar, shortcuts, menu). Reached through `vi.tabs.*`.
  */
 export const tabs = {
   label: 'Các repo đang mở',

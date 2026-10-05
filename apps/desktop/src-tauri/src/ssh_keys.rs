@@ -1,9 +1,10 @@
-//! Khoá SSH riêng của Thaigit (như agent của 1Password): khoá bí mật nằm trong kho bí mật của hệ điều hành (Credential
-//! Manager trên Windows, Keychain trên macOS), phần không bí mật (tên, khoá công khai) trong `<data>/ssh-keys.json`.
+//! Thaigit's own SSH keys (like 1Password's agent): the secret key lives in the OS keystore (Credential Manager on
+//! Windows, Keychain on macOS), the non-secret part (name, public key) in `<data>/ssh-keys.json`.
 //!
-//! Lệnh git mạng chạm remote SSH thì Rust dựng một ssh-agent tạm chỉ cho lệnh đó (`SshAgent`): khoá đi thẳng từ kho bí mật
-//! vào agent qua stdin của `ssh-add -`, không ghi ra file; lệnh xong (hoặc bị huỷ) thì agent bị dừng và socket bị xoá.
-//! Webview không bao giờ thấy khoá bí mật — chỉ thấy khoá công khai và dấu vân tay.
+//! When a network command touches an SSH remote, Rust builds a temporary ssh-agent for that command alone (`SshAgent`):
+//! keys go straight from the keystore into the agent via the stdin of `ssh-add -`, never written to a file; when the
+//! command finishes (or is cancelled) the agent is stopped and the socket removed.
+//! The webview never sees a secret key — only public keys and fingerprints.
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -20,18 +21,18 @@ use sha2::{Digest, Sha256};
 use crate::accounts::SecretStore;
 use crate::errors::{AppError, Result};
 
-/// Khoá trong agent tự hết hạn sau chừng này giây (phòng khi app bị tắt ngang lúc lệnh đang chạy).
+/// Keys in the agent expire on their own after this many seconds (in case the app is killed while a command runs).
 const AGENT_KEY_LIFETIME_S: u32 = 900;
-/// Credential Manager của Windows giới hạn ~2,5 KB mỗi mục: khoá dài (RSA 4096) được chia thành nhiều mục.
+/// Windows Credential Manager limits an entry to ~2.5 KB: a long key (RSA 4096) is split across several entries.
 const SECRET_CHUNK: usize = 1800;
 const MAX_PRIVATE_KEY_BYTES: usize = 32 * 1024;
 const BEGIN: &str = "-----BEGIN OPENSSH PRIVATE KEY-----";
 const END: &str = "-----END OPENSSH PRIVATE KEY-----";
 const MAGIC: &[u8] = b"openssh-key-v1\0";
 
-// MARK: - Định dạng khoá
+// MARK: - Key format
 
-/// Khoá công khai SSH (blob nhị phân theo RFC 4253).
+/// An SSH public key (a binary blob per RFC 4253).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublicKey {
     pub blob: Vec<u8>,
@@ -39,7 +40,7 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
-    /// Đọc dòng "ssh-ed25519 AAAA… comment" (file .pub).
+    /// Parse the "ssh-ed25519 AAAA… comment" line (a .pub file).
     pub fn parse_line(line: &str) -> Option<PublicKey> {
         let mut parts = line.trim().splitn(3, ' ');
         let kind = parts.next()?;
@@ -48,7 +49,7 @@ impl PublicKey {
         (key.kind().as_deref() == Some(kind)).then_some(key)
     }
 
-    /// Loại khoá ghi trong blob ("ssh-ed25519", "ssh-rsa"…).
+    /// The key type written in the blob ("ssh-ed25519", "ssh-rsa"…).
     pub fn kind(&self) -> Option<String> {
         let mut reader = Reader(&self.blob);
         let name = reader.string()?;
@@ -57,7 +58,7 @@ impl PublicKey {
             .then(|| text.to_string())
     }
 
-    /// Tên ngắn cho giao diện.
+    /// A short name for the UI.
     pub fn display_kind(&self) -> String {
         match self.kind().as_deref() {
             Some("ssh-ed25519") => "Ed25519".into(),
@@ -75,7 +76,7 @@ impl PublicKey {
         if self.comment.is_empty() { base } else { format!("{base} {}", self.comment) }
     }
 
-    /// Dấu vân tay như `ssh-keygen -l`: "SHA256:<base64 không padding>".
+    /// The fingerprint as `ssh-keygen -l` prints it: "SHA256:<unpadded base64>".
     pub fn fingerprint(&self) -> String {
         format!("SHA256:{}", STANDARD_NO_PAD.encode(Sha256::digest(&self.blob)))
     }
@@ -107,7 +108,7 @@ fn put_string(out: &mut Vec<u8>, value: &[u8]) {
     out.extend_from_slice(value);
 }
 
-/// Tạo khoá Ed25519 mới dạng "OPENSSH PRIVATE KEY" (không passphrase — được kho bí mật bảo vệ).
+/// Create a new Ed25519 key in "OPENSSH PRIVATE KEY" form (no passphrase — the keystore protects it).
 pub fn generate_ed25519(comment: &str) -> Result<(String, PublicKey)> {
     let mut seed = [0u8; 32];
     getrandom::getrandom(&mut seed).map_err(|_| AppError::Internal("Không lấy được số ngẫu nhiên của hệ điều hành".into()))?;
@@ -155,7 +156,7 @@ pub fn generate_ed25519(comment: &str) -> Result<(String, PublicKey)> {
     Ok((pem, PublicKey { blob, comment: comment.to_string() }))
 }
 
-/// Khoá công khai + có passphrase không, đọc từ khoá bí mật dạng OpenSSH (phần khoá công khai không mã hoá).
+/// Public key plus "has a passphrase", read from an OpenSSH-format secret key (the public part is not encrypted).
 pub fn inspect_openssh(private_key: &str) -> Option<(PublicKey, bool)> {
     let start = private_key.find(BEGIN)? + BEGIN.len();
     let end = start + private_key[start..].find(END)?;
@@ -174,14 +175,14 @@ pub fn inspect_openssh(private_key: &str) -> Option<(PublicKey, bool)> {
     Some((key, cipher != b"none"))
 }
 
-/// Có dạng khoá bí mật PEM (OpenSSH, RSA/EC kiểu cũ, PKCS#8).
+/// Has a PEM secret-key form (OpenSSH, older RSA/EC, PKCS#8).
 pub fn looks_like_private_key(text: &str) -> bool {
     text.len() < MAX_PRIVATE_KEY_BYTES && text.contains("-----BEGIN ") && text.contains(" PRIVATE KEY-----")
 }
 
 // MARK: - Danh sách khoá
 
-/// Một khoá SSH — phần webview được thấy.
+/// One SSH key — the part the webview sees.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyInfo {
@@ -213,7 +214,7 @@ impl Default for SshKeysFile {
     }
 }
 
-/// Danh sách khoá + trạng thái bật cho webview.
+/// The key list plus its enabled state, for the webview.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeysView {
@@ -265,7 +266,7 @@ impl SshKeys {
         self.add(name, &private_key, public, false)
     }
 
-    /// Nhập khoá bí mật (nội dung file). `public_line`: nội dung file .pub đi kèm — bắt buộc với khoá không ở dạng OpenSSH.
+    /// Import a secret key (the file's content). `public_line`: the accompanying `.pub` file's content — required for a key that is not in OpenSSH format.
     pub fn import(&self, name: &str, private_key: &str, public_line: Option<&str>) -> Result<SshKeyInfo> {
         if !looks_like_private_key(private_key) {
             return Err(AppError::Policy(
@@ -338,7 +339,7 @@ impl SshKeys {
         self.lock().keys.iter().find(|key| key.id == id).cloned()
     }
 
-    /// Khoá bí mật của mọi khoá (bỏ qua khoá đọc lỗi). Rỗng khi tắt hoặc chưa có khoá.
+    /// The secret keys of every key (unreadable keys are skipped). Empty when disabled or when there is no key.
     pub fn private_keys(&self) -> Vec<String> {
         let (enabled, ids): (bool, Vec<String>) = {
             let file = self.lock();
@@ -405,7 +406,7 @@ fn clean_name(name: &str) -> Result<String> {
 
 // MARK: - Remote SSH
 
-/// Địa chỉ remote đi qua SSH: `ssh://…`, `git+ssh://…` hoặc dạng scp `git@github.com:owner/repo.git`.
+/// A remote address that goes over SSH: `ssh://…`, `git+ssh://…` or scp-style `git@github.com:owner/repo.git`.
 pub fn is_ssh_url(url: &str) -> bool {
     let lower = url.to_ascii_lowercase();
     if let Some(index) = lower.find("://") {
@@ -415,15 +416,15 @@ pub fn is_ssh_url(url: &str) -> bool {
         return false;
     }
     match lower.find(':') {
-        // `C:\repo` / `C:/repo` là đường dẫn Windows (host một ký tự).
+        // `C:\repo` / `C:/repo` is a Windows path (a one-character "host").
         Some(colon) => colon > 1 && !lower[..colon].contains('/') && !lower[..colon].contains('\\'),
         None => false,
     }
 }
 
-// MARK: - ssh-agent tạm
+// MARK: - Temporary ssh-agent
 
-/// Tìm `ssh-agent` / `ssh-add` / `ssh`: cạnh git (Git for Windows: `<gốc>\usr\bin`), rồi trong các thư mục tìm git.
+/// Find `ssh-agent` / `ssh-add` / `ssh`: next to git (Git for Windows: `<root>\usr\bin`), then in the git search directories.
 pub fn find_tool(name: &str, git_path: &Path, search_dirs: &[PathBuf]) -> Option<PathBuf> {
     let file = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
     let mut dirs: Vec<PathBuf> = Vec::new();
@@ -440,7 +441,7 @@ pub fn find_tool(name: &str, git_path: &Path, search_dirs: &[PathBuf]) -> Option
     dirs.into_iter().map(|dir| dir.join(&file)).find(|candidate| candidate.is_file())
 }
 
-/// ssh-agent chỉ sống trong một lệnh git. Drop = dừng agent + xoá thư mục socket.
+/// The ssh-agent lives for exactly one git command. Dropping it stops the agent and removes the socket directory.
 pub struct SshAgent {
     child: Child,
     dir: PathBuf,
@@ -448,8 +449,8 @@ pub struct SshAgent {
 }
 
 impl SshAgent {
-    /// Dựng agent rồi nạp `keys` (khoá nào nạp lỗi — sai passphrase, huỷ hộp thoại… — thì bỏ qua). `env`: môi trường của lệnh
-    /// git (để ssh-add hỏi passphrase qua askpass của app).
+    /// Start an agent, then load `keys` (a key that fails to load — wrong passphrase, cancelled dialog… — is skipped). `env`: the
+    /// command's environment (so ssh-add can ask for a passphrase through the app's askpass).
     pub fn start(agent: &Path, add: &Path, keys: &[String], env: &[(OsString, OsString)]) -> Result<SshAgent> {
         let unavailable = || AppError::Io("Không chạy được ssh-agent nên chưa dùng được khoá SSH của Thaigit".into());
         let base = if cfg!(unix) { PathBuf::from("/tmp") } else { std::env::temp_dir() };
@@ -490,12 +491,12 @@ impl SshAgent {
         Ok(session)
     }
 
-    /// Giá trị `SSH_AUTH_SOCK` cho lệnh git.
+    /// The `SSH_AUTH_SOCK` value for the git command.
     pub fn socket(&self) -> OsString {
         OsString::from(socket_string(&self.socket))
     }
 
-    /// Đặt `SSH_AUTH_SOCK` của agent này vào env đã dựng của lệnh git.
+    /// Put this agent's `SSH_AUTH_SOCK` into the already-built env of the git command.
     pub fn apply(&self, env: &mut Vec<(OsString, OsString)>) {
         env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("SSH_AUTH_SOCK"));
         env.push((OsString::from("SSH_AUTH_SOCK"), self.socket()));
@@ -510,7 +511,7 @@ impl Drop for SshAgent {
     }
 }
 
-/// Đường dẫn socket dạng ssh của Git for Windows hiểu được (dấu `/`).
+/// A socket path in the form Git for Windows' ssh understands (with `/`).
 fn socket_string(path: &Path) -> String {
     let text = path.to_string_lossy().into_owned();
     if cfg!(windows) { text.replace('\\', "/") } else { text }
@@ -564,9 +565,9 @@ fn wait_with_timeout(child: &mut Child, limit: Duration) -> Option<std::process:
     }
 }
 
-// MARK: - Kiểm tra kết nối
+// MARK: - Connection check
 
-/// Đọc lời chào của GitHub / GitLab sau `ssh -T git@<host>`.
+/// Read GitHub's / GitLab's greeting after `ssh -T git@<host>`.
 pub fn connection_message(output: &str, host: &str) -> std::result::Result<String, String> {
     for line in output.lines() {
         if let (Some(start), Some(end)) = (line.find("Hi "), line.find("! You've successfully authenticated")) {
@@ -595,7 +596,7 @@ mod tests {
     use crate::accounts::MemoryStore;
 
     fn keygen() -> Option<PathBuf> {
-        // Windows: ssh-keygen của Git for Windows kiểm quyền file khoá theo ACL — chỉ đối chiếu trên Unix.
+        // Windows: Git for Windows' ssh-keygen checks key file permissions via the ACL — only compare on Unix.
         if cfg!(windows) {
             return None;
         }
@@ -638,7 +639,7 @@ mod tests {
         let secrets = Arc::new(MemoryStore::default());
         let keys = SshKeys::load(dir.path(), secrets.clone());
         let info = keys.generate("Laptop", "a@b").unwrap();
-        // Khoá dài (giả RSA 4096) cũng lưu được qua nhiều mục.
+        // A long key (a fake RSA 4096) also stores fine across several entries.
         let long = format!("-----BEGIN OPENSSH PRIVATE KEY-----\n{}\n-----END OPENSSH PRIVATE KEY-----\n", "A".repeat(3300));
         keys.save_secret("dai", &long).unwrap();
         assert_eq!(keys.read_secret("dai").as_deref(), Some(long.as_str()));

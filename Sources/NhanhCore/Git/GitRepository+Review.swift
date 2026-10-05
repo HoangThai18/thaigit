@@ -1,8 +1,9 @@
 import Foundation
 
 extension GitRepository {
-    /// Lấy nhiều refspec của một remote trong một lần fetch (đầu PR / MR và nhánh đích để review). Người gọi dựng refspec từ số
-    /// PR và tên nhánh đã kiểm (`ForgeRequest.reviewRefs`). Không ép đè nhánh local: các refspec chỉ ghi vào `refs/remotes/…`.
+    /// Fetch several refspecs of one remote in a single fetch (the PR / MR head plus the target branch, for review). The caller builds the
+    /// refspecs from the PR number and an already validated branch name (`ForgeRequest.reviewRefs`). Local branches are never
+    /// force-updated: the refspecs only write into `refs/remotes/…`.
     public func fetchRefspecs(_ refspecs: [String], remote: String, onProgress: (@Sendable (String) -> Void)? = nil) async throws {
         try await runner.run(["fetch", "--progress", remote] + refspecs,
                              credentialURLs: await remoteURLs(remote, push: false), onProgress: onProgress)

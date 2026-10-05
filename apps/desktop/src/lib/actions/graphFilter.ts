@@ -1,5 +1,5 @@
-// Ẩn / "chỉ hiện" (solo) nhánh trên graph (port RepoModel+GraphFilter.swift). Ẩn / solo nhánh local thì nhánh remote nó theo
-// dõi đi cùng (không thì đường lịch sử vẫn còn qua nhánh remote). Nhánh đang checkout luôn hiện.
+// Hide branches on the graph, or restrict it to "solo" (a port of RepoModel+GraphFilter.swift). Hiding or soloing a local branch
+// also hides the remote branch tracking it (otherwise the history would still show through the remote branch). The checked-out branch is always shown.
 
 import { refFilterActive, refName, type GitRef, type GraphRefFilter } from '@thaigit/core';
 import { vi } from '../strings.vi.ts';
@@ -22,7 +22,7 @@ const withAll = (list: readonly string[], names: readonly string[]): string[] =>
   ...names,
 ];
 
-/** Nhánh đang checkout (và nhánh remote nó theo dõi) không ẩn được. */
+/** The checked-out branch (and the remote branch it tracks) cannot be hidden. */
 export function canHideOnGraph(store: RepoStore, ref: GitRef): boolean {
   if (ref.kind === 'tag') return false;
   if (ref.kind === 'localBranch') return !ref.isHead;
@@ -68,13 +68,13 @@ export function showAllBranches(store: RepoStore): void {
   store.setGraphFilter({ hidden: [], solo: [] });
 }
 
-/** Mô tả cho dải báo trên graph; `null` khi không lọc gì. */
+/** The description for the graph's hint bar; `null` when nothing is filtered. */
 export function graphFilterSummary(store: RepoStore): string | null {
   const existing = new Set(store.refs.map((ref) => ref.fullName));
   const hidden = store.graphFilter.hidden.filter((name) => existing.has(name));
   const solo = store.graphFilter.solo.filter((name) => existing.has(name));
   if (!refFilterActive({ hidden, solo })) return null;
-  // Đếm theo nhánh người dùng chọn: nhánh remote đi kèm nhánh local không đếm thêm.
+  // Counted by the branch the user picked: a remote branch coming along with its local one is not counted again.
   const count = (names: readonly string[]): number => {
     const paired = new Set(
       store.localBranches.filter((ref) => names.includes(ref.fullName)).map((ref) => ref.upstream),

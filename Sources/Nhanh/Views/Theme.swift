@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Màu thương hiệu lấy từ logo Thaigit: thân xanh, nhánh cam đỏ (màu của git), nền kính bạc–băng.
+/// Brand colours taken from the Thaigit logo: the blue trunk, the orange-red branch (git's colour), and a silver–ice glass background.
 enum Brand {
     static let blue = Color(nsColor: .brandBlue)
     static let orange = Color(nsColor: .brandOrange)
@@ -13,7 +13,7 @@ extension NSColor {
 }
 
 extension View {
-    /// Bề mặt kính: Liquid Glass trên macOS 26, vật liệu mờ trên bản cũ hơn.
+    /// A glass surface: Liquid Glass on macOS 26, a blurred material on older versions.
     @ViewBuilder
     func glassSurface<S: Shape>(in shape: S, tint: Color? = nil, interactive: Bool = false) -> some View {
         if #available(macOS 26, *) {
@@ -24,7 +24,7 @@ extension View {
         }
     }
 
-    /// Nút kính (nút chính dùng bản "prominent" nhuộm màu theo `tint`).
+    /// A glass button (the primary button uses the "prominent" style tinted with `tint`).
     @ViewBuilder
     func glassButtonStyle(prominent: Bool = false) -> some View {
         if #available(macOS 26, *) {
@@ -41,7 +41,7 @@ extension View {
     }
 }
 
-/// Nền cửa sổ: dải bạc–băng rất nhẹ như nền logo (giao diện tối: xanh đêm), để các lớp kính phía trên có chiều sâu.
+/// Window background: a very light silver–ice gradient like the logo's background (dark theme: night blue), so the glass layers above it have depth.
 struct BrandBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -54,8 +54,8 @@ struct BrandBackground: View {
     }
 }
 
-/// Nút trên hàng công cụ của repo (như GitKraken): nền sáng, viền mảnh, đậm lên khi rê chuột / bấm; tắt thì mờ đi.
-/// Màu nằm ở biểu tượng (`ToolLabel`) để mỗi thao tác dễ nhận ra.
+/// A button on a repo's toolbar (like GitKraken): light background, thin border, darker on hover / press; dimmed when disabled.
+/// The colour lives on the icon (`ToolLabel`) so each action is recognisable.
 struct ToolbarButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         ToolbarButtonBody(label: configuration.label, isPressed: configuration.isPressed)
@@ -80,7 +80,7 @@ private struct ToolbarButtonBody<Label: View>: View {
     }
 }
 
-/// Nền chung của nút hàng công cụ (dùng cả cho Menu như Pull ▾).
+/// The shared button background of the toolbar (also used for menus like Pull ▾).
 struct ToolbarChrome: View {
     var hovering = false
     var pressed = false
@@ -95,20 +95,20 @@ struct ToolbarChrome: View {
     }
 }
 
-/// Nhãn nút hàng công cụ: biểu tượng có màu riêng + chữ thường.
+/// A toolbar button's label: an icon with its own colour + plain text.
 struct ToolLabel: View {
     let title: Text
     let systemImage: String
     let color: Color
 
-    /// Chữ cố định trong code: được dịch (Localizable.strings).
+    /// Text hardcoded in code: translated (Localizable.strings).
     init(_ title: LocalizedStringKey, systemImage: String, color: Color) {
         self.title = Text(title)
         self.systemImage = systemImage
         self.color = color
     }
 
-    /// Chữ đã dựng sẵn (tên nhánh, "Pull ↓3"…): hiện nguyên văn.
+    /// Already-composed text (branch names, "Pull ↓3"…): shown verbatim.
     init(verbatim title: String, systemImage: String, color: Color) {
         self.title = Text(verbatim: title)
         self.systemImage = systemImage
@@ -119,7 +119,7 @@ struct ToolLabel: View {
         Label {
             title.foregroundStyle(.primary)
         } icon: {
-            // Ảnh đã tô sẵn (không phải template): nhãn của Menu (Pull ▾, nút nhánh) cũng giữ được màu thay vì bị tô xám.
+            // An already-tinted image (not a template): menu labels (Pull ▾, the branch button) keep their colour instead of being greyed out.
             Image(nsImage: Self.tinted(systemImage, color: NSColor(color)))
         }
     }
@@ -133,7 +133,7 @@ struct ToolLabel: View {
     }
 }
 
-/// Màu biểu tượng của từng thao tác trên hàng công cụ.
+/// The icon colour of each toolbar action.
 enum ToolColor {
     static let undo = Color(nsColor: .systemGray)
     static let fetch = Color(nsColor: .systemBlue)

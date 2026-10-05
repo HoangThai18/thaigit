@@ -23,11 +23,11 @@ struct GraphRefFilterTests {
         }
         let all: Set = ["gốc", "commit trên tinh-nang/a", "commit trên thu-nghiem", "commit trên thu-nghiem-2", "main đi tiếp"]
         #expect(try await subjects(GraphRefFilter()) == all)
-        // Ẩn: commit riêng của nhánh biến mất, commit chung vẫn còn; ẩn "thu-nghiem" không ẩn nhầm "thu-nghiem-2".
+        // Hiding: the branch's own commit disappears while shared commits stay; hiding "thu-nghiem" doesn't also hide "thu-nghiem-2".
         #expect(try await subjects(GraphRefFilter(hidden: ["refs/heads/thu-nghiem"])) == all.subtracting(["commit trên thu-nghiem"]))
         #expect(try await subjects(GraphRefFilter(hidden: ["refs/heads/tinh-nang/a", "refs/heads/thu-nghiem", "refs/heads/thu-nghiem-2"]))
                 == ["gốc", "main đi tiếp"])
-        // Solo: chỉ nhánh đó, kèm nhánh đang checkout (HEAD).
+        // Solo: only that branch, plus the checked-out branch (HEAD).
         #expect(try await subjects(GraphRefFilter(solo: ["refs/heads/tinh-nang/a"]))
                 == ["gốc", "commit trên tinh-nang/a", "main đi tiếp"])
     }

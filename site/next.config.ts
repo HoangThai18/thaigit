@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next';
 
-// Xuất trang tĩnh (HTML dựng sẵn — tốt cho SEO): `next build` → thư mục out/, đặt ở GitHub Pages, VPS hay Vercel.
+// Static export (pre-rendered HTML — good for SEO): `next build` → the out/ directory, deployable to GitHub Pages, a VPS or Vercel.
 const config: NextConfig = {
   output: 'export',
   trailingSlash: true,

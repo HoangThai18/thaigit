@@ -2,8 +2,9 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Khoá SSH của Thaigit (thẻ SSH trong Cài đặt): tạo khoá Ed25519, nhập khoá có sẵn, gửi khoá công khai lên GitHub /
-/// GitLab, kiểm tra kết nối. Khoá bí mật chỉ nằm trong Keychain; lệnh git chạm remote SSH nhận khoá qua ssh-agent tạm
+/// Thaigit's SSH keys (the SSH tab in Settings): generate an Ed25519 key, import an existing key, upload the public key
+/// to GitHub / GitLab, and check the connection. Secrets live only in the Keychain; a git command touching an SSH remote
+/// receives the keys through a temporary ssh-agent
 /// (xem `SSHAgentSession`).
 @Observable
 final class SSHKeyManager {
@@ -15,9 +16,9 @@ final class SSHKeyManager {
     }
 
     private(set) var keys: [SSHKeyInfo] = []
-    /// Thông báo ngắn sau một thao tác (đã sao chép, đã thêm lên GitHub…).
+    /// A short message after an action (copied, added to GitHub…).
     var notice: String?
-    /// Lỗi thân thiện của thao tác gần nhất.
+    /// The friendly error of the most recent action.
     var problem: String?
     private(set) var busy = false
     private(set) var connection: [String: ConnectionResult] = [:]
@@ -38,7 +39,7 @@ final class SSHKeyManager {
         environment.sshKeyring = keyring
     }
 
-    // MARK: - Tạo / nhập / xoá
+    // MARK: - Create / import / delete
 
     func generate(name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -48,7 +49,7 @@ final class SSHKeyManager {
         }
     }
 
-    /// Hộp chọn file khoá bí mật (mở sẵn ~/.ssh).
+    /// The private key file picker (opened at ~/.ssh).
     func chooseKeyToImport() {
         let panel = NSOpenPanel()
         panel.title = String(localized: "Chọn khoá SSH bí mật")
@@ -80,7 +81,7 @@ final class SSHKeyManager {
         }
     }
 
-    /// Khoá công khai của khoá không ở dạng OpenSSH: file .pub đi kèm, không có thì `ssh-keygen -y` đọc khoá qua stdin.
+    /// The public key of a key that isn't in OpenSSH format: the accompanying .pub file, or `ssh-keygen -y` reading the key over stdin.
     private static func publicKey(forPrivateKeyAt url: URL, data: Data) async -> SSHPublicKey? {
         if SSHKeyFormat.inspectOpenSSH(data) != nil { return nil }
         let sibling = url.appendingPathExtension("pub")
@@ -103,7 +104,7 @@ final class SSHKeyManager {
         }
     }
 
-    // MARK: - Khoá công khai
+    // MARK: - Public key
 
     func copyPublicKey(_ key: SSHKeyInfo) {
         NSPasteboard.general.clearContents()
@@ -113,7 +114,7 @@ final class SSHKeyManager {
 
     static let githubKeysPage = URL(string: "https://github.com/settings/ssh/new")!
 
-    /// Thêm khoá công khai lên tài khoản GitHub `login`. Token cũ thiếu quyền thì sao chép khoá và mở trang thêm khoá.
+    /// Add the public key to the GitHub account `login`. When the token lacks permission the key is copied and the add-key page opened.
     func addToGitHub(_ key: SSHKeyInfo, login: String) {
         busy = true
         problem = nil
@@ -136,7 +137,7 @@ final class SSHKeyManager {
         }
     }
 
-    /// Thêm khoá công khai lên tài khoản GitLab. Token thiếu quyền `api` thì sao chép khoá và mở trang thêm khoá.
+    /// Add the public key to a GitLab account. When the token lacks the `api` scope the key is copied and the add-key page opened.
     func addToGitLab(_ key: SSHKeyInfo, account: GitLabAccount) {
         busy = true
         problem = nil
@@ -159,10 +160,10 @@ final class SSHKeyManager {
         }
     }
 
-    // MARK: - Kiểm tra kết nối
+    // MARK: - Connection check
 
-    /// `ssh -T git@<host>` bằng đúng các khoá của Thaigit (agent tạm), không hỏi gì (BatchMode). Host lần đầu gặp được
-    /// ghi vào known_hosts (accept-new) — như lần clone đầu tiên.
+    /// `ssh -T git@<host>` using exactly Thaigit's keys (temporary agent), asking nothing (BatchMode). A host seen for the
+    /// first time is added to known_hosts (accept-new) — just like a first clone.
     func testConnection(host: String) {
         connection[host] = nil
         busy = true
@@ -192,7 +193,7 @@ final class SSHKeyManager {
         }
     }
 
-    /// Đọc lời chào của GitHub ("Hi alice! You've successfully authenticated…") / GitLab ("Welcome to GitLab, @alice!").
+    /// Read the greeting from GitHub ("Hi alice! You've successfully authenticated…") / GitLab ("Welcome to GitLab, @alice!").
     static func connectionResult(_ text: String, host: String) -> ConnectionResult {
         for line in text.split(whereSeparator: \.isNewline) {
             let line = String(line)
@@ -216,7 +217,7 @@ final class SSHKeyManager {
         return .failure(String(localized: "Không kết nối được tới \(host) qua SSH. Kiểm tra mạng hoặc tường lửa (cổng 22)."))
     }
 
-    // MARK: - Nội bộ
+    // MARK: - Internal
 
     private func perform(_ success: String, _ action: @escaping () throws -> Void) {
         problem = nil
@@ -233,7 +234,7 @@ final class SSHKeyManager {
         Host.current().localizedName ?? "Mac"
     }
 
-    /// Comment trong khoá công khai: "thaigit@<tên máy>".
+    /// The comment in the public key: "thaigit@<machine name>".
     static var defaultComment: String {
         let host = (Host.current().localizedName ?? "mac").replacingOccurrences(of: " ", with: "-")
         return "thaigit@\(host)"

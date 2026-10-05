@@ -1,6 +1,6 @@
-// Ảnh đại diện người commit cho node graph: store hỏi Rust một lần mỗi email, giữ ảnh đã giải mã và báo
-// `version` để canvas vẽ lại. Không có `Image` trong vitest nên phần giải mã bị bỏ qua — chỉ kiểm phần logic
-// (gộp email, không hỏi lại, không hỏi email rác).
+// Commit-author avatars for graph nodes: the store asks Rust once per email, keeps the decoded images and
+// bumps `version` so the canvas repaints. vitest has no `Image`, so decoding is skipped — only the logic
+// is covered (email normalisation, no re-asking, junk emails ignored).
 import { describe, expect, it } from 'vitest';
 import { AvatarStore, avatarKey } from '../src/lib/graph/avatars.svelte.ts';
 

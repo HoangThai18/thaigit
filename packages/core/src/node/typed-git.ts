@@ -1,6 +1,7 @@
-// Lệnh git CÓ KIỂU trên Node (`TypedGit`): không đi qua `NodeExec`/validator vì validator chặn chúng (ghi cấu hình tuỳ ý,
-// URL remote là chỗ chạy lệnh). Mỗi lệnh tự kiểm đầu vào theo chính sách: khoá config thuộc `configSetAllowlist`,
-// URL không phải `ext::`/`fd::`/bắt đầu bằng `-`, tên remote không thể bị hiểu thành cờ.
+// Typed git commands on Node (`TypedGit`): they bypass `NodeExec`/the validator because the validator blocks them
+// (arbitrary config writes, remote URLs as a command-execution vector). Each command validates its own input against the
+// policy: config keys must be in `configSetAllowlist`, URLs must not be `ext::`/`fd::`/start with `-`, and remote names
+// must not be mistakable for options.
 
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -18,9 +19,9 @@ import { gitEnvFor, spawnGit, type NodeGitConfig } from './process.ts';
 import { buildRebaseTodo, sequenceEditor, validateRebasePlan } from './rebase-todo.ts';
 
 export interface NodeTypedGitOptions extends NodeGitConfig {
-  /** Gốc working tree của repo (thư mục chạy git). */
+  /** Working-tree root of the repo (the directory git runs in). */
   cwd: string;
-  /** Git dir của repo (nơi ghi file todo của rebase tương tác); thiếu thì hỏi `git rev-parse --absolute-git-dir`. */
+  /** Git dir of the repo (where the interactive-rebase todo file is written); asks `git rev-parse --absolute-git-dir` when absent. */
   gitDir?: string;
 }
 
@@ -28,7 +29,7 @@ function policyError(message: string, violation: PolicyViolation): AdapterError 
   return new AdapterError('policy', message, violation);
 }
 
-/** Khoá có khớp một mục allowlist không (`*` = một hay nhiều ký tự, ví dụ `branch.*.remote`; không phân biệt hoa thường). */
+/** Does the key match an allowlist entry (`*` = one or more characters, e.g. `branch.*.remote`; case-insensitive)? */
 export function isAllowedConfigKey(key: string): boolean {
   if (/[\s\u0000-\u001f\u007f]/.test(key)) return false;
   const lower = key.toLowerCase();
@@ -42,7 +43,7 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** URL remote an toàn để lưu vào cấu hình/đưa cho git: loại `ext::`, `fd::`, bắt đầu bằng `-`, khoảng trắng đầu/cuối, ký tự điều khiển. */
+/** Remote URL safe to store in config / hand to git: rejects `ext::`, `fd::`, a leading `-`, leading/trailing whitespace and control characters. */
 export function assertSafeRemoteUrl(url: string, sub: string): void {
   const lower = url.toLowerCase();
   const reject = (detail: string): never => {
@@ -79,7 +80,7 @@ export class NodeTypedGit implements TypedGit {
     }
     if (value.includes('\0'))
       throw policyError('Giá trị cấu hình chứa ký tự NUL.', { code: 'config-write', sub: 'config' });
-    // `branch.*.remote` nhận cả URL: áp luật URL để không đặt được transport chạy lệnh.
+    // `branch.*.remote` also takes a URL: apply the URL rules so a command-executing transport cannot be set.
     if (key.toLowerCase().endsWith('.remote')) assertSafeRemoteUrl(value, 'config');
     await this.run('config', [scope === 'global' ? '--global' : '--local', key, value]);
   }
@@ -96,7 +97,7 @@ export class NodeTypedGit implements TypedGit {
     await this.run('remote', ['set-url', '--', name, url]);
   }
 
-  /** Như `git_worktree_add` của Rust; trên Node "token" chính là đường dẫn thư mục cha (như `NodeGitHost.cloneRepo`). */
+  /** Like Rust's `git_worktree_add`; on Node the "token" is the parent directory path (as in `NodeGitHost.cloneRepo`). */
   async worktreeAdd(
     destToken: string,
     name: string,
@@ -131,7 +132,7 @@ export class NodeTypedGit implements TypedGit {
     return dest;
   }
 
-  /** Như `git_rebase_interactive` của Rust: todo + file message trong `<gitDir>/thaigit-rebase/`, sequence editor chỉ chép file. */
+  /** Like Rust's `git_rebase_interactive`: todo plus message file under `<gitDir>/thaigit-rebase/`, sequence editor only copies the file. */
   async rebaseInteractive(onto: string, steps: readonly RebaseStepRequest[]): Promise<RebaseResult> {
     validateRebasePlan(onto, steps);
     const directory = join(await this.gitDir(), 'thaigit-rebase');

@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// Số phiên bản dạng "1.2.3" (bỏ tiền tố "v"), so sánh theo từng phần số: 1.10 > 1.9, 1.1 == 1.1.0.
+/// A "1.2.3" version number (leading "v" stripped), compared part by part: 1.10 > 1.9, 1.1 == 1.1.0.
 public struct AppVersion: Comparable, Hashable, Sendable, CustomStringConvertible {
     public let text: String
     private let parts: [Int]
@@ -16,7 +16,7 @@ public struct AppVersion: Comparable, Hashable, Sendable, CustomStringConvertibl
             guard !piece.isEmpty, piece.count <= 9, piece.allSatisfy({ $0.isASCII && $0.isNumber }), let value = Int(piece) else { return nil }
             values.append(value)
         }
-        // Bỏ số 0 ở cuối để 1.1 và 1.1.0 bằng nhau.
+        // Drop trailing zeros so 1.1 and 1.1.0 compare equal.
         while values.count > 1, values.last == 0 { values.removeLast() }
         text = String(trimmed)
         parts = values
@@ -24,7 +24,7 @@ public struct AppVersion: Comparable, Hashable, Sendable, CustomStringConvertibl
 
     public var description: String { text }
 
-    /// Dạng OperatingSystemVersion (để so với phiên bản macOS tối thiểu).
+    /// Shaped as an OperatingSystemVersion (for comparison against the minimum macOS version).
     public var operatingSystemVersion: OperatingSystemVersion {
         OperatingSystemVersion(
             majorVersion: parts[0],
@@ -38,14 +38,14 @@ public struct AppVersion: Comparable, Hashable, Sendable, CustomStringConvertibl
     public static func < (lhs: AppVersion, rhs: AppVersion) -> Bool { lhs.parts.lexicographicallyPrecedes(rhs.parts) }
 }
 
-/// Thông tin một bản phát hành (`update.json`, đăng kèm file zip trong GitHub Release).
+/// Details of one release (`update.json`, published alongside the zip in the GitHub Release).
 public struct UpdateManifest: Codable, Sendable, Equatable {
     public var version: String
     public var url: URL
-    /// Kích thước file zip (byte).
+    /// Size of the zip file (bytes).
     public var size: Int
     public var sha256: String
-    /// Chữ ký Ed25519 (base64) trên toàn bộ byte của file zip, ký bằng khoá bí mật của người phát hành.
+    /// Ed25519 signature (base64) over all bytes of the zip, made with the publisher's secret key.
     public var signature: String
     public var notes: String?
     public var minimumSystemVersion: String?
@@ -113,7 +113,7 @@ public enum UpdateError: LocalizedError, Equatable, Sendable {
     }
 }
 
-/// Ký và kiểm chữ ký Ed25519 cho file cập nhật.
+/// Signs and verifies the Ed25519 signature of an update file.
 public enum UpdateSignature {
     public static func sign(_ data: Data, privateKey: String) throws -> String {
         guard let raw = Data(base64Encoded: privateKey) else { throw UpdateError.badSignature }
@@ -134,10 +134,10 @@ public enum UpdateSignature {
     }
 }
 
-/// Nơi đăng bản phát hành. Mặc định: `update.json` của bản mới nhất trên GitHub Releases.
+/// Where releases are published. Default: `update.json` from the newest GitHub Release.
 public struct UpdateFeed: Sendable {
     public let manifestURL: URL
-    /// Host được phép đặt file zip (nil: không giới hạn, kể cả file:// — chỉ dùng khi kiểm thử).
+    /// Host allowed to serve the zip (nil: unrestricted, including file:// — tests only).
     public let allowedHosts: Set<String>?
 
     public init(manifestURL: URL, allowedHosts: Set<String>?) {
@@ -151,7 +151,7 @@ public enum UpdateCheck: Sendable, Equatable {
     case available(UpdateManifest)
 }
 
-/// Hỏi máy chủ có bản mới không và tải file zip về.
+/// Ask the server whether there is a newer build and download its zip.
 public struct UpdateClient: Sendable {
     public static let maxArchiveSize = 300 * 1024 * 1024
 
@@ -168,7 +168,7 @@ public struct UpdateClient: Sendable {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         let (data, response) = try await session.data(for: request)
         if let http = response as? HTTPURLResponse {
-            // Chưa có bản phát hành nào thì GitHub trả 404.
+            // GitHub returns 404 while no release exists at all.
             if http.statusCode == 404 { return .upToDate }
             guard http.statusCode == 200 else { throw UpdateError.badResponse(http.statusCode) }
         }
@@ -184,7 +184,7 @@ public struct UpdateClient: Sendable {
         return .available(manifest)
     }
 
-    /// Tải file zip vào `directory`. Chữ ký được kiểm ở bước chuẩn bị (`UpdateInstaller.stage`).
+    /// Download the zip into `directory`. The signature is verified during staging (`UpdateInstaller.stage`).
     public func download(_ manifest: UpdateManifest, into directory: URL) async throws -> URL {
         try checkTrusted(manifest.url)
         let (temporary, response) = try await session.download(from: manifest.url)
@@ -210,7 +210,7 @@ public struct UpdateClient: Sendable {
     }
 }
 
-/// Bản cập nhật đã tải, kiểm chữ ký và giải nén — chờ thay vào app đang cài.
+/// A downloaded update, signature-verified and unpacked — waiting to replace the installed app.
 public struct StagedUpdate: Sendable, Equatable {
     public let version: String
     public let notes: String?
@@ -223,10 +223,10 @@ public struct StagedUpdate: Sendable, Equatable {
     }
 }
 
-/// Kiểm tra file zip đã tải rồi thay app đang cài bằng bản mới.
+/// Verifies a downloaded zip and then replaces the installed app with it.
 public struct UpdateInstaller: Sendable {
     public let bundleIdentifier: String
-    /// Khoá công khai Ed25519 (base64) đi kèm app — chỉ file ký bằng khoá bí mật tương ứng mới được cài.
+    /// Ed25519 public key (base64) shipped with the app — only a file signed by the matching secret key may be installed.
     public let publicKey: String
     public let stagingDirectory: URL
     public let verifyCodeSignature: Bool
@@ -238,7 +238,7 @@ public struct UpdateInstaller: Sendable {
         self.verifyCodeSignature = verifyCodeSignature
     }
 
-    /// Kiểm checksum + chữ ký, giải nén, đối chiếu mã ứng dụng và số phiên bản bên trong gói.
+    /// Verify checksum + signature, unpack, and cross-check the bundle id and the version inside the package.
     public func stage(archive: URL, manifest: UpdateManifest) async throws -> StagedUpdate {
         let data = try Data(contentsOf: archive, options: .mappedIfSafe)
         guard data.count == manifest.size, UpdateSignature.sha256Hex(data) == manifest.sha256.lowercased() else {
@@ -283,8 +283,9 @@ public struct UpdateInstaller: Sendable {
         return StagedUpdate(version: manifest.version, notes: manifest.notes, appURL: app)
     }
 
-    /// Thay app đang cài bằng bản đã chuẩn bị. Trên APFS hai thư mục được đổi chỗ nguyên khối (không có lúc nào
-    /// thiếu app); lỗi giữa chừng thì app cũ vẫn còn nguyên. App đang chạy không bị ảnh hưởng tới khi khởi động lại.
+    /// Replace the installed app with the staged one. On APFS the two directories are swapped atomically
+    /// (there is never a moment without an app); a mid-way failure leaves the old app intact. The running
+    /// app is unaffected until the next launch.
     public static func install(_ update: StagedUpdate, replacing installed: URL) throws {
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: update.appURL.path) else {
@@ -300,10 +301,10 @@ public struct UpdateInstaller: Sendable {
         }
 
         if renamex_np(incoming.path, installed.path, UInt32(RENAME_SWAP)) == 0 {
-            // `incoming` giờ là app cũ.
+            // `incoming` is now the old app.
             try? fileManager.removeItem(at: incoming)
         } else {
-            // Ổ đĩa không hỗ trợ đổi chỗ nguyên khối: dời app cũ ra rồi đặt bản mới vào, lỗi thì trả lại.
+            // The filesystem doesn't support an atomic swap: move the old app aside, put the new one in place, and restore on failure.
             let backup = folder.appendingPathComponent(".\(installed.lastPathComponent).old")
             try? fileManager.removeItem(at: backup)
             do {
@@ -321,7 +322,7 @@ public struct UpdateInstaller: Sendable {
             }
             try? fileManager.removeItem(at: backup)
         }
-        // Dọn thư mục chờ cài (Updates/<phiên bản>) nếu đã trống.
+        // Remove the pending-install directory (Updates/<version>) if it is now empty.
         let staging = update.appURL.deletingLastPathComponent()
         if (try? fileManager.contentsOfDirectory(atPath: staging.path))?.isEmpty == true {
             try? fileManager.removeItem(at: staging)

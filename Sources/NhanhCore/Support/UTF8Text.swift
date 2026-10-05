@@ -1,10 +1,11 @@
 import Foundation
 
-/// Giải mã UTF-8 CHẶT cho những chỗ có thể ghi ngược nội dung (patch, file xung đột).
+/// Strict UTF-8 decoding for the places whose content may be written back (patches, conflict files).
 ///
-/// `String(decoding:as:)` là giải mã lỏng: byte không hợp lệ (file Latin-1, CP1258…) thành U+FFFD, ghi lại sẽ thành
-/// EF BF BD. `String(data:encoding: .utf8)` của Foundation thì chặt nhưng bỏ mất BOM. Nên ở đây giải mã lỏng rồi so
-/// lại từng byte: hai bên chỉ trùng nhau khi đầu vào là UTF-8 hợp lệ (BOM giữ nguyên thành U+FEFF).
+/// `String(decoding:as:)` decodes leniently: invalid bytes (a Latin-1 file, CP1258…) turn into U+FFFD, and
+/// writing that back produces EF BF BD. Foundation's `String(data:encoding: .utf8)` is strict but loses
+/// the BOM. So decode leniently and then re-encode to compare byte by byte: the two agree only when the
+/// input was valid UTF-8 (a BOM stays a U+FEFF).
 enum UTF8Text {
     static func isValid(_ bytes: UnsafeBufferPointer<UInt8>) -> Bool {
         guard let base = bytes.baseAddress, !bytes.isEmpty else { return true }
@@ -18,7 +19,7 @@ enum UTF8Text {
         bytes.withUnsafeBufferPointer { isValid($0) }
     }
 
-    /// Chuỗi đúng từng byte của `data`, hoặc nil nếu không phải UTF-8 hợp lệ.
+    /// The string matching `data` byte for byte, or nil when it isn't valid UTF-8.
     static func decodeStrict(_ data: Data) -> String? {
         let text = String(decoding: data, as: UTF8.self)
         return text.utf8.elementsEqual(data) ? text : nil
@@ -26,12 +27,12 @@ enum UTF8Text {
 }
 
 extension String {
-    /// So tiền tố theo byte UTF-8, không theo Character: " " + dấu kết hợp là MỘT Character nên `hasPrefix(" ")` sai.
+    /// Prefix comparison by UTF-8 byte, not by Character: a space plus a combining mark is ONE Character, so `hasPrefix(" ")` would be wrong.
     func hasBytePrefix(_ prefix: String) -> Bool {
         utf8.starts(with: prefix.utf8)
     }
 
-    /// Phần sau `count` byte đầu (dùng sau `hasBytePrefix` với tiền tố ASCII).
+    /// Everything after the first `count` bytes (used after `hasBytePrefix` with an ASCII prefix).
     func droppingBytes(_ count: Int) -> String {
         String(decoding: utf8.dropFirst(count), as: UTF8.self)
     }

@@ -8,7 +8,7 @@ struct GitHubCredentialTests {
                                         avatarURL: URL(string: "https://avatars.githubusercontent.com/u/583231?v=4"))
     static let company = GitHubAccount(id: 9919, login: "thai-congty", name: "Thái (Công ty)", avatarURL: nil)
 
-    /// Hai tài khoản: cá nhân (mặc định) và công ty (thành viên tổ chức Cong-Ty-ABC).
+    /// Two accounts: personal (the default) and work (a member of the Cong-Ty-ABC organisation).
     static func twoAccounts() -> (state: GitHubAccountsState, tokens: [String: String]) {
         var state = GitHubAccountsState()
         state.upsert(personal, organizations: ["nhom-mo"])
@@ -21,27 +21,27 @@ struct GitHubCredentialTests {
         return GitHubCredentialSet(helperPath: helperPath, state: state, tokens: tokens)!
     }
 
-    // MARK: - Bảng owner → tài khoản
+    // MARK: - owner → account table
 
     @Test func ownerTableFollowsPriorityRules() {
         var (state, _) = Self.twoAccounts()
         #expect(state.defaultProfile?.login == "octocat")
 
-        // Owner trùng login (không phân biệt hoa thường).
+        // The owner matches a login (case-insensitively).
         #expect(state.resolve(owner: "OctoCat")?.profile.login == "octocat")
         #expect(state.resolve(owner: "thai-congty")?.match == .login)
-        // Tổ chức: chỉ tài khoản công ty là thành viên.
+        // An organisation: only the work account is a member.
         #expect(state.resolve(owner: "cong-ty-abc") == GitHubAccountsState.Resolution(profile: state.profiles[1], match: .organization))
-        // Hai tài khoản cùng tổ chức: tài khoản mặc định trước.
+        // Two accounts in the same organisation: the default account first.
         #expect(state.resolve(owner: "nhom-mo")?.profile.login == "octocat")
         state.setDefault(login: "thai-congty")
         #expect(state.resolve(owner: "nhom-mo")?.profile.login == "thai-congty")
         state.setDefault(login: "octocat")
-        // Owner lạ: tài khoản mặc định.
+        // An unknown owner: the default account.
         #expect(state.resolve(owner: "nguoi-la") == GitHubAccountsState.Resolution(profile: state.profiles[0], match: .fallback))
         #expect(state.resolve(owner: nil)?.match == .fallback)
 
-        // Người dùng tự gán thắng mọi quy tắc khác, kể cả owner trùng login.
+        // The user's own assignment beats every other rule, even a login match.
         state.assign(owner: "Du-An-Cu", to: "thai-congty")
         state.assign(owner: "thai-congty", to: "octocat")
         #expect(state.resolve(owner: "du-an-cu")?.match == .assigned)
@@ -51,12 +51,12 @@ struct GitHubCredentialTests {
             "octocat": "octocat", "thai-congty": "octocat", "cong-ty-abc": "thai-congty", "nhom-mo": "octocat",
             "du-an-cu": "thai-congty",
         ])
-        // Owner không hợp lệ bị bỏ qua; bỏ gán.
+        // An invalid owner is ignored; the assignment is cleared.
         state.assign(owner: "khong hop le", to: "octocat")
         state.assign(owner: "thai-congty", to: nil)
         #expect(state.ownerAssignments == ["du-an-cu": "thai-congty"])
 
-        // Xoá tài khoản: bỏ các owner đã gán cho nó, mặc định chuyển sang tài khoản còn lại.
+        // Removing an account: its assigned owners go too and the default moves to a remaining account.
         state.setDefault(login: "thai-congty")
         state.remove(login: "thai-congty")
         #expect(state.ownerAssignments.isEmpty)
@@ -79,7 +79,7 @@ struct GitHubCredentialTests {
         #expect(state.profiles[0].commitName == "Phan Thái")
         #expect(state.profiles[0].commitEmail == "thai@congty.vn")
         #expect(state.profiles[0].organizations == ["Cong-Ty-ABC"])
-        // Để trống: quay về tên GitHub + email noreply.
+        // Blank: back to the GitHub name + noreply email.
         state.setCommitIdentity(login: "thai-congty", name: " ", email: "")
         #expect(state.profiles[0].commitName == "Tên mới")
         #expect(state.profiles[0].commitEmail == "9919+thai-congty@users.noreply.github.com")
@@ -105,7 +105,7 @@ struct GitHubCredentialTests {
         #expect(!GitHubRemoteURL.isHTTPS("https://gitlab.com/a/b.git"))
     }
 
-    // MARK: - Tham số / biến môi trường cho git
+    // MARK: - Arguments / environment for git
 
     @Test func addsHelperOnlyForGitHubURLsOfTheCommand() {
         let set = Self.credentialSet(helperPath: "/Users/thai/Library/Application Support/Thaigit/github-credential.sh")
@@ -114,7 +114,7 @@ struct GitHubCredentialTests {
             "-c", "credential.https://github.com.helper=!'/Users/thai/Library/Application Support/Thaigit/github-credential.sh'",
             "-c", "credential.https://github.com.useHttpPath=true",
         ]
-        // Một remote của tổ chức Cong-Ty-ABC: chỉ token tài khoản công ty; owner lạ (repo đổi owner) dùng luôn tài khoản đó.
+        // A remote of the Cong-Ty-ABC organisation: only the work account's token; an unknown owner (the repo changed owner) always uses that account.
         let company = GitCredentialInjection.additions(forURLs: ["https://github.com/Cong-Ty-ABC/du-an.git"], credentials: set)
         #expect(company.arguments == expectedArguments)
         #expect(company.environment == [
@@ -123,7 +123,7 @@ struct GitHubCredentialTests {
             "THAIGIT_GITHUB_DEFAULT": "0",
             "THAIGIT_GITHUB_OWNERS": "cong-ty-abc:0",
         ])
-        // Nhiều remote (fetch --all): đúng các tài khoản của chúng, không có tài khoản mặc định cho owner lạ.
+        // Several remotes (fetch --all): exactly their accounts, with no default account for an unknown owner.
         let all = GitCredentialInjection.additions(forURLs: [
             "https://github.com/octocat/a.git", "https://github.com/nhom-mo/b", "https://github.com/cong-ty-abc/c",
             "https://gitlab.com/cong-ty-abc/d.git",
@@ -135,15 +135,15 @@ struct GitHubCredentialTests {
             "THAIGIT_GITHUB_USER_1": "thai-congty", "THAIGIT_GITHUB_TOKEN_1": "gho_congty222",
             "THAIGIT_GITHUB_OWNERS": "cong-ty-abc:1,nhom-mo:0,octocat:0",
         ])
-        // Username trong URL trùng login: script chọn theo username, không cần bảng owner.
+        // A username in the URL matching a login: the script chooses by username, no owner table needed.
         let byUser = GitCredentialInjection.additions(forURLs: ["https://Thai-CongTy@github.com/octocat/x.git"], credentials: set)
         #expect(byUser.environment["THAIGIT_GITHUB_USER_0"] == "thai-congty")
         #expect(byUser.environment["THAIGIT_GITHUB_ACCOUNTS"] == "1")
         #expect(byUser.environment["THAIGIT_GITHUB_OWNERS"] == "")
-        // Tham số lệnh không chứa token.
+        // The command's arguments contain no token.
         #expect(![company, all, byUser].contains { $0.arguments.joined(separator: " ").contains("gho_") })
 
-        // Không chạm https://github.com: không thêm gì.
+        // Not touching https://github.com: nothing is added.
         let notGitHub: [[String]] = [
             [], ["https://gitlab.com/octocat/x.git"], ["git@github.com:octocat/x.git"], ["ssh://git@github.com/octocat/x"],
             ["https://www.github.com/octocat/x"], ["/Users/thai/du-an"], ["."], ["https://github.com.evil.vn/octocat/x"],
@@ -151,9 +151,9 @@ struct GitHubCredentialTests {
         for urls in notGitHub {
             #expect(GitCredentialInjection.additions(forURLs: urls, credentials: set) == .none, "\(urls)")
         }
-        // Chưa đăng nhập: không thêm gì (helper trả lời rỗng làm hỏng helper riêng của người dùng).
+        // Not signed in: nothing is added (an empty helper answer would break the user's own helper).
         #expect(GitCredentialInjection.additions(forURLs: ["https://github.com/octocat/x"], credentials: nil).isEmpty)
-        // Đường dẫn có dấu nháy đơn vẫn được trích dẫn đúng cho shell.
+        // A path containing a single quote is still quoted correctly for the shell.
         #expect(GitHubCredentialHelper.configValue(path: "/Users/O'Neil/x.sh") == #"!'/Users/O'\''Neil/x.sh'"#)
     }
 
@@ -168,14 +168,14 @@ struct GitHubCredentialTests {
         #expect(set.credential(forURL: "https://THAI-CONGTY@github.com/octocat/x")?.login == "thai-congty")
         #expect(set.credential(forURL: "https://nguoi-la@github.com/octocat/x")?.login == "octocat")
 
-        // Tài khoản công ty chưa nạp được token: owner của nó KHÔNG dùng token tài khoản khác.
+        // The work account's token can't be loaded: its owner does NOT use another account's token.
         let partial = try #require(GitHubCredentialSet(helperPath: "/tmp/h", state: state, tokens: ["octocat": tokens["octocat"]!]))
         #expect(partial.accounts.map(\.login) == ["octocat"])
         #expect(partial.credential(forOwner: "cong-ty-abc") == nil)
         #expect(GitCredentialInjection.additions(forURLs: ["https://github.com/cong-ty-abc/x"], credentials: partial).environment == [
             "THAIGIT_GITHUB_ACCOUNTS": "0", "THAIGIT_GITHUB_OWNERS": "cong-ty-abc:-",
         ])
-        // Mặc định không có token: không tự nâng tài khoản còn lại lên làm mặc định.
+        // The default has no token: it isn't promoted from the remaining account.
         let onlyCompany = try #require(GitHubCredentialSet(helperPath: "/tmp/h", state: state, tokens: ["thai-congty": "gho_congty222"]))
         #expect(onlyCompany.defaultLogin == "octocat")
         #expect(onlyCompany.credential(forOwner: "nguoi-la") == nil)
@@ -187,7 +187,7 @@ struct GitHubCredentialTests {
     @Test func credentialRejectsUnsafeValuesAndNeverPrintsToken() throws {
         #expect(GitHubCredential(login: "", token: "gho_x") == nil)
         #expect(GitHubCredential(login: "octocat", token: "") == nil)
-        // Xuống dòng sẽ chèn được dòng `key=value` lạ vào giao thức credential của git.
+        // A newline would smuggle an extra `key=value` line into git's credential protocol.
         #expect(GitHubCredential(login: "octocat", token: "gho_x\nusername=ke-gian") == nil)
         #expect(GitHubCredential(login: "octo cat", token: "gho_x") == nil)
 
@@ -200,7 +200,7 @@ struct GitHubCredentialTests {
         #expect(dumped.contains("octocat"))
     }
 
-    /// `git` giả ghi lại tham số + biến môi trường nhận được: kiểm tra GitRunner thêm token đúng chỗ.
+    /// A fake git recording the arguments + environment variables it received: checks that GitRunner adds the token in the right place.
     @Test func runnerPassesTokensOnlyToNetworkCommands() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -230,7 +230,7 @@ struct GitHubCredentialTests {
         store.githubCredentials = set
         try await runner.run(["fetch", "--progress", "origin"], credentialURLs: origin)
         try await runner.run(["status", "--porcelain=v2"])
-        // Đăng xuất hết: runner đang dùng (repo đang mở) thấy ngay ở lệnh kế tiếp.
+        // Signing out of everything: a runner in use (the open repo) sees it on its very next command.
         store.githubCredentials = nil
         try await runner.run(["push", "origin", "main"], credentialURLs: origin)
 
@@ -249,15 +249,16 @@ struct GitHubCredentialTests {
         #expect(calls[2].arguments == GitRunner.globalArguments + ["push", "origin", "main"])
         #expect(calls[2].values["token0"] == "")
 
-        // Nhật ký lệnh chỉ giữ tham số của người gọi — không có token, không có helper.
+        // The command log only keeps the caller's arguments — no token, no helper.
         let logged = records.current
         #expect(logged.map(\.arguments) == [["fetch", "--progress", "origin"], ["status", "--porcelain=v2"], ["push", "origin", "main"]])
         #expect(!logged.contains { $0.commandLine.contains("gho_") || $0.stderr.contains("gho_") })
     }
 
-    /// git thật + script helper thật (cài vào thư mục có dấu cách và dấu nháy đơn, như "Application Support"):
-    /// mỗi owner nhận đúng token của tài khoản mình, owner lạ dùng tài khoản mặc định, host khác vẫn dùng helper riêng
-    /// (giả) của người dùng. Không dùng cấu hình hệ thống (osxkeychain) nên không chạm Keychain.
+    /// Real git + the real helper script (installed into a directory with a space and a single quote, like
+    /// "Application Support"): each owner gets exactly its own account's token, an unknown owner uses the
+    /// default account, other hosts keep using the user's own (fake) helper. It doesn't use the system config
+    /// (osxkeychain), so the Keychain is never touched.
     @Test func realGitPicksTokenByOwner() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -281,17 +282,17 @@ struct GitHubCredentialTests {
         }
         let runner = GitRunner(environmentStore: GitEnvironmentStore(environment), workingDirectory: directory)
         let credentials = Self.credentialSet(helperPath: helper.path)
-        // Lệnh chạm ba remote: owner octocat, tổ chức Cong-Ty-ABC, owner thai-congty.
+        // The command touches three remotes: owner octocat, the Cong-Ty-ABC organisation, owner thai-congty.
         let loggedIn = GitCredentialInjection.additions(forURLs: [
             "https://github.com/octocat/du-an.git", "https://github.com/Cong-Ty-ABC/san-pham.git", "https://github.com/thai-congty/cong-cu",
         ], credentials: credentials)
-        // Lệnh chạm một remote của owner lạ: tài khoản mặc định.
+        // The command touches one remote with an unknown owner: the default account.
         let stranger = GitCredentialInjection.additions(forURLs: ["https://github.com/nguoi-la/repo.git"], credentials: credentials)
 
         func fill(_ host: String, path: String?, _ additions: GitCredentialInjection.Additions) async throws -> String? {
             var request = "protocol=https\nhost=\(host)\n"
             if let path { request += "path=\(path)\n" }
-            // Không helper nào trả lời: git (không terminal, không askpass) thoát 128.
+            // No helper answers: git (no terminal, no askpass) exits with 128.
             let output = try await runner.run(additions.arguments + ["credential", "fill"], input: Data((request + "\n").utf8),
                                               acceptExitCodes: [0, 128], environment: additions.environment)
             guard output.exitCode == 0 else { return nil }
@@ -303,19 +304,19 @@ struct GitHubCredentialTests {
             return fields["username"].map { $0 + ":" + (fields["password"] ?? "") }
         }
 
-        // Mỗi owner nhận đúng tài khoản của mình (owner không phân biệt hoa thường).
+        // Each owner gets exactly its own account (owners are matched case-insensitively).
         #expect(try await fill("github.com", path: "octocat/du-an.git", loggedIn) == "octocat:gho_canhan111")
         #expect(try await fill("github.com", path: "Cong-Ty-ABC/san-pham.git", loggedIn) == "thai-congty:gho_congty222")
         #expect(try await fill("github.com", path: "thai-congty/cong-cu", loggedIn) == "thai-congty:gho_congty222")
-        // Owner ngoài các remote của lệnh dùng nhiều tài khoản: không đoán, không trả lời.
+        // An owner outside the remotes of a command that uses several accounts: no guessing, no answer.
         #expect(try await fill("github.com", path: "nguoi-la/repo.git", loggedIn) == nil)
         #expect(try await fill("github.com", path: nil, loggedIn) == nil)
-        // Owner lạ của chính remote: tài khoản mặc định; lệnh chỉ dùng một tài khoản thì owner khác (chuyển hướng) cũng vậy.
+        // An unknown owner of the command's own remote: the default account; when the command uses exactly one account, another (redirected) owner gets it too.
         #expect(try await fill("github.com", path: "nguoi-la/repo.git", stranger) == "octocat:gho_canhan111")
         #expect(try await fill("github.com", path: nil, stranger) == "octocat:gho_canhan111")
-        // Host khác: helper riêng của người dùng.
+        // Another host: the user's own helper.
         #expect(try await fill("gitlab.com", path: "Cong-Ty-ABC/x.git", loggedIn) == "nguoi-dung:helper-rieng")
-        // Chưa đăng nhập: github.com vẫn dùng helper riêng như trước.
+        // Not signed in: github.com still uses the user's own helper as before.
         #expect(try await fill("github.com", path: "octocat/du-an.git", .none) == "nguoi-dung:helper-rieng")
     }
 
@@ -337,7 +338,7 @@ struct GitHubCredentialTests {
             remote: Repository not found.
             fatal: repository 'https://github.com/cong-ty-abc/bi-mat.git/' not found
             """)) == GitHubAuthFailure(kind: .notFound, owner: "cong-ty-abc"))
-        // Host khác, SSH, push bị từ chối vì lịch sử: không phải lỗi tài khoản GitHub.
+        // Another host, SSH, a push refused for history reasons: not a GitHub account problem.
         #expect(GitHubAuthFailure.detect(in: failure("fatal: Authentication failed for 'https://gitlab.com/a/b.git/'")) == nil)
         #expect(GitHubAuthFailure.detect(in: failure("git@github.com: Permission denied (publickey).\nfatal: Could not read from remote repository."))
                 == nil)
@@ -347,7 +348,7 @@ struct GitHubCredentialTests {
             """)) == nil)
     }
 
-    // MARK: - Lưu trữ
+    // MARK: - Storage
 
     @Test func addingAccountKeepsOtherTokensAndRemovingDeletesOnlyItsOwn() throws {
         let storage = InMemorySettingsStorage()
@@ -360,17 +361,17 @@ struct GitHubCredentialTests {
         #expect(tokens.all == ["octocat": "gho_canhan111", "thai-congty": "gho_congty222"])
         #expect(state.defaultLogin == "octocat")
         #expect(store.loadState() == state)
-        // Phần lưu UserDefaults không chứa token.
+        // The UserDefaults part holds no token.
         let saved = String(decoding: try #require(storage.data(forKey: GitHubAccountStore.stateKey)), as: UTF8.self)
         #expect(saved.contains("thai-congty") && saved.contains("Cong-Ty-ABC"))
         #expect(!saved.contains("gho_"))
 
-        // Đăng nhập lại tài khoản công ty: chỉ thay token của nó.
+        // Signing the work account in again: only its token is replaced.
         state = try store.addAccount(Self.company, token: "gho_congtyMOI", organizations: nil, to: state)
         #expect(tokens.all == ["octocat": "gho_canhan111", "thai-congty": "gho_congtyMOI"])
         #expect(state.profiles.count == 2)
 
-        // Xoá tài khoản mặc định: chỉ token của nó bị xoá, tài khoản còn lại thành mặc định.
+        // Removing the default account: only its token is deleted and the remaining account becomes the default.
         state.assign(owner: "du-an-cu", to: "octocat")
         let removed = store.removeAccount(login: "octocat", from: state)
         #expect(removed.tokenError == nil)
@@ -379,7 +380,7 @@ struct GitHubCredentialTests {
         #expect(removed.state.ownerAssignments.isEmpty)
         #expect(store.loadState() == removed.state)
 
-        // Không xoá được token (Keychain từ chối): tài khoản vẫn được bỏ khỏi danh sách, lỗi được báo lại.
+        // The token can't be removed (the Keychain refuses): the account still leaves the list and the error is returned.
         tokens.failDeletes = true
         let failed = store.removeAccount(login: "thai-congty", from: removed.state)
         #expect(failed.tokenError != nil)
@@ -394,7 +395,7 @@ struct GitHubCredentialTests {
         let (state, _) = Self.twoAccounts()
         let provider = GitHubTokenProvider(state: state, tokenStore: tokens)
 
-        // Chưa nạp gì: lần hỏi đầu đọc kho token đúng một lần cho mỗi tài khoản.
+        // Nothing loaded yet: the first lookup reads the token store exactly once per account.
         #expect(!provider.hasToken(for: "octocat"))
         #expect(provider.token(forOwner: "Cong-Ty-ABC") == "gho_congty222")
         #expect(provider.token(forOwner: "nguoi-la") == "gho_canhan111")
@@ -402,8 +403,8 @@ struct GitHubCredentialTests {
         #expect(tokens.reads == 2)
         #expect(provider.credentialSet(helperPath: "/tmp/h") == Self.credentialSet(helperPath: "/tmp/h"))
 
-        // Gọi đồng thời từ nhiều luồng (như tải ảnh đại diện): luôn cùng kết quả, không đọc lại kho token. Dùng luồng GCD
-        // thật thay vì 64 task con cùng chờ một NSLock trên pool cooperative (ít luồng trên máy CI).
+        // Called concurrently from several tasks (like avatar downloads): always the same result, no second store read. Real GCD
+        // tasks instead of 64 child tasks all waiting on one NSLock on the cooperative pool (few workers on CI machines).
         let collected = LockedBox([String?]())
         DispatchQueue.concurrentPerform(iterations: 64) { index in
             let token = provider.token(forOwner: index.isMultiple(of: 2) ? "cong-ty-abc" : "octocat")
@@ -415,19 +416,19 @@ struct GitHubCredentialTests {
         #expect(results.filter { $0 == "gho_canhan111" }.count == 32)
         #expect(tokens.reads == 2)
 
-        // Xoá tài khoản công ty: owner của nó rơi về tài khoản mặc định.
+        // Removing the work account: its owner falls back to the default account.
         var updated = state
         updated.remove(login: "thai-congty")
         provider.update(state: updated)
         #expect(provider.token(forOwner: "cong-ty-abc") == "gho_canhan111")
-        // Đăng xuất hết.
+        // Signing out of everything.
         provider.update(state: GitHubAccountsState())
         #expect(provider.token(forOwner: "octocat") == nil)
         #expect(provider.credentialSet(helperPath: "/tmp/h") == nil)
     }
 }
 
-/// Kho token trong bộ nhớ thay cho Keychain khi test.
+/// An in-memory token store standing in for the Keychain in tests.
 final class InMemoryTokenStore: GitHubTokenStore {
     private let tokens = LockedBox([String: String]())
     private let readCount = LockedBox(0)
@@ -456,7 +457,7 @@ final class InMemoryTokenStore: GitHubTokenStore {
     }
 }
 
-/// Thay UserDefaults khi test — không ghi file cài đặt nào ra đĩa.
+/// A UserDefaults replacement for tests — no settings file is ever written to disk.
 final class InMemorySettingsStorage: GitHubSettingsStorage {
     private let values = LockedBox([String: Data]())
 
@@ -464,7 +465,7 @@ final class InMemorySettingsStorage: GitHubSettingsStorage {
     func setData(_ data: Data?, forKey key: String) { values.withValue { $0[key] = data } }
 }
 
-/// Một lần gọi `git` giả: tham số và vài biến môi trường mang tài khoản GitHub.
+/// One call to the fake `git`: the arguments and the few environment variables carrying GitHub accounts.
 private struct FakeGitCall {
     var arguments: [String] = []
     var values: [String: String] = [:]

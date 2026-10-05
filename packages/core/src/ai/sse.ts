@@ -1,6 +1,6 @@
-// Đọc luồng Server-Sent Events theo chuẩn WHATWG (đủ cho máy chủ Thaigit lẫn API kiểu OpenAI): dòng tách bởi CRLF/LF/CR,
-// "event:" đặt tên, nhiều "data:" nối bằng "\n", dòng trống phát frame, dòng ":" là chú thích. Chunk mạng có thể cắt
-// ngang dòng (hoặc ngang cặp CRLF) — parser giữ phần dở cho lần sau.
+// WHATWG-conformant Server-Sent Events reader (enough for both the Thaigit server and OpenAI-style APIs): lines split
+// by CRLF/LF/CR, "event:" names the frame, several "data:" lines join with "\n", a blank line dispatches the frame,
+// and a ":" line is a comment. A network chunk can cut mid-line (or mid-CRLF), so the parser holds the partial tail
 
 import { parseAiFrame, type AiFrame } from '@thaigit/contracts';
 
@@ -15,10 +15,10 @@ export class SseParser {
   #data: string[] = [];
   #pendingCR = false;
 
-  /** Thêm một đoạn chữ, trả các frame đã đủ. */
+  /** Feed one chunk of text, returning the frames that are now complete. */
   push(chunk: string): SseEvent[] {
     let text = chunk;
-    // "\r" ở cuối chunk trước + "\n" ở đầu chunk này là MỘT ký tự xuống dòng.
+    // A "\r" at the end of the previous chunk plus a "\n" at the start of this one is ONE line terminator.
     if (this.#pendingCR && text.startsWith('\n')) text = text.slice(1);
     this.#pendingCR = false;
     this.#buffer += text;
@@ -40,7 +40,7 @@ export class SseParser {
     return events;
   }
 
-  /** Hết luồng: frame dở (thiếu dòng trống cuối) bị bỏ theo chuẩn. */
+  /** End of stream: an incomplete frame (missing the final blank line) is dropped, per spec. */
   end(): SseEvent[] {
     this.#buffer = '';
     this.#event = '';
@@ -70,7 +70,7 @@ export class SseParser {
   }
 }
 
-/** Đọc body SSE của máy chủ Thaigit thành các `AiFrame` (frame lạ bị bỏ qua). */
+/** Parse the Thaigit server's SSE body into `AiFrame`s (unknown frames are ignored). */
 export async function* readAiFrames(body: ReadableStream<Uint8Array>): AsyncGenerator<AiFrame> {
   const parser = new SseParser();
   const decoder = new TextDecoder();

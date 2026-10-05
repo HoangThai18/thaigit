@@ -1,28 +1,28 @@
 import AppKit
 import NhanhCore
 
-/// Máy chủ mà Pull Request / Merge Request được tạo trên đó.
+/// The host a Pull Request / Merge Request is created on.
 enum ForgeKind: Equatable {
     case github
     case gitlab
 
-    /// "PR" / "MR" — chữ trên nút của thanh công cụ.
+    /// "PR" / "MR" — the label on the toolbar button.
     var shortName: String { self == .github ? "PR" : "MR" }
     var siteName: String { self == .github ? "GitHub" : "GitLab" }
 }
 
-/// Remote của repo ở GitHub hoặc GitLab, dùng để tạo Pull Request / Merge Request.
+/// The repo's remote on GitHub or GitLab, used to create Pull Requests / Merge Requests.
 struct ForgeRemote: Equatable {
     let name: String
     let kind: ForgeKind
-    /// "github.com/chu/repo", "gitlab.com/nhom/du-an" — hiện trong hộp thoại.
+    /// "github.com/owner/repo", "gitlab.com/group/project" — shown in the dialog.
     let siteName: String
     let github: GitHubRepoRef?
     let gitlab: GitLabProjectRef?
 }
 
 extension RepoModel {
-    /// Remote GitLab đầu tiên (ưu tiên remote mặc định); nhận cả máy chủ tự host của tài khoản đã thêm.
+    /// The first GitLab remote (the default remote preferred); also matches the self-hosted hosts of added accounts.
     var gitlabRemote: (name: String, project: GitLabProjectRef)? {
         let hosts = GitLabAccountManager.shared.store.hosts
         let ordered = remotes.filter { $0.name == defaultRemote } + remotes
@@ -32,7 +32,7 @@ extension RepoModel {
         return nil
     }
 
-    /// Remote dùng cho PR / MR: remote mặc định nếu ở GitHub hoặc GitLab, không thì remote đầu tiên nhận ra được.
+    /// The remote used for PR / MR: the default remote when it's GitHub or GitLab, otherwise the first recognisable one.
     var forgeRemote: ForgeRemote? {
         let hosts = GitLabAccountManager.shared.store.hosts
         let ordered = remotes.filter { $0.name == defaultRemote } + remotes
@@ -47,7 +47,7 @@ extension RepoModel {
         return nil
     }
 
-    /// Có tài khoản dùng được để tạo PR / MR ở remote này — không đọc token ở đây.
+    /// Whether a usable account exists to create a PR / MR on this remote — no token is read here.
     var canUseForgeAccount: Bool {
         guard let forge = forgeRemote else { return false }
         switch forge.kind {
@@ -56,7 +56,7 @@ extension RepoModel {
         }
     }
 
-    /// Push (nếu cần) rồi gửi Merge Request lên GitLab. Chỉ gửi tiêu đề / mô tả / tên nhánh người dùng vừa xem trong hộp thoại.
+    /// Push (if needed) then send the Merge Request to GitLab. Only the title / description / branch name the user just reviewed in the dialog are sent.
     func createMergeRequest(_ new: NewPullRequest, in project: GitLabProjectRef, pushFirst push: PushRequest?) {
         let progress = progressReporter()
         let accounts = GitLabAccountManager.shared.store
@@ -72,7 +72,7 @@ extension RepoModel {
             created = try await GitLabAPI().createMergeRequest(request, in: project, token: token)
         } onSuccess: { [weak self] in
             guard let self, let created else { return }
-            // Mở luôn review của MR vừa tạo để gán người review / người xử lý.
+            // Open the review of the just-created MR right away so reviewers / assignees can be set.
             let request = ForgeRequest(kind: .gitlab, number: created.iid, title: created.title, body: new.body, author: "",
                                        isDraft: new.draft, webURL: created.webURL, sourceBranch: new.head, targetBranch: new.base,
                                        headSHA: nil, updatedAt: Date())

@@ -1,6 +1,7 @@
-//! Tích hợp hệ điều hành tối thiểu, có chính sách: mở terminal/trình soạn thảo tại repo, hiện trong Finder/Explorer, mở URL.
-//! Đường dẫn chỉ đến từ repo đã đăng ký (gốc repo hoặc file tương đối đã qua kiểm phạm vi RepoFs); `open_url` chỉ `https:`
-//! (`mailto:` phải kèm cờ đã xác nhận); không bao giờ chạy `.cmd`/`.bat` trên Windows (BatBadBut).
+//! Minimal, policy-driven OS integration: open a terminal / editor at a repo, reveal it in Finder/Explorer, open a URL.
+//! Paths only ever come from a registered repo (the repo root, or a relative file that passed the RepoFs scope check);
+//! `open_url` only accepts `https:` (`mailto:` needs a confirmed flag), and `.cmd`/`.bat` are never run on Windows
+//! (BatBadBut).
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -12,17 +13,17 @@ use crate::repo_fs::resolve_worktree;
 
 const MAX_URL_LEN: usize = 2048;
 
-/// Một cách chạy ứng dụng ngoài (thử lần lượt tới khi có cái thành công).
+/// One way to launch an external app (tried in order until one succeeds).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Launch {
     pub program: OsString,
     pub args: Vec<OsString>,
-    /// Windows: đối số truyền nguyên văn (không bọc nháy) — chỉ cho `explorer /select,"path"`.
+    /// Windows: the argument is passed verbatim (no quoting) — only for `explorer /select,"path"`.
     pub raw_args: Vec<OsString>,
     pub cwd: Option<PathBuf>,
-    /// Chờ mã thoát (macOS `open -b`: mã ≠ 0 nghĩa là không có ứng dụng đó).
+    /// Wait for the exit code (macOS `open -b`: a non-zero code means the app does not exist).
     pub wait: bool,
-    /// Windows: ứng dụng console cần cửa sổ console mới.
+    /// Windows: a console app needs its own console window.
     pub new_console: bool,
 }
 
@@ -43,21 +44,21 @@ pub fn current_os() -> Os {
     }
 }
 
-/// Thông tin môi trường Windows để dựng kế hoạch (tách ra cho test và để không đọc registry ngoài `cfg(windows)`).
+/// Windows environment info used to build a plan (factored out for tests, so the registry is never read outside `cfg(windows)`).
 #[derive(Debug, Clone, Default)]
 pub struct WindowsEnv {
     pub local_app_data: Option<PathBuf>,
     pub program_files: Option<PathBuf>,
-    /// `%SystemRoot%` (thường `C:\Windows`): gốc của các chương trình hệ thống được chạy bằng đường dẫn tuyệt đối.
+    /// `%SystemRoot%` (usually `C:\Windows`): the root of system programs that must be launched by absolute path.
     pub system_root: Option<PathBuf>,
-    /// Kết quả `App Paths` trong registry: tên exe → đường dẫn đầy đủ.
+    /// The registry's `App Paths` results: exe name → full path.
     pub app_paths: Vec<(String, PathBuf)>,
 }
 
 const MAC_TERMINALS: [&str; 4] = ["com.mitchellh.ghostty", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.apple.Terminal"];
 const MAC_EDITORS: [&str; 4] = ["com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92", "dev.zed.Zed", "com.sublimetext.4"];
 
-/// Exe chạy trực tiếp được: có đuôi `.exe`, không phải script `.cmd`/`.bat`/`.ps1`…
+/// An exe that can be run directly: has an `.exe` extension, is not a `.cmd`/`.bat`/`.ps1` script…
 pub fn is_launchable_exe(path: &Path) -> bool {
     path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
 }
@@ -82,15 +83,16 @@ fn windows_editor_exes(env: &WindowsEnv) -> Vec<PathBuf> {
     found
 }
 
-/// Nối đường dẫn kiểu Windows (`\`) bất kể máy đang chạy là gì: kế hoạch Windows phải dựng và kiểm thử được trên mọi hệ điều hành.
+/// Join Windows-style paths (`\`) regardless of the host machine: the Windows plan must be buildable and testable on every OS.
 fn win_join(base: &Path, tail: &str) -> OsString {
     format!(r"{}\{tail}", base.to_string_lossy().trim_end_matches(['\\', '/'])).into()
 }
 
-/// Terminal: macOS thử Ghostty → iTerm2 → Warp → Terminal (như app Swift). Windows: mọi chương trình đều chạy bằng đường dẫn
-/// TUYỆT ĐỐI (không để tên trần bị tìm theo PATH/thư mục hiện tại): `wt.exe` (bí danh trong `%LOCALAPPDATA%\Microsoft\WindowsApps`)
-/// nhận thư mục qua `-d` thay vì CWD của tiến trình, rồi PowerShell/cmd trong System32 (không có cờ `-d` nên dùng CWD = repo;
-/// đường dẫn tuyệt đối của exe nên CWD không ảnh hưởng chuyện tìm exe).
+/// Terminal: on macOS try Ghostty → iTerm2 → Warp → Terminal (like the Swift app). On Windows every program runs by ABSOLUTE
+/// path (a bare name must not be resolved via PATH or the current directory): `wt.exe` (an alias in
+/// `%LOCALAPPDATA%\Microsoft\WindowsApps`) takes the folder through `-d` instead of the process CWD, then
+/// PowerShell/cmd from System32 (no `-d` flag, so they use CWD = repo; because the exe path is absolute, the CWD does not
+/// affect finding it).
 pub fn terminal_plan(os: Os, root: &Path, win: &WindowsEnv) -> Vec<Launch> {
     match os {
         Os::Mac => MAC_TERMINALS
@@ -99,7 +101,7 @@ pub fn terminal_plan(os: Os, root: &Path, win: &WindowsEnv) -> Vec<Launch> {
             .collect(),
         Os::Windows => {
             let mut plan = Vec::new();
-            // `;` là dấu tách lệnh của wt và tài liệu không nêu cách thoát trong đối số `-d`: thư mục có `;` thì bỏ qua wt.
+            // `;` is wt's command separator and its docs do not say how to escape it inside the `-d` argument: skip wt for a folder containing `;`.
             if let Some(local) = &win.local_app_data
                 && !root.to_string_lossy().contains(';')
             {
@@ -121,8 +123,8 @@ pub fn terminal_plan(os: Os, root: &Path, win: &WindowsEnv) -> Vec<Launch> {
     }
 }
 
-/// Trình soạn thảo: tìm cái đầu tiên có (như Swift). Thư mục không có editor → mở bằng trình quản lý file; file thì không
-/// bao giờ mở bằng ứng dụng mặc định (file `.command`/`.app`/`.lnk` của repo lạ có thể thực thi).
+/// Editor: use the first one found (like Swift). A folder without an editor → open the file manager; a FILE is never opened
+/// with the default app (a `.command`/`.app`/`.lnk` file from an untrusted repo could execute).
 pub fn editor_plan(os: Os, target: &Path, is_dir: bool, win: &WindowsEnv) -> Vec<Launch> {
     let mut plan = match os {
         Os::Mac => MAC_EDITORS
@@ -142,7 +144,7 @@ pub fn reveal_plan(os: Os, target: &Path, is_dir: bool) -> Launch {
     match os {
         Os::Mac => Launch { program: "open".into(), args: if is_dir { vec![target.into()] } else { vec!["-R".into(), target.into()] }, wait: true, ..Launch::default() },
         Os::Windows => {
-            // Windows không cho `"` trong tên file nên bọc nháy nguyên văn là an toàn.
+            // Windows forbids `"` in file names, so verbatim quoting is safe.
             let quoted = format!("\"{}\"", target.display());
             let raw: OsString = if is_dir { quoted.into() } else { format!("/select,{quoted}").into() };
             Launch { program: "explorer.exe".into(), raw_args: vec![raw], ..Launch::default() }
@@ -151,7 +153,7 @@ pub fn reveal_plan(os: Os, target: &Path, is_dir: bool) -> Launch {
     }
 }
 
-/// `open_url`: chỉ `https:` (không kèm thông tin đăng nhập); `mailto:` chỉ khi người dùng đã xác nhận trong UI.
+/// `open_url`: only `https:` (no credentials); `mailto:` only after the user confirmed it in the UI.
 pub fn validate_open_url(raw: &str, mailto_confirmed: bool) -> Result<String> {
     if raw.is_empty() || raw.len() > MAX_URL_LEN || raw.chars().any(|c| c.is_control() || c.is_whitespace()) {
         return Err(AppError::policy("URL rỗng, quá dài hoặc chứa khoảng trắng/ký tự điều khiển"));
@@ -176,13 +178,13 @@ pub fn validate_open_url(raw: &str, mailto_confirmed: bool) -> Result<String> {
 pub fn url_plan(os: Os, url: &str) -> Launch {
     match os {
         Os::Mac => Launch { program: "open".into(), args: vec![url.into()], wait: true, ..Launch::default() },
-        // `explorer.exe <url>` mở trình duyệt mặc định mà không qua shell (`&` trong URL không bị hiểu).
+        // `explorer.exe <url>` opens the default browser without going through a shell (so `&` in the URL is not interpreted).
         Os::Windows => Launch { program: "explorer.exe".into(), args: vec![url.into()], ..Launch::default() },
         Os::Other => Launch { program: "xdg-open".into(), args: vec![url.into()], ..Launch::default() },
     }
 }
 
-/// Môi trường Windows. `with_registry` đọc `App Paths` (chạy `reg.exe` vài lần) — chỉ cần khi tìm trình soạn thảo.
+/// The Windows environment. `with_registry` reads `App Paths` (a few `reg.exe` calls) — only needed when looking for an editor.
 #[cfg(windows)]
 fn windows_env(with_registry: bool) -> WindowsEnv {
     use std::os::windows::process::CommandExt;
@@ -217,7 +219,7 @@ fn windows_env(_with_registry: bool) -> WindowsEnv {
     WindowsEnv::default()
 }
 
-/// Giá trị mặc định trong output của `reg query <khoá> /ve`: `    (Default)    REG_SZ    C:\...\Code.exe`.
+/// The default value in `reg query <key> /ve` output: `    (Default)    REG_SZ    C:\...\Code.exe`.
 pub fn parse_reg_default(output: &str) -> Option<PathBuf> {
     output.lines().find_map(|line| {
         let (_, value) = line.split_once("REG_SZ")?;
@@ -263,7 +265,7 @@ impl Core {
         run_first(&terminal_plan(current_os(), &entry.root, &windows_env(false)), "mở terminal").await
     }
 
-    /// `rel` (tuỳ chọn) là file tương đối trong repo (đã qua kiểm phạm vi, phải tồn tại); không có → thư mục gốc.
+    /// `rel` (optional) is a relative file in the repo (scope-checked, must exist); without it → the root folder.
     pub async fn open_in_editor(&self, repo_id: &str, rel: Option<&str>) -> Result<()> {
         let entry = self.registry.get(repo_id)?;
         let (target, is_dir) = scoped_target(&entry, rel)?;
@@ -284,7 +286,7 @@ fn scoped_target(entry: &crate::registry::RepoEntry, rel: Option<&str>) -> Resul
     Ok((path, metadata.is_dir()))
 }
 
-/// `open_url`: kiểm rồi mở bằng ứng dụng mặc định.
+/// `open_url`: validate, then open with the default app.
 pub async fn open_url(url: &str, mailto_confirmed: bool) -> Result<()> {
     let checked = validate_open_url(url, mailto_confirmed)?;
     run_first(&[url_plan(current_os(), &checked)], "mở liên kết").await
@@ -370,10 +372,10 @@ mod tests {
             ],
             "không còn tên trần `wt.exe`/`powershell.exe`/`cmd.exe`"
         );
-        // wt: thư mục qua `-d`, KHÔNG qua CWD của tiến trình.
+        // wt: the folder goes through `-d`, NOT through the process CWD.
         assert_eq!(plan[0].args, [OsString::from("-d"), OsString::from(root)]);
         assert_eq!(plan[0].cwd, None);
-        // PowerShell/cmd không có `-d`: CWD = repo (đã chạy bằng đường dẫn tuyệt đối nên CWD không ảnh hưởng việc tìm exe).
+        // PowerShell/cmd have no `-d`: CWD = repo (and because they run by absolute path, the CWD does not affect finding them).
         assert!(plan[1..].iter().all(|l| l.cwd.as_deref() == Some(root) && l.new_console));
         for launch in &plan {
             assert!(
@@ -382,11 +384,11 @@ mod tests {
                 launch.program
             );
         }
-        // Thư mục có `;` (dấu tách lệnh của wt): bỏ wt, còn PowerShell/cmd.
+        // A folder containing `;` (wt's command separator): skip wt, keep PowerShell/cmd.
         let semicolon = terminal_plan(Os::Windows, Path::new(r"C:\a;b\repo"), &windows_fixture());
         assert_eq!(semicolon.len(), 2);
         assert!(semicolon.iter().all(|l| !l.program.to_string_lossy().ends_with("wt.exe")));
-        // Không biết %SystemRoot%/%LOCALAPPDATA% thì không bịa đường dẫn.
+        // Without %SystemRoot%/%LOCALAPPDATA% we do not invent paths.
         assert!(terminal_plan(Os::Windows, root, &WindowsEnv::default()).is_empty());
     }
 

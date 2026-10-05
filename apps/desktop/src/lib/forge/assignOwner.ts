@@ -1,6 +1,7 @@
-// Gán tài khoản cho owner của repo (chọn trong menu "Tài khoản cho repo này"): lệnh git tới repo đó sẽ dùng đúng token,
-// nên người dùng làm việc được với cả repo cá nhân và repo công ty mà không phải đổi cấu hình. Chọn xong thì đề nghị ghi
-// tên / email commit của tài khoản đó vào cấu hình của repo.
+// Assign an account to the owner of a repo (picked in the "Account for this repo" menu): git commands
+// targeting that repo then use exactly that token, so a user can work with both personal and work repos
+// without switching configuration. After choosing, offer to write that account's commit name / email into
+// the repo configuration.
 
 import type { ForgeAccount } from '@thaigit/contracts';
 import { accounts as globalAccounts, type AccountsStore } from '../stores/accounts.svelte.ts';
@@ -14,8 +15,9 @@ import { targetOf } from './pullRequests.ts';
 const text = vi.accounts;
 
 /**
- * Hỏi tài khoản nào dùng cho owner của repo `store`, rồi lưu vào Rust. `false` = Huỷ / lỗi.
- * Repo không nói chuyện với máy chủ app nhận ra, hoặc chưa có tài khoản nào trên máy chủ đó: mở Cài đặt (mục Tài khoản).
+ * Ask which account to use for the owner of `store`, then save it via Rust. `false` = cancelled / error.
+ * When the repo doesn't talk to a host the app recognises, or that host has no account yet: open
+ * Settings (the Accounts section).
  */
 export async function assignAccountForRepo(
   store: RepoStore,
@@ -62,7 +64,7 @@ export async function assignAccountForRepo(
   return true;
 }
 
-/** Tên / email commit của repo khác của tài khoản: hỏi có ghi vào cấu hình repo không (commit mới tính cho tài khoản đó). */
+/** The account's commit name / email for another of its repos: ask whether to write it into the repo config (new commits then count for that account). */
 async function offerIdentity(store: RepoStore, account: ForgeAccount, prompts: DialogStore): Promise<void> {
   const name = account.commitName.trim();
   const email = account.commitEmail.trim();

@@ -2,7 +2,7 @@ import AppKit
 import SwiftTerm
 import SwiftUI
 
-/// Panel terminal dưới graph / diff (như GitKraken): thanh tab, nút thêm tab, kéo mép trên để đổi chiều cao.
+/// The terminal panel below the graph / diff (like GitKraken): a tab bar, an add-tab button, and a draggable top edge to resize the height.
 struct TerminalPanel: View {
     let model: RepoModel
     @Bindable var session: TerminalSession
@@ -103,7 +103,7 @@ private struct TabChip: View {
     }
 }
 
-/// Đặt `LocalProcessTerminalView` có sẵn của tab vào SwiftUI (không tạo lại khi panel vẽ lại) và đưa focus vào terminal.
+/// Puts a tab's existing `LocalProcessTerminalView` into SwiftUI (not recreated when the panel repaints) and focuses the terminal.
 private struct TerminalHost: NSViewRepresentable {
     let view: LocalProcessTerminalView
 

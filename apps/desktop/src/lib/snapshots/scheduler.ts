@@ -1,6 +1,7 @@
-// Lập lịch chụp snapshot tự động: working tree đổi → chờ file yên `quietMs` (mỗi thay đổi mới đẩy lùi), không chụp dày hơn
-// `minIntervalMs`, bỏ qua khi tắt cho repo, thử lại khi repo bận. Sau lần chụp đầu và tối đa mỗi `pruneIntervalMs` thì dọn
-// mốc cũ. Không phụ thuộc Svelte để test bằng đồng hồ giả.
+// Schedules automatic snapshot capture: working tree changed → wait for `quietMs` of stillness (every new
+// change pushes it back), never capture more often than `minIntervalMs`, skip when disabled for this repo,
+// retry when the repo is busy. After the first capture, and at most every `pruneIntervalMs`, old milestones
+// are pruned. Independent of Svelte so tests can drive it with a fake clock.
 
 import { AdapterError } from '@thaigit/core';
 
@@ -8,9 +9,9 @@ export interface SchedulerDeps {
   quietMs: number;
   minIntervalMs: number;
   pruneIntervalMs: number;
-  /** Snapshot đang bật cho repo này (cài đặt chung + theo repo). */
+  /** Snapshots are on for this repo (global setting + per-repo override). */
   enabled(): boolean;
-  /** App đang chạy thao tác ghi trên repo (đợi xong rồi chụp). */
+  /** The app is running a write operation on the repo (wait for it, then capture). */
   busy(): boolean;
   take(): Promise<void>;
   prune(): Promise<void>;
@@ -30,7 +31,7 @@ export class SnapshotScheduler {
 
   constructor(private readonly deps: SchedulerDeps) {}
 
-  /** Working tree vừa đổi (sự kiện watcher), hoặc vừa mở repo. */
+  /** The working tree just changed (watcher event), or the repo was just opened. */
   notifyChange(): void {
     if (this.disposed) return;
     this.dirty = true;
@@ -73,7 +74,7 @@ export class SnapshotScheduler {
       if (isBusy(error)) {
         this.dirty = true;
       } else {
-        // Lỗi khác (repo hỏng, git thiếu…): bỏ lần này; khoảng tối thiểu tránh thử lại dồn dập.
+        // Other failures (broken repo, missing git…): skip this round; the minimum interval prevents a rapid retry storm.
         this.lastTakenAt = Date.now();
       }
     } finally {

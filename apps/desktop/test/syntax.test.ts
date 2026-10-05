@@ -20,7 +20,7 @@ describe('tô màu cú pháp trong diff', () => {
     expect(tokens.find((token) => token.text.includes('<b>'))?.type).toBe('string');
     expect(tokens.find((token) => token.text.includes('ghi chú'))?.type).toBe('comment');
     expect(tokenizeLine('x', null)).toEqual([{ text: 'x', type: null }]);
-    // Svelte / Vue: dòng thẻ tô kiểu markup, dòng script kiểu TypeScript.
+    // Svelte / Vue: tag lines highlight as markup, script lines as TypeScript.
     expect(tokenizeLine('  import { x } from "y";', 'component').find((t) => t.text === 'import')?.type).toBe(
       'keyword',
     );

@@ -1,10 +1,11 @@
-//! RepoFs: đọc/ghi file của repo THEO BYTE trong phạm vi repo (không decode: BOM, CRLF, Latin-1 giữ nguyên).
+//! RepoFs: byte-oriented reads/writes of repo files within the repo scope (no decoding: BOM, CRLF and Latin-1 survive).
 //!
-//! Đường dẫn tương đối → `dunce::canonicalize` → phải nằm trong gốc working tree (hoặc git dir với `fs_read_git_file`).
-//! Từ chối: rỗng, NUL, tuyệt đối, đoạn `..`, symlink trỏ ra ngoài, và MỌI đường dẫn có đoạn `.git` (không phân biệt
-//! hoa thường; kể cả `git~1` của NTFS và đuôi `.`/khoảng trắng) để một lần ghi không thể gieo `.git/hooks/*`.
-//! Thùng rác riêng của app trong `<commonDir>/thaigit/trash/<token>/` (không dùng crate `trash`: không trả vị trí, không
-//! khôi phục được trên macOS).
+//! A relative path goes through `dunce::canonicalize` and must land inside the working-tree root (or the git dir, for
+//! `fs_read_git_file`). Rejected: empty, NUL, absolute, a `..` segment, a symlink pointing outside, and EVERY path with a
+//! `.git` segment (case-insensitive; including NTFS's `git~1` and a trailing `.` / space) so a single write cannot plant
+//! `.git/hooks/*`.
+//! The app's own trash lives in `<commonDir>/thaigit/trash/<token>/` (the `trash` crate is not used: it returns no location
+//! and is not restorable on macOS).
 
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -25,24 +26,24 @@ use crate::policy::{EnvProfile, is_no_index_diff};
 use crate::registry::RepoEntry;
 use crate::trust::hex;
 
-/// Giới hạn đọc mặc định khi caller không đặt `maxBytes` (tránh đẩy file khổng lồ qua IPC).
+/// Default read limit when the caller does not set `maxBytes` (keeps huge files out of IPC).
 pub const DEFAULT_MAX_READ: u64 = 64 * 1024 * 1024;
-/// File git đọc được qua `fs_read_git_file` (ngoài `rebase-merge/*`, `rebase-apply/*`).
+/// Git files readable through `fs_read_git_file` (other than `rebase-merge/*`, `rebase-apply/*`).
 const GIT_FILES: [&str; 6] = ["MERGE_HEAD", "MERGE_MSG", "SQUASH_MSG", "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG"];
 const MAX_GIT_FILE: u64 = 8 * 1024 * 1024;
 const MAX_GITIGNORE_LINE: usize = 4096;
-/// Thùng rác tự dọn sau chừng này.
+/// The trash cleans itself up after this long.
 pub const TRASH_RETENTION: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
-/// Index tạm của snapshot, tương đối git dir của worktree — khớp `indexFile` trong `packages/contracts/snapshot.json`.
+/// The snapshot's temporary index, relative to the worktree's git dir — matching `indexFile` in `packages/contracts/snapshot.json`.
 pub const SNAPSHOT_INDEX_REL: &str = "thaigit/snapshot.index";
 
 fn out_of_scope(rel: &str, reason: &str) -> AppError {
     AppError::OutOfScope(format!("Đường dẫn `{rel}` bị từ chối: {reason}"))
 }
 
-/// Tạo `<gitDir>/thaigit/` (thư mục thật, không phải symlink) và trả đường dẫn tuyệt đối của index tạm; `reset` xoá đúng index
-/// tạm và file `.lock` của nó (index hỏng hoặc khoá mồ côi khi app bị tắt giữa lúc `git add`).
+/// Create `<gitDir>/thaigit/` (a real directory, not a symlink) and return the absolute path of the temporary index;
+/// `reset` deletes exactly that index and its `.lock` file (a corrupt index, or an orphaned lock after the app was killed mid-`git add`).
 fn prepare_snapshot_index(entry: &RepoEntry, reset: bool) -> Result<PathBuf> {
     let (dir_rel, file_name) = SNAPSHOT_INDEX_REL.split_once('/').expect("SNAPSHOT_INDEX_REL có dạng thư-mục/file");
     let dir = entry.git_dir.join(dir_rel);
@@ -68,7 +69,7 @@ fn prepare_snapshot_index(entry: &RepoEntry, reset: bool) -> Result<PathBuf> {
     Ok(index)
 }
 
-/// Kiểm đường dẫn tương đối của working tree trước khi chạm đĩa.
+/// Validate a working-tree relative path before touching disk.
 fn check_worktree_rel(rel: &str) -> Result<()> {
     if let Some(reason) = check_relative_path(rel, cfg!(windows)) {
         return Err(out_of_scope(rel, reason));
@@ -82,8 +83,9 @@ fn check_worktree_rel(rel: &str) -> Result<()> {
     Ok(())
 }
 
-/// Đường dẫn thật (đã `dunce::canonicalize`) của `rel` trong working tree. File chưa tồn tại: thư mục cha phải tồn tại
-/// và nằm trong gốc. Sau khi giải symlink vẫn phải trong gốc VÀ không đi qua `.git` (vd. symlink `docs → .git`).
+/// The real path (already `dunce::canonicalize`d) of `rel` in the working tree. For a file that does not exist: the parent
+/// directory must exist and be inside the root. After symlink resolution it must still be inside the root AND must not go
+/// through `.git` (e.g. a symlink `docs → .git`).
 pub fn resolve_worktree(entry: &RepoEntry, rel: &str) -> Result<PathBuf> {
     check_worktree_rel(rel)?;
     let joined = entry.root.join(rel);
@@ -106,9 +108,10 @@ pub fn resolve_worktree(entry: &RepoEntry, rel: &str) -> Result<PathBuf> {
     Ok(resolved)
 }
 
-/// Đường dẫn của CHÍNH mục `rel` (không đi theo nếu nó là symlink) — dùng khi dời vào thùng rác. Các thư mục cha phải là thư mục
-/// thật (không symlink/junction nào, để kiểm `ls-files` theo đường dẫn nhập đúng với mục bị dời) và nằm trong gốc; phần tử cuối
-/// giữ nguyên. Khác `resolve_worktree`: symlink chưa track trỏ tới file ĐÃ track thì dời chính symlink chứ không dời file đích.
+/// The path of the entry `rel` ITSELF (not followed when it is a symlink) — used when moving to the trash. Parent directories
+/// must be real (no symlink/junction anywhere, so `ls-files` checked by the given path matches the moved entry) and inside
+/// the root; the last component is kept as-is. Unlike `resolve_worktree`: an untracked symlink pointing at an ALREADY TRACKED
+/// file moves the symlink itself rather than the target.
 fn resolve_worktree_entry(entry: &RepoEntry, rel: &str) -> Result<PathBuf> {
     check_worktree_rel(rel)?;
     let joined = entry.root.join(rel);
@@ -121,8 +124,8 @@ fn resolve_worktree_entry(entry: &RepoEntry, rel: &str) -> Result<PathBuf> {
     if path_has_git_component(&remainder) {
         return Err(out_of_scope(rel, "giải ra bên trong .git"));
     }
-    // Không so chuỗi đường dẫn thật với đường dẫn nhập (chuẩn hoá Unicode NFC/NFD của macOS làm chúng khác nhau dù không có
-    // symlink); duyệt từng thư mục cha và hỏi thẳng có phải symlink/junction không.
+    // Do not compare the real path string with the given path (macOS's Unicode NFC/NFD normalisation makes them differ even
+    // without symlinks); walk each parent directory and ask directly whether it is a symlink/junction.
     let mut probe = entry.root.clone();
     for component in Path::new(rel).parent().into_iter().flat_map(Path::components) {
         probe.push(component);
@@ -133,7 +136,7 @@ fn resolve_worktree_entry(entry: &RepoEntry, rel: &str) -> Result<PathBuf> {
     Ok(resolved_parent.join(name))
 }
 
-/// `canonicalize` của tổ tiên gần nhất còn tồn tại (đường dẫn chưa tồn tại thì lên dần tới khi gặp thư mục có thật).
+/// `canonicalize` of the nearest existing ancestor (walking up until a real directory is found for a path that does not exist).
 fn nearest_existing_canonical(path: &Path) -> std::io::Result<PathBuf> {
     let mut probe = path.to_path_buf();
     loop {
@@ -149,15 +152,16 @@ fn nearest_existing_canonical(path: &Path) -> std::io::Result<PathBuf> {
     }
 }
 
-/// Dấu phân tách thư mục của hệ điều hành (trên Unix `\` là ký tự tên file thường).
+/// The OS directory separator (on Unix `\` is an ordinary filename character).
 fn is_separator(c: char) -> bool {
     c == '/' || (cfg!(windows) && c == '\\')
 }
 
-/// Một toán hạng đường dẫn của `git diff`: mọi thư mục cha (đã giải symlink) phải nằm trong working tree. Riêng `--no-index`
-/// git đi thẳng qua hệ thống file nên còn: không đụng `.git`, và phần tử cuối là symlink tới THƯ MỤC (git `stat`, đi theo, khi
-/// ghép thư mục với file hay khi có dấu `/` cuối) cũng phải giải ra trong repo. Symlink tới file thì git chỉ đọc chuỗi đích
-/// (`lstat`) nên cho qua — vẫn diff được symlink chưa track trỏ ra ngoài.
+/// One `git diff` path operand: every parent directory (after symlink resolution) must be inside the working tree. For
+/// `--no-index` git also reads straight through the file system, so additionally: `.git` must not be touched, and a last
+/// element that is a symlink to a DIRECTORY (which git `stat`s and follows when joining the directory with a file, or when
+/// there is a trailing `/`) must also resolve inside the repo. A symlink to a FILE is fine because git only reads the
+/// target string (`lstat`) — an untracked symlink pointing outside can still be diffed.
 fn check_diff_operand(entry: &RepoEntry, operand: &str, no_index: bool) -> Result<()> {
     if operand.contains('\0') || is_absolute_like(operand) || operand.split(['/', '\\']).any(|segment| segment == "..") {
         return Err(out_of_scope(operand, "đường dẫn tuyệt đối, chứa `..` hoặc NUL"));
@@ -200,10 +204,10 @@ fn check_diff_operand(entry: &RepoEntry, operand: &str, no_index: bool) -> Resul
     Ok(())
 }
 
-/// `git diff`: toán hạng đường dẫn phải ở trong working tree SAU KHI giải symlink. Kiểm tra theo chuỗi (`check_scope`) không đủ:
-/// symlink `linkdir → /` do chính repo tạo ra (vd. qua `apply`) làm `diff --no-index -- base linkdir/etc/passwd` đọc file ngoài.
-/// Chỉ toán hạng đường dẫn mới bị kiểm (revision như `HEAD~3..HEAD` coi là đường dẫn chưa tồn tại → cho qua); `/dev/null`,
-/// `-` (stdin) và `NUL` (chỉ Windows) là ngoại lệ.
+/// `git diff`: a path operand must be inside the working tree AFTER symlink resolution. A string check (`check_scope`) is not
+/// enough: a symlink `linkdir → /` created by the repo itself (e.g. through `apply`) makes `diff --no-index -- base
+/// linkdir/etc/passwd` read a file outside. Only path operands are checked (a revision such as `HEAD~3..HEAD` counts as a
+/// non-existent path and passes); `/dev/null`, `-` (stdin) and `NUL` (Windows only) are exceptions.
 pub fn check_diff_operands(entry: &RepoEntry, args: &[String]) -> Result<()> {
     let no_index = is_no_index_diff("diff", args);
     let mut after_double_dash = false;
@@ -217,8 +221,8 @@ pub fn check_diff_operands(entry: &RepoEntry, args: &[String]) -> Result<()> {
                 continue;
             }
         }
-        // `-` = stdin và `/dev/null` luôn được git hiểu đặc biệt; `NUL` chỉ ở Windows (trên Unix nó là tên file thường — có thể là
-        // symlink `NUL → /etc` để ghép thư mục với file).
+        // `-` = stdin and `/dev/null` are always special to git; `NUL` only on Windows (on Unix it is an ordinary filename — it
+        // could be a symlink `NUL → /etc` used to join a directory with a file).
         if matches!(arg.as_str(), "-" | "/dev/null") || (cfg!(windows) && arg.eq_ignore_ascii_case("nul")) {
             continue;
         }
@@ -246,7 +250,7 @@ fn read_limited(path: &Path, max: u64, rel: &str) -> Result<Option<Vec<u8>>> {
     }
 }
 
-/// `fs_read_git_file`: chỉ các tên trong danh sách cho phép, trong git dir. Không có → `None`.
+/// `fs_read_git_file`: only the allowlisted names, inside the git dir. Missing → `None`.
 pub fn read_git_file(entry: &RepoEntry, rel: &str) -> Result<Option<Vec<u8>>> {
     if let Some(reason) = check_relative_path(rel, false) {
         return Err(out_of_scope(rel, reason));
@@ -270,7 +274,7 @@ pub fn read_git_file(entry: &RepoEntry, rel: &str) -> Result<Option<Vec<u8>>> {
     read_limited(&path, MAX_GIT_FILE, rel)
 }
 
-/// `fs_read_worktree_file`: không có → `None`; lớn hơn `max_bytes` → lỗi.
+/// `fs_read_worktree_file`: missing → `None`; larger than `max_bytes` → error.
 pub fn read_worktree_file(entry: &RepoEntry, rel: &str, max_bytes: Option<u64>) -> Result<Option<Vec<u8>>> {
     let path = resolve_worktree(entry, rel)?;
     read_limited(&path, max_bytes.unwrap_or(DEFAULT_MAX_READ).min(DEFAULT_MAX_READ), rel)
@@ -280,8 +284,8 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hex(&Sha256::digest(bytes))
 }
 
-/// `fs_write_worktree_file`: CAS với nội dung hiện tại (`expected = None` → file phải chưa tồn tại), ghi tạm cùng thư mục
-/// rồi đổi tên đè, giữ quyền file.
+/// `fs_write_worktree_file`: CAS against the current content (`expected = None` → the file must not exist), writing a temp
+/// file in the same directory and then renaming over it, preserving the file mode.
 pub fn write_worktree_file(entry: &RepoEntry, rel: &str, bytes: &[u8], expected_sha256: Option<&str>) -> Result<()> {
     let path = resolve_worktree(entry, rel)?;
     let existing = match std::fs::metadata(&path) {
@@ -320,7 +324,7 @@ pub fn write_worktree_file(entry: &RepoEntry, rel: &str, bytes: &[u8], expected_
     Ok(())
 }
 
-/// `fs_append_gitignore`: thêm một dòng theo byte, theo kiểu xuống dòng sẵn có; thêm xuống dòng cuối nếu thiếu.
+/// `fs_append_gitignore`: append one line byte-wise, following the existing line terminator style and adding a final terminator when missing.
 pub fn append_gitignore(entry: &RepoEntry, line: &str) -> Result<()> {
     if line.is_empty() || line.len() > MAX_GITIGNORE_LINE || line.contains(['\n', '\r', '\0']) {
         return Err(AppError::policy("dòng .gitignore phải là một dòng không rỗng, không chứa ký tự xuống dòng/NUL"));
@@ -388,7 +392,7 @@ fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
     }
 }
 
-/// Dời `from` → `to`: cùng ổ → rename; khác ổ (hoặc `force_copy` trong test) → sao chép rồi xoá nguồn.
+/// Move `from` → `to`: same volume → rename; different volume (or `force_copy` in tests) → copy, then delete the source.
 fn move_path(from: &Path, to: &Path, force_copy: bool) -> std::io::Result<()> {
     if let Some(parent) = to.parent() {
         std::fs::create_dir_all(parent)?;
@@ -408,7 +412,7 @@ fn now_ms() -> u128 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)
 }
 
-/// Xoá thùng rác quá hạn (theo mốc thời gian trong tên token).
+/// Delete trash entries past their age (based on the timestamp in the token name).
 pub fn cleanup_trash(entry: &RepoEntry, retention: Duration) {
     let Ok(dirs) = std::fs::read_dir(trash_root(entry)) else { return };
     let cutoff = now_ms().saturating_sub(retention.as_millis());
@@ -445,7 +449,7 @@ fn trash_rels(entry: &RepoEntry, rels: &[String], force_copy: bool) -> Result<St
     for (rel, path, _) in &sources {
         let target = data.join(rel);
         if let Err(error) = move_path(path, &target, force_copy) {
-            // Hoàn tác phần đã dời để không để lại trạng thái nửa vời.
+            // Undo what was already moved, so no half-finished state is left behind.
             for (from, to) in moved.iter().rev() {
                 let _ = move_path(to, from, force_copy);
             }
@@ -468,7 +472,7 @@ fn restore_token(entry: &RepoEntry, token: &str, force_copy: bool) -> Result<()>
     let manifest: TrashManifest = crate::store::read_json(&base.join("manifest.json"))
         .ok_or_else(|| AppError::NotFound("Thùng rác này không còn (đã quá hạn hoặc đã khôi phục)".into()))?;
     let data = base.join("data");
-    // Kiểm toàn bộ đích trước khi dời: không ghi đè bất cứ gì.
+    // Validate every destination before moving anything: overwrite nothing.
     let mut plan: Vec<(PathBuf, PathBuf)> = Vec::new();
     for item in &manifest.items {
         check_worktree_rel(&item.rel)?;
@@ -480,7 +484,7 @@ fn restore_token(entry: &RepoEntry, token: &str, force_copy: bool) -> Result<()>
         if std::fs::symlink_metadata(&target).is_ok() {
             return Err(AppError::Conflict(format!("`{}` đã tồn tại — không khôi phục đè lên", item.rel)));
         }
-        // Thư mục cha có thể đã bị xoá: tạo lại, nhưng phải còn trong phạm vi sau khi giải symlink.
+        // The parent directory may have been deleted meanwhile: recreate it, but it must still be in scope after symlink resolution.
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent).map_err(|e| AppError::io("Tạo lại thư mục cha", &e))?;
             let resolved = canonical(parent).map_err(|e| AppError::io("Thư mục cha", &e))?;
@@ -499,14 +503,14 @@ fn restore_token(entry: &RepoEntry, token: &str, force_copy: bool) -> Result<()>
 }
 
 impl Core {
-    /// `fs_trash_untracked`: chỉ file/thư mục CHƯA track (kiểm bằng `git ls-files --cached`) vào thùng rác của app.
+    /// `fs_trash_untracked`: move only UNTRACKED files/directories (verified with `git ls-files --cached`) into the app's trash.
     pub async fn trash_untracked(&self, repo_id: &str, rels: Vec<String>) -> Result<String> {
         self.trash_untracked_with(repo_id, rels, false).await
     }
 
     pub(crate) async fn trash_untracked_with(&self, repo_id: &str, rels: Vec<String>, force_copy: bool) -> Result<String> {
         let entry = self.registry.get(repo_id)?;
-        // Kiểm phạm vi trước khi chạy git để lỗi đường dẫn có thông báo rõ.
+        // Check scope before running git, so a bad path reports a clear error.
         for rel in &rels {
             resolve_worktree_entry(&entry, rel)?;
         }
@@ -540,8 +544,8 @@ impl Core {
             .map_err(|e| AppError::Internal(format!("Tác vụ nền lỗi: {e}")))?
     }
 
-    /// `fs_snapshot_index_prepare`: giữ khoá kiểu snapshot (repo bận thì `busy`) để không xoá index tạm khi một cửa sổ khác đang
-    /// `git add` vào nó.
+    /// `fs_snapshot_index_prepare`: hold the snapshot-style lock (`busy` when the repo is busy) so the temporary index is not
+    /// deleted while another window is running `git add` into it.
     pub async fn snapshot_index_prepare(&self, repo_id: &str, reset: bool) -> Result<String> {
         let entry = self.registry.get(repo_id)?;
         let holder = Holder { op_id: "fs-snapshot-index".into(), background: false, cancel: CancelToken::new() };
@@ -554,8 +558,8 @@ impl Core {
 
     pub async fn restore_trash(&self, repo_id: &str, token: String) -> Result<()> {
         let entry = self.registry.get(repo_id)?;
-        // Khôi phục có thể đặt lại một symlink vào working tree nên đi chung khoá độc quyền với lệnh ghi: `diff --no-index`
-        // (kiểm toán hạng rồi mới chạy git) cũng giữ khoá này, nên không ai chen symlink vào giữa lúc kiểm và lúc đọc.
+        // A restore can put a symlink back into the working tree, so it shares the exclusive lock with write commands: `diff
+        // --no-index` (operand checked before git runs) holds the same lock, so nobody can slip a symlink in between the check and the read.
         let holder = Holder { op_id: format!("fs-restore-{token}"), background: false, cancel: CancelToken::new() };
         let _guard = self.locks.for_key(&entry.common_key).acquire(holder, None).await.map_err(AppError::from)?;
         tokio::task::spawn_blocking(move || restore_token(&entry, &token, false))
@@ -570,7 +574,7 @@ mod tests {
     use crate::registry::Registry;
     use crate::testutil::{TestRepo, core_with, open};
 
-    /// Entry giả trỏ vào một thư mục (không cần git) để test phạm vi/byte.
+    /// A fake entry pointing at a directory (no git needed) for scope / byte tests.
     fn entry_for(root: &Path) -> RepoEntry {
         let root = canonical(root).unwrap();
         let data = tempfile::tempdir().unwrap();
@@ -624,7 +628,7 @@ mod tests {
         assert_eq!(write_worktree_file(&entry, "link-file", b"x", Some(&sha256_hex(b"TOP SECRET"))).unwrap_err().code(), "out-of-scope");
         assert_eq!(std::fs::read(dir.path().join("secret.txt")).unwrap(), b"TOP SECRET");
         assert_eq!(read_worktree_file(&entry, "dangling", None).unwrap_err().code(), "out-of-scope");
-        // Symlink nằm trong repo thì đọc được (giải ra file thật bên trong).
+        // A symlink inside the repo is readable (it resolves to a real file inside).
         assert_eq!(read_worktree_file(&entry, "inner-link", None).unwrap().unwrap(), b"ok");
     }
 
@@ -655,7 +659,7 @@ mod tests {
         }
         assert!(!root.join(".git/hooks/pre-commit").exists());
         assert_eq!(std::fs::read(root.join(".git/config")).unwrap(), b"[core]\n");
-        // Tên gần giống nhưng không phải `.git` vẫn dùng được.
+        // A similar-looking name that is not `.git` still works.
         std::fs::write(root.join(".github"), "ok").unwrap();
         assert!(read_worktree_file(&entry, ".github", None).unwrap().is_some());
         assert!(read_worktree_file(&entry, ".gitignore", None).unwrap().is_none());
@@ -673,7 +677,7 @@ mod tests {
         for (name, bytes) in samples {
             write_worktree_file(&entry, name, bytes, None).unwrap();
             assert_eq!(read_worktree_file(&entry, name, None).unwrap().unwrap(), bytes, "{name}");
-            // Ghi đè bằng đúng nội dung đọc được vẫn giữ nguyên byte.
+            // Overwriting with exactly the content that was read still preserves the bytes.
             let current = read_worktree_file(&entry, name, None).unwrap().unwrap();
             write_worktree_file(&entry, name, &current, Some(&sha256_hex(&current))).unwrap();
             assert_eq!(std::fs::read(entry.root.join(name)).unwrap(), bytes);
@@ -684,20 +688,20 @@ mod tests {
     fn cas_write_detects_external_changes_and_creates_only_when_absent() {
         let (_dir, entry) = sandbox();
         write_worktree_file(&entry, "a.txt", b"v1", None).unwrap();
-        // tạo mới trên file đã có → conflict
+        // creating over an existing file → conflict
         assert_eq!(write_worktree_file(&entry, "a.txt", b"x", None).unwrap_err().code(), "conflict");
-        // sai băm → conflict, file không đổi
+        // wrong hash → conflict, the file is unchanged
         assert_eq!(write_worktree_file(&entry, "a.txt", b"v2", Some(&sha256_hex("khác".as_bytes()))).unwrap_err().code(), "conflict");
         assert_eq!(std::fs::read(entry.root.join("a.txt")).unwrap(), b"v1");
-        // đúng băm (không phân biệt hoa/thường) → ghi được
+        // right hash (case-insensitive) → write succeeds
         write_worktree_file(&entry, "a.txt", b"v2", Some(&sha256_hex(b"v1").to_uppercase())).unwrap();
         assert_eq!(std::fs::read(entry.root.join("a.txt")).unwrap(), b"v2");
-        // file đã bị xoá bên ngoài → conflict
+        // the file was deleted externally → conflict
         std::fs::remove_file(entry.root.join("a.txt")).unwrap();
         assert_eq!(write_worktree_file(&entry, "a.txt", b"v3", Some(&sha256_hex(b"v2"))).unwrap_err().code(), "conflict");
-        // thư mục cha không tồn tại
+        // the parent directory does not exist
         assert_eq!(write_worktree_file(&entry, "no/such/dir.txt", b"x", None).unwrap_err().code(), "not-found");
-        // không để lại file tạm
+        // no temp file is left behind
         let leftovers: Vec<_> = std::fs::read_dir(&entry.root).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.contains("thaigit")).collect();
         assert!(leftovers.is_empty(), "{leftovers:?}");
     }
@@ -728,18 +732,18 @@ mod tests {
     fn gitignore_append_keeps_bytes_and_line_endings() {
         let (_dir, entry) = sandbox();
         let path = entry.root.join(".gitignore");
-        // chưa có file → tạo, kiểu LF
+        // no file yet → create with LF
         append_gitignore(&entry, "node_modules/").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"node_modules/\n");
-        // thiếu xuống dòng cuối → thêm trước khi nối
+        // a missing final terminator → one is added before appending
         std::fs::write(&path, b"a\nb").unwrap();
         append_gitignore(&entry, "c").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"a\nb\nc\n");
-        // kiểu CRLF sẵn có, kèm BOM và byte không phải UTF-8 giữ nguyên
+        // an existing CRLF style, with a BOM and non-UTF-8 bytes, is preserved
         std::fs::write(&path, b"\xEF\xBB\xBF*.log\r\n\xE9cache\r\nlast").unwrap();
         append_gitignore(&entry, "dist/").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"\xEF\xBB\xBF*.log\r\n\xE9cache\r\nlast\r\ndist/\r\n");
-        // tệp rỗng
+        // an empty file
         std::fs::write(&path, b"").unwrap();
         append_gitignore(&entry, "x").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"x\n");
@@ -869,7 +873,7 @@ mod tests {
         let opened = open(&core, &repo).await;
         let id = &opened.repo_id;
         assert_eq!(core.trash_untracked(id, vec!["tracked.txt".into()]).await.unwrap_err().code(), "policy");
-        // thư mục có chứa file đã track cũng bị từ chối, và không có gì bị dời
+        // a directory containing tracked files is rejected too, and nothing is moved
         assert_eq!(core.trash_untracked(id, vec!["dir".into()]).await.unwrap_err().code(), "policy");
         assert!(repo.exists("dir/new.txt") && repo.exists("dir/tracked.txt"));
         for bad in [".git", ".git/hooks", "../x", "/etc/passwd", "GIT~1", ".git./config", ""] {
@@ -942,7 +946,7 @@ mod tests {
         }
     }
 
-    // --- L1: thùng rác chỉ dời CHÍNH mục được chọn ---------------------------------------------------------------------
+    // --- L1: the trash only moves the SELECTED entry itself -----------------------------------------------------------------
 
     #[cfg(unix)]
     #[tokio::test]
@@ -957,7 +961,7 @@ mod tests {
         let opened = open(&core, &repo).await;
         let id = &opened.repo_id;
 
-        // `ls-files` kiểm đường dẫn nhập (symlink, chưa track) nhưng bản cũ dời đích đã canonicalize: mất `tracked.txt`.
+        // `ls-files` checks the given path (a symlink, untracked) while the old implementation canonicalised the destination: `tracked.txt` would be lost.
         let token = core.trash_untracked(id, vec!["link-to-tracked".into()]).await.unwrap();
         assert_eq!(repo.read("tracked.txt"), b"t\n", "file ĐÃ track không bị đụng tới");
         assert!(std::fs::symlink_metadata(repo.root().join("link-to-tracked")).is_err(), "chính symlink đã vào thùng rác");
@@ -965,20 +969,20 @@ mod tests {
         core.restore_trash(id, token).await.unwrap();
         assert_eq!(std::fs::read_link(repo.root().join("link-to-tracked")).unwrap(), Path::new("tracked.txt"), "khôi phục vẫn là symlink");
 
-        // symlink tới THƯ MỤC đã track: cũng chỉ dời symlink
+        // a symlink to a TRACKED directory: only the symlink is moved
         let token = core.trash_untracked(id, vec!["link-to-dir".into()]).await.unwrap();
         assert_eq!(repo.read("dir/inner.txt"), b"i\n");
         assert!(std::fs::symlink_metadata(repo.root().join("link-to-dir")).is_err());
         core.restore_trash(id, token).await.unwrap();
         assert_eq!(std::fs::read_link(repo.root().join("link-to-dir")).unwrap(), Path::new("dir"));
 
-        // đi QUA symlink thì từ chối (file đích là file đã track)
+        // going THROUGH a symlink is rejected (the target file is tracked)
         let error = core.trash_untracked(id, vec!["link-to-dir/inner.txt".into()]).await.unwrap_err();
         assert_eq!(error.code(), "out-of-scope", "{error}");
         assert_eq!(repo.read("dir/inner.txt"), b"i\n");
     }
 
-    // --- H1: toán hạng `diff` phải ở trong repo SAU KHI giải symlink --------------------------------------------------------
+    // --- H1: a `diff` operand must be inside the repo AFTER symlink resolution ----------------------------------------
 
     #[cfg(unix)]
     #[test]
@@ -995,12 +999,12 @@ mod tests {
         std::os::unix::fs::symlink("sub", root.join("inner-dir-link")).unwrap();
         std::os::unix::fs::symlink(root.join(".git"), root.join("to-git")).unwrap();
         std::os::unix::fs::symlink("missing-target", root.join("dangling")).unwrap();
-        // Trên Unix `NUL` chỉ là một tên file: symlink `NUL → thư mục ngoài` cũng bị chặn (ghép thư mục với file `passwd`).
+        // On Unix `NUL` is just a filename: a symlink `NUL → outside directory` is blocked too (joining the directory with the file `passwd`).
         std::fs::write(root.join("passwd"), "local").unwrap();
         std::os::unix::fs::symlink(&outside, root.join("NUL")).unwrap();
         let check = |args: &[&str]| check_diff_operands(&entry, &args.iter().map(|a| a.to_string()).collect::<Vec<_>>()).map_err(|e| e.code());
 
-        // đi qua symlink thư mục ra ngoài: bị chặn ở cả chế độ thường lẫn --no-index
+        // going through a symlinked directory outside: blocked in both the normal mode and --no-index
         for args in [
             vec!["--no-index", "--", "base", "linkdir/passwd"],
             vec!["--", "linkdir/passwd"],
@@ -1012,27 +1016,27 @@ mod tests {
         ] {
             assert_eq!(check(&args), Err("out-of-scope"), "{args:?}");
         }
-        // --no-index: symlink tới THƯ MỤC ngoài (git ghép thư mục với file) hoặc có dấu `/` cuối
+        // --no-index: a symlink to an outside DIRECTORY (git joins the directory with a file) or a trailing `/`
         for args in [vec!["--no-index", "--", "passwd", "NUL"], vec!["--no-index", "--", "base", "linkdir"], vec!["--no-index", "--", "base", "linkdir/"], vec!["--no-index", "--", "base", "to-git"], vec!["--no-index", "--", "/dev/null", "to-git/config"]] {
             assert_eq!(check(&args), Err("out-of-scope"), "{args:?}");
         }
-        // --no-index đụng .git (mọi cách viết) bị chặn; chế độ thường không dính tới
+        // --no-index touching .git (any spelling) is blocked; the normal mode is not affected
         for args in [vec!["--no-index", "--", "/dev/null", ".git/config"], vec!["--no-index", "--", "/dev/null", ".GIT/config"], vec!["--no-index", "--", "/dev/null", "GIT~1/config"], vec!["--no-index", "--", "/dev/null", "sub/.git./x"]] {
             assert_eq!(check(&args), Err("out-of-scope"), "{args:?}");
         }
-        // Dùng hợp lệ
+        // Valid use
         for args in [
             vec!["--no-index", "--", "/dev/null", "base"],
             vec!["--no-index", "--no-color", "-U3", "--", "/dev/null", "sub/deeper"],
             vec!["--no-index", "--", "base", "sub/not-yet-created.txt"],
-            // symlink tới FILE (git chỉ đọc chuỗi đích) và symlink dangling: không đọc nội dung ngoài repo
+            // a symlink to a FILE (git only reads the target string) and a dangling symlink: no content outside the repo is read
             vec!["--no-index", "--", "/dev/null", "linkfile"],
             vec!["--no-index", "--", "/dev/null", "dangling"],
-            // symlink tới thư mục TRONG repo
+            // a symlink to a directory INSIDE the repo
             vec!["--no-index", "--", "base", "inner-dir-link"],
             vec!["--no-index", "--", "base", "inner-dir-link/"],
             vec!["--no-index", "--", "base", "inner-dir-link/deeper"],
-            // diff thường: pathspec, revision, stdin
+            // a normal diff: pathspec, revision, stdin
             vec!["--cached", "--", "base", "sub"],
             vec!["HEAD~3..HEAD", "--", "base"],
             vec!["origin/main", "HEAD"],
@@ -1042,11 +1046,11 @@ mod tests {
         ] {
             assert_eq!(check(&args), Ok(()), "{args:?}");
         }
-        // Chỉ chế độ --no-index mới đi theo symlink cuối: `diff -- linkdir` (symlink tới thư mục ngoài, đã track) bình thường
+        // Only --no-index follows the last symlink: `diff -- linkdir` (a tracked symlink to an outside directory) works normally
         assert_eq!(check(&["--", "linkdir"]), Ok(()));
     }
 
-    // Dùng hook `#!/bin/sh` chậm để giữ khoá ghi: chỉ chạy trên Unix.
+    // Use a slow `#!/bin/sh` hook to hold the write lock: Unix only.
     #[cfg(unix)]
     #[tokio::test]
     async fn restore_trash_shares_the_write_lock_so_it_cannot_plant_a_symlink_mid_diff() {

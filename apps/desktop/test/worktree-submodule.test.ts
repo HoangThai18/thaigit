@@ -90,7 +90,7 @@ describe('worktree', () => {
     await adding;
     await until(() => store.worktrees.length === 2, 'có worktree mới');
     const added = store.worktrees.find((item) => item.branch === 'tinh-nang/x')!;
-    // Git trên Windows in `C:/…` (gạch xuôi): so qua realpath thay vì so chuỗi.
+    // Git on Windows prints `C:/…` (forward slashes): compare realpaths instead of strings.
     expect(realpathSync(added.path)).toBe(
       realpathSync(join(parent, defaultFolder(store.name, 'tinh-nang/x'))),
     );

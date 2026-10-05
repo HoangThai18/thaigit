@@ -1,5 +1,6 @@
-// Repo "biên" cho test giao diện: dữ liệu mà git cho phép nhưng giao diện dễ giả định là không xảy ra (stash trùng sha, commit có
-// hai cha giống hệt, remote có "/" trong tên, tên nhánh/tệp chứa ký tự đảo chiều bidi).
+// "Edge case" repos for UI tests: data git allows but the UI tends to assume can't happen (stashes sharing a
+// sha, a commit with two identical parents, a remote name containing "/", branch / file names with bidi
+// characters).
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PrefsStore } from '../../src/lib/stores/prefs.svelte.ts';
@@ -15,7 +16,7 @@ export function commitFile(git: Git, root: string, name: string, content: string
   git('commit', '-q', '-m', message);
 }
 
-/** Commit `dup parents` có HAI dòng `parent` giống hệt (git không tạo bằng `commit-tree` nhưng `hash-object` thì được). */
+/** Commit `dup parents` has TWO identical `parent` lines (`commit-tree` won't produce that but `hash-object` does). */
 export function makeDupParentCommit(git: Git, root: string, branch: string): string {
   const parent = git('rev-parse', 'HEAD').trim();
   const tree = git('rev-parse', 'HEAD^{tree}').trim();
@@ -35,8 +36,9 @@ export function makeDupParentCommit(git: Git, root: string, branch: string): str
 }
 
 /**
- * Hai mục stash cùng sha: cất một stash, cất thêm một cái khác, rồi `git stash store` lại commit stash đầu (git bỏ qua nếu trùng
- * với mục trên cùng nên phải có mục khác chen giữa). Kết quả: stash@{0} và stash@{2} cùng sha.
+ * Two stash entries sharing a sha: stash once, stash another, then `git stash store` the first stash's commit
+ * again (git skips a duplicate of the topmost entry, so another entry has to sit in between).
+ * Result: stash@{0} and stash@{2} share a sha.
  */
 export function makeDuplicateStash(git: Git, root: string): void {
   writeFileSync(join(root, 'a.txt'), 'đang sửa dở\n');
@@ -53,7 +55,7 @@ export function setupEdge(git: Git, root: string): void {
   commitFile(git, root, 'c.txt', 'ba\n', 'commit 3');
   makeDupParentCommit(git, root, 'dup-parent');
   makeDuplicateStash(git, root);
-  // Remote "team/a" (có "/" trong tên) và "origin": chỉ cần cấu hình + ref theo dõi, không cần mạng.
+  // Remote "team/a" (a name containing "/") plus "origin": configuration + a tracking ref is enough, no network needed.
   git('remote', 'add', 'origin', 'https://example.com/origin.git');
   git('remote', 'add', 'team/a', 'https://example.com/team-a.git');
   git('update-ref', 'refs/remotes/origin/main', 'HEAD');
@@ -76,7 +78,7 @@ export interface LoadedRepo {
   readonly cleanup: () => Promise<void>;
 }
 
-/** Mở repo `setup` bằng RepoStore thật và chờ nạp xong; `cleanup` dọn store + thư mục tạm. */
+/** Open repo `setup` with a real RepoStore and wait for the load to finish; `cleanup` tears down the store and the temp directory. */
 export async function openLoaded(
   setup: Parameters<typeof openTestPort>[0],
   options: { commitLimit?: number } = {},

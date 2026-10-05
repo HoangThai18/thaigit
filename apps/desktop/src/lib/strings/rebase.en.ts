@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `rebase.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `rebas.vi.ts` (same keys, same parameters). */
 import type { rebase as source } from './rebase.vi.ts';
 import type { Translation } from './types.ts';
 

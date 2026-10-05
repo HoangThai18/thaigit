@@ -1,8 +1,10 @@
 #!/bin/bash
-# Cập nhật API Thaigit trên VPS sau khi bản checkout đã kéo code mới (gọi từ script deploy sẵn có của VPS, chạy bằng root):
+# Updates the Thaigit API on the VPS after the checkout has pulled new code (called by the VPS's existing deploy script,
+# runs as root):
 #   /srv/thaigit/server/deploy/deploy.sh
-# Các bước: sao lưu DB → cài phụ thuộc → khởi động lại → chờ /healthz. Hỏng thì báo lỗi (exit 1) và KHÔNG tự sửa bản
-# checkout (nó dùng chung với trang chủ) — quay bản trước bằng tay theo docs/deploy-server.md, mục "Quay lại bản trước".
+# Steps: back up the DB → install dependencies → restart → wait for /healthz. On failure it reports the error (exit 1) and
+# does NOT try to fix the checkout (it is shared with the homepage) — roll back by hand as described in docs/deploy-server.md,
+# section "Rolling back to the previous version".
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/thaigit}"
@@ -19,7 +21,7 @@ if [ -f "$DATA_DIR/thaigit.db" ]; then
   STAMP="$(date +%Y%m%d-%H%M%S)"
   sqlite3 "$DATA_DIR/thaigit.db" ".backup '$BACKUP_DIR/truoc-deploy-$STAMP.db'"
   chmod 600 "$BACKUP_DIR/truoc-deploy-$STAMP.db"
-  # Giữ 14 bản trước-deploy gần nhất.
+  # Keep the 14 most recent pre-deploy backups.
   ls -1t "$BACKUP_DIR"/truoc-deploy-*.db 2>/dev/null | tail -n +15 | xargs -r rm -f
 fi
 
@@ -29,7 +31,7 @@ systemctl restart "$SERVICE"
 wait_healthy() {
   for _ in $(seq 1 30); do
     if body="$(curl -fsS --max-time 3 "$HEALTH_URL" 2>/dev/null)"; then
-      # Model đang tắt có chủ đích (kill switch) vẫn tính là xanh.
+      # An intentionally disabled model (kill switch) still counts as healthy.
       if echo "$body" | grep -q '"db":"ok"' && echo "$body" | grep -Eq '"ai":"(ok|disabled)"'; then
         return 0
       fi

@@ -1,9 +1,9 @@
 /**
- * Chuỗi của phần remote: fetch / pull / push / tự fetch / thanh bận / thanh công cụ. Truy cập qua `vi.remote.*`. Văn phong
- * bám theo app Swift (RepoModel+Actions, RepoActionBar).
+ * Strings for the remote part: fetch / pull / push / auto-fetch / busy bar / toolbar. Reached through
+ * `vi.remote.*`. Wording follows the Swift app (RepoModel+Actions, RepoActionBar).
  */
 export const remote = {
-  // Thanh công cụ
+  // Toolbar
   fetch: 'Fetch',
   fetchTip: 'Fetch từ mọi remote (Ctrl+Alt+F)',
   pull: 'Pull',
@@ -35,7 +35,7 @@ export const remote = {
   noBranches: 'Chưa có nhánh nào',
   newBranchHere: 'Nhánh mới…',
 
-  // Thanh bận
+  // Busy bar
   cancel: 'Huỷ',
   cancelTip: 'Dừng thao tác mạng đang chạy',
 
@@ -44,7 +44,7 @@ export const remote = {
   fetched: 'Đã fetch xong',
   autoFetchFailed: 'Tự fetch không thành công',
 
-  // Repo thiếu nhánh / lịch sử của remote (clone --single-branch / --depth)
+  // Remote missing a branch / history (clone --single-branch / --depth)
   historyGapsTitle: (missingBranches: boolean) =>
     missingBranches ? 'Repo chưa có đủ nhánh từ remote' : 'Repo chưa có đủ lịch sử từ remote',
   historyGapsNarrow: (remotes: readonly string[]) =>
@@ -87,7 +87,7 @@ export const remote = {
   publishConfirm: 'Push',
   invalidRemoteBranch: 'Tên nhánh không hợp lệ',
 
-  // Lỗi chung
+  // Generic errors
   conflict: (operation: string) => `${operation} gặp xung đột`,
   conflictMessage: 'Mở các file xung đột ở panel bên phải để chọn bản giữ lại, rồi bấm “Tiếp tục”.',
   blockedByChanges: (operation: string) => `${operation} bị chặn vì có thay đổi chưa commit`,
@@ -97,7 +97,7 @@ export const remote = {
     'Kiểm tra tài khoản / token của remote (Cài đặt → Tài khoản, hoặc Git Credential Manager / Keychain) rồi thử lại.',
   hostUnreachable: (operation: string) => `${operation}: không kết nối được tới remote`,
 
-  // Hỏi đăng nhập (askpass)
+  // Sign-in prompts (askpass)
   askpassUsernameTitle: (host: string | null) => (host ? `Đăng nhập ${host}` : 'Đăng nhập'),
   askpassUsernameLabel: 'Tên đăng nhập',
   askpassPasswordTitle: (host: string | null) => (host ? `Mật khẩu cho ${host}` : 'Mật khẩu'),
@@ -111,7 +111,7 @@ export const remote = {
   askpassPrivacy: 'Thaigit chỉ chuyển câu trả lời cho git, không lưu lại.',
   askpassContinue: 'Tiếp tục',
 
-  // Quản lý remote (sidebar → REMOTE)
+  // Remote management (sidebar → REMOTE)
   addRemote: 'Thêm remote…',
   addRemoteTitle: 'Thêm remote',
   addRemoteMessage:
@@ -153,7 +153,7 @@ export const remote = {
   copyRemoteUrl: 'Sao chép địa chỉ',
   remoteUrlCopyLabel: 'địa chỉ',
 
-  // Nhật ký lệnh
+  // Command log
   commandLogTitle: 'Nhật ký lệnh git',
   commandLogEmpty: 'Chưa chạy lệnh nào.',
   commandLogClose: 'Đóng',

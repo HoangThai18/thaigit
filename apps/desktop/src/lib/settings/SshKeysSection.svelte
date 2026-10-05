@@ -28,7 +28,7 @@
 
   const text = vi.ssh;
 
-  /** Máy chủ để kiểm tra kết nối: github.com, gitlab.com + host của các tài khoản GitHub / GitLab đã thêm. */
+  /** Hosts offered for the connection check: github.com, gitlab.com plus the hosts of the added GitHub / GitLab accounts. */
   const testHosts = $derived.by(() => {
     const hosts = ['github.com', 'gitlab.com'];
     for (const account of accountsStore.view.accounts) {
@@ -37,7 +37,7 @@
     return hosts;
   });
 
-  /** Tài khoản gửi khoá lên được (GitHub / GitLab, có token). */
+  /** Accounts that can receive an uploaded key (GitHub / GitLab with a token). */
   const uploadTargets = $derived(
     accountsStore.view.accounts.filter((account) => account.provider !== 'bitbucket' && account.hasToken),
   );

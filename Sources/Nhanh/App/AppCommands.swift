@@ -1,7 +1,7 @@
 import NhanhCore
 import SwiftUI
 
-/// Hành động của một cửa sổ cho thanh menu: mở repo (vào tab), clone, tạo repo.
+/// A window's menu-bar actions: open a repo (into a tab), clone, create a repo.
 @Observable
 final class WindowActions {
     var openPath: (String) -> Void = { _ in }
@@ -30,7 +30,7 @@ struct AppCommands: Commands {
         }
 
         CommandGroup(after: .appSettings) {
-            // Mở thẻ Tài khoản trong Cài đặt; chưa đăng nhập thì hiện luôn hộp đăng nhập ở đó.
+            // Open the Accounts section in Settings; when not signed in it also shows the sign-in dialog there.
             Button(github.accounts.isEmpty ? String(localized: "Đăng nhập GitHub…") : String(localized: "Tài khoản GitHub…")) {
                 github.prepareSettings()
                 openSettings()
@@ -63,7 +63,7 @@ struct AppCommands: Commands {
                 .disabled(tabs?.selected.model == nil)
         }
 
-        // ⌘P như GitKraken: bảng lệnh (app không in ấn gì nên thay mục Print).
+        // ⌘P like GitKraken: the command palette (the app never prints anything, so it replaces the Print item).
         CommandGroup(replacing: .printItem) {
             Button("Bảng lệnh…") { windowAction { $0.showPalette() } }
                 .keyboardShortcut("p")
@@ -154,11 +154,11 @@ struct AppCommands: Commands {
         }
     }
 
-    /// ⌘W: đóng tab đang chọn. Cửa sổ khác (Cài đặt…) thì đóng cửa sổ đó; đang mở hộp thoại thì bỏ qua.
+    /// ⌘W: close the selected tab. For another window (Settings…) it closes that window; a open dialog makes it a no-op.
     private func closeTab() {
         guard let key = NSApp.keyWindow else { return }
         if key.sheetParent != nil || key.attachedSheet != nil { return }
-        // Đang ở Trang chủ (không đóng được) thì ⌘W đóng cửa sổ, như đóng tab cuối của trình duyệt.
+        // On the Home screen (which can't be closed) ⌘W closes the window, like closing the last tab in a browser.
         if let tabs, !(key is NSPanel), tabs.selected.kind != .home {
             tabs.close(tabs.selectedID)
         } else {
@@ -183,15 +183,15 @@ struct AppCommands: Commands {
         if let windowActions {
             windowActions.openPath(path)
         } else {
-            // Cửa sổ đang có (không phải cửa sổ đang dùng) sẽ nhận và mở thành tab; chưa có cửa sổ nào thì mở mới.
+            // Another already-open window (not the current one) receives it and opens it as a tab; with no window yet a new one opens.
             appState.pendingOpenPaths.append(path)
             if TabsModel.liveWindows == 0 { openWindow(id: "main") }
         }
     }
 }
 
-/// Mục Issues, ký commit, Git Flow, LFS, worktree, submodule của menu Repository (tách khỏi `AppCommands.body` cho
-/// trình biên dịch đỡ nặng).
+/// The Issues, commit signing, Git Flow, LFS, worktree and submodule items of the Repository menu (kept out of `AppCommands.body` so
+/// the compiler has less to chew on).
 private struct AdvancedRepositoryMenuItems: View {
     let model: RepoModel?
 

@@ -1,22 +1,22 @@
-// Git LFS: đọc mẫu đang track trong `.gitattributes` gốc (không cần git-lfs, không chạy lệnh) và nhận diện file con trỏ LFS.
+// Git LFS: read the tracked patterns from the root `.gitattributes` (no git-lfs needed, no command run) and detect LFS pointer files.
 
-/** Một mẫu file do LFS quản lý (`<mẫu> filter=lfs …` trong `.gitattributes` ở gốc repo). */
+/** A file pattern managed by LFS (`<pattern> filter=lfs …` in the repo root's `.gitattributes`). */
 export interface LfsPattern {
-  /** Mẫu đúng như trong file (truyền nguyên cho `git lfs untrack`). */
+  /** Pattern exactly as written in the file (passed through to `git lfs untrack`). */
   readonly pattern: string;
-  /** Mẫu để hiển thị: git-lfs ghi khoảng trắng thành `[[:space:]]`. */
+  /** Pattern for display: git-lfs writes spaces as `[[:space:]]`. */
   readonly display: string;
-  /** Có thuộc tính `lockable` (file chỉ-đọc tới khi khoá). */
+  /** Has the `lockable` attribute (read-only until locked). */
   readonly lockable: boolean;
 }
 
-/** Nội dung một file con trỏ LFS (file thật nằm trên máy chủ LFS). */
+/** Content of an LFS pointer file (the real file lives on the LFS server). */
 export interface LfsPointer {
   readonly oid: string;
   readonly size: number;
 }
 
-/** Mẫu được LFS track trong nội dung `.gitattributes`; dòng chú thích, mẫu bị loại (`!filter`) và dòng hỏng bị bỏ qua. */
+/** Patterns tracked by LFS in the `.gitattributes` content; comment lines, negated patterns (`!filter`) and malformed lines are skipped. */
 export function parseLfsPatterns(text: string): LfsPattern[] {
   const result: LfsPattern[] = [];
   for (const raw of text.split('\n')) {
@@ -35,7 +35,7 @@ export function parseLfsPatterns(text: string): LfsPattern[] {
   return result;
 }
 
-/** Tách mẫu đầu dòng (kể cả mẫu trong nháy kép kiểu C) khỏi phần thuộc tính. */
+/** Split the leading pattern (including one inside C-style quotes) from the attribute part. */
 function splitPattern(line: string): { pattern: string; rest: string } | null {
   if (!line.startsWith('"')) {
     const end = line.search(/\s/);
@@ -58,7 +58,7 @@ function splitPattern(line: string): { pattern: string; rest: string } | null {
 
 const POINTER_VERSION = 'version https://git-lfs.github.com/spec/v1';
 
-/** Nội dung là file con trỏ LFS (bản spec v1: vài dòng `khoá giá trị`, có `oid sha256:` và `size`)? */
+/** Is the content an LFS pointer file (spec v1: a few `key value` lines with `oid sha256:` and `size`)? */
 export function parseLfsPointer(text: string): LfsPointer | null {
   if (text.length > 1024 || !text.startsWith(POINTER_VERSION)) return null;
   const oid = /^oid sha256:([0-9a-f]{64})$/m.exec(text)?.[1];

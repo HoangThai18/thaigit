@@ -1,11 +1,11 @@
 import Foundation
 
-/// Người dùng trên GitHub / GitLab có thể được gán vào Pull Request / Merge Request.
-/// So sánh theo tên đăng nhập (không phân biệt hoa thường): danh sách từ PR và danh sách thành viên có thể khác ở phần tên hiển thị.
+/// A GitHub / GitLab user that can be assigned to a Pull Request / Merge Request.
+/// Compared by login (case-insensitive): the PR's list and the member list can differ in their display names.
 public struct ForgePerson: Sendable, Hashable, Identifiable {
     public let username: String
     public let name: String?
-    /// GitLab gán người theo số id; GitHub gán theo tên đăng nhập (nil).
+    /// GitLab assigns by numeric id; GitHub assigns by login (nil).
     public let gitlabID: Int?
 
     public init(username: String, name: String? = nil, gitlabID: Int? = nil) {
@@ -16,7 +16,7 @@ public struct ForgePerson: Sendable, Hashable, Identifiable {
 
     public var id: String { username.lowercased() }
 
-    /// Tên đầy đủ nếu có, không thì tên đăng nhập.
+    /// Full name when available, otherwise the login.
     public var displayName: String {
         guard let name, !name.isEmpty else { return username }
         return name
@@ -31,7 +31,7 @@ public struct ForgePerson: Sendable, Hashable, Identifiable {
     }
 }
 
-/// Pull Request (GitHub) hoặc Merge Request (GitLab) để hiện ở panel review — gộp hai kiểu cho giao diện dùng chung.
+/// A Pull Request (GitHub) or Merge Request (GitLab) as shown in the review panel — both kinds unified for a shared UI.
 public struct ForgeRequest: Sendable, Equatable, Identifiable {
     public enum Kind: Sendable, Equatable {
         case github
@@ -39,7 +39,7 @@ public struct ForgeRequest: Sendable, Equatable, Identifiable {
     }
 
     public let kind: Kind
-    /// Số của PR (GitHub) hoặc `iid` của MR (GitLab).
+    /// The PR number (GitHub) or the MR `iid` (GitLab).
     public let number: Int
     public let title: String
     public let body: String
@@ -50,9 +50,9 @@ public struct ForgeRequest: Sendable, Equatable, Identifiable {
     public let targetBranch: String
     public let headSHA: String?
     public let updatedAt: Date?
-    /// Người được gán xử lý.
+    /// The assignee.
     public var assignees: [ForgePerson]
-    /// Người được nhờ review.
+    /// The requested reviewers.
     public var reviewers: [ForgePerson]
 
     public init(kind: Kind, number: Int, title: String, body: String, author: String, isDraft: Bool, webURL: URL?,
@@ -75,27 +75,29 @@ public struct ForgeRequest: Sendable, Equatable, Identifiable {
 
     public var id: Int { number }
 
-    /// "#12" (GitHub) hoặc "!12" (GitLab).
+    /// "#12" (GitHub) or "!12" (GitLab).
     public var reference: String {
         (kind == .github ? "#" : "!") + String(number)
     }
 
-    /// "Pull Request" hoặc "Merge Request".
+    /// "Pull Request" or "Merge Request".
     public var kindName: String {
         kind == .github ? "Pull Request" : "Merge Request"
     }
 
-    /// Tên máy chủ: "GitHub" hoặc "GitLab".
+    /// Host name: "GitHub" or "GitLab".
     public var siteName: String {
         kind == .github ? "GitHub" : "GitLab"
     }
 
-    /// Cách lấy PR / MR và nhánh đích về máy để review: các refspec cho một lần fetch và hai ref nhận về.
-    /// GitHub giữ đầu PR ở `refs/pull/N/head`, GitLab ở `refs/merge-requests/N/head` — kể cả PR / MR từ fork — nên không cần
-    /// biết nhánh nguồn nằm ở đâu. Đầu PR / MR lưu ở `refs/thaigit/review/…` (không phải `refs/remotes/…`) để không lẫn vào danh
-    /// sách nhánh remote và không bị `fetch --prune` dọn; nhánh đích là ref remote-tracking thật (`refs/remotes/<remote>/<nhánh>`,
-    /// cũng chính là thứ `git fetch` thường cập nhật). Tên nhánh đích do máy chủ trả về: tên lạ thì không dựng (nil), không đưa
-    /// vào lệnh git.
+    /// How to fetch a PR / MR and its target branch locally for review: the refspecs for one fetch and the
+    /// two refs to fetch into.
+    /// GitHub keeps a PR's head at `refs/pull/N/head` and GitLab at `refs/merge-requests/N/head` — even
+    /// for forked PR / MR — so the source branch's location never has to be known. The PR / MR head is
+    /// stored at `refs/thaigit/review/…` (not `refs/remotes/…`) so it doesn't get mixed into the remote
+    /// branch list and isn't pruned by `fetch --prune`; the target branch is a real remote-tracking ref
+    /// (`refs/remotes/<remote>/<branch>`), which is exactly what a normal `git fetch` updates. The target
+    /// branch name comes from the host: an odd name yields no ref (nil) and never reaches a git command.
     public func reviewRefs(remote: String) -> ReviewRefs? {
         guard Self.isSafeBranchName(targetBranch), Self.isSafeBranchName(remote) else { return nil }
         let headRef: String
@@ -113,8 +115,9 @@ public struct ForgeRequest: Sendable, Equatable, Identifiable {
         return ReviewRefs(refspecs: [headSpec, baseSpec], headRef: headRef, baseRef: baseRef)
     }
 
-    /// Tên nhánh / remote an toàn để ghép vào refspec: không rỗng, không bắt đầu bằng "-", không có khoảng trắng, ký tự điều
-    /// khiển hay `~ ^ : ? * [ \`, không có "..", "@{", "//", không kết thúc bằng "/", "." hay ".lock".
+    /// Whether a branch / remote name is safe to interpolate into a refspec: non-empty, not starting with
+    /// "-", no whitespace, control characters or `~ ^ : ? * [ \`, no "..", "@{", "//", and not ending
+    /// in "/", "." or ".lock".
     public static func isSafeBranchName(_ name: String) -> Bool {
         guard !name.isEmpty, !name.hasPrefix("-"), !name.hasPrefix("/"), !name.hasSuffix("/"), !name.hasSuffix("."),
               !name.hasSuffix(".lock"), !name.contains(".."), !name.contains("@{"), !name.contains("//") else { return false }
@@ -127,24 +130,24 @@ public struct ForgeRequest: Sendable, Equatable, Identifiable {
     }
 }
 
-/// Refspec và ref để review một PR / MR (xem `ForgeRequest.reviewRefs`).
+/// The refspecs and refs used to review a PR / MR (see `ForgeRequest.reviewRefs`).
 public struct ReviewRefs: Sendable, Equatable {
     public let refspecs: [String]
-    /// Ref đầu của PR / MR sau khi fetch.
+    /// The PR / MR head ref after fetching.
     public let headRef: String
-    /// Ref nhánh đích sau khi fetch.
+    /// The target branch ref after fetching.
     public let baseRef: String
 }
 
-/// Lỗi khi gán người review / người xử lý. Câu `userMessage` do Thaigit soạn, không chèn nội dung phản hồi của máy chủ.
+/// A failure while assigning reviewers / assignees. Thaigit writes `userMessage`; it never embeds the host's response text.
 public enum ForgeReviewError: Error, Equatable, UserFacingError {
-    /// Tài khoản không đủ quyền gán người ở repo / project này.
+    /// The account lacks permission to assign people in this repo / project.
     case noPermission
-    /// GitHub không cho nhờ chính tác giả PR review.
+    /// GitHub won't let a PR's own author review it.
     case authorCannotReview
-    /// GitHub chỉ cho nhờ review người đã là cộng tác viên của repo.
+    /// GitHub only lets you request a review from someone who has already contributed to the repo.
     case notCollaborator
-    /// Máy chủ không nhận thay đổi (lý do khác).
+    /// The host rejected the change (other reason).
     case rejected
 
     public var userMessage: String {
@@ -162,7 +165,7 @@ public enum ForgeReviewError: Error, Equatable, UserFacingError {
 }
 
 extension GitHubPullRequest {
-    /// Dạng dùng chung cho panel review.
+    /// Shared shape for the review panel.
     public var forgeRequest: ForgeRequest {
         ForgeRequest(kind: .github, number: number, title: title, body: body ?? "", author: author, isDraft: isDraft,
                      webURL: webURL, sourceBranch: headBranch, targetBranch: baseBranch, headSHA: headSHA, updatedAt: updatedAt,

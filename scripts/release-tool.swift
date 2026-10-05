@@ -1,12 +1,12 @@
-// Công cụ phát hành Thaigit: khoá ký bản cập nhật và update.json (scripts/release.sh gọi tới).
+// Thaigit release tool: signs updates and update.json (called by scripts/release.sh).
 //
-//   swift scripts/release-tool.swift generate-key   tạo khoá Ed25519, cất khoá bí mật vào Keychain, in khoá công khai
-//   swift scripts/release-tool.swift public-key     in khoá công khai của khoá đang có
-//   swift scripts/release-tool.swift manifest <zip> <phiên bản> <url tải> [file ghi chú]
-//                                                   in update.json đã ký (và tự kiểm lại bằng khoá trong Info.plist)
+//   swift scripts/release-tool.swift generate-key   create an Ed25519 key, store the secret in the Keychain, print the public key
+//   swift scripts/release-tool.swift public-key     print the public key of the key currently held
+//   swift scripts/release-tool.swift manifest <zip> <version> <download url> [notes file]
+//                                                   print the signed update.json (and re-verify it with the key from Info.plist)
 //
-// Khoá bí mật nằm trong login Keychain (mục "Thaigit update signing key"), hoặc trong biến môi trường
-// THAIGIT_UPDATE_PRIVATE_KEY (base64) khi phát hành từ máy khác/CI. Tuyệt đối không commit khoá bí mật.
+// The secret key lives in the login Keychain (item "Thaigit update signing key"), or in the THAIGIT_UPDATE_PRIVATE_KEY
+// environment variable (base64) when releasing from another machine or from CI. Never commit the secret key.
 import CryptoKit
 import Foundation
 
@@ -73,7 +73,7 @@ case "generate-key":
     }
     let key = Curve25519.Signing.PrivateKey()
     let secret = key.rawRepresentation.base64EncodedString()
-    // Đưa lệnh qua stdin của `security -i` để khoá bí mật không lộ trong danh sách tiến trình.
+    // Pass the command through `security -i`'s stdin so the secret key never appears in the process list.
     let result = run("/usr/bin/security", ["-i"], input: "add-generic-password -a \(account) -s \"\(service)\" -w \"\(secret)\" -U\n")
     guard result.status == 0, storedPrivateKey() != nil else { fail("Không lưu được khoá vào Keychain: \(result.output)") }
     print(key.publicKey.rawRepresentation.base64EncodedString())

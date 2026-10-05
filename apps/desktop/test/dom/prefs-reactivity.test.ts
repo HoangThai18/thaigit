@@ -1,5 +1,6 @@
-// PrefsStore.update chỉ được báo "đổi" cho đúng khoá thật sự đổi: kéo thanh chia đôi (đổi sidebarWidth hàng chục lần/giây) không
-// được làm các giá trị dẫn xuất từ `sidebarSections` / `columns` (cây nhánh, bố cục cột) tính lại.
+// PrefsStore.update may only report "changed" for keys that really changed: dragging the splitter (dozens
+// of `sidebarWidth` updates per second) must not make everything derived from `sidebarSections` / `columns`
+// (the branch tree, the column layout) recompute.
 import { afterEach, describe, expect, it } from 'vitest';
 import { DEFAULT_WIDTHS } from '../../src/lib/graph/columns.ts';
 import { PREFS_KEY, PrefsStore, type KeyValueStorage } from '../../src/lib/stores/prefs.svelte.ts';

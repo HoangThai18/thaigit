@@ -1,4 +1,4 @@
-// Cờ rủi ro trước khi commit (không AI) — luật thuần + bộ gom đầu vào từ repo.
+// Pre-commit risk flags (no AI involved) — plain rules plus the input collector that reads from the repo.
 export {
   LARGE_FILE_BYTES,
   RISK_CODES,

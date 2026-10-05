@@ -22,10 +22,10 @@
   const rows = $derived(session.rows);
   const problem = $derived(session.problem);
   let list = $state<HTMLElement | null>(null);
-  /** Hàng đang kéo và chỗ sẽ thả (chỉ số hiển thị). */
+  /** Row being dragged and where it would drop (display index). */
   let dragFrom = $state<number | null>(null);
   let dragTo = $state<number | null>(null);
-  /** Hàng đang được focus (cho `aria-selected`). */
+  /** Row that has focus (for `aria-selected`). */
   let focused = $state(0);
 
   const ACTION_KEYS: Readonly<Record<string, RebaseAction>> = {
@@ -127,7 +127,7 @@
   }
 
   function ondialogkeydown(event: KeyboardEvent): void {
-    // Phím trong hộp không lan ra cửa sổ (Esc không đóng diff phía sau, phím tắt repo không chạy).
+    // Keys inside the dialog must not reach the window (Esc shouldn't also close the diff behind, repo shortcuts must not fire).
     event.stopPropagation();
     if (event.key === 'Escape') {
       event.preventDefault();

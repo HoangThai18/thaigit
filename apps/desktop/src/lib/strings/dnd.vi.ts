@@ -1,5 +1,5 @@
 /**
- * Chuỗi của kéo-thả (nhánh, tag, file). Truy cập qua `vi.dnd.*`.
+ * Strings for drag and drop (branches, tags, files). Reached through `vi.dnd.*`.
  */
 export const dnd = {
   mergeInto: (source: string, target: string) => `Merge ${source} vào ${target}`,

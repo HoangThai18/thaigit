@@ -2,8 +2,8 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Bố cục chính giống GitKraken: hàng công cụ của repo ở trên (dưới thanh tab), sidebar nhánh bên trái, graph ở giữa,
-/// panel chi tiết bên phải.
+/// The main layout, like GitKraken: the repo toolbar on top (below the tab bar), the branch sidebar on the left, the graph in
+/// the middle, and the details panel on the right.
 struct RepoWindowView: View {
     @Bindable var model: RepoModel
     @State private var columnVisibility = NavigationSplitViewVisibility.all
@@ -15,11 +15,11 @@ struct RepoWindowView: View {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 SidebarView(model: model)
                     .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 440)
-                    // Cửa sổ không có toolbar của macOS (thanh tab tự vẽ ở trên): nút ẩn/hiện sidebar nằm ở hàng công cụ.
+                    // The window has no macOS toolbar (the tab bar is hand-drawn on top): the sidebar show/hide button sits on the toolbar row.
                     .toolbar(removing: .sidebarToggle)
             } detail: {
-                // Cột nào cũng co được về 0: nội dung cao hơn cửa sổ thì cắt bớt, không được đẩy cả cửa sổ
-                // (NavigationSplitView cao hơn cửa sổ sẽ bị căn giữa → phần trên bị đẩy lên).
+                // Every column can shrink to 0: content taller than the window is clipped instead of pushing the whole window
+                // (a NavigationSplitView taller than the window gets centred, pushing the top out of view).
                 CenterArea(model: model)
                     .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
                     .inspector(isPresented: $model.showInspector) {
@@ -30,7 +30,7 @@ struct RepoWindowView: View {
                     }
             }
         }
-        // Tiêu đề cửa sổ (menu Cửa sổ, Mission Control) — thanh tiêu đề đã ẩn.
+        // The window title (Window menu, Mission Control) — the title bar is hidden.
         .navigationTitle(model.name)
         .sheet(item: $model.sheet) { sheet in
             SheetContent(model: model, sheet: sheet)
@@ -40,7 +40,7 @@ struct RepoWindowView: View {
             isPresented: Binding(get: { model.confirmation != nil }, set: { if !$0 { model.confirmation = nil } }),
             presenting: model.confirmation
         ) { confirmation in
-            // Nút đầu tiên là nút mặc định (↩).
+            // The first button is the default one (↩).
             Button(confirmation.confirmTitle, role: confirmation.isDestructive ? .destructive : nil) {
                 confirmation.action()
             }
@@ -75,7 +75,7 @@ extension Notification.Name {
     static let nhanhSettingsChanged = Notification.Name("nhanh.settingsChanged")
 }
 
-/// Vùng giữa: graph commit, hoặc diff của file đang mở (thay chỗ graph, như GitKraken).
+/// The centre area: the commit graph, or the diff of the open file (replacing the graph, like GitKraken).
 struct CenterArea: View {
     @Bindable var model: RepoModel
 
@@ -115,7 +115,7 @@ struct CenterArea: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            // Khi đang mở diff/xung đột thì đẩy thông báo lên trên thanh thao tác ở đáy.
+            // While a diff / conflict is open, push the notifications above the operation bar at the bottom.
             ToastStack(model: model)
                 .padding(.horizontal, 16)
                 .padding(.bottom, model.openFile == nil ? 16 : 70)
@@ -157,15 +157,15 @@ struct InspectorPanel: View {
     }
 }
 
-/// Hàng công cụ của repo (dưới thanh tab, như GitKraken): sidebar, nhánh, Fetch / Pull / Push / Branch / Stash / Pop,
-/// ô tìm commit (⌘F) và nút panel chi tiết.
+/// The repo toolbar (below the tab bar, like GitKraken): sidebar, branch, Fetch / Pull / Push / Branch / Stash / Pop,
+/// the commit search field (⌘F) and the details panel button.
 struct RepoActionBar: View {
     @Bindable var model: RepoModel
     @Binding var columnVisibility: NavigationSplitViewVisibility
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        // Cửa sổ hẹp: các nút chỉ còn biểu tượng (chú thích vẫn hiện khi rê chuột) thay vì tràn ra ngoài.
+        // A narrow window: the buttons keep just their icon (the tooltip still shows on hover) instead of overflowing.
         ViewThatFits(in: .horizontal) {
             bar(titles: true)
             bar(titles: false)
@@ -329,7 +329,7 @@ struct RepoActionBar: View {
         .padding(.vertical, 6)
         .frame(minWidth: 110, idealWidth: 170, maxWidth: 200)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.06)))
-        // ⌘F: tới ô tìm commit (nút ẩn chỉ để nhận phím tắt).
+        // ⌘F: focus the commit search field (the button itself is hidden, it only takes the shortcut).
         .background {
             Button("Tìm commit") { searchFocused = true }
                 .keyboardShortcut("f")
@@ -340,13 +340,13 @@ struct RepoActionBar: View {
     }
 }
 
-/// Menu đổi nhánh nhanh trên thanh công cụ.
+/// The quick branch-switch menu on the toolbar.
 struct BranchSwitcher: View {
     @Bindable var model: RepoModel
 
     var body: some View {
         Menu {
-            // Repo có hàng trăm nhánh: menu chỉ liệt kê nhánh gần đây, còn lại tìm trong "Chuyển nhánh…".
+            // A repo with hundreds of branches: the menu only lists recently used ones, the rest are found in "Switch branch…".
             let branches = model.recentLocalBranches(limit: 15)
             Section(branches.count < model.localBranches.count ? String(localized: "Nhánh gần đây") : String(localized: "Nhánh local")) {
                 ForEach(branches) { ref in
@@ -385,7 +385,7 @@ struct BranchSwitcher: View {
     }
 }
 
-/// Số file chưa commit cạnh tên nhánh: luôn thấy còn gì chưa commit dù đang xem commit khác; bấm để về WIP (⌘0).
+/// The uncommitted file count next to the branch name: you always see what is left uncommitted even while looking at another commit; click to return to the WIP (⌘0).
 struct WorkingTreeChip: View {
     @Bindable var model: RepoModel
 
@@ -405,8 +405,8 @@ struct WorkingTreeChip: View {
     }
 }
 
-/// Repo clone chỉ một nhánh (`--single-branch`) hoặc clone nông (`--depth`): nhánh khác / commit cũ trên remote không bao giờ
-/// về máy, kể cả khi Fetch — mời người dùng lấy đủ.
+/// A repo cloned with a single branch (`--single-branch`) or shallow (`--depth`): other branches / older commits on the
+/// remote never reach the machine, not even on Fetch — invite the user to get them all.
 struct HistoryGapsBanner: View {
     @Bindable var model: RepoModel
     let gaps: HistoryGaps
@@ -464,7 +464,7 @@ struct OperationBanner: View {
                 Text(conflicts > 0
                      ? "Còn \(conflicts) file xung đột — bấm vào từng file ở panel bên phải để chọn bản giữ lại."
                      : operation == .reverting
-                     // Revert chưa commit: thay đổi đảo ngược đã stage, message gợi ý đã điền sẵn trong ô commit.
+                     // Uncommitted revert: the reverse changes are staged and the suggested message prefilled in the commit box.
                      ? "Thay đổi đảo ngược đã được stage — xem lại, rồi commit ở panel bên phải hoặc bấm “Tiếp tục”."
                      : "Đã giải quyết hết xung đột. Bấm “Tiếp tục” để hoàn tất.")
                     .font(.callout)
@@ -609,7 +609,7 @@ struct ToastView: View {
     }
 }
 
-/// Hiển thị danh sách MenuItemSpec thành các nút/menu SwiftUI.
+/// Renders a list of MenuItemSpec as SwiftUI buttons / menus.
 struct MenuSpecContent: View {
     let items: [MenuItemSpec]
 
@@ -642,7 +642,7 @@ struct MenuSpecContent: View {
     }
 }
 
-/// Đổi kiểu nhãn theo điều kiện (nhãn đầy đủ hay chỉ biểu tượng).
+/// Switches the label style by condition (full label or icon only).
 struct AnyLabelStyle: LabelStyle {
     private let make: (Configuration) -> AnyView
 
@@ -655,7 +655,7 @@ struct AnyLabelStyle: LabelStyle {
     }
 }
 
-/// Dải báo đang ẩn / solo nhánh trên graph, kèm nút hiện lại tất cả.
+/// The strip above the graph showing hidden / solo branches, with a show-all button.
 private struct GraphFilterBar: View {
     let summary: String
     let showAll: () -> Void
@@ -675,7 +675,7 @@ private struct GraphFilterBar: View {
     }
 }
 
-/// Nút Cài đặt trên hàng công cụ (⌘,).
+/// The Settings button on the toolbar (⌘,).
 private struct SettingsToolButton: View {
     @Environment(\.openSettings) private var openSettings
 
@@ -687,8 +687,8 @@ private struct SettingsToolButton: View {
     }
 }
 
-/// Profile (như GitKraken): ảnh đại diện của tên / email đang dùng để commit; bấm để xem, đổi danh tính Git, tài khoản
-/// GitHub / GitLab của repo và mở Cài đặt.
+/// The profile menu (like GitKraken): the avatar of the commit name / email in use; click it to view, change the Git
+/// identity, the repo's GitHub / GitLab accounts and open Settings.
 private struct ProfileButton: View {
     @Bindable var model: RepoModel
     @Environment(\.openSettings) private var openSettings

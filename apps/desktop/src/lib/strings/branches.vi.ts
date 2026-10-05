@@ -1,6 +1,6 @@
 /**
- * Chuỗi của phần nhánh / tag / stash / merge-rebase / xung đột / menu ngữ cảnh. Truy cập qua `vi.branches.*`. Văn phong bám
- * theo app Swift (RepoModel+Actions).
+ * Strings for branches / tags / stash / merge-rebase / conflicts / context menus. Reached through
+ * `vi.branches.*`. Wording follows the Swift app (RepoModel+Actions).
  */
 export const branches = {
   // Checkout
@@ -11,7 +11,7 @@ export const branches = {
   trackingCreated: (local: string, remote: string) => `Đã tạo nhánh ${local} theo dõi ${remote}`,
   tagLabel: (tag: string) => `tag ${tag}`,
 
-  // Hộp "Chuyển nhánh" (Ctrl/⌘ + B)
+  // "Switch branch" dialog (Ctrl/⌘ + B)
   pickerTitle: 'Chuyển nhánh',
   pickerOpen: 'Tìm & chuyển nhánh…',
   pickerShortcut: 'Ctrl/⌘ + B',
@@ -35,7 +35,7 @@ export const branches = {
   dirtyStash: 'Cất vào stash rồi chuyển',
   dirtyCommit: 'Để mình commit',
 
-  // Tạo nhánh
+  // Create branch
   createTitle: 'Tạo nhánh mới',
   createTitleNamed: (name: string) => `Tạo nhánh ${name}`,
   createMessage: (start: string) => `Nhánh mới bắt đầu từ ${start}.`,
@@ -73,7 +73,7 @@ export const branches = {
   stashPopDrop: 'Pop (apply rồi xoá stash)',
   dropStashMenu: 'Xoá stash…',
 
-  // Xoá / đổi tên nhánh
+  // Delete / rename branch
   cannotDeleteCurrent: 'Không thể xoá nhánh đang checkout — hãy chuyển sang nhánh khác trước',
   deleteConfirmTitle: (name: string) => `Xoá nhánh “${name}”?`,
   deleteConfirmMessage: 'Chỉ xoá nhánh trên máy bạn. Có thể bấm “Hoàn tác” ngay sau đó.',
@@ -150,7 +150,7 @@ export const branches = {
   ignoreTitle: 'Thêm vào .gitignore',
   ignored: (pattern: string) => `Đã thêm “${pattern}” vào .gitignore`,
 
-  // Thao tác dở dang (banner)
+  // In-flight operations (banner)
   running: {
     merging: 'Đang merge',
     rebasing: 'Đang rebase',
@@ -198,7 +198,7 @@ export const branches = {
   deleteRemoteTagRunning: 'Xoá tag trên remote',
   remoteTagDeleted: (name: string, remote: string) => `Đã xoá tag ${name} trên ${remote}`,
 
-  // Giải xung đột
+  // Conflict resolution
   conflictBlocks: (count: number) => `${count} đoạn xung đột`,
   conflictLegend: '“Current” là bản trên nhánh hiện tại (HEAD), “Incoming” là bản đang được đưa vào.',
   conflictLineHint: 'Bấm vào từng dòng để chọn riêng dòng đó; nhấp đúp tiêu đề một bên để giữ cả bên đó.',
@@ -268,7 +268,7 @@ export const branches = {
     unknown: 'Xung đột',
   },
 
-  // Menu ngữ cảnh
+  // Context menu
   menuPull: 'Pull',
   menuPush: 'Push',
   menuCheckout: (name: string) => `Checkout ${name}`,

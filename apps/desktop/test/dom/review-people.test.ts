@@ -1,5 +1,5 @@
-// Gán người review / người được gán trong panel review: ReviewPanel + ReviewPeople dựng bằng Svelte thật trên RepoStore + repo git
-// thật, còn "Rust" (IPC) là bản giả ghi lại lệnh và đối số.
+// Assigning reviewers / assignees in the review panel: ReviewPanel + ReviewPeople built with real Svelte on
+// RepoStore + a real git repo, with "Rust" (IPC) as a fake recording commands and arguments.
 import { flushSync, mount, tick, unmount } from 'svelte';
 import type { ForgeMergeRequest, ForgePerson } from '@thaigit/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,7 +60,7 @@ function request(partial: Partial<ForgeMergeRequest> = {}): ForgeMergeRequest {
   };
 }
 
-/** Repo có remote origin ở GitHub (chỉ để app nhận ra máy chủ — không có lệnh mạng nào chạy). */
+/** A repo with an origin on GitHub (only so the app recognises the host — no network command runs). */
 async function mountPanel(
   remote = 'https://github.com/acme/app.git',
 ): Promise<{ repo: LoadedRepo; root: HTMLElement }> {
@@ -139,7 +139,7 @@ describe('ReviewPeople', () => {
 
     editButton(root, 0).click();
     await until(() => root.querySelectorAll('.choice').length > 0, 'danh sách người');
-    // Tác giả (bob) không tự review PR của mình.
+    // An author (bob) can't review their own PR.
     const names = () =>
       [...root.querySelectorAll('.choice')].map((row) => row.textContent?.replace(/\s+/g, ' ').trim());
     expect(names()).toEqual(['an', 'Chi Lê @chi', 'dung']);
@@ -149,7 +149,7 @@ describe('ReviewPeople', () => {
       repo: { host: 'github.com', provider: 'github', owner: 'acme', repo: 'app' },
     });
 
-    // Người đang được gán mà không có trong danh sách vẫn hiện (và tick sẵn).
+    // An assigned person missing from the list still shows up (already ticked).
     const checkbox = (row: number) => root.querySelectorAll<HTMLInputElement>('.choice input')[row]!;
     expect(checkbox(0).checked).toBe(true);
     expect(checkbox(1).checked).toBe(false);
@@ -195,7 +195,7 @@ describe('ReviewPeople', () => {
     expect(root.querySelectorAll('.people')[0]!.textContent).toContain('chi');
     expect(repo.toasts.items.some((item) => item.title === strings.pullRequests.reviewersSaved)).toBe(true);
 
-    // Mở lại bảng chọn: danh sách người đã nạp, không gọi máy chủ lần nữa.
+    // Reopening the picker: the loaded people list is reused, no second host call.
     editButton(root, 0).click();
     await settle();
     expect(root.querySelectorAll('.choice').length).toBe(3);

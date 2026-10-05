@@ -1,5 +1,6 @@
-// Node graph: có avatar thì vẽ ảnh thay vì chữ viết tắt (kể cả node dòng WIP). Canvas thật không có trong
-// vitest nên dùng context giả ghi lại lệnh vẽ — đủ để khẳng định node chọn đúng nhánh vẽ.
+// Graph nodes: with an avatar the image is drawn instead of the initials (including on a WIP row). vitest
+// has no real canvas, so a fake context records the draw calls — enough to assert which branch the node
+// drawing chose.
 import { describe, expect, it } from 'vitest';
 import { paintGraph, type PaintRow, type PaintTheme } from '../src/lib/graph/GraphCanvas.ts';
 

@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Trạng thái và hành động của một repository đang mở (một tab).
+/// State and actions of one open repository (one tab).
 @Observable
 final class RepoModel {
     let repository: GitRepository
@@ -11,10 +11,10 @@ final class RepoModel {
     var name: String { repository.name }
     var rootPath: String { repository.root.path }
 
-    // MARK: - Dữ liệu repository
+    // MARK: - Repository data
 
     private(set) var refs: [GitRef] = []
-    /// Lọc + sắp xếp sẵn mỗi khi refs đổi (không tính lại trong body của view — repo lớn có hàng nghìn ref).
+    /// Filtered + sorted in advance whenever the refs change (never recomputed inside a view's body — a large repo has thousands of refs).
     private(set) var localBranches: [GitRef] = []
     private(set) var remoteBranches: [GitRef] = []
     private(set) var tags: [GitRef] = []
@@ -22,7 +22,7 @@ final class RepoModel {
     private(set) var stashes: [Stash] = []
     private(set) var remotes: [Remote] = []
     private(set) var operation: RepoOperation?
-    /// Tên / email commit đang có hiệu lực (đọc khi mở repo và khi đổi danh tính).
+    /// The commit name / email in effect (read when the repo opens and when the identity changes).
     var committerIdentity: CommitterIdentity?
     private(set) var entries: [GraphEntry] = []
     private(set) var graphVersion = 0
@@ -36,7 +36,7 @@ final class RepoModel {
             loadMergeRequests()
         }
     }
-    /// Nhánh ẩn / solo trên graph, nhớ riêng cho từng repo (xem RepoModel+GraphFilter.swift).
+    /// Branches hidden / soloed on the graph, remembered per repo (see RepoModel+GraphFilter.swift).
     var graphFilter = GraphRefFilter() {
         didSet {
             guard graphFilter != oldValue else { return }
@@ -44,13 +44,13 @@ final class RepoModel {
             requestRefresh(.history)
         }
     }
-    /// Pull Request đang mở trên GitHub (xem RepoModel+PullRequests.swift).
+    /// Open Pull Requests on GitHub (see RepoModel+PullRequests.swift).
     var pullRequests = PullRequestList()
     @ObservationIgnored var pullRequestsTask: Task<Void, Never>?
-    /// Merge Request đang mở trên GitLab (xem RepoModel+Review.swift).
+    /// Open Merge Requests on GitLab (see RepoModel+Review.swift).
     var mergeRequests = MergeRequestList()
     @ObservationIgnored var mergeRequestsTask: Task<Void, Never>?
-    /// PR / MR đang xem ở panel review (xem RepoModel+Review.swift).
+    /// The PR / MR open in the review panel (see RepoModel+Review.swift).
     var review: ReviewSession?
 
     @ObservationIgnored private var rowIndex: [String: Int] = [:]
@@ -58,30 +58,30 @@ final class RepoModel {
     @ObservationIgnored private(set) var commitLimit = Prefs.commitLimitValue
     @ObservationIgnored private var refsFingerprint = ""
 
-    // MARK: - Lựa chọn, chi tiết, diff
+    // MARK: - Selection, details, diff
 
     private(set) var selection: RepoSelection = .none
     private(set) var commitDetails: CommitDetails?
-    /// Kết quả khi đang so sánh hai commit / nhánh (`selection == .compare`).
+    /// The result while comparing two commits / branches (`selection == .compare`).
     private(set) var comparison: Comparison?
     private(set) var isLoadingDetails = false
     var openFile: OpenFile?
-    /// File đang sửa ngay trong app (xem RepoModel+FileEditor.swift).
+    /// A file being edited right in the app (see RepoModel+FileEditor.swift).
     var fileEditor: FileEditorSession?
-    /// Terminal đơn giản dưới graph (xem TerminalSession.swift), tạo khi mở lần đầu.
+    /// The simple terminal below the graph (see TerminalSession.swift), created on first open.
     var terminal: TerminalSession?
     /// Submodule, worktree, Git Flow, LFS (xem RepoModel+Advanced.swift).
     var extras = RepoExtras()
-    /// Người dùng bấm "Để sau" trên thanh báo thiếu nhánh / lịch sử (chỉ trong phiên này).
+    /// The user pressed "Later" on the missing-branches / history bar (this session only).
     var historyGapsDismissed = false
     var diffState: DiffState = .idle
-    /// Các dòng đang chọn trong diff để stage/unstage/huỷ từng dòng: id hunk → chỉ số dòng.
+    /// The lines currently selected in a diff for per-line stage/unstage/discard: hunk id → line indices.
     var lineSelection: [Int: Set<Int>] = [:]
-    /// Vị trí của file đang mở trong danh sách của nó: file biến mất (đã stage, đã huỷ…) thì mở file đứng ở chỗ này.
+    /// Where the open file sits in its list: when the file disappears (staged, discarded…) whatever now sits at this spot is opened.
     @ObservationIgnored var openFilePosition = 0
     var scrollRequest: ScrollRequest?
 
-    // MARK: - Commit đang soạn
+    // MARK: - Commit being composed
 
     var commitSummary = "" {
         didSet { if commitSummary != oldValue { saveCommitDraft() } }
@@ -95,7 +95,7 @@ final class RepoModel {
     var selectedUnstaged: Set<String> = []
     var selectedStaged: Set<String> = []
 
-    // MARK: - Giao diện
+    // MARK: - UI
 
     var busy: BusyState?
     var toasts: [Toast] = []
@@ -103,17 +103,17 @@ final class RepoModel {
     var confirmation: Confirmation?
     var dragRequest: DragRequest?
     var showInspector = true
-    /// Dòng thời gian (snapshot tự động) — xem RepoModel+Snapshots.swift.
+    /// The timeline (automatic snapshots) — see RepoModel+Snapshots.swift.
     var timeline = TimelineState()
     @ObservationIgnored var snapshotTask: Task<Void, Never>?
     @ObservationIgnored var lastSnapshotAt = Date.distantPast
     @ObservationIgnored var lastSnapshotPruneAt = Date.distantPast
-    /// Cờ rủi ro của thay đổi chưa commit (dải cảnh báo trên panel WIP).
+    /// Risk flags on uncommitted changes (the warning strip on the WIP panel).
     var riskFlags: [RiskFlag] = []
-    /// Cờ rủi ro người dùng đã bấm ẩn: dải cảnh báo chỉ hiện lại khi danh sách cờ đổi.
+    /// The risk flags the user dismissed: the warning strip reappears only when the flag list changes.
     var dismissedRiskFlags: [RiskFlag]?
-    /// Thao tác git gần nhất hoàn tác được (nút Undo trên thanh công cụ, như GitKraken) — lấy từ nút "Hoàn tác" của thông báo.
-    /// `fingerprint`: HEAD + nhánh + danh sách file thay đổi lúc đó; repo đổi khác thì không cho hoàn tác (tránh đè việc mới).
+    /// The most recent undoable git operation (the Undo button on the toolbar, like GitKraken) — taken from the notification's "Undo" action.
+    /// `fingerprint`: HEAD + branches + changed file list at that moment; a repo that changed since isn't undone (so newer work is never clobbered).
     var lastUndo: (title: String, fingerprint: String, run: () -> Void)?
     @ObservationIgnored var riskTask: Task<Void, Never>?
     var searchText = "" {
@@ -122,7 +122,7 @@ final class RepoModel {
     private(set) var searchMatches: [Int] = []
     private(set) var searchMatchSet: Set<Int> = []
 
-    // MARK: - Nội bộ
+    // MARK: - Internal
 
     @ObservationIgnored private var watcher: RepoWatcher?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
@@ -139,10 +139,10 @@ final class RepoModel {
     @ObservationIgnored private var isActive = false
     @ObservationIgnored private var didChooseInitialSelection = false
     @ObservationIgnored var savedSummaryBeforeAmend: (String, String)?
-    /// Thông báo có "Hoàn tác" vừa hiện trước lần làm mới sau thao tác: chốt dấu vân tay ở lần làm mới kế tiếp.
+    /// A notification with an "Undo" appeared just before the refresh after an operation: pin the fingerprint at the next refresh.
     var pendingUndoFingerprint = false
-    /// Message app tự điền từ MERGE_MSG khi đang merge/revert — để dọn đi khi thao tác kết thúc ngoài ô commit
-    /// (nút "Tiếp tục", terminal) mà người dùng chưa sửa gì.
+    /// The message the app auto-filled from MERGE_MSG while merging / reverting — kept so it can be cleared when the
+    /// operation ends outside the commit box ("Continue", the terminal) without the user having edited anything.
     @ObservationIgnored var prefilledCommitMessage: (summary: String, body: String)?
 
     init(repository: GitRepository, commandLog: CommandLog) {
@@ -154,7 +154,7 @@ final class RepoModel {
         }
     }
 
-    /// Lưu message đang gõ dở theo repo (không lưu lúc amend: khi đó ô soạn chứa message của commit cũ).
+    /// Save the half-typed message per repo (not saved while amending: the box then holds an existing commit's message).
     private func saveCommitDraft() {
         guard !amendLastCommit else { return }
         CommitDraftStore().save(root: repository.root.path, summary: commitSummary, body: commitBody)
@@ -166,13 +166,13 @@ final class RepoModel {
             log.append(record)
         }
         let model = RepoModel(repository: repository, commandLog: log)
-        // Nạp trước submodule / worktree / Git Flow: sidebar có đủ các mục ngay lần vẽ đầu (chèn mục vào List sau đó
-        // làm NSTableView của sidebar cập nhật lồng nhau).
+        // Load submodules / worktrees / Git Flow first: the sidebar then has every section on its first render (inserting a
+        // section into the List afterwards makes the sidebar's NSTableView relayout nested).
         model.extras = await RepoExtras.load(repository)
         return model
     }
 
-    // MARK: - Vòng đời
+    // MARK: - Lifecycle
 
     func start() {
         guard !isActive else { return }
@@ -186,7 +186,7 @@ final class RepoModel {
         self.watcher = watcher
         scheduleAutoFetch()
         loadCommitterIdentity()
-        // Mở repo cũng chụp một mốc: file có thể đã đổi lúc app đóng.
+        // Opening a repo also captures a milestone: files may have changed while the app was closed.
         noteWorkingTreeChangeForSnapshots()
     }
 
@@ -201,7 +201,7 @@ final class RepoModel {
         riskTask?.cancel()
     }
 
-    // MARK: - Thuộc tính tiện dụng
+    // MARK: - Convenience properties
 
     var headOID: String? { status.head.oid }
     var currentBranch: String? { status.head.branchName }
@@ -209,7 +209,7 @@ final class RepoModel {
         guard let currentBranch else { return nil }
         return refs.first { $0.kind == .localBranch && $0.name == currentBranch }
     }
-    /// Nhánh local mới làm việc gần đây nhất (cho menu đổi nhánh nhanh).
+    /// The most recently worked-on local branch (for the quick branch-switch menu).
     func recentLocalBranches(limit: Int) -> [GitRef] {
         guard localBranches.count > limit else { return localBranches }
         return Array(localBranches.sorted { ($0.isHead ? Date.distantFuture : $0.date ?? .distantPast) > ($1.isHead ? Date.distantFuture : $1.date ?? .distantPast) }
@@ -262,7 +262,7 @@ final class RepoModel {
 
     var selectedRow: Int? { row(for: selection) }
 
-    // MARK: - Làm mới dữ liệu
+    // MARK: - Refreshing data
 
     func refreshEverything() {
         requestRefresh(.all)
@@ -312,7 +312,7 @@ final class RepoModel {
                 status = value
                 statusChanged = true
             }
-            // Cả khi danh sách file không đổi: agent có thể vừa thêm một dòng token vào file vốn đã "sửa".
+            // Even when the file list is unchanged: an agent may have just added a token line to a file that was already "modified".
             scheduleRiskCheck()
         case .failure(let error)?:
             if !FileManager.default.fileExists(atPath: repository.root.path) {
@@ -336,7 +336,7 @@ final class RepoModel {
         if wantsRefs { loadExtras() }
         let newOperation = repository.operationState()
         if newOperation != operation { operation = newOperation }
-        // Hết xung đột thì ẩn các cảnh báo xung đột cũ.
+        // Hide the old conflict warnings once the conflicts are gone.
         if status.conflicts.isEmpty, toasts.contains(where: { $0.tag == "conflict" }) {
             withAnimation(.snappy) { toasts.removeAll { $0.tag == "conflict" } }
         }
@@ -403,7 +403,7 @@ final class RepoModel {
         applyGraph(commits: commits, rows: rows)
     }
 
-    /// Tải thêm commit cũ hơn khi cuộn tới cuối graph.
+    /// Load older commits when scrolling to the end of the graph.
     func loadMoreHistory() {
         guard mayHaveMoreCommits, !isLoadingHistory else { return }
         commitLimit += max(2000, commitLimit / 2)
@@ -472,7 +472,7 @@ final class RepoModel {
         let singleRemote = Set(refs.compactMap(\.remoteName)).count <= 1
         let current = status.head.branchName
         var byTarget: [String: [GitRef]] = [:]
-        // Nhánh đang ẩn (hoặc ngoài nhóm solo) không có nhãn; nhánh đang checkout và tag luôn hiện.
+        // A hidden branch (or one outside a solo group) has no label; the checked-out branch and tags are always shown.
         for ref in refs where ref.kind == .tag || graphFilter.isVisible(ref.fullName) || (ref.kind == .localBranch && ref.name == current) {
             byTarget[ref.target, default: []].append(ref)
         }
@@ -514,8 +514,8 @@ final class RepoModel {
         return result
     }
 
-    /// Thứ tự nhãn trên cùng một commit — nhãn đầu là nhãn hiện ra khi ô hẹp (còn lại gom vào "+N"): nhánh đang đứng,
-    /// rồi nhánh chính (main / master / develop), rồi nhánh local khác, nhánh remote, tag.
+    /// Label order on the same commit — the first label is the one visible when the cell is narrow (the rest fold into "+N"):
+    /// the checked-out branch, then the main branch (main / master / develop), then other local branches, remotes, tags.
     private func rank(_ label: RefLabel) -> Int {
         if label.isDetachedHead || label.isCurrentBranch { return 0 }
         if label.hasLocal, ["main", "master", "develop", "dev"].contains(label.text) { return 1 }
@@ -531,7 +531,7 @@ final class RepoModel {
         if change.contains(.workingTree) { noteWorkingTreeChangeForSnapshots() }
         if change.contains(.workingTree) { fileSystemPending.insert(.status) }
         if change.contains(.refs) { fileSystemPending.formUnion([.refs, .status]) }
-        // Khi đang chạy thao tác, việc làm mới sẽ diễn ra sau khi thao tác xong.
+        // While an operation runs, the refresh happens after it finishes.
         guard runningOperations == 0, fileSystemDebounce == nil else { return }
         fileSystemDebounce = Task {
             try? await Task.sleep(for: .milliseconds(300))
@@ -563,25 +563,25 @@ final class RepoModel {
     private func silentFetch() async {
         let repo = repository
         do {
-            // Không bật hộp thoại xác thực khi tự động fetch.
+            // Don't raise the auth dialog during an automatic fetch.
             try await repo.fetch(remote: nil, prune: Prefs.fetchPruneValue,
                                  environment: ["GIT_ASKPASS": "/usr/bin/false", "SSH_ASKPASS": "/usr/bin/false"])
             lastFetch = Date()
             requestRefresh([.refs, .status])
         } catch {
-            // Bỏ qua lỗi mạng khi fetch nền.
+            // Ignore network errors during a background fetch.
         }
     }
 
-    // MARK: - Chọn commit
+    // MARK: - Commit selection
 
-    /// Người dùng chọn (graph, sidebar, tìm kiếm): luôn đóng Dòng thời gian để panel phải hiện đúng mục vừa chọn.
+    /// A user selection (graph, sidebar, search): always closes the Timeline so the panel has to show the section that was just picked.
     func select(_ newSelection: RepoSelection, reveal: Bool = false) {
         timeline.isOpen = false
         applySelection(newSelection, reveal: reveal)
     }
 
-    /// Chọn mà không đóng Dòng thời gian — lựa chọn tự động khi nạp / làm mới (vd. WIP biến mất sau khi khôi phục).
+    /// A selection that doesn't close the Timeline — the automatic one on load / refresh (e.g. the WIP disappearing after a restore).
     func applySelection(_ newSelection: RepoSelection, reveal: Bool = false) {
         if newSelection != selection {
             selection = newSelection
@@ -632,7 +632,7 @@ final class RepoModel {
             isLoadingDetails = true
             let repo = repository
             detailsTask = Task {
-                // Trễ một chút để lướt nhanh bằng phím mũi tên không tạo quá nhiều lệnh git.
+                // Delay a little so fast arrow-key browsing doesn't spawn too many git commands.
                 try? await Task.sleep(for: .milliseconds(35))
                 guard !Task.isCancelled else { return }
                 do {
@@ -697,7 +697,7 @@ final class RepoModel {
         }
     }
 
-    // MARK: - Tìm kiếm
+    // MARK: - Search
 
     private func updateSearch() {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -737,12 +737,12 @@ final class RepoModel {
         }
     }
 
-    // MARK: - Thông báo
+    // MARK: - Notifications
 
     func toast(_ style: Toast.Style, _ title: String, message: String? = nil, actions: [ToastAction] = [], tag: String? = nil) {
         let toast = Toast(style: style, title: title, message: message, actions: actions, tag: tag)
         withAnimation(.snappy) {
-            // Cùng một thông báo (vd. bấm checkout hai lần liền) hoặc cùng tag: thay cái cũ thay vì xếp chồng.
+            // The same notification (e.g. pressing checkout twice in a row) or the same tag: replace the old one instead of stacking.
             toasts.removeAll { old in
                 (tag != nil && old.tag == tag) || (old.style == style && old.title == title && old.message == message)
             }
@@ -761,14 +761,14 @@ final class RepoModel {
         }
     }
 
-    /// Dấu vân tay trạng thái repo cho nút Undo.
+    /// A fingerprint of the repo state used by the Undo button.
     var undoFingerprint: String {
         let files = (status.staged.map { "s:" + $0.path } + status.unstaged.map { "u:" + $0.path }
             + status.conflicts.map { "c:" + $0.path }).sorted()
         return ([headOID ?? "-", currentBranch ?? "-"] + files).joined(separator: "\n")
     }
 
-    /// Nút Undo bấm được: có thao tác hoàn tác được và repo chưa đổi gì kể từ đó.
+    /// Whether the Undo button is enabled: there's an undoable operation and the repo hasn't changed since.
     var canUndoLast: Bool {
         guard let lastUndo, !pendingUndoFingerprint else { return false }
         return lastUndo.fingerprint == undoFingerprint
@@ -784,7 +784,7 @@ final class RepoModel {
         withAnimation(.snappy) { toasts.removeAll { $0.id == id } }
     }
 
-    /// Toast lỗi: chỉ câu thân thiện (FriendlyError) — không bao giờ hiện stderr / mô tả lỗi hệ thống.
+    /// An error toast: only a friendly sentence (FriendlyError) — never git's stderr or a system error description.
     func showError(_ title: String, _ error: any Error, actions: [ToastAction] = []) {
         let message = FriendlyError.message(for: error)
         toast(.error, title, message: message == title ? nil : message, actions: actions)
@@ -794,10 +794,10 @@ final class RepoModel {
         withAnimation { showInspector.toggle() }
     }
 
-    // MARK: - Chạy thao tác git
+    // MARK: - Running a git operation
 
-    /// Chạy một thao tác git: các thao tác được xếp hàng tuần tự (tránh tranh chấp index.lock),
-    /// tự làm mới dữ liệu khi xong và hiện lỗi dạng thông báo.
+    /// Run a git operation: operations are queued sequentially (avoiding index.lock contention),
+    /// the data refreshes automatically when they finish, and errors show as a notification.
     func perform(
         _ title: String,
         showsProgress: Bool = false,
@@ -845,7 +845,7 @@ final class RepoModel {
         currentOperationTask?.cancel()
     }
 
-    /// Hàm báo tiến độ cho lệnh mạng (fetch/pull/push/clone).
+    /// The progress callback for a network command (fetch / pull / push / clone).
     func progressReporter() -> @Sendable (String) -> Void {
         { [weak self] line in
             Task { @MainActor in self?.updateProgress(line) }

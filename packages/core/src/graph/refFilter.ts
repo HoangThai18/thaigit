@@ -1,9 +1,9 @@
-// Ẩn / "chỉ hiện" (solo) nhánh trên graph (port GraphRefFilter.swift): chọn điểm bắt đầu cho `git log` thay cho
-// `--branches --remotes --tags HEAD`. Tên ref là tên đầy đủ (`refs/heads/x`, `refs/remotes/origin/x`).
+// Hide branches on the graph, or restrict the graph to "solo" branches (port of GraphRefFilter.swift): picks the
+// starting point for `git log` instead of `--branches --remotes --tags HEAD`. Ref names are fully qualified// (`refs/heads/x`, `refs/remotes/origin/x`).
 
 export interface GraphRefFilter {
   readonly hidden: readonly string[];
-  /** Khác rỗng: graph chỉ gồm lịch sử của các ref này (và HEAD). */
+  /** Non-empty: the graph contains only the history of these refs (plus HEAD). */
   readonly solo: readonly string[];
 }
 
@@ -13,13 +13,13 @@ export function refFilterActive(filter: GraphRefFilter): boolean {
   return filter.hidden.length > 0 || filter.solo.length > 0;
 }
 
-/** Ref có được vẽ (nhãn, lịch sử riêng) trên graph không. */
+/** Whether the ref is drawn on the graph (label, own history). */
 export function refVisible(filter: GraphRefFilter, fullName: string): boolean {
   if (filter.solo.length > 0) return filter.solo.includes(fullName);
   return !filter.hidden.includes(fullName);
 }
 
-/** Bỏ các ref không còn tồn tại (nhánh đã xoá). */
+/** Drops refs that no longer exist (deleted branches). */
 export function keepingRefs(filter: GraphRefFilter, existing: ReadonlySet<string>): GraphRefFilter {
   return {
     hidden: filter.hidden.filter((name) => existing.has(name)),
@@ -27,7 +27,7 @@ export function keepingRefs(filter: GraphRefFilter, existing: ReadonlySet<string
   };
 }
 
-/** Git coi mẫu của `--exclude` là glob: thoát `* ? [ ] \`. */
+/** Git treats `--exclude` patterns as globs: escape `* ? [ ] \`. */
 export function escapeGlob(text: string): string {
   return text.replace(/[*?[\]\\]/g, (char) => `\\${char}`);
 }
@@ -40,9 +40,9 @@ function excludes(filter: GraphRefFilter, prefix: string): string[] {
 }
 
 /**
- * Đối số chọn điểm bắt đầu cho `git log`:
- * - solo: đúng các ref đó, kèm HEAD (nhánh đang checkout và dòng WIP luôn hiện);
- * - ẩn: `--exclude=<mẫu>` ngay trước `--branches` / `--remotes` / `--tags`.
+ * Starting-point args for `git log`:
+ * - solo: exactly those refs, plus HEAD (the checked-out branch and the WIP row are always shown);
+ * - hide: `--exclude=<pattern>` right before `--branches` / `--remotes` / `--tags`.
  */
 export function refFilterRevisionArgs(
   filter: GraphRefFilter,

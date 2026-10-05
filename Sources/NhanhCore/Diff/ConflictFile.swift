@@ -1,27 +1,28 @@
 import Foundation
 
-/// File có dấu xung đột (<<<<<<< ======= >>>>>>>), tách thành các đoạn chung và đoạn xung đột.
+/// A file with conflict markers (<<<<<<< ======= >>>>>>>), split into common regions and conflict regions.
 ///
-/// Làm việc theo byte: tách dòng theo "\n" ("\r" đứng trước thuộc ký tự xuống dòng của dòng đó, nên file lẫn CRLF/LF
-/// vẫn nhận đúng dấu), BOM UTF-8 tách riêng (dấu ở dòng đầu vẫn được nhận). Khi lưu chỉ thay vùng byte của các khối
-/// xung đột; mọi byte khác (BOM, kiểu xuống dòng của từng dòng) chép nguyên văn.
+/// Everything works on bytes: lines are split on "\n" (a "\r" immediately before that line's own line
+/// terminator belongs to it, so a file mixing CRLF and LF still gets correct markers), and a UTF-8 BOM is
+/// split off separately (so a marker on the first line is still recognised). Saving only replaces the byte
+/// range of the conflict blocks; every other byte (BOM, each line's own line ending) is copied verbatim.
 public struct ConflictFile: Sendable, Equatable {
     public struct Block: Sendable, Hashable, Identifiable {
         public let id: Int
         public let oursLabel: String
         public let theirsLabel: String
         public let baseLabel: String?
-        /// Các dòng để hiển thị (không gồm ký tự xuống dòng).
+        /// The lines to display (without their line terminator).
         public let ours: [String]
         public let base: [String]?
         public let theirs: [String]
-        /// Từ đầu dòng <<<<<<< đến hết dòng >>>>>>> (gồm xuống dòng): vùng duy nhất bị thay khi lưu.
+        /// From the leading <<<<<<< through the end of the >>>>>>> line (including the terminator): the only region replaced on save.
         let region: Range<Int>
-        /// Byte nguyên văn của từng phía (gồm ký tự xuống dòng của từng dòng).
+        /// Each side's verbatim bytes (including each line's terminator).
         let oursBytes: Range<Int>
         let baseBytes: Range<Int>?
         let theirsBytes: Range<Int>
-        /// Byte của từng dòng mỗi phía (gồm xuống dòng) — để chọn từng dòng như GitKraken.
+        /// Each side's lines as bytes (including terminators) — for picking individual lines like GitKraken.
         let oursLineBytes: [Range<Int>]
         let theirsLineBytes: [Range<Int>]
     }
@@ -40,13 +41,14 @@ public struct ConflictFile: Sendable, Equatable {
         case neither
     }
 
-    /// Lựa chọn cho một đoạn: cả phía (`Resolution`) hoặc từng dòng — các dòng Current đã chọn rồi các dòng Incoming đã
-    /// chọn, giữ thứ tự trong file. Chọn dòng mà không tick dòng nào = bỏ cả đoạn.
+    /// The choice made for one region: a whole side (`Resolution`) or per line — first the selected Current
+    /// lines, then the selected Incoming ones, keeping their file order. Picking lines without ticking any
+    /// side = dropping the whole region.
     public enum Choice: Sendable, Hashable {
         case side(Resolution)
         case lines(ours: Set<Int>, theirs: Set<Int>)
 
-        /// Tick / bỏ tick một dòng, bắt đầu từ lựa chọn hiện tại (chọn cả phía thì coi như đã tick mọi dòng phía đó).
+        /// Tick / untick one line, starting from the current choice (choosing a whole side counts as ticking all of that side's lines).
         public static func toggling(_ current: Choice?, ours: Bool, line: Int, block: Block) -> Choice {
             var (o, t) = current.map { $0.lineSets(block) } ?? ([], [])
             if ours {
@@ -57,8 +59,8 @@ public struct ConflictFile: Sendable, Equatable {
             return .lines(ours: o, theirs: t)
         }
 
-        /// Dòng mỗi phía nằm trong kết quả (để tô dòng đã chọn). `.base` / `.theirsThenOurs` không phải dòng của từng phía
-        /// theo thứ tự — vẫn trả các dòng được giữ.
+        /// Which of each side's lines appear in the result (so chosen lines can be highlighted). `.base` /
+        /// `.theirsThenOurs` aren't an ordered side-by-side pair — they still return the lines that are kept.
         public func lineSets(_ block: Block) -> (ours: Set<Int>, theirs: Set<Int>) {
             let allOurs = Set(block.ours.indices)
             let allTheirs = Set(block.theirs.indices)
@@ -72,19 +74,20 @@ public struct ConflictFile: Sendable, Equatable {
         }
     }
 
-    /// Kết quả đọc file xung đột từ byte trên đĩa.
+    /// The result of reading a conflicted file from bytes on disk.
     public enum ParseResult: Sendable, Equatable {
         case parsed(ConflictFile)
-        /// Không phải UTF-8 hợp lệ (Latin-1, CP1258, UTF-16…): không giải trong app — ghi lại sau khi giải mã sẽ làm
-        /// hỏng mọi ký tự không phải ASCII. `conflictCount` đếm dấu theo byte (dấu là ASCII) để biết còn xung đột không.
+        /// Not valid UTF-8 (Latin-1, CP1258, UTF-16…): the app doesn't decode it — re-encoding after
+        /// decoding would corrupt every non-ASCII character. `conflictCount` counts markers by byte (markers
+        /// are ASCII) so we still know whether conflicts remain.
         case notUTF8(conflictCount: Int)
     }
 
-    /// Nội dung gốc — nguồn để ghép lại khi lưu.
+    /// The original content — the source used to reassemble the file on save.
     public let bytes: [UInt8]
     public let hasBOM: Bool
     public let segments: [Segment]
-    /// "\r\n" nếu file có dòng CRLF, ngược lại "\n" (chỉ để tham khảo: khi lưu mỗi dòng giữ kiểu xuống dòng riêng).
+    /// "\r\n" when the file has CRLF lines, otherwise "\n" (reference only: on save each line keeps its own ending).
     public let lineEnding: String
     public let endsWithNewline: Bool
 
@@ -97,7 +100,7 @@ public struct ConflictFile: Sendable, Equatable {
 
     public var conflictCount: Int { blocks.count }
 
-    /// Đọc byte của file trên đĩa. File không phải UTF-8 hợp lệ → `.notUTF8`, không bao giờ trả nội dung đã giải mã lỏng.
+    /// Read the file's bytes from disk. A file that isn't valid UTF-8 → `.notUTF8`; loosely decoded content is never returned.
     public static func parse(_ data: Data) -> ParseResult {
         let file = parse(bytes: [UInt8](data))
         return UTF8Text.isValid(file.bytes) ? .parsed(file) : .notUTF8(conflictCount: file.conflictCount)
@@ -109,7 +112,7 @@ public struct ConflictFile: Sendable, Equatable {
 
     private static let bom: [UInt8] = [0xEF, 0xBB, 0xBF]
 
-    /// Một dòng: [start, contentEnd) là nội dung (không gồm "\n" / "\r\n"), [start, end) gồm cả xuống dòng.
+    /// One line: [start, contentEnd) is the content (without "\n" / "\r\n"), [start, end) includes the terminator.
     private struct LineSpan {
         let start: Int
         let contentEnd: Int
@@ -130,7 +133,7 @@ public struct ConflictFile: Sendable, Equatable {
             position = lineFeed + 1
         }
 
-        /// Đúng 7 ký tự `char`, rồi hết dòng hoặc một dấu cách + nhãn. Trả nhãn, hoặc nil nếu không phải dấu.
+        /// Exactly 7 `char`s, then either end of line or one space plus a label. Returns the label, or nil when it isn't a marker.
         func marker(_ span: LineSpan, _ char: Character) -> String? {
             let code = char.asciiValue!
             guard span.contentEnd - span.start >= 7, bytes[span.start..<span.start + 7].allSatisfy({ $0 == code }) else { return nil }
@@ -141,7 +144,7 @@ public struct ConflictFile: Sendable, Equatable {
         func texts(_ lines: Range<Int>) -> [String] {
             lines.map { String(decoding: bytes[spans[$0].start..<spans[$0].contentEnd], as: UTF8.self) }
         }
-        /// Mốc byte đầu dòng `index`; `index` = số dòng thì là cuối file.
+        /// The byte offset of the start of line `index`; `index` equal to the line count means end of file.
         func offset(_ index: Int) -> Int {
             index < spans.count ? spans[index].start : bytes.count
         }
@@ -158,7 +161,7 @@ public struct ConflictFile: Sendable, Equatable {
                 index += 1
                 continue
             }
-            // Tìm cấu trúc block hoàn chỉnh; nếu không đủ thì coi như văn bản thường.
+            // Look for a complete block structure; if it doesn't add up, treat it as ordinary text.
             var stage = 0 // 0: ours, 1: base, 2: theirs
             var baseMarker: Int?
             var baseLabel: String?
@@ -215,20 +218,20 @@ public struct ConflictFile: Sendable, Equatable {
                             endsWithNewline: bytes.last == UInt8(ascii: "\n"))
     }
 
-    /// Ghép lại nội dung file (byte) theo lựa chọn cho từng block. Trả về nil nếu còn block chưa chọn.
-    /// Nếu dòng >>>>>>> là dòng cuối file và không có xuống dòng thì kết quả cũng không có xuống dòng cuối.
+    /// Reassemble the file's bytes from the per-block choices. Returns nil while any block is still unchosen.
+    /// If the >>>>>>> line is the last line of the file and has no terminator, the result has no final terminator either.
     public func resolvedData(with choices: [Int: Resolution]) -> Data? {
         resolvedData(choices: choices.mapValues { Choice.side($0) })
     }
 
-    /// Như trên, với lựa chọn từng dòng.
+    /// The same, using per-line choices.
     public func resolvedData(choices: [Int: Choice]) -> Data? {
         guard blocks.allSatisfy({ choices[$0.id] != nil }) else { return nil }
         return previewData(choices: choices)
     }
 
-    /// Nội dung file theo các lựa chọn hiện có; đoạn chưa chọn giữ nguyên dấu xung đột — để xem trước kết quả trong lúc
-    /// đang chọn.
+    /// The file content given the choices made so far; unchosen regions keep their conflict markers — so
+    /// the result can be previewed while choosing.
     public func previewData(choices: [Int: Choice]) -> Data {
         var output = Data()
         var cursor = 0
@@ -254,7 +257,7 @@ public struct ConflictFile: Sendable, Equatable {
             let parts = ranges.filter { !$0.isEmpty }
             let unterminatedTail = block.region.upperBound == bytes.count && !endsWithNewline
             for (position, range) in parts.enumerated() {
-                // Dòng cuối của một phía có thể thiếu xuống dòng khi không phải cuối file — thêm để dòng sau không dính vào.
+                // A side's last line can lack a terminator when it isn't the end of file — add one so the next line doesn't run into it.
                 var piece = Data(bytes[range])
                 if position < parts.count - 1 || !unterminatedTail, piece.last != UInt8(ascii: "\n") {
                     piece.append(contentsOf: Array(lineEnding.utf8))
@@ -269,12 +272,12 @@ public struct ConflictFile: Sendable, Equatable {
         return output
     }
 
-    /// Như `resolvedData(with:)` nhưng dạng chuỗi (file đã là UTF-8 hợp lệ nên không mất byte nào).
+    /// Like `resolvedData(with:)` but as a string (the file is already valid UTF-8, so no bytes are lost).
     public func resolved(with choices: [Int: Resolution]) -> String? {
         resolvedData(with: choices).map { String(decoding: $0, as: UTF8.self) }
     }
 
-    /// Độ dài ký tự xuống dòng ở cuối `range` ("\n" = 1, "\r\n" = 2, không có = 0).
+    /// Length in characters of the line terminator at the end of `range` ("\n" = 1, "\r\n" = 2, none = 0).
     private func terminatorLength(_ range: Range<Int>) -> Int {
         guard !range.isEmpty, bytes[range.upperBound - 1] == UInt8(ascii: "\n") else { return 0 }
         return range.count >= 2 && bytes[range.upperBound - 2] == UInt8(ascii: "\r") ? 2 : 1

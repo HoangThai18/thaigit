@@ -2,31 +2,32 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Chạy kịch bản tự động để chụp ảnh giao diện khi kiểm thử (chỉ bật khi có biến môi trường).
+/// Runs an automated script to capture UI screenshots while testing (only enabled when an environment variable
+/// is set).
 ///
-///     NHANH_OPEN=/đường/dẫn/repo NHANH_SNAPSHOT_DIR=/tmp/anh \
+///     NHANH_OPEN=/path/to/repo NHANH_SNAPSHOT_DIR=/tmp/shots \
 ///     NHANH_STEPS="wait:2,snap:graph,select:wip,snap:wip,open:first,snap:diff,quit" Thaigit.app/Contents/MacOS/Thaigit
 enum AutomationHarness {
     private static var started = false
-    /// Đang chạy kịch bản chụp ảnh: không gọi API GitHub thật (dùng dữ liệu giả qua `act:fakeprs`).
-    /// Chạy tự động: kho bí mật dùng bản trong bộ nhớ, không đụng Keychain thật (không bật hộp hỏi quyền).
+    /// A screenshot script is running: never call the real GitHub API (fake data via `act:fakeprs` instead).
+    /// Automated run: the secret store is the in-memory one, the real Keychain is never touched (no permission prompt).
     nonisolated static var isActive: Bool { ProcessInfo.processInfo.environment["NHANH_SNAPSHOT_DIR"] != nil }
-    /// Mốc thời gian khởi động (đặt trong applicationDidFinishLaunching) để đo tốc độ tải.
+    /// The launch timestamp (set in applicationDidFinishLaunching) used to measure load speed.
     private static var launchTime = Date()
 
-    /// Áp dụng giao diện sáng/tối ép buộc khi kiểm thử (NHANH_APPEARANCE=dark|light).
+    /// Force the light/dark appearance while testing (NHANH_APPEARANCE=dark|light).
     static func applyAppearance() {
         switch ProcessInfo.processInfo.environment["NHANH_APPEARANCE"] {
         case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
         case "light": NSApp.appearance = NSAppearance(named: .aqua)
         default: break
         }
-        // Cửa sổ không active thì nút chính, dòng chọn… vẽ màu xám. macOS chỉ cho app lên trước khi người dùng
-        // đang ở app đã mở nó (terminal), nên không giành focus khi người dùng đang làm việc khác.
+        // In an inactive window the primary button, selection line… are drawn grey. macOS only lets an app come to the
+        // front while the user is in the app that opened it (the terminal), so don't steal focus while the user works elsewhere.
         NSApp.activate()
     }
 
-    /// Chụp màn hình chào (khi không mở repo nào) rồi thoát.
+    /// Capture the welcome screen (when no repo is open), then quit.
     static func attachWelcome() {
         let environment = ProcessInfo.processInfo.environment
         guard !started, environment["NHANH_OPEN"] == nil, let directory = environment["NHANH_SNAPSHOT_DIR"] else { return }
@@ -37,7 +38,7 @@ enum AutomationHarness {
             try? await Task.sleep(for: .seconds(2))
             snapshot(to: (directory as NSString).appendingPathComponent("welcome.png"))
             if environment["NHANH_STEPS"]?.contains("clone") == true {
-                // Mượn clipboard để thử tự điền URL, chụp xong trả lại nội dung cũ.
+                // Borrow the clipboard to exercise URL auto-fill, then put the old contents back after the shot.
                 let pasteboard = NSPasteboard.general
                 let saved = pasteboard.pasteboardItems?.map { item in
                     item.types.reduce(into: [NSPasteboard.PasteboardType: Data]()) { $0[$1] = item.data(forType: $1) }
@@ -58,7 +59,7 @@ enum AutomationHarness {
         }
     }
 
-    /// Sheet đang mở chặn terminate — đóng hết rồi thoát; chốt chặn bằng exit.
+    /// An open sheet blocks terminate — close everything then quit; the exit code makes it deterministic.
     private static func quit() async {
         for window in NSApp.windows {
             for sheet in window.sheets { window.endSheet(sheet) }
@@ -70,18 +71,18 @@ enum AutomationHarness {
 
     static var welcomeActions: WindowActions?
     static weak var windowActions: WindowActions?
-    /// Chữ gõ sẵn vào bảng lệnh ⌘P khi chụp ảnh (bước palette:<chữ>).
+    /// Text pre-typed into the ⌘P command palette when capturing (the palette:<text> step).
     static var paletteQuery: String?
-    /// Các tab của cửa sổ đang chạy kịch bản (bước newtab / tab:<đường dẫn> / notes / selecttab:<n>).
+    /// The tabs of the window running the script (the newtab / tab:<path> / notes / selecttab:<n> steps).
     static weak var tabs: TabsModel?
 
-    /// Ghi log chẩn đoán ra stderr khi đang chạy kiểm thử tự động.
+    /// Writes diagnostic logs to stderr while an automated run is in progress.
     static func log(_ message: @autoclosure () -> String) {
         guard ProcessInfo.processInfo.environment["NHANH_SNAPSHOT_DIR"] != nil else { return }
         FileHandle.standardError.write(Data("harness: \(message())\n".utf8))
     }
 
-    /// Chụp ảnh nếu sau một lúc kịch bản vẫn chưa chạy (để chẩn đoán).
+    /// Take a screenshot if the script still hasn't run after a while (for diagnosis).
     static func startWatchdog() {
         let environment = ProcessInfo.processInfo.environment
         guard let directory = environment["NHANH_SNAPSHOT_DIR"] else { return }
@@ -99,7 +100,7 @@ enum AutomationHarness {
         let environment = ProcessInfo.processInfo.environment
         log("attach \(model.repository.root.path) started=\(started)")
         guard !started, let directory = environment["NHANH_SNAPSHOT_DIR"] else { return }
-        // Chỉ chạy trên repo được chỉ định (bỏ qua các tab được macOS khôi phục).
+        // Only act on the repo that was named (skip tabs macOS restored by itself).
         if let target = environment["NHANH_OPEN"], !target.isEmpty,
            URL(fileURLWithPath: target).resolvingSymlinksInPath().path != model.repository.root.resolvingSymlinksInPath().path {
             return
@@ -124,7 +125,7 @@ enum AutomationHarness {
         case "wait":
             try? await Task.sleep(for: .seconds(Double(argument) ?? 1))
         case "settings":
-            // Mở Cài đặt ở thẻ chỉ định (general / git / account / ssh) — cửa sổ Cài đặt được lưu riêng khi "snap".
+            // Open Settings at the given tab (general / git / account / ssh) — the Settings window is saved separately on "snap".
             UserDefaults.standard.set(argument.isEmpty ? SettingsTab.general.rawValue : argument, forKey: Prefs.settingsTab)
             if let menu = NSApp.mainMenu?.items.first?.submenu,
                let index = menu.items.firstIndex(where: { $0.keyEquivalent == "," }) {
@@ -190,7 +191,7 @@ enum AutomationHarness {
         case "selecttab":
             tabs?.select(number: Int(argument) ?? 1)
         case "selectlines":
-            // Chọn n dòng thay đổi đầu tiên của hunk đầu tiên.
+            // Select the first n changed lines of the first hunk.
             if case .text(let presentation) = model.diffState, let hunk = presentation.hunks.first {
                 let count = Int(argument) ?? 1
                 for line in hunk.lines.filter({ $0.kind == .addition || $0.kind == .deletion }).prefix(count) {
@@ -200,7 +201,7 @@ enum AutomationHarness {
         case "toast":
             model.toast(.success, "Đã commit vào main", actions: [ToastAction(title: "Hoàn tác") {}])
         case "drag":
-            // Mô phỏng thả nhánh `a` lên nhánh `b`: drag:a>b
+            // Simulate dropping branch `a` onto branch `b`: drag:a>b
             let names = argument.split(separator: ">").map(String.init)
             if names.count == 2,
                let source = model.refs.first(where: { $0.name == names[0] }),
@@ -208,7 +209,7 @@ enum AutomationHarness {
                 model.dragRequest = DragRequest(source: source, target: .ref(target))
             }
         case "append":
-            // Giả lập sửa file từ bên ngoài app (để kiểm tra tự làm mới): append:đường/dẫn
+            // Simulate an outside edit of a file (to check the auto-refresh): append:<path>
             let url = model.repository.root.appendingPathComponent(argument)
             if let handle = try? FileHandle(forWritingTo: url) {
                 handle.seekToEndOfFile()
@@ -220,7 +221,7 @@ enum AutomationHarness {
         case "summary":
             model.commitSummary = argument
         case "dump":
-            // Ghi các dòng đang có trên graph (kiểm tra khi ảnh chụp không đủ rõ).
+            // Write the lines currently on the graph (useful when the screenshot isn't clear enough).
             log("graph: " + model.entries.map { $0.commit.subject + ($0.labels.isEmpty ? "" : " [" + $0.labels.map(\.text).joined(separator: ",") + "]") }
                 .joined(separator: " | "))
         case "act":
@@ -241,11 +242,11 @@ enum AutomationHarness {
             case "push": model.push()
             case "pull": model.pull()
             case "undolast":
-                // Như bấm nút Undo trên thanh công cụ (chỉ chạy khi nút đang bật).
+                // Like pressing the Undo button on the toolbar (only runs when the button is enabled).
                 log("canUndoLast=\(model.canUndoLast) \(model.lastUndo?.title ?? "-")")
                 model.undoLast()
             case "undo":
-                // Bấm nút đầu tiên của thông báo mới nhất (thường là "Hoàn tác").
+                // Press the first button of the most recent notification (usually "Undo").
                 if let toast = model.toasts.last(where: { !$0.actions.isEmpty }), let action = toast.actions.first {
                     model.dismissToast(toast.id)
                     action.handler()
@@ -253,25 +254,25 @@ enum AutomationHarness {
             case "newbranch":
                 model.beginCreateBranchAtHead()
             case "compare":
-                // So sánh commit ở dòng a (gốc) với dòng b: act:compare:5:1
+                // Compare the commit at row a (base) with row b: act:compare:5:1
                 let rows = value.split(separator: ":").compactMap { Int($0) }
                 if rows.count == 2, let from = model.entry(at: rows[0]), let to = model.entry(at: rows[1]) {
                     model.select(.compare(from: from.commit.id, to: to.commit.id))
                 }
             case "blame":
-                // Blame file trong working tree: act:blame:đường/dẫn
+                // Blame a file in the working tree: act:blame:<path>
                 model.sheet = .blame(path: value, rev: nil)
             case "irebase":
-                // Interactive rebase từ commit ở dòng n của graph: act:irebase:4
+                // Interactive rebase from the commit at graph row n: act:irebase:4
                 if let entry = model.entry(at: Int(value) ?? 3) { model.beginInteractiveRebase(from: entry.commit) }
             case "reword":
-                // Mở hộp sửa message cho commit ở dòng n: act:reword:2
+                // Open the message editor for the commit at row n: act:reword:2
                 if let entry = model.entry(at: Int(value) ?? 1) { model.beginReword(entry.commit) }
             case "moveup", "movedown":
-                // Đổi chỗ commit ở dòng n với commit liền sau / liền trước: act:moveup:3
+                // Swap the commit at row n with the next / previous one: act:moveup:3
                 if let entry = model.entry(at: Int(value) ?? 1) { model.move(entry.commit, up: pieces[0] == "moveup") }
             case "fakeprs":
-                // PR giả cho mọi nhánh của remote GitHub (trừ main) và một PR từ fork — không gọi mạng.
+                // Fake PRs for every branch of the GitHub remote (except main) plus one forked PR — no network.
                 if let github = model.githubRemote {
                     var pulls = model.remoteBranches
                         .filter { $0.remoteName == github.name && $0.shortBranchName != "main" && $0.shortBranchName != "HEAD" }
@@ -292,22 +293,22 @@ enum AutomationHarness {
                     model.refreshLabels()
                 }
             case "edit":
-                // Sửa file đang mở trong app; act:edit:<chữ> thêm chữ vào cuối (để thấy trạng thái "Chưa lưu").
+                // Edit the open file in-app; act:edit:<text> appends text (so the "Unsaved" state is visible).
                 if let file = model.openFile {
                     model.beginEditing(file)
                     if !value.isEmpty { model.fileEditor?.text += value + "\n" }
                 }
             case "term":
-                // Mở terminal trong app và chạy lệnh: act:term:git status
+                // Open the in-app terminal and run a command: act:term:git status
                 if model.terminal?.isVisible != true { model.toggleTerminal() }
                 model.terminal?.send(value)
             case "ai":
-                // AI viết commit message cho thay đổi đã stage, ghi kết quả ra log.
+                // Have the AI write a commit message for the staged changes, logging the result.
                 log("ai: " + (CommitMessageAI.unavailableReason ?? "sẵn sàng"))
                 await model.fillCommitMessageWithAI()
                 log("ai summary: \(model.commitSummary) | body: \(model.commitBody.replacingOccurrences(of: "\n", with: " / "))")
             case "sheet":
-                // Mở hộp thoại theo tên: act:sheet:signing | worktree | flowinit | flowstart | lfs
+                // Open a dialog by name: act:sheet:signing | worktree | flowinit | flowstart | lfs
                 switch value {
                 case "signing": model.sheet = .commitSigning
                 case "worktree": model.sheet = .addWorktree
@@ -318,7 +319,7 @@ enum AutomationHarness {
                 default: break
                 }
             case "hide", "solo":
-                // Ẩn / solo nhánh theo tên: act:hide:thu-nghiem, act:solo:main
+                // Hide / solo a branch by name: act:hide:thu-nghiem, act:solo:main
                 if let ref = model.refs.first(where: { $0.kind != .tag && $0.name == value }) {
                     if pieces[0] == "hide" { model.toggleHidden(ref) } else { model.toggleSolo(ref) }
                 }
@@ -350,7 +351,7 @@ enum AutomationHarness {
                 if actions.indices.contains(index) { actions[index]() }
             }
         case "ready":
-            // Chờ graph tải xong rồi ghi thời gian kể từ lúc mở app.
+            // Wait for the graph to finish loading, then write the time since the app opened.
             while !model.hasLoaded || model.entries.isEmpty {
                 try? await Task.sleep(for: .milliseconds(20))
             }
@@ -367,7 +368,7 @@ enum AutomationHarness {
             while model.isLoadingHistory { try? await Task.sleep(for: .milliseconds(20)) }
             log(String(format: "tải thêm %.2fs → %d hàng", Date().timeIntervalSince(before), model.entries.count))
         case "benchselect":
-            // Chọn lần lượt N commit, đo thời gian trung bình luồng chính xử lý mỗi lần (đã trừ thời gian chờ).
+            // Pick n commits in turn, measuring the average time the main thread spends on each (waiting time excluded).
             let count = Int(argument) ?? 20
             let before = Date()
             for row in 1...count {
@@ -383,7 +384,7 @@ enum AutomationHarness {
         case "log":
             log("sheet=\(String(describing: model.sheet)) windows=\(NSApp.windows.map { "\(type(of: $0)) visible=\($0.isVisible) sheet=\($0.isSheet) \(Int($0.frame.width))x\(Int($0.frame.height)) sheets=\($0.sheets.count)" })")
         case "tree":
-            // Chẩn đoán bố cục: chuỗi view cha của từng bảng (graph, sidebar…) kèm frame/bounds.
+            // Layout diagnosis: the parent view chain of each list (graph, sidebar…) plus frame/bounds.
             guard let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 600 }), let root = window.contentView else { break }
             for (index, table) in tables(in: root).enumerated() {
                 var chain: [String] = []
@@ -399,7 +400,7 @@ enum AutomationHarness {
                 log("[\(argument)] table \(index) rows=\(table.numberOfRows):\n    " + chain.joined(separator: "\n    "))
             }
         case "graphselect":
-            // Chọn hàng thứ N của graph như người dùng bấm.
+            // Select the graph's Nth row as a user click would.
             guard let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 600 }), let root = window.contentView,
                   let table = tables(in: root).first(where: { $0 is CommitNSTableView }), let row = Int(argument), row < table.numberOfRows else { break }
             table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
@@ -415,12 +416,12 @@ enum AutomationHarness {
         return view.subviews.flatMap { tables(in: $0) }
     }
 
-    /// Chụp toàn bộ cửa sổ (kể cả thanh tiêu đề/toolbar) của chính app — không cần quyền ghi màn hình.
-    /// Ảnh chính ghép sẵn sheet/alert/popover đang mở lên cửa sổ như trên màn hình.
+    /// Capture the whole window (title bar / toolbar included) of the app itself — no screen-recording permission needed.
+    /// The main image has any open sheet / alert / popover composited onto the window as on screen.
     static func snapshot(to path: String) {
         let mainWindow = NSApp.windows.first(where: { $0.isVisible && $0.sheetParent == nil && $0.contentView != nil && $0.frame.width > 600 })
         guard let window = mainWindow else { return }
-        // NSApp.orderedWindows bỏ qua panel (alert của confirmationDialog) nên tự xếp theo thứ tự trên màn hình, sau ra trước.
+        // NSApp.orderedWindows skips panels (a confirmationDialog's alert), so they are ordered by their on-screen order instead: later first.
         let overlays = NSApp.windows
             .filter { $0 !== window && $0.isVisible && $0.frame.width > 40 }
             .sorted { $0.orderedIndex > $1.orderedIndex }
@@ -429,7 +430,7 @@ enum AutomationHarness {
         } else {
             write(window, to: path)
         }
-        // Từng sheet/alert/popover cũng lưu riêng.
+        // Each sheet / alert / popover is also saved on its own.
         for (index, other) in overlays.enumerated() {
             log("extra window \(index + 1): \(type(of: other)) \(Int(other.frame.width))x\(Int(other.frame.height))")
             let extraPath = path.replacingOccurrences(of: ".png", with: "-w\(index + 1).png")
@@ -437,9 +438,9 @@ enum AutomationHarness {
         }
     }
 
-    /// Bản chụp do window server dựng — có cả Liquid Glass và vật liệu mờ, thứ mà `cacheDisplay` không vẽ được.
-    /// App chụp cửa sổ của chính nó thì không cần quyền ghi màn hình. CGWindowListCreateImage bị ẩn khỏi SDK mới
-    /// (vẫn có trong CoreGraphics) nên gọi qua dlsym; không có thì quay về `cacheDisplay`.
+    /// A capture produced by the window server — it includes Liquid Glass and the blurred materials that `cacheDisplay` can't draw.
+    /// The app capturing its own window needs no screen-recording permission. CGWindowListCreateImage is hidden from
+    /// newer SDKs (still present in CoreGraphics) so it's called via dlsym; without it, fall back to `cacheDisplay`.
     private static func windowServerImage(of window: NSWindow) -> CGImage? {
         typealias CreateImage = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
         guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else { return nil }
@@ -451,7 +452,7 @@ enum AutomationHarness {
         return image
     }
 
-    /// Màn hình đang khoá / tắt thì window server trả về ảnh một màu: khi đó dùng `cacheDisplay`.
+    /// When the screen is locked or off the window server returns a solid-colour image: use `cacheDisplay` then.
     private static func isBlank(_ image: CGImage) -> Bool {
         let side = 24
         var pixels = [UInt8](repeating: 0, count: side * side * 4)

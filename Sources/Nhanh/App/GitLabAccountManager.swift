@@ -2,9 +2,10 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Tài khoản GitLab của app: đăng nhập gitlab.com bằng mã (OAuth Device Flow, cần Client ID trong Info.plist) hoặc dán
-/// personal access token cho mọi máy chủ (gitlab.com, GitLab tự host của công ty). Token chỉ nằm trong Keychain; lệnh git
-/// HTTPS tới host của tài khoản nhận token qua `gitlab-credential.sh` (xem `GitLabCredentialInjection`).
+/// The app's GitLab accounts: device-code sign-in for gitlab.com (OAuth Device Flow, needs a client ID in
+/// Info.plist) or pasting a personal access token for any server (gitlab.com, a company's self-hosted GitLab).
+/// Tokens live only in the Keychain; an HTTPS git command to the account's host receives the token through
+/// `gitlab-credential.sh` (see `GitLabCredentialInjection`).
 @Observable
 final class GitLabAccountManager {
     static let shared = GitLabAccountManager()
@@ -45,7 +46,7 @@ final class GitLabAccountManager {
         accounts = store.accounts
     }
 
-    /// Đăng nhập gitlab.com bằng mã được không (bản build có Client ID).
+    /// Whether device-code sign-in for gitlab.com is possible (the build has a client ID).
     var supportsDeviceLogin: Bool { clientID != nil }
 
     func bind(to environment: GitEnvironmentStore) {
@@ -58,7 +59,7 @@ final class GitLabAccountManager {
         }
     }
 
-    // MARK: - Đăng nhập bằng mã (gitlab.com)
+    // MARK: - Device-code sign-in (gitlab.com)
 
     func startDeviceLogin() {
         guard let clientID else {
@@ -97,14 +98,14 @@ final class GitLabAccountManager {
         loginState = .idle
     }
 
-    // MARK: - Dán token (mọi máy chủ)
+    // MARK: - Pasting a token (any server)
 
-    /// Trang tạo personal access token, điền sẵn tên và quyền cần.
+    /// The personal access token creation page, with the name and scopes pre-filled.
     static func tokenPage(host: String) -> URL? {
         URL(string: "https://\(host)/-/user_settings/personal_access_tokens?name=Thaigit&scopes=api,read_user,read_repository,write_repository")
     }
 
-    /// Kiểm tra token với máy chủ rồi lưu. Trả về thông báo lỗi thân thiện (nil: thành công).
+    /// Validate the token with the server, then store it. Returns a friendly error message (nil on success).
     func addToken(host rawHost: String, token rawToken: String) async -> String? {
         guard let host = GitLabAPI.normalizedHost(rawHost) else { return GitLabError.invalidHost.errorDescription }
         let token = rawToken.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -128,7 +129,7 @@ final class GitLabAccountManager {
         }
     }
 
-    /// Thêm khoá SSH công khai lên tài khoản. Không có token hợp lệ thì coi như thiếu quyền (tự dán).
+    /// Upload an SSH public key to the account. With no valid token it's treated as "missing permission" (paste it manually).
     func addSSHKey(account: GitLabAccount, title: String, publicKey: String) async throws -> GitLabAPI.SSHKeyUpload {
         guard let token = await store.validToken(for: account) else { return .missingScope }
         return try await api.addSSHKey(host: account.host, token: token.accessToken, title: title, publicKey: publicKey)

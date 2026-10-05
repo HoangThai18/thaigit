@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import NhanhCore
 
-/// File đặc tả dùng chung với app Tauri (`packages/contracts`).
+/// The spec file shared with the Tauri app (`packages/contracts`).
 private func contractJSON(_ name: String) throws -> [String: Any] {
     let url = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

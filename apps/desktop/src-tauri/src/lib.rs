@@ -1,5 +1,6 @@
-//! Lớp Rust mỏng của Thaigit: chạy git qua bộ kiểm tra chính sách, file theo byte trong phạm vi repo, watcher có lọc,
-//! hộp thoại native — giao diện và logic git nằm ở TypeScript. Đây là RANH GIỚI BẢO MẬT giữa webview (không tin cậy) và máy.
+//! Thaigit's thin Rust layer: runs git through the policy checker, does byte-level file access scoped to the repo, runs a
+//! filtered watcher, and shows native dialogs — the UI and the git logic live in TypeScript. This is the SECURITY
+//! BOUNDARY between the untrusted webview and the machine.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -37,7 +38,7 @@ pub mod typed;
 pub mod updater;
 pub mod watcher;
 
-// Các kịch bản dùng script `#!/bin/sh` và `touch` làm "lệnh của repo": chỉ chạy trên Unix.
+// The scenarios use `#!/bin/sh` scripts and `touch` as a "repo command": Unix only.
 #[cfg(all(test, unix))]
 mod restricted_tests;
 #[cfg(test)]
@@ -48,7 +49,7 @@ mod testutil;
 use crate::core::{Core, EventSink};
 use crate::watcher::RepoChangedEvent;
 
-/// Đẩy sự kiện sang webview qua Tauri.
+/// Pushes events to the webview through Tauri.
 struct TauriEvents(tauri::AppHandle);
 
 impl EventSink for TauriEvents {
@@ -61,7 +62,7 @@ impl EventSink for TauriEvents {
     }
 }
 
-/// Chỉ cho điều hướng trong chính app: `tauri://` (macOS/Linux), `http(s)://tauri.localhost` (Windows), dev server khi chạy dev.
+/// Navigation is only allowed inside the app: `tauri://` (macOS/Linux), `http(s)://tauri.localhost` (Windows), the dev server when running dev.
 pub fn allowed_navigation(url: &url::Url, dev_url: Option<&url::Url>) -> bool {
     match url.scheme() {
         "tauri" => url.host_str() == Some("localhost"),
@@ -74,8 +75,8 @@ pub fn allowed_navigation(url: &url::Url, dev_url: Option<&url::Url>) -> bool {
     }
 }
 
-/// Dựng một cửa sổ app từ cấu hình cửa sổ `main` (nhãn `label`) và gắn chốt chặn điều hướng/`window.open` ra ngoài app (CSP
-/// là lớp thứ hai). Cửa sổ thêm (Ctrl/⌘+T) có nhãn `repo-N` — capability cấp quyền cho `main` và `repo-*`.
+/// Build one app window from the `main` window config (its `label`) and attach the navigation/`window.open` guard that
+/// blocks leaving the app (the CSP is the second layer). Extra windows (Ctrl/⌘+T) get the label `repo-N` — the capability grants rights to `main` and `repo-*`.
 pub fn build_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -> tauri::Result<()> {
     let mut config = app
         .config()
@@ -96,24 +97,24 @@ pub fn build_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -
 
 static WINDOW_SERIAL: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
 
-/// Nhãn cho cửa sổ thêm kế tiếp (`repo-N`).
+/// Label for the next extra window (`repo-N`).
 pub fn next_window_label() -> String {
     let serial = WINDOW_SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     format!("repo-{serial}")
 }
 
-/// `new_window`: mở thêm một cửa sổ (màn hình chính) để làm việc với repo khác song song.
+/// `new_window`: open an extra window (the main screen) to work with another repo in parallel.
 pub fn open_new_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     build_window(app, &next_window_label())
 }
 
-/// Thư mục truyền qua dòng lệnh ("Mở bằng…"): chỉ nhận đường dẫn là thư mục thật.
+/// A folder passed on the command line ("Open With…"): only accepted when it is a real directory.
 fn launch_paths() -> Vec<PathBuf> {
     std::env::args_os().skip(1).filter(|a| !a.to_string_lossy().starts_with('-')).map(PathBuf::from).filter(|p| p.is_dir()).collect()
 }
 
 async fn init_git(core: Arc<Core>) {
-    // Tìm git ngay với PATH sẵn có để lệnh đầu tiên chạy được; rồi nạp PATH login shell (macOS) và tìm lại.
+    // Locate git right away with the existing PATH so the very first command can run; then load the login shell's PATH (macOS) and look again.
     let _ = core.locator.refresh().await;
     core.events.git_env_changed();
     if core.locator.load_login_path(commands::LOGIN_PATH_TIMEOUT).await {
@@ -130,13 +131,13 @@ fn reset_window_session(app: &tauri::AppHandle, label: &str) {
     }
 }
 
-/// Context của app (cấu hình, capability, tài nguyên giao diện). `generate_context!` chỉ gọi được một lần trong crate nên
-/// cả `run()` lẫn test IPC (runtime giả) đều đi qua hàm này.
+/// The app context (config, capability, UI assets). `generate_context!` may only be called once per crate, so both
+/// `run()` and the IPC tests (fake runtime) go through this function.
 fn app_context<R: tauri::Runtime>() -> tauri::Context<R> {
     tauri::generate_context!()
 }
 
-/// Đăng ký toàn bộ lệnh IPC của app (generic theo runtime để test bằng runtime giả).
+/// Register every app IPC command (generic over the runtime so a fake runtime can be used in tests).
 fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     builder.invoke_handler(tauri::generate_handler![
         commands::pick_repo_folder,
@@ -218,7 +219,7 @@ pub fn run() {
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
-            // Đếm lần khởi động trước khi nạp giao diện (giao diện không lên được thì vẫn đếm).
+            // Count the startup BEFORE loading the UI (a UI that never comes up still counts).
             locale::init(app.handle(), &data_dir);
             safe_mode::init(app.handle(), &data_dir);
             let askpass_deny = std::env::current_exe().ok().and_then(|exe| askpass::prepare_deny_program(&data_dir, &exe));
@@ -226,7 +227,7 @@ pub fn run() {
             core.registry.push_launch_paths(launch_paths());
             app.manage(core.clone());
             app.manage(Arc::new(terminal::Terminals::default()));
-            // Seam S0: các khung này hiện là no-op; 2b (askpass) và 8a (updater) điền thân hàm, không phải sửa lại chỗ gọi.
+            // Seam S0: these handlers are no-ops for now; 2b (askpass) and 8a (updater) fill in the bodies, not the call sites.
             askpass::init(app.handle())?;
             credential::init(app.handle())?;
             updater::init(app.handle())?;
@@ -234,7 +235,7 @@ pub fn run() {
             build_window(app.handle(), "main")?;
             Ok(())
         })
-        // Webview tải lại: huỷ op con và bỏ watcher của phiên cũ.
+        // The webview reloaded: cancel child ops and drop the old session's watcher.
         .on_page_load(|webview, payload| {
             if payload.event() == PageLoadEvent::Started {
                 reset_window_session(webview.app_handle(), webview.label());
@@ -253,7 +254,7 @@ pub fn run() {
         }
     };
     app.run(|handle, event| {
-        // macOS: thả thư mục lên biểu tượng Dock / "Mở bằng" gửi sự kiện này thay vì argv.
+        // macOS: dropping a folder on the Dock icon / "Open With" sends this event instead of argv.
         #[cfg(target_os = "macos")]
         if let tauri::RunEvent::Opened { urls } = event
             && let Some(core) = handle.try_state::<Arc<Core>>()
@@ -277,7 +278,7 @@ mod contract_tests {
     const TAURI_CONF: &str = include_str!("../tauri.conf.json");
     const LIB_RS: &str = include_str!("lib.rs");
 
-    /// Tên lệnh trong `export const Commands = { … }` của contracts (giá trị chuỗi).
+    /// The command name in contracts' `export const Commands = { … }` (a string value).
     fn contract_commands() -> BTreeSet<String> {
         let start = IPC_TS.find("export const Commands").expect("contracts có Commands");
         let block = &IPC_TS[start..];
@@ -350,8 +351,8 @@ mod contract_tests {
         assert_eq!(conf["app"]["windows"][0]["create"], serde_json::json!(false), "cửa sổ dựng trong code để gắn chốt chặn điều hướng");
     }
 
-    /// Windows/Android: trang là `http(s)://tauri.localhost` và IPC đi qua `http(s)://ipc.localhost` — scheme do `useHttpsScheme` của
-    /// cửa sổ quyết định, nên CSP (`connect-src`) và điều hướng phải cùng theo scheme đó.
+    /// Windows/Android: the page is `http(s)://tauri.localhost` and IPC goes through `http(s)://ipc.localhost` — the scheme
+    /// is decided by the window's `useHttpsScheme`, so the CSP (`connect-src`) and navigation must follow the same scheme.
     #[test]
     fn csp_and_navigation_follow_the_window_scheme_on_windows() {
         let conf: serde_json::Value = serde_json::from_str(TAURI_CONF).unwrap();

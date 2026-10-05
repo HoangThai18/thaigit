@@ -1,6 +1,6 @@
-// Tiện ích byte dùng chung cho runner/parsers/repository (thuần, không `node:`).
+// Shared byte helpers for the runner, parsers and repository (pure, no `node:` imports).
 
-// Giải mã lossy giống `String(decoding:as:UTF8.self)` của Swift: byte sai → U+FFFD, giữ nguyên BOM.
+// Lossy decoding matches Swift's `String(decoding:as:UTF8.self)`: invalid bytes become U+FFFD, a BOM is preserved.
 const decoder = new TextDecoder('utf-8', { ignoreBOM: true });
 const encoder = new TextEncoder();
 
@@ -24,17 +24,17 @@ export function concatBytes(chunks: readonly Uint8Array[]): Uint8Array {
   return result;
 }
 
-/** Danh sách đường dẫn ngăn bằng NUL (mỗi mục kết thúc bằng NUL), dùng với `--pathspec-from-file=- --pathspec-file-nul`. */
+/** NUL-separated path list (each entry ends with NUL), for `--pathspec-from-file=- --pathspec-file-nul`. */
 export function nulSeparated(paths: readonly string[]): Uint8Array {
   for (const path of paths) {
-    // NUL trong tên sẽ tách thành thêm một pathspec ngoài ý muốn.
+    // A NUL in a name would split it into an unintended extra pathspec.
     if (path === '' || path.includes('\0'))
       throw new RangeError(`Đường dẫn không hợp lệ: ${JSON.stringify(path)}`);
   }
   return concatBytes(paths.map((path) => encodeUtf8(`${path}\0`)));
 }
 
-/** SHA-256 dạng hex thường (Web Crypto: có sẵn ở Node ≥ 19, webview và worker). */
+/** Lowercase hex SHA-256 (Web Crypto: available in Node ≥ 19, the webview and workers). */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new Uint8Array(bytes)));
   let hex = '';

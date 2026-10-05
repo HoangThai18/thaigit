@@ -2,19 +2,19 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Merge một nhánh của repository khác (thư mục trên máy hoặc URL) vào nhánh của repo đang mở — không thêm remote.
-/// Mở lại thì tự điền nguồn đã dùng gần nhất và tải sẵn danh sách nhánh: thường chỉ cần bấm ↩.
+/// Merges a branch of another repository (a local folder or a URL) into a branch of the open repo — without adding a remote.
+/// Reopening prefills the most recently used source and preloads its branch list: usually you just press ↩.
 struct MergeFromRepositorySheet: View {
     @Bindable var model: RepoModel
     let initialTarget: String?
     @Environment(\.dismiss) private var dismiss
 
     @State private var source = ""
-    /// Nguồn (đã chuẩn hoá) ứng với `branches`; khác nguồn đang nhập thì phải tải lại.
+    /// The (normalised) source `branches` was loaded for; a different source means reloading.
     @State private var loadedSource: String?
     @State private var branches: [String] = []
     @State private var branch = ""
-    /// Nhánh muốn chọn sẵn khi tải xong (lấy từ nguồn đã lưu).
+    /// The branch to preselect once loading finishes (taken from the stored source).
     @State private var preferredBranch: String?
     @State private var target = ""
     @State private var targetEdited = false
@@ -159,7 +159,7 @@ struct MergeFromRepositorySheet: View {
         return [model.repository.root, model.repository.gitDir].contains { $0.resolvingSymlinksInPath().standardizedFileURL == url }
     }
 
-    /// Tự điền nguồn đã dùng gần nhất (ưu tiên nguồn từng merge vào đúng nhánh được chọn) rồi tải sẵn nhánh.
+    /// Prefill the most recently used source (preferring one that was merged into the selected branch) and preload its branches.
     private func prefill() {
         saved = model.savedForeignMergeSources
         if let initialTarget {
@@ -176,7 +176,7 @@ struct MergeFromRepositorySheet: View {
 
     private func use(_ item: ForeignMergeSource, keepTarget: Bool = false) {
         source = item.source
-        // Nguồn từng merge vào nhánh khác nhánh đích đã chọn: để quy tắc "cùng tên nhánh" tự chọn nhánh nguồn.
+        // A source previously merged into a branch other than the selected one: let the "same branch name" rule pick the source branch.
         preferredBranch = keepTarget && item.target != target ? nil : item.branch
         if !keepTarget, targets.contains(item.target) {
             target = item.target
@@ -215,7 +215,7 @@ struct MergeFromRepositorySheet: View {
     private func apply(_ result: ForeignBranches, for resolved: String) {
         branches = result.names
         loadedSource = resolved
-        // "Nhánh A của repo kia vào nhánh A của repo này": ưu tiên nhánh cùng tên với nhánh đích.
+        // "Branch A of that repo into branch A of this one": prefer the branch matching the target's name.
         let candidates = [preferredBranch, targetEdited ? target : nil, initialTarget, model.currentBranch, result.defaultBranch]
         let chosen = candidates.compactMap { $0 }.first { result.names.contains($0) } ?? result.names.first ?? ""
         preferredBranch = nil
@@ -229,7 +229,7 @@ struct MergeFromRepositorySheet: View {
     }
 
     private func describe(_ error: any Error, source rawSource: String) -> String {
-        // Không hiện "user:mật-khẩu@" người dùng gõ trong URL.
+        // Never show a "user:password@" the user typed into the URL.
         let source = GitRepository.anonymizedSource(rawSource)
         if let gitError = error as? GitError {
             if gitError.contains("does not appear to be a git repository") || gitError.contains("not a git repository") {

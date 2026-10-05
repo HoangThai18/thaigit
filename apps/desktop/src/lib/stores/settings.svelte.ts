@@ -1,18 +1,18 @@
-// Màn Cài đặt mở / đóng (một màn cho cả app) và kênh cập nhật đã chọn (Rust lưu kênh thật; ở đây chỉ nhớ để hiển thị).
+// Whether the Settings screen is open / closed (one screen for the whole app) and the selected update channel (Rust stores the real channel; this only remembers it for display).
 
 import type { UpdateChannel } from '@thaigit/contracts';
 import { browserStorage, type KeyValueStorage } from './prefs.svelte.ts';
 
 export const CHANNEL_KEY = 'thaigit.update-channel.v1';
 
-/** Kênh mặc định giống Rust: bản prerelease (2.0.0-beta.1) → beta, còn lại → stable. */
+/** The default channel matches Rust: a prerelease build (2.0.0-beta.1) → beta, otherwise stable. */
 export function defaultChannel(version: string): UpdateChannel {
   return version.includes('-') ? 'beta' : 'stable';
 }
 
 export class SettingsStore {
   isOpen = $state(false);
-  /** Mục cần cuộn tới khi mở (vd. "Tài khoản" từ trang chủ); panel xoá sau khi cuộn. */
+  /** The section to scroll to when opening (e.g. "Accounts" from the homepage); the panel is removed after scrolling. */
   focus = $state<'accounts' | null>(null);
   channel = $state<UpdateChannel>('stable');
   readonly #storage: KeyValueStorage | null;
@@ -45,7 +45,7 @@ export class SettingsStore {
     try {
       this.#storage?.setItem(CHANNEL_KEY, channel);
     } catch {
-      // Bị chặn: chỉ ảnh hưởng hiển thị.
+      // Blocked: display is the only thing affected.
     }
   }
 }

@@ -2,8 +2,9 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Hộp "Đăng nhập GitHub" (OAuth Device Flow): hiện mã để người dùng nhập trên github.com, chờ xác nhận rồi báo kết quả.
-/// Thaigit không bao giờ thấy mật khẩu GitHub; token nhận về được cất trong Keychain.
+/// The "Sign in to GitHub" dialog (OAuth Device Flow): shows the code for the user to enter on github.com, waits for
+/// confirmation and then reports the result.
+/// Thaigit never sees the GitHub password; the token it receives is stored in the Keychain.
 struct GitHubLoginSheet: View {
     @Environment(\.dismiss) private var dismiss
     private let github = GitHubAccountManager.shared
@@ -28,7 +29,7 @@ struct GitHubLoginSheet: View {
         }
         .padding(24)
         .frame(width: 480)
-        // Hộp khác đang đăng nhập dở (Cài đặt, hộp Clone…) thì xem tiếp, không xin mã mới; chỉ huỷ khi hộp cuối cùng đóng.
+        // Another dialog is mid-sign-in (Settings, the Clone dialog…): keep watching it instead of requesting a new code; only cancel when the last dialog closes.
         .onAppear { github.loginSheetAppeared() }
         .onDisappear { github.loginSheetDisappeared() }
     }
@@ -79,7 +80,7 @@ struct GitHubLoginSheet: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if !github.accounts.isEmpty {
-                // Device Flow xác nhận bằng tài khoản đang đăng nhập trên trình duyệt.
+                // The Device Flow is confirmed with the account signed in on the browser.
                 Label(String(localized: "Đã có ") + github.accounts.map { "@\($0.login)" }.joined(separator: ", ")
                       + String(localized: ". Muốn thêm tài khoản khác, hãy chuyển sang tài khoản đó trên github.com (trình duyệt) trước khi nhập mã."),
                       systemImage: "person.2")
@@ -142,7 +143,7 @@ struct GitHubLoginSheet: View {
                 Button("Thử lại") { github.startLogin() }
                     .keyboardShortcut(.defaultAction)
             case .idle, .requestingCode, .waitingForUser, .finishing:
-                // Đóng hộp: lần đăng nhập bị huỷ khi không còn hộp nào khác đang xem nó.
+                // Dialog closed: the sign-in is cancelled once no other dialog watches it.
                 Button("Huỷ") { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
@@ -186,7 +187,7 @@ struct GitHubLoginSheet: View {
     }
 }
 
-/// Ảnh đại diện GitHub (tải từ avatar_url); chưa tải xong hoặc lỗi thì hiện chữ cái đầu như trên graph.
+/// A GitHub avatar (downloaded from avatar_url); while not yet downloaded or on failure the initials are shown, just like on the graph.
 struct GitHubAvatar: View {
     let account: GitHubAccount
     var size: CGFloat = 32

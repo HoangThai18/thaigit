@@ -8,7 +8,7 @@ import { IS_WINDOWS, fileExists, withTestRepo, type TestRepo } from './helpers/t
 
 const REF = snapshotSpec.ref;
 
-/** Trạng thái người dùng nhìn thấy: index, nhánh, stash, HEAD — snapshot không được đụng tới. */
+/** The state the user can see: index, branches, stash, HEAD — snapshots must not touch it. */
 function userState(t: TestRepo) {
   return {
     status: t.git('status', '--porcelain=v1', '-z', '--untracked-files=all'),
@@ -179,7 +179,7 @@ describe('SnapshotStore.restore', () => {
       const store = new SnapshotStore(t.repo);
       const target = await store.take('auto');
 
-      // Agent: sửa a, xoá b (đã track) và nhap.txt (chưa track), tạo thư mục mới, stage một file.
+      // The agent: edits a, deletes b (tracked) and nhap.txt (untracked), creates a new directory, stages one file.
       await t.write('a.txt', 'agent\n');
       t.git('rm', '-q', '--cached', 'b.txt');
       t.git('clean', '-fq', 'b.txt');
@@ -196,7 +196,7 @@ describe('SnapshotStore.restore', () => {
       expect(await t.exists('src/moi/x.ts')).toBe(false);
       expect(t.git('diff', '--cached', '--name-status')).toBe(cachedBefore);
       expect(result.trashed).toContain('src/moi/x.ts');
-      // staged.txt có trong index (đã track) nhưng không có trong mốc: bị xoá khỏi working tree, index giữ nguyên.
+      // staged.txt is in the index (tracked) but not in the marker: removed from the working tree, index untouched.
       expect(await t.exists('staged.txt')).toBe(false);
 
       await store.restore(result.before.sha, null);

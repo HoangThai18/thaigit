@@ -1,5 +1,6 @@
-//! Lệnh IPC: lớp mỏng giữa webview và `Core`. Tên lệnh khớp đúng `Commands` trong `packages/contracts/src/ipc.ts`.
-//! Webview là bên không tin cậy: mọi tham số đều được `Core` kiểm; đường dẫn chỉ đến từ token do Rust cấp.
+//! IPC commands: a thin layer between the webview and `Core`. Command names match `Commands` in
+//! `packages/contracts/src/ipc.ts` exactly.
+//! The webview is untrusted: `Core` validates every parameter, and paths only ever come from Rust-issued tokens.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,12 +28,12 @@ use crate::{askpass, safe_mode, updater};
 
 type CoreState<'a> = State<'a, Arc<Core>>;
 
-/// Đưa frame vào `Channel<InvokeResponseBody>` dưới dạng Raw (không qua JSON).
+/// Put a frame on `Channel<InvokeResponseBody>` in Raw form (not through JSON).
 struct ChannelSink(Channel<InvokeResponseBody>);
 
 impl FrameSink for ChannelSink {
     fn send(&self, frame: Vec<u8>) {
-        // Webview đã tải lại/đóng: bỏ frame, tiến trình git vẫn được chờ và dọn như bình thường.
+        // The webview reloaded or closed: drop the frame; the git process is still awaited and cleaned up as usual.
         let _ = self.0.send(InvokeResponseBody::Raw(frame));
     }
 }
@@ -41,9 +42,9 @@ fn join_error(error: tokio::task::JoinError) -> AppError {
     AppError::Internal(format!("Tác vụ nền lỗi: {error}"))
 }
 
-// --- repo ---------------------------------------------------------------------------------------------------------------
+// MARK: - repo
 
-/// Hộp thoại native chọn thư mục; trả token (không phải đường dẫn tuỳ ý) để `open_repo`/`git_clone`/`git_init` dùng.
+/// Native folder picker; returns a token (not an arbitrary path) for `open_repo`/`git_clone`/`git_init` to use.
 #[tauri::command]
 pub async fn pick_repo_folder<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, core: CoreState<'_>) -> Result<Option<PickedFolder>> {
     let dialog = app.dialog().file().set_parent(&window).set_title(crate::locale::current(&app).texts().pick_folder);
@@ -74,15 +75,15 @@ pub fn forget_recent_repo(core: CoreState<'_>, id: String) {
     core.registry.forget_recent(&id);
 }
 
-/// Thư mục do hệ điều hành đưa vào lúc khởi động ("Mở bằng", argv): lấy một lần, dạng token.
+/// A folder the OS handed us at startup ("Open With", argv): read once, returned as a token.
 #[tauri::command]
 pub fn take_launch_paths<R: Runtime>(window: WebviewWindow<R>, core: CoreState<'_>) -> Vec<PickedFolder> {
     core.registry.take_launch_paths_for(window.label())
 }
 
-// --- git ----------------------------------------------------------------------------------------------------------------
+// MARK: - git
 
-/// Chạy git (đã qua chính sách) và stream frame Raw `[tag|bytes]` qua `channel`; lệnh trả `()` — phía TS chỉ resolve khi nhận frame exit.
+/// Runs git (already through the policy) and streams Raw `[tag|bytes]` frames on `channel`; the command returns `()` — TS only resolves once the exit frame arrives.
 #[tauri::command]
 pub async fn git_exec<R: Runtime>(window: WebviewWindow<R>, core: CoreState<'_>, req: GitExecRequest, channel: Channel<InvokeResponseBody>) -> Result<()> {
     core.inner().clone().exec_git(window.label(), req, Arc::new(ChannelSink(channel)), new_detach_flag()).await
@@ -154,7 +155,7 @@ pub async fn git_worktree_add(
     core.git_worktree_add(&repo_id, &dest_token, &name, &branch, create_branch, start.as_deref()).await
 }
 
-/// Mở một worktree / submodule của repo đang mở trong cửa sổ mới (Rust kiểm git có xác nhận đường dẫn đó không).
+/// Open a worktree / submodule of an already-open repo in a new window (Rust verifies that git confirms the path).
 #[tauri::command]
 pub async fn open_related_repo<R: Runtime>(app: AppHandle<R>, core: CoreState<'_>, repo_id: String, kind: RelatedKind, path: String) -> Result<()> {
     let dir = core.related_repo_path(&repo_id, kind, &path).await?;
@@ -173,9 +174,10 @@ pub fn remove_stale_lock(core: CoreState<'_>, repo_id: String, path: String) -> 
     core.remove_stale_lock(&repo_id, &path)
 }
 
-/// Ảnh đại diện của người commit, dạng data URL để canvas graph vẽ được (webview không tự gọi mạng).
-/// `owner` / `repo` là repo trên github.com của repo đang mở (thiếu thì bỏ qua nguồn API GitHub); Rust kiểm
-/// ký tự và tự dựng URL. `None` khi không có ảnh hoặc không tải được — giao diện vẽ chữ viết tắt, không cần báo lỗi.
+/// A commit author's avatar as a data URL, so the graph canvas can draw it (the webview cannot reach the network itself).
+/// `owner` / `repo` are the github.com repository of the opened repo (without them the GitHub API source is skipped);
+/// Rust validates the characters and builds the URL. `None` when there is no image or it cannot be fetched — the UI
+/// draws initials and needs no error.
 #[tauri::command]
 pub async fn avatar_lookup(
     core: CoreState<'_>,
@@ -187,7 +189,7 @@ pub async fn avatar_lookup(
     Ok(core.avatar(&email, target).await)
 }
 
-// --- RepoFs -------------------------------------------------------------------------------------------------------------
+// MARK: - RepoFs
 
 #[tauri::command]
 pub async fn fs_read_git_file(core: CoreState<'_>, repo_id: String, rel: String) -> Result<Response> {
@@ -218,8 +220,8 @@ fn header(request: &Request<'_>, name: &str) -> Result<String> {
         .map_err(|_| AppError::policy(format!("header `{name}` không phải UTF-8")))
 }
 
-/// Ghi file theo byte: thân yêu cầu là byte thô (không JSON); tham số nằm ở header `x-repo-id`, `x-rel` (percent-encoded),
-/// `x-expected-sha256` (hex; rỗng = file phải chưa tồn tại).
+/// Byte-level file write: the request body is raw bytes (not JSON); the parameters are in the `x-repo-id`, `x-rel`
+/// (percent-encoded), `x-expected-sha256` (hex; empty = the file must not exist) headers.
 #[tauri::command]
 pub async fn fs_write_worktree_file(core: CoreState<'_>, request: Request<'_>) -> Result<()> {
     let InvokeBody::Raw(bytes) = request.body() else {
@@ -259,7 +261,7 @@ pub async fn fs_snapshot_index_prepare(core: CoreState<'_>, repo_id: String, res
     core.snapshot_index_prepare(&repo_id, reset).await
 }
 
-// --- watcher ------------------------------------------------------------------------------------------------------------
+// MARK: - watcher
 
 #[tauri::command]
 pub async fn watch_repo<R: Runtime>(window: WebviewWindow<R>, core: CoreState<'_>, repo_id: String) -> Result<()> {
@@ -271,7 +273,7 @@ pub fn unwatch_repo<R: Runtime>(window: WebviewWindow<R>, core: CoreState<'_>, r
     core.watchers.stop(window.label(), &repo_id);
 }
 
-// --- git (định vị) ------------------------------------------------------------------------------------------------------
+// MARK: - git (location)
 
 async fn current_git(core: &Core) -> Result<GitInfo> {
     match core.locator.current() {
@@ -285,7 +287,7 @@ pub async fn git_locate(core: CoreState<'_>) -> Result<GitInfo> {
     current_git(&core).await
 }
 
-/// `path = None` → tự tìm; `Some` chỉ nhận ứng viên Rust đã tìm thấy (webview không trỏ git tới file tuỳ ý).
+/// `path = None` → search; `Some` only accepts candidates Rust already found (the webview cannot point git at an arbitrary file).
 #[tauri::command]
 pub async fn set_git_path(core: CoreState<'_>, path: Option<String>) -> Result<GitInfo> {
     let info = core.locator.set_path(path.as_deref()).await?;
@@ -293,7 +295,7 @@ pub async fn set_git_path(core: CoreState<'_>, path: Option<String>) -> Result<G
     Ok((*info).clone())
 }
 
-/// Chọn file git bằng hộp thoại native.
+/// Pick the git executable with a native dialog.
 #[tauri::command]
 pub async fn pick_git_path<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, core: CoreState<'_>) -> Result<Option<GitInfo>> {
     let dialog = app.dialog().file().set_parent(&window).set_title(crate::locale::current(&app).texts().pick_git);
@@ -305,7 +307,7 @@ pub async fn pick_git_path<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<
     Ok(Some((*info).clone()))
 }
 
-// --- hệ điều hành -------------------------------------------------------------------------------------------------------
+// MARK: - operating system
 
 #[tauri::command]
 pub async fn open_in_terminal(core: CoreState<'_>, repo_id: String) -> Result<()> {
@@ -327,36 +329,36 @@ pub async fn open_url(url: String, confirmed: Option<bool>) -> Result<()> {
     os_integration::open_url(&url, confirmed.unwrap_or(false)).await
 }
 
-/// Webview tải lại/đóng: huỷ op con của cửa sổ này và bỏ watcher của nó.
+/// The webview reloaded or closed: cancel this window's child operations and drop its watcher.
 #[tauri::command]
 pub fn session_reset<R: Runtime>(window: WebviewWindow<R>, core: CoreState<'_>) {
     core.reset_window(window.label());
 }
 
-// --- askpass (2b) -------------------------------------------------------------------------------------------------------
+// MARK: - askpass (2b)
 
-/// Webview trả lời hộp thoại hỏi mật khẩu/passphrase (`askpass-request`); `answer = null` = người dùng huỷ.
-/// Lớp mỏng: `askpass::reply` kiểm `request_id` + cửa sổ gọi.
+/// The webview answers the password / passphrase prompt (`askpass-request`); `answer = null` = the user cancelled.
+/// Thin layer: `askpass::reply` validates `request_id` + the calling window.
 #[tauri::command]
 pub fn askpass_reply<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, request_id: String, answer: Option<String>) -> Result<()> {
     askpass::reply(&app, window.label(), &request_id, answer)
 }
 
-// --- tài khoản git -----------------------------------------------------------------------------------------------------
+// MARK: - git accounts
 
-/// Danh sách tài khoản (không token) + tài khoản mặc định + các owner đã gán.
+/// Account list (no tokens) + the default account + the assigned owners.
 #[tauri::command]
 pub fn accounts_list(core: CoreState<'_>) -> AccountsView {
     core.accounts.view()
 }
 
-/// Thêm tài khoản bằng Personal access token / app password: app kiểm token với API của máy chủ rồi mới lưu (Keychain).
+/// Add an account with a personal access token / app password: the app validates the token against the host's API before storing it (Keychain).
 #[tauri::command]
 pub async fn accounts_add_token(core: CoreState<'_>, host: String, provider: Option<Provider>, token: String) -> Result<crate::accounts::Account> {
     core.accounts.add_token(&host, provider, &token).await
 }
 
-/// Bắt đầu đăng nhập bằng mã (OAuth device flow) → mã để người dùng nhập trên trang của máy chủ.
+/// Start a device-flow sign-in → the code the user types on the host's page.
 #[tauri::command]
 pub async fn accounts_start_login(
     core: CoreState<'_>,
@@ -367,14 +369,14 @@ pub async fn accounts_start_login(
     core.accounts.start_login(&host, provider, client_id.as_deref()).await
 }
 
-/// Hỏi token cho phiên đăng nhập: `null` = người dùng chưa xác nhận (UI hỏi lại sau `interval` giây), có token thì lưu
-/// tài khoản và trả login.
+/// Poll for the token of a sign-in session: `null` = the user has not confirmed yet (the UI retries after `interval`
+/// seconds); with a token the account is stored and its login returned.
 #[tauri::command]
 pub async fn accounts_poll_login(core: CoreState<'_>, device_code: String) -> Result<Option<String>> {
     core.accounts.poll_login(&device_code).await
 }
 
-/// Đóng phiên đăng nhập (người dùng bấm Huỷ / đóng hộp thoại).
+/// Close a sign-in session (the user pressed Cancel or closed the dialog).
 #[tauri::command]
 pub fn accounts_cancel_login(core: CoreState<'_>, device_code: String) {
     core.accounts.cancel_login(&device_code);
@@ -392,32 +394,32 @@ pub fn accounts_set_default(core: CoreState<'_>, host: String, login: String) ->
     Ok(core.accounts.view())
 }
 
-/// Gán owner (user / tổ chức) cho một tài khoản — lệnh git tới repo của owner đó dùng đúng token.
+/// Assign an owner (user / organisation) to an account — git commands for that owner's repos then use the right token.
 #[tauri::command]
 pub fn accounts_assign_owner(core: CoreState<'_>, host: String, owner: String, login: Option<String>) -> Result<AccountsView> {
     core.accounts.assign_owner(&host, &owner, login.as_deref())?;
     Ok(core.accounts.view())
 }
 
-/// Tên / email ghi vào cấu hình repo khi dùng tài khoản này cho commit.
+/// Name / email written into the repo config when this account is used for commits.
 #[tauri::command]
 pub fn accounts_set_identity(core: CoreState<'_>, host: String, login: String, name: String, email: String) -> Result<AccountsView> {
     core.accounts.set_commit_identity(&host, &login, &name, &email)?;
     Ok(core.accounts.view())
 }
 
-/// Lưu Client ID của OAuth App cho device flow (rỗng = xoá, chỉ dán được token).
+/// Store an OAuth App client id for device flow (empty = clear it, so only pasted tokens work).
 #[tauri::command]
 pub fn accounts_set_client_id(core: CoreState<'_>, host: String, client_id: String) -> Result<AccountsView> {
     core.accounts.set_oauth_client_id(&host, &client_id)?;
     Ok(core.accounts.view())
 }
 
-// --- terminal trong app -----------------------------------------------------------------------------------------------
+// MARK: - in-app terminal
 
 type TerminalsState<'a> = State<'a, Arc<crate::terminal::Terminals>>;
 
-/// Mở terminal ở thư mục gốc của repo `repo_id` (webview không chọn được chương trình hay thư mục khác).
+/// Open a terminal in the root directory of repo `repo_id` (the webview cannot choose another program or directory).
 #[tauri::command]
 pub fn terminal_open<R: Runtime>(
     window: WebviewWindow<R>,
@@ -459,7 +461,7 @@ pub fn ssh_keys_list(core: CoreState<'_>) -> SshKeysView {
     core.ssh_keys.view()
 }
 
-/// Tạo khoá Ed25519 mới (khoá bí mật vào kho bí mật của hệ điều hành).
+/// Create a new Ed25519 key (the secret goes into the OS keystore).
 #[tauri::command]
 pub fn ssh_keys_generate(core: CoreState<'_>, name: String) -> Result<SshKeysView> {
     let host = hostname_label();
@@ -467,7 +469,7 @@ pub fn ssh_keys_generate(core: CoreState<'_>, name: String) -> Result<SshKeysVie
     Ok(core.ssh_keys.view())
 }
 
-/// Nhập khoá có sẵn: Rust tự mở hộp chọn file (webview không gửi đường dẫn), đọc khoá + file .pub đi kèm nếu có.
+/// Import an existing key: Rust opens the file picker itself (the webview sends no path) and reads the key plus its `.pub` file when present.
 #[tauri::command]
 pub async fn ssh_keys_import<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, core: CoreState<'_>) -> Result<Option<SshKeysView>> {
     let mut dialog = app.dialog().file().set_parent(&window).set_title(crate::locale::current(&app).texts().pick_ssh_key);
@@ -505,7 +507,7 @@ pub fn ssh_keys_set_enabled(core: CoreState<'_>, enabled: bool) -> Result<SshKey
     core.ssh_keys.set_enabled(enabled)
 }
 
-/// Gửi khoá công khai lên tài khoản `login` ở `host`. Thiếu quyền thì webview sao chép khoá + mở trang thêm khoá.
+/// Upload the public key to the `login` account on `host`. Without the required scope the webview copies the key and opens the "add key" page.
 #[tauri::command]
 pub async fn ssh_keys_upload(core: CoreState<'_>, id: String, host: String, login: String) -> Result<SshUploadResult> {
     let key = core.ssh_keys.public_key(&id).ok_or_else(|| AppError::NotFound("Không tìm thấy khoá SSH này".into()))?;
@@ -519,7 +521,7 @@ pub async fn ssh_keys_upload(core: CoreState<'_>, id: String, host: String, logi
     Ok(SshUploadResult { outcome, page })
 }
 
-/// Kết quả gửi khoá + trang thêm khoá bằng tay (khi thiếu quyền).
+/// Result of the upload + the manual "add key" page (used when the scope is missing).
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SshUploadResult {
@@ -527,7 +529,7 @@ pub struct SshUploadResult {
     page: String,
 }
 
-/// `ssh -T git@<host>` bằng đúng các khoá của Thaigit (agent tạm), không hỏi gì. Trả câu chào đã dịch.
+/// `ssh -T git@<host>` with exactly Thaigit's keys (a temporary agent), asking nothing. Returns the translated greeting.
 #[tauri::command]
 pub async fn ssh_keys_test(core: CoreState<'_>, host: String) -> Result<String> {
     let host = host.trim().to_ascii_lowercase();
@@ -573,7 +575,7 @@ fn hostname_label() -> String {
     if clean.is_empty() { "may".into() } else { clean.to_ascii_lowercase() }
 }
 
-/// Repo mà tài khoản này truy cập được (dùng cho hộp Clone).
+/// Repos this account can access (for the Clone dialog).
 #[tauri::command]
 pub async fn accounts_repositories(core: CoreState<'_>, host: String, login: String) -> Result<Vec<ForgeRepository>> {
     core.accounts.refresh_due(&host).await;
@@ -586,7 +588,7 @@ pub async fn accounts_repositories(core: CoreState<'_>, host: String, login: Str
 
 // --- Pull Request / Merge Request --------------------------------------------------------------------------------------
 
-/// Repo trên máy chủ mà ta tạo / đọc PR (thông tin này webview chỉ gửi, không sao chép được từ đâu khác).
+/// The server repository we create/read PRs for (the webview only sends this; it cannot be derived from anything else).
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoRef {
@@ -596,7 +598,7 @@ pub struct RepoRef {
     repo: String,
 }
 
-/// Nội dung PR/MR cần tạo (webview gửi kèm `repoRef`).
+/// The PR / MR content to create (the webview sends it with `repoRef`).
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewMergeRequest {
@@ -633,13 +635,13 @@ pub async fn forge_create_merge_request(core: CoreState<'_>, request: NewMergeRe
     .await
 }
 
-/// Người có thể gán vào PR / MR của repo (GitHub `assignees`, GitLab thành viên project).
+/// Users who can be assigned to the repo's PRs / MRs (GitHub `assignees`, GitLab project members).
 #[tauri::command]
 pub async fn forge_list_assignable(core: CoreState<'_>, repo: RepoRef) -> Result<Vec<ForgePerson>> {
     forge::assignable_for(&core.accounts, &repo.host, repo.provider, &repo.owner, &repo.repo).await
 }
 
-/// Đặt lại người review hoặc người được gán của một PR / MR; trả PR / MR đọc lại từ máy chủ.
+/// Replace the reviewers or assignees of a PR / MR; returns the PR / MR re-read from the server.
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SetPeopleRequest {
@@ -667,43 +669,43 @@ pub async fn forge_set_people(core: CoreState<'_>, request: SetPeopleRequest) ->
     .await
 }
 
-// --- cập nhật tự động + chế độ an toàn (8a) -----------------------------------------------------------------------------
+// MARK: - Auto-update and safe mode (8a)
 
-/// Kiểm cập nhật theo kênh hiện tại: `null` = đang ở bản mới nhất.
+/// Check for an update on the current channel: `null` = already up to date.
 #[tauri::command]
 pub async fn update_check<R: Runtime>(app: AppHandle<R>) -> Result<Option<UpdateInfo>> {
     updater::check(&app).await
 }
 
-/// Tải + kiểm chữ ký + cài bản đã báo (tiến độ qua sự kiện `update-progress`).
+/// Download + verify the signature + install the reported version (progress via the `update-progress` event).
 #[tauri::command]
 pub async fn update_install<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     updater::install(&app).await
 }
 
-/// Đổi kênh cập nhật (`"beta"` | `"stable"`; kênh lạ bị serde từ chối).
+/// Switch the update channel (`"beta"` | `"stable"`; an unknown channel is rejected by serde).
 #[tauri::command]
 pub fn update_set_channel<R: Runtime>(app: AppHandle<R>, channel: updater::Channel) -> Result<()> {
     updater::set_channel(&app, channel)
 }
 
-/// Ngôn ngữ giao diện (Cài đặt): Rust dùng cho tiêu đề hộp chọn thư mục và hộp "chế độ an toàn".
+/// UI language (Settings): Rust uses it for the folder-picker title and the "safe mode" dialog.
 #[tauri::command]
 pub fn app_set_locale<R: Runtime>(app: AppHandle<R>, locale: crate::locale::Locale) -> Result<()> {
     crate::locale::set(&app, locale)
 }
 
-/// Mở thêm một cửa sổ (Ctrl/⌘+T).
+/// Open an extra window (Ctrl/⌘+T).
 #[tauri::command]
 pub fn new_window<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     crate::open_new_window(&app).map_err(|error| AppError::Internal(format!("mở cửa sổ mới: {error}")))
 }
 
-/// UI báo "đã sẵn sàng" → đặt lại bộ đếm khởi động hỏng của chế độ an toàn.
+/// The UI reports "ready" → reset the safe-mode failed-start counter.
 #[tauri::command]
 pub fn app_ready<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     safe_mode::ready(&app)
 }
 
-/// Thời gian chờ PATH của login shell (macOS).
+/// How long to wait for the login shell's PATH (macOS).
 pub const LOGIN_PATH_TIMEOUT: Duration = Duration::from_secs(3);

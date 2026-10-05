@@ -1,16 +1,19 @@
-//! Repo lạ (trust gate): quét cấu hình/hook có thể chạy lệnh, chế độ hạn chế và lưu quyết định tin cậy.
+//! Untrusted repos (the trust gate): scan the config and hooks that can run commands, restricted mode, and storing the
+//! trust decision.
 //!
-//! `open_repo` chạy `git config --list --show-scope --show-origin -z` (đã gắn cờ `-c` cứng), lọc mục thuộc scope
-//! `local`/`worktree` (gồm file `include`) khớp khoá chạy lệnh, cộng hook không phải `.sample`. Không có gì → mở bình
-//! thường. Có → `unknown` cho tới khi người dùng tin tưởng. Chưa tin = chế độ hạn chế: Rust đặt lại `core.hooksPath`
-//! về thư mục rỗng của app và ghi đè từng khoá tìm thấy bằng giá trị global/system hoặc giá trị vô hiệu (qua
-//! `GIT_CONFIG_COUNT/KEY_n/VALUE_n` — không có nhập nhằng dấu `=` như `-c`), không auto-fetch.
+//! `open_repo` runs `git config --list --show-scope --show-origin -z` (with hard-coded `-c` flags already attached), filters
+//! entries in the `local`/`worktree` scopes (including `include` files) that match a command-running key, plus hooks that
+//! are not `.sample`. Nothing found → open normally. Something found → `unknown` until the user trusts. Not trusted means
+//! restricted mode: Rust resets `core.hooksPath` to the app's empty directory and overrides every key found with the
+//! global/system value or a neutralising value (via `GIT_CONFIG_COUNT/KEY_n/VALUE_n` — no `=` quoting games like `-c`), and
+//! disables autofetch.
 //!
-//! Ghi đè dựng từ lần quét lúc mở nên có thể ĐÃ CŨ khi cấu hình hiệu lực đổi mà `.git/config` không đổi (`include` tới file
-//! đã track đổi theo nhánh, `includeIf onbranch:`). Hai lớp chặn: (1) vân tay (`registry::ConfigFingerprint`) gồm mọi file
-//! `file:` của lần quét + đích include + HEAD, đổi thì quét lại trước lệnh kế tiếp; (2) repo có `include*` (hay nguồn cấu hình
-//! không theo dõi được) là `fail_closed`: chỉ lệnh đọc thuần tuý (`GitPolicy::is_exec_free`) chạy tới khi tin tưởng. Các
-//! chương trình gpg (tên khoá cố định) luôn được ghim sẵn, không chờ lần quét thấy.
+//! The overrides are built from the scan at open time, so they can ALREADY BE STALE when the effective config changes while
+//! `.git/config` does not (an `include` of a tracked file that changes per branch, `includeIf onbranch:`). Two layers guard
+//! against that: (1) a fingerprint (`registry::ConfigFingerprint`) of every `file:` source of the scan + include targets +
+//! HEAD — a change triggers a rescan before the next command; (2) a repo with `include*` (or an untrackable config source) is
+//! `fail_closed`: only purely read-only commands (`GitPolicy::is_exec_free`) run until the user trusts. gpg programs (whose
+//! keys are fixed) are always pinned, without waiting for a scan to find them.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -23,29 +26,29 @@ use sha2::{Digest, Sha256};
 use crate::errors::{AppError, Result};
 use crate::store;
 
-/// Một dòng của `git config --list --show-scope --show-origin -z`.
+/// One line of `git config --list --show-scope --show-origin -z`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigEntry {
     pub scope: String,
     pub origin: String,
-    /// Khoá do git in ra: phần section/variable chữ thường, subsection giữ nguyên.
+    /// The key as git printed it: section/variable lowercased, subsection kept as-is.
     pub key: String,
     pub value: String,
 }
 
 impl ConfigEntry {
-    /// Do repo kiểm soát (file `.git/config`, `config.worktree` và file được include từ đó).
+    /// Controlled by the repo (the `.git/config` file, `config.worktree`, and files included from them).
     pub fn repo_controlled(&self) -> bool {
         self.scope == "local" || self.scope == "worktree"
     }
 
-    /// Do người dùng/hệ thống kiểm soát (scope `command` là cờ `-c` của chính app nên bỏ qua).
+    /// Controlled by the user / the system (the `command` scope is the app's own `-c` flags, so it is ignored).
     pub fn user_controlled(&self) -> bool {
         matches!(self.scope.as_str(), "system" | "global" | "unknown")
     }
 }
 
-/// Parse output `-z`: mỗi mục là `scope NUL origin NUL key NEWLINE value NUL` (khoá không có giá trị: `key NUL`).
+/// Parse the `-z` output: each entry is `scope NUL origin NUL key NEWLINE value NUL` (a key with no value: `key NUL`).
 pub fn parse_config_list(bytes: &[u8]) -> Vec<ConfigEntry> {
     let mut tokens: Vec<&[u8]> = bytes.split(|b| *b == 0).collect();
     if tokens.last().is_some_and(|t| t.is_empty()) {
@@ -69,7 +72,7 @@ pub fn parse_config_list(bytes: &[u8]) -> Vec<ConfigEntry> {
         .collect()
 }
 
-/// Nhóm khoá chạy được lệnh.
+/// A group of keys that can run commands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KeyKind {
     Fsmonitor,
@@ -92,18 +95,18 @@ pub enum KeyKind {
     ProtocolAllow,
     UrlRewrite,
     Include,
-    /// `sequence.editor` (`rebase -i`): thắng `GIT_EDITOR` nên không thể dựa vào `GIT_EDITOR=true`.
+    /// `sequence.editor` (`rebase -i`): beats `GIT_EDITOR`, so it cannot be handled by `GIT_EDITOR=true` alone.
     SequenceEditor,
     /// `trailer.<token>.cmd|command` (`commit --trailer`, `interpret-trailers`).
     TrailerCommand,
-    /// `core.alternateRefsCommand` (fetch/push khi repo có alternates).
+    /// `core.alternateRefsCommand` (fetch/push when the repo has alternates).
     AlternateRefsCommand,
-    /// `gpg.ssh.defaultKeyCommand` (ký bằng ssh khi chưa chọn khoá).
+    /// `gpg.ssh.defaultKeyCommand` (signing with ssh when no key is chosen).
     SshDefaultKeyCommand,
-    /// `submodule.<tên>.update = !lệnh` (`pull --recurse-submodules` → `submodule update`).
+    /// `submodule.<name>.update = !command` (`pull --recurse-submodules` → `submodule update`).
     SubmoduleUpdate,
-    /// `lfs.customtransfer.<tên>.path`, `lfs.extension.<tên>.clean|smudge`: git-lfs (bộ lọc `filter.lfs` của người dùng, lệnh
-    /// `git lfs …`) chạy chương trình này. `.lfsconfig` trong repo thì git-lfs không đọc các khoá này.
+    /// `lfs.customtransfer.<name>.path`, `lfs.extension.<name>.clean|smudge`: git-lfs (the user's `filter.lfs` filter, the
+    /// `git lfs …` commands) runs this program. A `.lfsconfig` in the repo cannot make git-lfs read these keys.
     LfsProgram,
 }
 
@@ -135,7 +138,7 @@ static KEY_PATTERNS: LazyLock<Vec<(Regex, KeyKind)>> = LazyLock::new(|| {
         (r"^core\.alternaterefscommand$", KeyKind::AlternateRefsCommand),
         (r"^gpg\.ssh\.defaultkeycommand$", KeyKind::SshDefaultKeyCommand),
         (r"^submodule\..+\.update$", KeyKind::SubmoduleUpdate),
-        // git chỉ hạ chữ tên section/khoá; phần giữa (`[lfs "customTransfer.x"]`) giữ nguyên mà git-lfs có thể so không phân biệt hoa thường.
+        // git lowercases only the section and key names; the middle part (`[lfs "customTransfer.x"]`) keeps its case, while git-lfs compares it case-insensitively.
         (r"(?i)^lfs\.customtransfer\..+\.path$", KeyKind::LfsProgram),
         (r"(?i)^lfs\.extension\..+\.(clean|smudge)$", KeyKind::LfsProgram),
     ];
@@ -146,7 +149,7 @@ pub fn classify_key(key: &str) -> Option<KeyKind> {
     KEY_PATTERNS.iter().find(|(pattern, _)| pattern.is_match(key)).map(|(_, kind)| *kind)
 }
 
-/// File hook không phải `.sample` trong `<commonDir>/hooks`.
+/// A hook file in `<commonDir>/hooks` that is not `.sample`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HookFile {
     pub name: String,
@@ -175,9 +178,10 @@ pub fn read_hooks(common_dir: &Path) -> Vec<HookFile> {
     hooks
 }
 
-/// Hook chuẩn do git-lfs cài (`git lfs install`, `git lfs track`…): chỉ gọi `git lfs <tên hook> "$@"`, tức chương trình git-lfs
-/// của người dùng như bộ lọc `filter.lfs` — không tính là hook của repo. Khớp NGUYÊN VĂN khuôn của git-lfs (bản `echo` cũ và
-/// bản `printf` mới); câu báo lỗi trong nháy kép không được có `"`, `$`, `` ` `` hay `\` (trừ `\n`) nên không chèn lệnh được.
+/// The standard hooks git-lfs installs (`git lfs install`, `git lfs track`…): they only call `git lfs <hook name> "$@"`, i.e. the
+/// user's git-lfs program acting as the `filter.lfs` filter — not a repo hook. Match the git-lfs template VERBATIM (both the
+/// old `echo` and the new `printf` version); its quoted error message may not contain `"`, `$`, a backtick or `\` (except
+/// `\n`), so no command can be injected.
 fn is_git_lfs_hook(name: &str, bytes: &[u8]) -> bool {
     static TEMPLATE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(concat!(
@@ -199,12 +203,12 @@ pub fn hex(bytes: &[u8]) -> String {
     })
 }
 
-/// Khoá/hook đáng ngờ tìm thấy (để hiện cho người dùng khi hỏi tin tưởng).
+/// Suspicious keys / hooks found (shown to the user in the trust prompt).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Finding {
     pub label: String,
     pub kind: Option<KeyKind>,
-    /// Dòng cho hộp thoại: `core.fsmonitor = /x/cmd  (local, file:.git/config)`.
+    /// The line shown in the dialog: `core.fsmonitor = /x/cmd  (local, file:.git/config)`.
     pub display: String,
 }
 
@@ -218,8 +222,9 @@ fn truncate(text: &str) -> String {
     }
 }
 
-/// Mục cấu hình do repo kiểm soát khớp khoá chạy lệnh + hook. Dòng hiển thị nào trùng thì chỉ giữ lần xuất hiện đầu (giữ thứ
-/// tự): khoá đa trị hoặc cùng giá trị ở nhiều file include cho ra các dòng giống hệt, mà giao diện dùng dòng đó làm khoá danh sách.
+/// Repo-controlled config entries matching a command-running key, plus hooks. When two display lines are identical only the
+/// first occurrence is kept: a multi-valued key, or the same value in several include files, produces identical lines, and the UI
+/// uses that line as a list key.
 pub fn find_findings(entries: &[ConfigEntry], hooks: &[HookFile]) -> Vec<Finding> {
     let mut findings: Vec<Finding> = entries
         .iter()
@@ -243,7 +248,7 @@ pub fn find_findings(entries: &[ConfigEntry], hooks: &[HookFile]) -> Vec<Finding
     findings
 }
 
-/// Băm tập khoá chạy lệnh + hook (tập đổi → hỏi lại tin cậy).
+/// Hash of the command-running key set + hooks (a changed set → ask about trust again).
 pub fn findings_hash(entries: &[ConfigEntry], hooks: &[HookFile]) -> String {
     let mut lines: BTreeSet<String> = entries
         .iter()
@@ -259,25 +264,25 @@ pub fn findings_hash(entries: &[ConfigEntry], hooks: &[HookFile]) -> String {
     hex(&hasher.finalize())
 }
 
-/// Ghi đè cho chế độ hạn chế.
+/// The restricted-mode overrides.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Restrictions {
-    /// `(khoá, giá trị)` đặt qua `GIT_CONFIG_*` (scope `command`, thắng cấu hình repo).
+    /// `(key, value)` set through `GIT_CONFIG_*` (`command` scope, which beats the repo's config).
     pub config: Vec<(String, String)>,
-    /// `GIT_PROXY_COMMAND` (git chỉ nhìn giá trị cấu hình đầu tiên của `core.gitproxy`, nên phải dùng env).
+    /// `GIT_PROXY_COMMAND` (git only looks at the FIRST config value of `core.gitproxy`, so an env var is required).
     pub proxy_command: Option<String>,
-    /// Có khoá không vô hiệu hoá được bằng ghi đè (`url.*.insteadOf` đổi đích, `include*` nạp thêm file về sau,
-    /// `remote.*.uploadpack/receivepack` mà git chỉ nhận giá trị đầu tiên): thao tác mạng bị chặn cho tới khi tin tưởng.
+    /// Keys that cannot be neutralised by an override (`url.*.insteadOf` changes the destination, `include*` pulls in more files
+    /// later, `remote.*.uploadpack/receivepack` where git accepts only the first value): network operations are blocked until the user trusts.
     pub blocks_network: bool,
-    /// Cấu hình có thể đổi hiệu lực mà ta không theo dõi chắc chắn được: `include`/`includeIf` trỏ tới file khác (kể cả file
-    /// ĐÃ TRACK nên đổi nội dung khi chuyển nhánh, hay `includeIf onbranch:` bật/tắt theo nhánh) hoặc nguồn không phải file.
-    /// Các ghi đè dựng từ lần quét có thể đã cũ nên mọi lệnh có thể chạy lệnh do cấu hình chỉ định (bộ lọc, textconv, merge
-    /// driver…) bị chặn tới khi tin tưởng; chỉ còn lệnh đọc thuần tuý (`GitPolicy::is_exec_free`). Luôn kéo theo `blocks_network`.
+    /// Config whose effect can change in ways we cannot reliably track: `include`/`includeIf` pointing at another file (including an
+    /// ALREADY TRACKED file whose content changes on a branch switch, or `includeIf onbranch:` toggling per branch), or a source that is not a file.
+    /// Since overrides built from the scan may already be stale, every command that could run something from the config (filters,
+    /// textconv, merge driver…) is blocked until the user trusts; only purely read-only commands (`GitPolicy::is_exec_free`) remain. Always implies `blocks_network`.
     pub fail_closed: bool,
 }
 
 impl Restrictions {
-    /// Env cho tiến trình git: `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_i`, `GIT_CONFIG_VALUE_i`, `GIT_PROXY_COMMAND`.
+    /// Env for the git process: `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_i`, `GIT_CONFIG_VALUE_i`, `GIT_PROXY_COMMAND`.
     pub fn env(&self) -> Vec<(String, String)> {
         let mut env = vec![("GIT_CONFIG_COUNT".to_string(), self.config.len().to_string())];
         for (index, (key, value)) in self.config.iter().enumerate() {
@@ -295,8 +300,8 @@ fn last_trusted<'a>(entries: &'a [ConfigEntry], key: &str) -> Option<&'a str> {
     entries.iter().rev().find(|e| e.user_controlled() && e.key == key).map(|e| e.value.as_str())
 }
 
-/// Chương trình ký/kiểm chữ ký: tên khoá cố định nên luôn được ghim về giá trị của người dùng (hoặc mặc định), kể cả khi lần quét
-/// không thấy khoá (vd. nằm trong file `include` đổi theo nhánh). `log --format=%G?`/`%(signature)` chạy chương trình này.
+/// Signing / signature-verification programs: their keys are fixed, so they are always pinned to the user's (or the default) value,
+/// even when the scan does not find them (e.g. they live in an `include` file that changes per branch). `log --format=%G?` / `%(signature)` runs them.
 const GPG_PINNED: [(&[&str], &str); 3] =
     [(&["gpg.program", "gpg.openpgp.program"], "gpg"), (&["gpg.x509.program"], "gpgsm"), (&["gpg.ssh.program"], "ssh-keygen")];
 
@@ -304,14 +309,14 @@ fn last_trusted_of<'a>(entries: &'a [ConfigEntry], keys: &[&str]) -> Option<&'a 
     entries.iter().rev().find(|e| e.user_controlled() && keys.contains(&e.key.as_str())).map(|e| e.value.as_str())
 }
 
-/// Dựng ghi đè cho repo chưa tin cậy. `empty_hooks` là thư mục rỗng của app (luôn đặt làm `core.hooksPath`).
+/// Build the overrides for an untrusted repo. `empty_hooks` is the app's empty directory (always set as `core.hooksPath`).
 pub fn build_restrictions(entries: &[ConfigEntry], empty_hooks: &Path) -> Restrictions {
     let mut restrictions = Restrictions::default();
     restrictions.config.push(("core.hooksPath".to_string(), empty_hooks.to_string_lossy().into_owned()));
 
     let mut handled: BTreeSet<String> = BTreeSet::new();
     for (keys, default) in GPG_PINNED {
-        // `gpg.program` và `gpg.openpgp.program` là cùng một biến trong git: ghim cả hai về cùng một giá trị.
+        // `gpg.program` and `gpg.openpgp.program` are the same variable in git: pin both to the same value.
         let value = last_trusted_of(entries, keys).unwrap_or(default);
         for key in keys {
             handled.insert((*key).to_string());
@@ -320,7 +325,7 @@ pub fn build_restrictions(entries: &[ConfigEntry], empty_hooks: &Path) -> Restri
     }
     let mut credential_reset_added = false;
     for entry in entries.iter().filter(|e| e.repo_controlled()) {
-        // Nguồn không phải file (blob/stdin/…) thì không có gì để theo dõi thay đổi.
+        // A source that is not a file (blob/stdin/…) leaves nothing whose changes could be tracked.
         if !entry.origin.starts_with("file:") {
             restrictions.fail_closed = true;
         }
@@ -335,7 +340,7 @@ pub fn build_restrictions(entries: &[ConfigEntry], empty_hooks: &Path) -> Restri
         let key = entry.key.clone();
         let neutral = |fallback: &str| trusted.unwrap_or(fallback).to_string();
         match kind {
-            // `-c core.fsmonitor=false` / `core.pager=cat` / GIT_EDITOR=true đã luôn có; hooksPath đặt sẵn ở trên.
+            // `-c core.fsmonitor=false` / `core.pager=cat` / GIT_EDITOR=true are always present; hooksPath was set above.
             KeyKind::Fsmonitor | KeyKind::HooksPath | KeyKind::Editor | KeyKind::Pager | KeyKind::Worktree => {}
             KeyKind::SshCommand => restrictions.config.push((key, neutral("ssh"))),
             KeyKind::AskPass => restrictions.config.push((key, neutral(""))),
@@ -346,11 +351,11 @@ pub fn build_restrictions(entries: &[ConfigEntry], empty_hooks: &Path) -> Restri
             KeyKind::Filter | KeyKind::DiffDriver | KeyKind::DiffExternal | KeyKind::LfsProgram => {
                 restrictions.config.push((key, neutral("")))
             }
-            // Driver rỗng sẽ "thành công" mà không gộp gì; `false` buộc báo xung đột (an toàn).
+            // An empty driver would "succeed" without merging anything; `false` forces a conflict report (the safe outcome).
             KeyKind::MergeDriver => restrictions.config.push((key, neutral("false"))),
             KeyKind::CredentialHelper => {
-                // Giá trị rỗng xoá toàn bộ danh sách helper đã nạp; rồi thêm lại helper của người dùng/hệ thống
-                // (giữ nguyên khoá, kể cả `credential.<url>.helper`).
+                // An empty value clears the whole loaded helper list; then the user's / system's helpers are added back
+                // (keeping their keys, including `credential.<url>.helper`).
                 if !credential_reset_added {
                     credential_reset_added = true;
                     restrictions.config.push(("credential.helper".to_string(), String::new()));
@@ -360,7 +365,7 @@ pub fn build_restrictions(entries: &[ConfigEntry], empty_hooks: &Path) -> Restri
                 }
             }
             KeyKind::GpgProgram => {
-                // Các khoá cố định đã ghim ở trên; còn lại là `gpg.<định dạng lạ>.program`.
+                // The fixed keys were pinned above; what remains is `gpg.<unusual format>.program`.
                 let default = if key.contains(".ssh.") {
                     "ssh-keygen"
                 } else if key.contains(".x509.") {
@@ -370,13 +375,13 @@ pub fn build_restrictions(entries: &[ConfigEntry], empty_hooks: &Path) -> Restri
                 };
                 restrictions.config.push((key, neutral(default)));
             }
-            // git chỉ nhận giá trị ĐẦU TIÊN của `remote.<tên>.uploadpack/receivepack` nên cấu hình scope `command` không ghi
-            // đè được: coi như không vô hiệu hoá được, chặn lệnh mạng cho tới khi tin tưởng.
+            // git accepts only the FIRST value of `remote.<name>.uploadpack/receivepack`, so `command`-scope config cannot
+            // override it: treat it as not neutralisable and block network commands until the user trusts.
             KeyKind::RemoteUploadPack | KeyKind::RemoteReceivePack | KeyKind::UrlRewrite | KeyKind::Include => {
                 restrictions.blocks_network = true;
             }
             KeyKind::RemoteVcs => restrictions.config.push((key, neutral(""))),
-            // `true`/`false` là chương trình chuẩn không làm gì (giữ nguyên danh sách việc / báo lỗi thay vì chạy lệnh của repo).
+            // `true`/`false` are standard programs that do nothing (keep the todo list / report an error instead of running a repo command).
             KeyKind::SequenceEditor | KeyKind::AlternateRefsCommand => restrictions.config.push((key, neutral("true"))),
             KeyKind::TrailerCommand | KeyKind::SshDefaultKeyCommand => restrictions.config.push((key, neutral("false"))),
             KeyKind::SubmoduleUpdate => restrictions.config.push((key, neutral("checkout"))),
@@ -392,8 +397,8 @@ pub fn build_restrictions(entries: &[ConfigEntry], empty_hooks: &Path) -> Restri
     restrictions
 }
 
-/// Mọi file cấu hình mà lần quét đã đọc (origin `file:`) cộng đích của mọi khoá `include`/`includeIf` — kể cả file CHƯA tồn tại lúc
-/// quét (git bỏ qua file thiếu nhưng nó có thể xuất hiện sau, vd. do chuyển nhánh). Đường dẫn tương đối tính từ `cwd` của lần quét.
+/// Every config file the scan read (`file:` origin) plus the target of every `include`/`includeIf` key — including files that did NOT
+/// exist at scan time (git skips a missing file, but it can appear later, e.g. through a branch switch). Relative paths resolve from the scan's `cwd`.
 pub fn config_files(entries: &[ConfigEntry], cwd: &Path) -> Vec<PathBuf> {
     let resolve = |text: &str| {
         let path = Path::new(text);
@@ -413,7 +418,7 @@ pub fn config_files(entries: &[ConfigEntry], cwd: &Path) -> Vec<PathBuf> {
     files.into_iter().collect()
 }
 
-/// Đích của `include.path`: `~/…` theo thư mục nhà, tuyệt đối giữ nguyên, tương đối tính từ thư mục của file chứa dòng include.
+/// The target of `include.path`: `~/…` from the home directory, absolute paths unchanged, relative paths from the directory of the file containing the include line.
 fn include_target(value: &str, base: Option<&Path>) -> Option<PathBuf> {
     if let Some(rest) = value.strip_prefix("~/") {
         let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
@@ -429,7 +434,7 @@ struct TrustFile {
     entries: BTreeMap<String, String>,
 }
 
-/// Quyết định tin cậy đã lưu: `đường dẫn thật → băm tập khoá chạy lệnh`.
+/// The stored trust decision: `real path → hash of the command-running key set`.
 pub struct TrustStore {
     path: PathBuf,
     entries: Mutex<BTreeMap<String, String>>,
@@ -551,8 +556,8 @@ mod tests {
 
     #[test]
     fn findings_are_deduplicated_keeping_first_appearance_order() {
-        // Khoá đa trị (`core.fsmonitor` đặt hai lần giống hệt, hoặc cùng giá trị ở hai file include) cho ra cùng một dòng hiển thị:
-        // giao diện dùng dòng đó làm khoá `{#each}` nên trùng sẽ làm đứng cả hộp thoại tin tưởng.
+        // A multi-valued key (`core.fsmonitor` set twice identically, or the same value in two include files) produces one identical display line:
+        // the UI uses that line as the `{#each}` key, so a duplicate would break the whole trust dialog.
         let entries = vec![
             entry("local", "core.fsmonitor", "touch /tmp/pwned"),
             entry("local", "filter.x.clean", "evil"),
@@ -587,7 +592,7 @@ mod tests {
         assert_ne!(findings_hash(&a, &[]), findings_hash(&changed, &[]));
         let edited = HookFile { name: "pre-commit".into(), digest: "d2".into() };
         assert_ne!(findings_hash(&a, std::slice::from_ref(&hook)), findings_hash(&a, &[edited]));
-        // Mục không liên quan (người dùng tự đặt) không ảnh hưởng.
+        // An unrelated entry (set by the user) has no effect.
         let mut with_noise = a.clone();
         with_noise.push(entry("local", "user.name", "x"));
         assert_eq!(findings_hash(&a, &[]), findings_hash(&with_noise, &[]));
@@ -641,7 +646,7 @@ mod tests {
         assert_eq!(get("remote.origin.vcs"), [""]);
         assert_eq!(get("protocol.ext.allow"), ["never"]);
         assert_eq!(get("protocol.fd.allow"), ["user"]);
-        // credential.helper: đặt lại, rồi thêm lại helper của người dùng/hệ thống theo thứ tự và đúng khoá.
+        // credential.helper: reset it, then add the user's / system's helpers back in order and under the right keys.
         assert_eq!(get("credential.helper"), ["", "osxkeychain"]);
         assert_eq!(get("credential.https://github.com.helper"), ["!gh auth git-credential"]);
         assert!(get("credential.https://x.helper").is_empty());
@@ -673,31 +678,31 @@ mod tests {
         for key in ["include.path", "includeif.onbranch:feat.path", "includeif.gitdir:/x/.path", "includeif.hasconfig:remote.*.url:https://x/**.path"] {
             let r = build_restrictions(&[entry("local", key, "../seed.inc")], hooks);
             assert!(r.fail_closed && r.blocks_network, "{key}");
-            // kể cả include nằm trong config worktree
+            // including an include inside the worktree config
             assert!(build_restrictions(&[entry("worktree", key, "x")], hooks).fail_closed, "{key}");
         }
-        // Include của người dùng (global/system) không phải do repo kiểm soát.
+        // The user's own includes (global/system) are not repo-controlled.
         assert!(!build_restrictions(&[entry("global", "include.path", "~/.gitconfig.d/work")], hooks).fail_closed);
-        // Nguồn không phải file mà không theo dõi được thay đổi.
+        // A non-file source whose changes cannot be tracked.
         for origin in ["blob:0123abcd", "standard input:", "command line:"] {
             let r = build_restrictions(&[entry_at("local", origin, "core.filemode", "true")], hooks);
             assert!(r.fail_closed && r.blocks_network, "{origin}");
         }
-        // Cấu hình thường (kể cả khoá chạy lệnh vô hiệu hoá được) không làm fail-closed.
+        // Ordinary config (including a neutralisable command-running key) does not make this fail-closed.
         let plain = build_restrictions(&[entry("local", "core.sshcommand", "evil"), entry("local", "user.name", "x")], hooks);
         assert!(!plain.fail_closed && !plain.blocks_network);
     }
 
     #[test]
     fn gpg_programs_are_pinned_even_when_the_scan_saw_no_such_key() {
-        // Khoá có thể nằm trong file include đổi theo nhánh nên không thể chờ lần quét thấy rồi mới ghim.
+        // The key may live in an include file that changes per branch, so it cannot wait for a scan to find it.
         let r = build_restrictions(&[], Path::new("/h"));
         let get = |key: &str| r.config.iter().filter(|(k, _)| k == key).map(|(_, v)| v.as_str()).collect::<Vec<_>>();
         assert_eq!(get("gpg.program"), ["gpg"]);
         assert_eq!(get("gpg.openpgp.program"), ["gpg"]);
         assert_eq!(get("gpg.x509.program"), ["gpgsm"]);
         assert_eq!(get("gpg.ssh.program"), ["ssh-keygen"]);
-        // Giá trị của người dùng thắng; `gpg.program` và `gpg.openpgp.program` là một biến nên cùng giá trị.
+        // The user's value wins; `gpg.program` and `gpg.openpgp.program` are one variable, so both get the same value.
         let r = build_restrictions(
             &[entry("global", "gpg.program", "/opt/gpg2"), entry("local", "gpg.program", "evil"), entry("local", "gpg.ssh.program", "evil")],
             Path::new("/h"),
@@ -774,7 +779,7 @@ mod tests {
         let printf = format!("#!/bin/sh\r\ncommand -v git-lfs >/dev/null 2>&1 || {{ printf >&2 \"\\n%s\\n\\n\" \"{message}\"; exit 2; }}\r\ngit lfs pre-push \"$@\"\r\n");
         assert!(is_git_lfs_hook("pre-push", echo.as_bytes()));
         assert!(is_git_lfs_hook("pre-push", printf.as_bytes()));
-        // Sai tên hook, thêm lệnh, chèn `$(…)` / `` ` `` / nháy kép vào câu báo → là hook lạ.
+        // A wrong hook name, an appended command, or a `$(…)` / backtick / quote inside the error message → it is a custom hook.
         assert!(!is_git_lfs_hook("post-merge", echo.as_bytes()));
         assert!(!is_git_lfs_hook("pre-push", format!("{echo}touch /tmp/pwned\n").as_bytes()));
         for bad in ["$(touch /tmp/pwned)", "`id`", "\"; id; echo \"", "\\\"; id #"] {

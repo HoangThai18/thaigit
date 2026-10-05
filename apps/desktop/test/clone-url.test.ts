@@ -1,4 +1,4 @@
-// Kiểm URL clone phía giao diện: chặn transport chạy lệnh, cảnh báo URL kèm token, đoán tên thư mục.
+// UI-side clone URL validation: block command-running transports, warn about URLs carrying a token, guess the folder name.
 import { describe, expect, it } from 'vitest';
 import { checkCloneUrl, defaultDirectoryName } from '../src/lib/shell/cloneUrl.ts';
 

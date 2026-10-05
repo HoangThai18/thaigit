@@ -57,7 +57,7 @@ struct SSHKeyTests {
         let info = try keyring.generate(name: "Máy công ty", comment: "a@b")
         #expect(keyring.keys.map(\.name) == ["Máy công ty"])
         #expect(keyring.privateKeys().count == 1)
-        // Phần lưu trong cài đặt không có khoá bí mật.
+        // The stored settings hold no secret.
         let saved = String(decoding: storage.data(forKey: SSHKeyring.listKey) ?? Data(), as: UTF8.self)
         #expect(!saved.contains("PRIVATE KEY"))
 

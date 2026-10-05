@@ -1,13 +1,14 @@
 /**
- * Blame một file ở vùng giữa (thay graph, như "File Blame" của GitKraken): mỗi dòng thuộc commit nào, ai viết, khi nào.
- * `rev` null = bản đang sửa trong working tree (dòng chưa commit hiện riêng).
+ * Blame a file in the centre area (replacing the graph, like GitKraken's "File Blame"): which commit each
+ * line belongs to, who wrote it and when.
+ * A `null` `rev` means the version being edited in the working tree (uncommitted lines are shown apart).
  */
 import type { Blame, GitRepository } from '@thaigit/core';
 import { friendlyError } from '../errors/friendly.ts';
 
 export interface BlameTarget {
   readonly path: string;
-  /** Commit để blame; `null` = working tree. */
+  /** Commit to blame; `null` = the working tree. */
   readonly rev: string | null;
 }
 
@@ -15,13 +16,13 @@ export type BlameState =
   | { readonly kind: 'idle' }
   | { readonly kind: 'loading' }
   | { readonly kind: 'ready'; readonly blame: Blame }
-  /** `message`: câu thân thiện (errors/friendly.ts), không phải lỗi thô. */
+  /** `message`: a friendly sentence (errors/friendly.ts), not a raw error. */
   | { readonly kind: 'failed'; readonly message: string };
 
-/** Phần của `RepoStore` mà blame cần (tránh import vòng). */
+/** The slice of `RepoStore` that blame needs (avoids a circular import). */
 export interface BlameHost {
   readonly git: GitRepository;
-  /** Mở blame thì đóng diff đang xem (hai thứ cùng chiếm vùng giữa). */
+  /** Opening blame closes the diff on screen (both occupy the centre area). */
   closeDiff(): void;
 }
 

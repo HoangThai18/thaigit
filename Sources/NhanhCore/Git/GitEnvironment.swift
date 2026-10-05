@@ -1,6 +1,6 @@
 import Foundation
 
-/// Đường dẫn git + biến môi trường dùng cho mọi lệnh git.
+/// The git path plus the environment variables used for every git command.
 public struct GitEnvironment: Sendable, Equatable {
     public var executable: URL
     public var variables: [String: String]
@@ -10,7 +10,7 @@ public struct GitEnvironment: Sendable, Equatable {
         self.variables = variables
     }
 
-    /// App mở từ Finder/Dock chỉ có PATH tối thiểu, nên bổ sung các thư mục hay gặp
+    /// An app opened from Finder / Dock only has a minimal PATH, so the common directories are added
     /// (Homebrew, git-lfs, gh credential helper, gpg...).
     public static let fallbackPaths = [
         "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin",
@@ -29,14 +29,14 @@ public struct GitEnvironment: Sendable, Equatable {
         let path = components.filter { !$0.isEmpty && seen.insert($0).inserted }.joined(separator: ":")
         env["PATH"] = path
 
-        // Không bao giờ để git chờ nhập từ terminal (app không có terminal).
+        // Never let git wait for terminal input (the app has no terminal).
         env["GIT_TERMINAL_PROMPT"] = "0"
-        // Không mở trình soạn thảo: merge/revert/rebase --continue dùng message mặc định.
+        // Don't open an editor: merge / revert / rebase --continue use the default message.
         env["GIT_EDITOR"] = "true"
         env["GIT_MERGE_AUTOEDIT"] = "no"
         env["GIT_PAGER"] = "cat"
         env["PAGER"] = "cat"
-        // Thông báo của git luôn bằng tiếng Anh để nhận diện lỗi ổn định; vẫn giữ UTF-8.
+        // Git's messages stay English so error detection is stable; UTF-8 is still kept.
         env.removeValue(forKey: "LC_ALL")
         if env["LANG"] == nil { env["LANG"] = "en_US.UTF-8" }
         env["LC_MESSAGES"] = "C"
@@ -52,7 +52,7 @@ public struct GitEnvironment: Sendable, Equatable {
         return GitEnvironment(executable: resolveGit(custom: customGitPath, searchPath: path), variables: env)
     }
 
-    /// Ưu tiên git do người dùng chỉ định, sau đó Homebrew, cuối cùng /usr/bin/git (Apple).
+    /// Prefer the git the user pointed at, then Homebrew, and finally /usr/bin/git (Apple's).
     public static func resolveGit(custom: String?, searchPath: String) -> URL {
         let fm = FileManager.default
         if let custom, !custom.isEmpty, fm.isExecutableFile(atPath: custom) {
@@ -66,7 +66,7 @@ public struct GitEnvironment: Sendable, Equatable {
         return URL(fileURLWithPath: "/usr/bin/git")
     }
 
-    /// Lấy PATH từ login shell của người dùng (giống VS Code) để hooks/credential helper chạy đúng.
+    /// Read PATH from the user's login shell (like VS Code) so hooks / credential helpers behave.
     public static func loginShellPATH(timeout: TimeInterval = 5) async -> String? {
         let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
         let marker = "__NHANH_ENV_BEGIN__"
@@ -102,8 +102,8 @@ public struct GitEnvironment: Sendable, Equatable {
     }
 }
 
-/// Lưu môi trường git hiện tại; mọi GitRunner đọc giá trị mới nhất mỗi lần chạy lệnh,
-/// nên khi PATH từ login shell được nạp xong (hay khi đăng nhập / đăng xuất GitHub) thì các repo đang mở dùng ngay.
+/// Holds the current git environment; every GitRunner reads the latest value on each command run,
+/// so once the login-shell PATH has loaded (or after a GitHub sign-in / sign-out) open repos pick it up immediately.
 public final class GitEnvironmentStore: @unchecked Sendable {
     private let lock = NSLock()
     private var current: GitEnvironment
@@ -127,7 +127,7 @@ public final class GitEnvironmentStore: @unchecked Sendable {
         lock.unlock()
     }
 
-    /// Các tài khoản GitHub đã đăng nhập + bảng owner → tài khoản (nil: chưa đăng nhập) — dùng cho lệnh mạng tới
+    /// The signed-in GitHub accounts plus the owner → account table (nil: not signed in) — used for network commands to
     /// https://github.com.
     public var githubCredentials: GitHubCredentialSet? {
         get {
@@ -142,7 +142,7 @@ public final class GitEnvironmentStore: @unchecked Sendable {
         }
     }
 
-    /// Khoá SSH của Thaigit: lệnh chạm remote SSH được nạp các khoá này vào một ssh-agent tạm (nil: không dùng).
+    /// Thaigit's SSH keys: a command touching an SSH remote loads these into a temporary ssh-agent (nil: don't use them).
     public var sshKeyring: SSHKeyring? {
         get {
             lock.lock()
@@ -156,7 +156,7 @@ public final class GitEnvironmentStore: @unchecked Sendable {
         }
     }
 
-    /// Tài khoản GitLab + đường dẫn helper: lệnh chạm remote HTTPS của một host GitLab đã đăng nhập nhận token.
+    /// GitLab accounts plus the helper path: a command touching an HTTPS remote of a signed-in GitLab host receives the token.
     public var gitlabAccess: GitLabGitAccess? {
         get {
             lock.lock()
@@ -170,7 +170,7 @@ public final class GitEnvironmentStore: @unchecked Sendable {
         }
     }
 
-    /// Môi trường + tài khoản GitHub / GitLab + khoá SSH đọc trong cùng một lần khoá, cho một lệnh git.
+    /// The environment plus the GitHub / GitLab accounts and SSH keys read under one lock, for one git command.
     func snapshot() -> (environment: GitEnvironment, github: GitHubCredentialSet?, ssh: SSHKeyring?, gitlab: GitLabGitAccess?) {
         lock.lock()
         defer { lock.unlock() }
@@ -178,7 +178,7 @@ public final class GitEnvironmentStore: @unchecked Sendable {
     }
 }
 
-/// Tài khoản GitLab cho lệnh git: danh sách tài khoản + đường dẫn script `gitlab-credential.sh`.
+/// GitLab accounts for a git command: the account list plus the path of the `gitlab-credential.sh` script.
 public struct GitLabGitAccess: Sendable {
     public let accounts: GitLabAccounts
     public let helperPath: String
@@ -189,12 +189,12 @@ public struct GitLabGitAccess: Sendable {
     }
 }
 
-/// Script askpass: khi git/ssh cần username, password, token hoặc passphrase,
-/// hiện hộp thoại macOS thay vì treo chờ terminal.
+/// The askpass script: when git/ssh needs a username, password, token or passphrase,
+/// a macOS dialog is shown instead of hanging waiting on a terminal.
 public enum AskPass {
     public static var script: String { #"""
     #!/bin/sh
-    # Thaigit — hộp thoại xác thực cho git/ssh (GIT_ASKPASS / SSH_ASKPASS).
+    # Thaigit — auth dialog for git/ssh (GIT_ASKPASS / SSH_ASKPASS).
     prompt="$1"
     [ -z "$prompt" ] && prompt="\#(Labels.fallbackPrompt)"
     case "$prompt" in
@@ -224,8 +224,8 @@ public enum AskPass {
     """#
     }
 
-    /// Chữ trong hộp thoại, theo ngôn ngữ của app. Bỏ ký tự có nghĩa đặc biệt với shell / AppleScript để bản dịch nào cũng
-    /// không phá được lệnh.
+    /// The dialog text, in the app's language. Characters special to the shell / AppleScript are stripped so no
+    /// translation can break the command.
     enum Labels {
         static var fallbackPrompt: String { safe(String(localized: "Git cần thông tin xác thực")) }
         static var no: String { safe(String(localized: "Không")) }
@@ -237,7 +237,7 @@ public enum AskPass {
         }
     }
 
-    /// Ghi script vào ~/Library/Application Support/Thaigit/askpass.sh và trả về đường dẫn.
+    /// Write the script to ~/Library/Application Support/Thaigit/askpass.sh and return its path.
     public static func install() -> String? {
         let fm = FileManager.default
         guard let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }

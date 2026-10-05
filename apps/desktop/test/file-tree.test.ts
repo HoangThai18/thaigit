@@ -1,4 +1,4 @@
-// Danh sách file thay đổi dạng cây thư mục.
+// Changed files as a directory tree.
 import type { FileChange } from '@thaigit/core';
 import { describe, expect, it } from 'vitest';
 import { fileTreeRows, type FileTreeRow } from '../src/lib/staging/fileTree.ts';

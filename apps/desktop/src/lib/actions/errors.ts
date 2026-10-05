@@ -1,5 +1,5 @@
-// Nhận diện lỗi git quen thuộc để hiện thông báo dễ hiểu kèm nút xử lý (port handleConflictError / handleCheckoutError của
-// RepoModel+Actions.swift). Trả `true` khi đã tự hiện thông báo (dùng làm `onError` của `store.perform`).
+// Recognises familiar git errors to show an understandable notification with a fix button (a port of handleConflictError / handleCheckoutError in
+// RepoModel+Actions.swift). Returns `true` when it already showed a notification (used as `store.perform`'s `onError`).
 
 import { GitError } from '@thaigit/core';
 import { assignAccountForRepo } from '../forge/assignOwner.ts';
@@ -12,7 +12,7 @@ export function gitErrorContains(error: unknown, ...needles: string[]): boolean 
   return error instanceof GitError && needles.some((needle) => error.contains(needle));
 }
 
-/** Thao tác dừng giữa chừng vì xung đột, hoặc bị chặn vì thay đổi chưa commit. */
+/** An operation stopped halfway because of a conflict, or was blocked by uncommitted changes. */
 export function handleConflictError(
   store: RepoStore,
   error: unknown,
@@ -35,7 +35,7 @@ export function handleConflictError(
   return false;
 }
 
-/** Lỗi mạng / đăng nhập của fetch, pull, push: thông báo gọn hơn đống stderr. */
+/** A network / sign-in error from fetch, pull or push: a shorter notification than the stderr dump. */
 export function handleNetworkError(store: RepoStore, error: unknown, operation: string): boolean {
   if (
     gitErrorContains(
@@ -49,7 +49,7 @@ export function handleNetworkError(store: RepoStore, error: unknown, operation: 
       'terminal prompts disabled',
     )
   ) {
-    // Remote là GitHub / GitLab / Bitbucket: gợi ý đăng nhập (hoặc chọn đúng tài khoản cho owner) ngay trong app.
+    // The remote is GitHub / GitLab / Bitbucket: suggest signing in (or picking the right account for the owner) right in the app.
     const actions: ToastAction[] =
       targetOf(store) === null
         ? []

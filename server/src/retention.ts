@@ -1,6 +1,7 @@
-// Dọn dữ liệu theo hạn giữ (chạy lúc khởi động và mỗi 6 giờ, chạy lại nhiều lần vô hại):
-//  - ai_quota > 7 ngày, ai_requests > 30 ngày;
-//  - daily_active > 90 ngày — trước khi xoá gộp vào daily_counts (chỉ số đếm, không ID) để giữ lâu dài.
+// Retention cleanup (runs at startup and every 6 hours; running it repeatedly is harmless):
+//  - ai_quota older than 7 days, ai_requests older than 30 days;
+//  - daily_active older than 90 days — before deleting, roll them up into daily_counts (counters only, no ids) so they
+//    can be kept long term.
 
 import { transaction, type Db } from './db.ts';
 import { dayMinus, vnDay } from './time.ts';
@@ -8,7 +9,7 @@ import { dayMinus, vnDay } from './time.ts';
 export function runRetention(db: Db, now: number): void {
   const today = vnDay(now);
   transaction(db, () => {
-    // Gộp mọi ngày đã qua (kể cả chưa tới hạn xoá) để dashboard đọc daily_counts thống nhất.
+    // Roll up every past day (even one not yet due for deletion) so the dashboard reads daily_counts consistently.
     db.prepare(
       `INSERT INTO daily_counts (day, platform, app_version, dau)
          SELECT day, platform, app_version, COUNT(*) FROM daily_active WHERE day < ?

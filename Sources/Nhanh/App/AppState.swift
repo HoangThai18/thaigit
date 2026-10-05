@@ -2,7 +2,7 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Khoá UserDefaults cho phần cài đặt.
+/// The UserDefaults key holding the preferences.
 enum Prefs {
     static let gitPath = "gitPath"
     static let recentRepositories = "recentRepositories"
@@ -67,7 +67,7 @@ enum Prefs {
     }
 }
 
-/// Trạng thái dùng chung toàn app: môi trường git, repo gần đây, yêu cầu mở từ Finder/Dock.
+/// State shared app-wide: the git environment, recent repos, requests to open something from Finder / Dock.
 @Observable
 final class AppState {
     static let shared = AppState()
@@ -76,7 +76,7 @@ final class AppState {
     private(set) var gitVersion: String?
     private(set) var gitExecutablePath: String
     var recentRepositories: [String]
-    /// Đường dẫn chờ mở (kéo thư mục vào Dock, `open -a Thaigit <thư mục>`, tham số dòng lệnh).
+    /// A path waiting to be opened (folder dropped on the Dock, `open -a Thaigit <folder>`, a command-line argument).
     var pendingOpenPaths: [String] = []
 
     private let askPassPath: String?
@@ -94,7 +94,7 @@ final class AppState {
         gitExecutablePath = environment.executable.path
         recentRepositories = UserDefaults.standard.stringArray(forKey: Prefs.recentRepositories) ?? []
         pendingOpenPaths = Self.launchArgumentPaths()
-        // Nạp tài khoản GitHub trước khi repo nào kịp chạy lệnh mạng (token đi qua `environment`).
+        // Load the GitHub accounts before any repo can run a network command (the token travels through `environment`).
         GitHubAccountManager.shared.bind(to: self.environment)
         SSHKeyManager.shared.bind(to: self.environment)
         GitLabAccountManager.shared.bind(to: self.environment)
@@ -147,7 +147,7 @@ final class AppState {
         UserDefaults.standard.set(recentRepositories, forKey: Prefs.recentRepositories)
     }
 
-    /// Hộp thoại chọn thư mục repository.
+    /// The repository folder picker.
     func chooseRepositoryFolder(prompt: String = String(localized: "Mở")) -> String? {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true

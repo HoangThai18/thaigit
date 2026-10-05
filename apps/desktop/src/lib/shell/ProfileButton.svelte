@@ -25,7 +25,7 @@
     try {
       identity = await loadIdentity(store);
     } catch {
-      // Không đọc được cấu hình: để trống, hộp đổi danh tính vẫn dùng được.
+      // Config unreadable: stay empty, the identity dialog still works.
     }
   }
 

@@ -4,13 +4,13 @@ import NhanhCore
 import FoundationModels
 #endif
 
-/// Viết commit message bằng mô hình ngôn ngữ chạy NGAY TRÊN MÁY (Apple Intelligence, macOS 26+): diff không rời khỏi
-/// máy, không cần tài khoản hay API key.
+/// Writes commit messages with a language model running ENTIRELY ON THE MACHINE (Apple Intelligence, macOS 26+): the
+/// diff never leaves the machine and no account or API key is needed.
 enum CommitMessageAI {
-    /// Công tắc chung: đang TẠM TẮT — nút ✨ và lệnh trong bảng lệnh ⌘P đều ẩn. Bật lại: đổi thành `true`.
+    /// Master switch: currently TEMPORARILY OFF — the ✨ button and the ⌘P palette command are hidden. To re-enable: change this to `true`.
     static let isEnabled = false
 
-    /// nil nếu dùng được; không thì lý do (hiện trong tooltip của nút).
+    /// nil when it can be used; otherwise the reason (shown in the button's tooltip).
     static var unavailableReason: String? {
         #if canImport(FoundationModels)
         if #available(macOS 26.0, *) {
@@ -31,7 +31,7 @@ enum CommitMessageAI {
         return String(localized: "Cần macOS 26 trở lên (Apple Intelligence)")
     }
 
-    /// Trả về (tóm tắt, phần thân) cho thay đổi đã stage.
+    /// Returns (summary, body) for the staged changes.
     static func suggest(for repository: GitRepository) async throws -> (summary: String, body: String) {
         let staged = try await repository.stagedChangesForPrompt()
         guard !staged.patch.isEmpty else { throw AIError.nothingStaged }
@@ -40,7 +40,7 @@ enum CommitMessageAI {
         if #available(macOS 26.0, *) {
             let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
             var patch = staged.patch
-            // Diff quá dài so với cửa sổ ngữ cảnh: thử lại với phần diff ngắn hơn (vẫn giữ thống kê đủ các file).
+            // A diff too long for the context window: retry with a shorter one (still keeping stats for every file).
             for _ in 0..<3 {
                 let session = LanguageModelSession(model: model, instructions: "Bạn là trợ lý viết commit message git ngắn gọn, chính xác.")
                 do {
@@ -82,7 +82,7 @@ enum CommitMessageAI {
 }
 
 extension RepoModel {
-    /// Điền commit message do AI trên máy viết; giữ lại bản cũ để hoàn tác.
+    /// Fill in the commit message the on-device AI wrote; keep the old one so it can be undone.
     func fillCommitMessageWithAI() async {
         let previous = (commitSummary, commitBody)
         do {

@@ -47,14 +47,14 @@ def cut_out_background(image: Image.Image) -> Image.Image:
         for x in (0, width - 1):
             if binary.getpixel((x, y)) == 255:
                 ImageDraw.floodfill(binary, (x, y), 128)
-    # Quầng sáng/bóng mờ quanh khối kính: lấn dần vào các điểm còn khá sáng sát nền (dừng ở viền kính tối hơn).
+    # Halo / soft shadow around the slab: eat into it gradually through pixels still bright enough next to the background (stop at the darker glass edge).
     background = binary.point(lambda v: 255 if v == 128 else 0)
     halo = whiteness.point(lambda v: 255 if v >= HALO_THRESHOLD else 0)
     for _ in range(10):
         background = ImageChops.darker(background.filter(ImageFilter.MaxFilter(3)), halo)
         background = ImageChops.lighter(background, binary.point(lambda v: 255 if v == 128 else 0))
     alpha = ImageChops.invert(background).filter(ImageFilter.GaussianBlur(1.2))
-    # Ảnh gốc để đế khối kính chạm mép dưới → bo lại cạnh dưới bằng mặt nạ bo góc khớp với khối.
+    # The source image leaves the slab touching the bottom edge → round the bottom off with a corner mask matching the slab.
     alpha = ImageChops.darker(alpha, rounded_mask(image.size, SLAB_BOX, SLAB_RADIUS))
     result = image.convert("RGBA")
     result.putalpha(alpha)

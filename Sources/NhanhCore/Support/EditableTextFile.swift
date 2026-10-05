@@ -1,8 +1,9 @@
 import Foundation
 
-/// File văn bản trong working tree mở để sửa ngay trong app. Giữ nguyên từng byte ngoài phần người dùng sửa:
-/// BOM UTF-8 và kiểu xuống dòng (CRLF / LF) được trả lại khi lưu. Chỉ nhận UTF-8 hợp lệ, một kiểu xuống dòng,
-/// file thường nằm trong repo (không theo symlink ra ngoài).
+/// A text file in the working tree opened for editing right inside the app. Every byte outside the part the
+/// user edited is preserved: a UTF-8 BOM and the line ending style (CRLF / LF) are restored on save. Only
+/// valid UTF-8 with a single line ending style is accepted, and the file must be an ordinary file inside
+/// the repo (no symlink pointing out).
 public struct EditableTextFile: Sendable, Equatable {
     public enum Problem: LocalizedError, Equatable, Sendable {
         case notFound
@@ -13,7 +14,7 @@ public struct EditableTextFile: Sendable, Equatable {
         case binary
         case notUTF8
         case mixedLineEndings
-        /// File đã bị sửa ở nơi khác sau khi mở.
+        /// The file changed elsewhere after it was opened.
         case changedOnDisk
 
         public var errorDescription: String? {
@@ -35,17 +36,17 @@ public struct EditableTextFile: Sendable, Equatable {
     public static let maxBytes = 2 * 1024 * 1024
     private static let bom = Data([0xEF, 0xBB, 0xBF])
 
-    /// Đường dẫn tương đối trong repo.
+    /// Path relative to the repo.
     public let path: String
     public let url: URL
-    /// Byte của file lúc mở (hoặc lúc lưu gần nhất) — để biết file có bị sửa ở nơi khác không.
+    /// The file's bytes when it was opened (or at the last save) — to tell whether it changed elsewhere.
     public let original: Data
-    /// Nội dung để sửa: đã bỏ BOM, xuống dòng luôn là "\n".
+    /// The content to edit: BOM removed, line endings always "\n".
     public let text: String
     public let hasBOM: Bool
     public let usesCRLF: Bool
 
-    /// Mở `path` (đường dẫn tương đối trong repo `root`).
+    /// Open `path` (a path relative to repo `root`).
     public static func open(path: String, in root: URL) throws -> EditableTextFile {
         let url = try checkedURL(path: path, in: root)
         let data = try Data(contentsOf: url)
@@ -77,15 +78,16 @@ public struct EditableTextFile: Sendable, Equatable {
         original = data
     }
 
-    /// Byte sẽ ghi cho nội dung đã sửa (trả lại BOM và CRLF như file gốc).
+    /// The bytes to write for the edited content (restoring the BOM and CRLF of the original file).
     public func data(for edited: String) -> Data {
         var text = edited.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
         if usesCRLF { text = text.replacingOccurrences(of: "\n", with: "\r\n") }
         return (hasBOM ? Self.bom : Data()) + Data(text.utf8)
     }
 
-    /// Lưu nội dung đã sửa. File bị sửa ở nơi khác thì ném `changedOnDisk` (trừ khi `overwrite`). Ghi ra file tạm cạnh
-    /// file gốc rồi thay thế (không để file dở dang nếu lỗi giữa chừng), giữ quyền (vd. +x) của file gốc.
+    /// Save the edited content. Throws `changedOnDisk` when the file changed elsewhere (unless `overwrite`).
+    /// Writes to a temp file next to the original and then replaces it (so a mid-way failure never leaves a
+    /// half-written file), preserving the original's mode (e.g. +x).
     public func save(_ edited: String, in root: URL, overwrite: Bool = false) throws -> EditableTextFile {
         let target = try Self.checkedURL(path: path, in: root)
         let current = try Data(contentsOf: target)
@@ -105,8 +107,8 @@ public struct EditableTextFile: Sendable, Equatable {
         return try EditableTextFile(path: path, url: target, data: data)
     }
 
-    /// Đường dẫn an toàn để đọc / ghi: file thường (không phải symlink) nằm trong repo kể cả sau khi giải symlink của
-    /// các thư mục cha.
+    /// The safe path used for reading / writing: an ordinary file (not a symlink) inside the repo, checked
+    /// even after resolving the parent directories' symlinks.
     static func checkedURL(path: String, in root: URL) throws -> URL {
         let rootURL = root.standardizedFileURL
         let url = rootURL.appendingPathComponent(path).standardizedFileURL

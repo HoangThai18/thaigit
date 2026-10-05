@@ -3,7 +3,7 @@ import NhanhCore
 import SwiftUI
 
 extension RepoModel {
-    // MARK: - Stage / unstage / huỷ file
+    // MARK: - Stage / unstage / discard a file
 
     func stage(_ changes: [FileChange]) {
         let paths = Array(Set(changes.flatMap(\.allPaths)))
@@ -147,13 +147,13 @@ extension RepoModel {
         return body.isEmpty ? summary : summary + "\n\n" + body
     }
 
-    /// "Commit & Push" dùng được không: có remote, đang ở một nhánh, không amend (amend commit đã push thì push thường bị
-    /// từ chối, "Pull trước" lại tạo merge — để người dùng tự push có cân nhắc).
+    /// Whether "Commit & Push" is available: there's a remote, we're on a branch, and it's not an amend (amending a pushed
+    /// commit makes a normal push get rejected, while "Pull first" creates a merge — leave the choice to the user).
     var canCommitAndPush: Bool {
         !remotes.isEmpty && currentBranchRef != nil && !amendLastCommit
     }
 
-    /// Commit với nội dung ô soạn; `andPush`: commit xong thì push nhánh hiện tại luôn (commit lỗi thì không push).
+    /// Commit with the compose box's contents; `andPush`: push the current branch right after (no push when the commit fails).
     func commit(stageAllFirst: Bool = false, andPush: Bool = false) {
         guard hasCommitMessage else {
             toast(.warning, String(localized: "Hãy nhập tóm tắt cho commit"))
@@ -164,7 +164,7 @@ extension RepoModel {
             return
         }
         let message = composedCommitMessage
-        // Đang merge / revert…: commit hoàn tất thao tác, không bao giờ sửa commit trước (ô amend bị khoá lúc này).
+        // Mid merge / revert…: the commit finishes the operation and must never modify an earlier commit (the amend box is locked meanwhile).
         let amend = amendLastCommit && operation == nil
         let previousHead = headOID
         let branch = currentBranch ?? "HEAD"
@@ -174,7 +174,7 @@ extension RepoModel {
         } onSuccess: { [weak self] in
             guard let self else { return }
             savedSummaryBeforeAmend = nil
-            // Tắt amend TRƯỚC khi xoá ô soạn để bản nháp đã lưu của repo cũng được xoá theo.
+            // Turn amend OFF before clearing the compose box so the repo's saved draft is deleted too.
             amendLastCommit = false
             commitSummary = ""
             commitBody = ""
@@ -217,7 +217,7 @@ extension RepoModel {
             let repo = repository
             Task {
                 guard let message = try? await repo.commitMessage(head), amendLastCommit, commitSummary.isEmpty else { return }
-                // Message CRLF (commit từ công cụ khác): "\r\n" là MỘT Character nên phải đổi về "\n" trước khi tách dòng.
+                // A CRLF message (committed from another tool): "\r\n" is ONE Character in Swift, so it must be turned back into "\n" before splitting lines.
                 let trimmed = message.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
                 let parts = trimmed.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
                 commitSummary = parts.first.map(String.init) ?? ""
@@ -316,7 +316,7 @@ extension RepoModel {
         }
     }
 
-    /// Quay lại HEAD trước đó (nhánh hoặc commit), rồi chạy thêm `then` nếu có.
+    /// Go back to the previous HEAD (a branch or a commit), then run `then` if there is one.
     func restoreHead(_ head: HeadState, then: ((GitRepository) async throws -> Void)? = nil) {
         perform(String(localized: "Hoàn tác checkout")) { repo in
             switch head {
@@ -328,16 +328,16 @@ extension RepoModel {
         }
     }
 
-    /// Việc cần làm lại khi thay đổi chưa commit chặn checkout / tạo nhánh. `undo` dọn phần đã tạo (ví dụ nhánh mới)
-    /// khi phải quay lại chỗ cũ.
+    /// The work needed to redo when uncommitted changes block a checkout / branch creation. `undo` cleans up what was already
+    /// created (e.g. the new branch) when we have to go back to the old place.
     struct CheckoutRetry {
         var title: String
         var work: (GitRepository) async throws -> Void
         var undo: ((GitRepository) async throws -> Void)? = nil
     }
 
-    /// Thay đổi chưa commit chặn checkout: mang theo được (áp lại không xung đột) thì cứ chuyển, như GitKraken;
-    /// xung đột thì trả mọi thứ về chỗ cũ rồi bắt chọn commit hoặc cất vào stash.
+    /// Uncommitted changes block a checkout: when they can be carried over (reapplying doesn't conflict) go ahead, like GitKraken;
+    /// on conflict put everything back and ask whether to commit or stash it.
     func handleCheckoutError(_ error: any Error, retry: CheckoutRetry) -> Bool {
         guard let gitError = error as? GitError,
               gitError.contains("would be overwritten") || gitError.contains("Please commit your changes or stash them") else {
@@ -355,8 +355,8 @@ extension RepoModel {
         try await repo.stashes().first?.sha
     }
 
-    /// Cất thay đổi (file đã track), chạy thao tác rồi áp lại lên chỗ mới. Áp lại bị xung đột thì quay về HEAD cũ,
-    /// trả thay đổi như ban đầu và hỏi người dùng; thao tác lỗi thì cũng trả thay đổi về như cũ.
+    /// Stash the changes (tracked files), run the operation, then reapply them on the new base. When reapplying conflicts it
+    /// goes back to the old HEAD, returns the changes as they were and asks the user; a failing operation restores the changes too.
     private func carryThen(_ retry: CheckoutRetry) {
         var conflict = false
         let previous = status.head
@@ -396,7 +396,7 @@ extension RepoModel {
         }
     }
 
-    /// Thay đổi vướng với nhánh đích nên không mang theo được: commit, hoặc cất vào stash (lưu nháp) rồi chuyển.
+    /// Changes clash with the target branch and can't be carried over: commit them, or stash them (keeping a draft) and then switch.
     private func askToSaveWork(_ retry: CheckoutRetry) {
         confirmation = Confirmation(
             title: String(localized: "Thay đổi chưa commit đang vướng"),
@@ -408,7 +408,7 @@ extension RepoModel {
         )
     }
 
-    /// Cất mọi thay đổi (kể cả file mới) vào stash rồi chạy thao tác; không áp lại. Thao tác lỗi thì trả thay đổi về.
+    /// Stash every change (including new files), run the operation, don't reapply. On failure the changes are restored.
     func stashThen(_ retry: CheckoutRetry) {
         perform(retry.title) { [weak self] repo in
             guard let self else { return }
@@ -567,7 +567,7 @@ extension RepoModel {
         }
     }
 
-    /// Kéo nhánh `source` thả lên `target` rồi chọn "Merge vào": checkout target (nếu cần) rồi merge.
+    /// Drag branch `source` onto `target` then choose "Merge into": check out target (if needed) and merge.
     func merge(_ source: GitRef, into target: GitRef) {
         if target.name == currentBranch {
             merge(source.name, label: source.name)
@@ -634,8 +634,8 @@ extension RepoModel {
         }
     }
 
-    /// Hỏi trước như GitKraken ("Do you want to immediately commit the revert?"): revert & commit ngay, hoặc chỉ stage
-    /// thay đổi đảo ngược để xem lại / sửa rồi tự commit.
+    /// Ask first like GitKraken ("Do you want to immediately commit the revert?"): revert & commit right away, or only stage
+    /// the reverse changes so they can be reviewed / edited and committed later.
     func revert(_ commit: Commit) {
         var message = String(localized: "Tạo một commit mới trên \(currentBranch ?? "HEAD") đảo ngược thay đổi của \(commit.shortSHA). Lịch sử cũ giữ nguyên.")
         if commit.isMerge, let firstParent = commit.parents.first {
@@ -655,8 +655,8 @@ extension RepoModel {
     private func performRevert(_ commit: Commit, commitImmediately: Bool) {
         let mainline = commit.isMerge ? 1 : nil
         guard commitImmediately else {
-            // `revert --no-commit` gộp thay đổi đã stage sẵn vào revert, và "Hoàn tác" (revert --abort) sẽ xoá luôn
-            // chúng — chặn như git chặn "Revert & commit" khi index bẩn.
+            // `revert --no-commit` folds already staged changes into the revert, and "Undo" (revert --abort) would delete them
+            // too — blocked exactly like git blocks "Revert & commit" on a dirty index.
             guard status.staged.isEmpty else {
                 toast(.warning, String(localized: "Revert bị chặn vì có thay đổi đã stage"),
                       message: String(localized: "Commit hoặc stash chúng trước, nếu không chúng sẽ lẫn vào commit revert."),
@@ -667,7 +667,7 @@ extension RepoModel {
                 try await repo.revert(commit.id, mainline: mainline, commit: false)
             } onSuccess: { [weak self] in
                 guard let self else { return }
-                // Banner "Đang revert" + ô commit điền sẵn message từ MERGE_MSG (sau khi làm mới).
+                // "Reverting" banner + the compose box prefilled with the MERGE_MSG message (after the refresh).
                 select(.workingTree, reveal: true)
                 toast(.success, String(localized: "Đã revert “\(commit.subject)” — chưa commit"), message: nil, actions: [
                     ToastAction(title: String(localized: "Hoàn tác")) { [weak self] in
@@ -675,7 +675,7 @@ extension RepoModel {
                     },
                 ])
             } onError: { [weak self] error in
-                // Commit đã được đảo ngược từ trước: lõi đã huỷ trạng thái "Đang revert", chỉ cần báo.
+                // The commit was already reverted beforehand: the core already cancelled the "Reverting" state, just report it.
                 if case RepositoryError.nothingToRevert = error {
                     self?.toast(.info, String(localized: "Commit này đã được đảo ngược, không có gì để revert"))
                     return true
@@ -744,7 +744,7 @@ extension RepoModel {
         return false
     }
 
-    // MARK: - Thao tác dở dang (merge/rebase/cherry-pick)
+    // MARK: - In-flight operations (merge / rebase / cherry-pick)
 
     func continueOperation() {
         guard let operation else { return }
@@ -761,13 +761,14 @@ extension RepoModel {
             commit()
             return
         }
-        // Đang revert, ô commit có message và có thay đổi đã stage: commit thẳng (`--cleanup=whitespace`) như nút "Hoàn tất
-        // revert" — `revert --continue` luôn dùng `--cleanup=strip`, làm mất mọi dòng bắt đầu bằng "#" (#123, #hotfix…).
+        // Mid revert with a prefilled commit box and staged changes: commit straight away (`--cleanup=whitespace`), like the
+        // "Finish revert" button — `revert --continue` always uses `--cleanup=strip`, which would drop every line starting
+        // with "#" (#123, #hotfix…).
         if operation == .reverting, hasCommitMessage, !status.staged.isEmpty {
             commit()
             return
         }
-        // Ô commit được điền sẵn từ MERGE_MSG rồi người dùng sửa: `revert --continue` phải dùng bản đã sửa.
+        // The compose box was prefilled from MERGE_MSG and the user then edited it: `revert --continue` must use the edited version.
         let editedMessage: String?
         if operation == .reverting, hasCommitMessage, let prefilled = prefilledCommitMessage,
            commitSummary != prefilled.summary || commitBody != prefilled.body {
@@ -837,8 +838,8 @@ extension RepoModel {
         }
     }
 
-    /// "Fetch đầy đủ từ remote" (thanh báo khi repo thiếu nhánh / lịch sử): remote chỉ theo dõi vài nhánh thì thêm refspec mọi
-    /// nhánh (giữ refspec cũ), clone nông thì lấy nốt commit cũ, rồi fetch để các nhánh như `main` hiện ra.
+    /// "Fetch everything from remote" (the bar shown when the repo is missing branches / history): a remote tracking only a few
+    /// branches gets an all-branches refspec added (keeping the old ones), a shallow clone gets its old commits, then fetch so branches like `main` show up.
     func completeHistory() {
         guard !remotes.isEmpty else { return }
         let gaps = extras.historyGaps
@@ -856,7 +857,7 @@ extension RepoModel {
         }
     }
 
-    /// Pull nhánh hiện tại; `next` chạy sau khi pull xong không lỗi (dùng cho "Pull rồi Push").
+    /// Pull the current branch; `next` runs after a pull that didn't fail (used by "Pull then push").
     func pull(mode: PullMode? = nil, then next: (() -> Void)? = nil) {
         guard let branch = currentBranchRef else {
             toast(.warning, String(localized: "Cần đứng trên một nhánh để pull"))
@@ -902,8 +903,8 @@ extension RepoModel {
         }
     }
 
-    /// Đồng bộ nhánh hiện tại: pull (kiểu trong cài đặt) rồi push nếu pull không lỗi — "Pull rồi Push" khi push bị từ chối
-    /// và mục "Đồng bộ" ở menu Pull. Chưa có upstream thì chỉ push (hỏi remote + đặt upstream).
+    /// Sync the current branch: pull (using the configured style) then push if the pull didn't fail — "Pull then push" when a push
+    /// was rejected, and the "Sync" item in the Pull menu. With no upstream it only pushes (asking for the remote and setting the upstream).
     func sync() {
         guard let branch = currentBranchRef, branch.upstream != nil, !branch.upstreamGone else {
             push()
@@ -980,7 +981,7 @@ extension RepoModel {
         }
     }
 
-    /// Đẩy nhánh local lên một nhánh remote cụ thể (kéo-thả nhánh local lên nhánh remote).
+    /// Push a local branch to a specific remote branch (dragging a local branch onto a remote branch).
     func push(_ local: GitRef, to remoteRef: GitRef) {
         guard let remote = remoteRef.remoteName else { return }
         performPush(PushRequest(localBranch: local.name, remote: remote, remoteBranch: remoteRef.shortBranchName,
@@ -1024,7 +1025,7 @@ extension RepoModel {
         sheet = .stash
     }
 
-    /// Nút Stash trên toolbar: cất ngay mọi thay đổi (kể cả file mới).
+    /// The toolbar's Stash button: stash every change (including new files) immediately.
     func quickStash() {
         guard !status.isClean else {
             toast(.info, String(localized: "Không có thay đổi nào để stash"))
@@ -1168,7 +1169,7 @@ extension RepoModel {
         }
     }
 
-    // MARK: - Ứng dụng ngoài
+    // MARK: - External applications
 
     func openInTerminal() {
         let configuration = NSWorkspace.OpenConfiguration()
@@ -1209,7 +1210,7 @@ extension RepoModel {
         toast(.info, String(localized: "Đã sao chép \(label)"))
     }
 
-    /// Đường dẫn web của commit trên GitHub/GitLab/Bitbucket (nếu remote là một trong số đó).
+    /// A commit's web address on GitHub / GitLab / Bitbucket (when the remote is one of those).
     func webURL(forCommit sha: String) -> URL? {
         guard let remote = remotes.first(where: { $0.name == defaultRemote }) ?? remotes.first else { return nil }
         var url = remote.fetchURL
@@ -1226,7 +1227,7 @@ extension RepoModel {
         return nil
     }
 
-    // MARK: - Menu ngữ cảnh
+    // MARK: - Context menu
 
     func menu(for entry: GraphEntry) -> [MenuItemSpec] {
         if entry.commit.isWorkingTree { return workingTreeMenu() }
@@ -1445,7 +1446,7 @@ extension RepoModel {
         return items
     }
 
-    /// Lựa chọn khi kéo nhánh `source` thả lên nhánh/remote đích.
+    /// The options shown when dragging branch `source` onto a target branch / remote.
     func dropOptions(_ request: DragRequest) -> [MenuItemSpec] {
         let source = request.source
         var items: [MenuItemSpec] = []

@@ -1,5 +1,5 @@
 /**
- * Chuỗi của phần cập nhật tự động. Truy cập qua `vi.update.*`.
+ * Strings for automatic updates. Reached through `vi.update.*`.
  */
 export const update = {
   available: (version: string) => `Có Thaigit ${version}`,

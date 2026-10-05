@@ -32,7 +32,7 @@
   let token = $state('');
   let showClientId = $state(false);
   let clientIdDraft = $state('');
-  /** Tài khoản đang sửa tên / email commit. */
+  /** The account whose commit name / email is being edited. */
   let identityFor = $state<{ host: string; login: string } | null>(null);
   let identityName = $state('');
   let identityEmail = $state('');

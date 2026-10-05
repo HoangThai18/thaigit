@@ -1,12 +1,13 @@
-// Tô sáng phần thay đổi bên trong một dòng (so cặp dòng xoá/thêm liền kề). Chỉ để hiển thị: làm việc trên chuỗi
-// đã giải mã, không liên quan tới byte của patch.
+// Highlights changed regions inside a line (by pairing adjacent deleted/added lines). Display only: it works on
+// already-decoded strings and is unrelated to patch bytes.
 
 import { decodeUtf8Lossy, isGraphemeBoundary } from '../support/text.ts';
 import type { DiffHunk, DiffLineKind } from './diff.ts';
 
 /**
- * Khoảng [start, end) theo UTF-16 code unit của chuỗi (dùng thẳng với `String.slice`), luôn nằm trên ranh giới
- * grapheme nên không xé cặp thay thế hay chữ + dấu kết hợp. Với chữ ASCII trùng với chỉ số ký tự của bản Swift.
+ * [start, end) range in UTF-16 code units of the string (usable directly with `String.slice`). Always on grapheme
+ * boundaries, so it never splits a surrogate pair or a base character from its combining mark. For ASCII this is the
+ * same as the Swift character index.
  */
 export interface TextRange {
   readonly start: number;
@@ -18,12 +19,12 @@ export interface InlineLine {
   readonly text: string;
 }
 
-/** Dòng dài hơn mức này thì bỏ qua tô từng phần. */
+/** Lines longer than this skip inline highlighting. */
 const MAX_INLINE_LENGTH = 2000;
-/** Phần giống nhau (đầu + cuối) chiếm dưới tỉ lệ này thì tô cả dòng là đủ. */
+/** When the common prefix+suffix covers less than this ratio, highlight the whole line instead. */
 const MIN_COMMON_RATIO = 0.3;
 
-/** Khoảng khác nhau giữa hai dòng; null nếu hai dòng khác nhau quá nhiều hoặc giống hệt. */
+/** Range of difference between two lines; null when they differ too much or are identical. */
 export function changedRanges(oldText: string, newText: string): { old: TextRange; new: TextRange } | null {
   const oldLength = oldText.length;
   const newLength = newText.length;
@@ -63,7 +64,7 @@ export function changedRanges(oldText: string, newText: string): { old: TextRang
   return { old: oldRange, new: newRange };
 }
 
-/** Chỉ số dòng trong hunk → khoảng cần tô đậm. Ghép dòng xoá thứ k với dòng thêm thứ k trong mỗi khối thay đổi. */
+/** Line index in a hunk → range to emphasise. Pairs the k-th deleted line with the k-th added line in each change block. */
 export function inlineHighlights(lines: readonly InlineLine[]): Map<number, TextRange> {
   const result = new Map<number, TextRange>();
   let i = 0;
@@ -100,7 +101,7 @@ export function inlineHighlights(lines: readonly InlineLine[]): Map<number, Text
   return result;
 }
 
-/** Như `inlineHighlights` nhưng trên hunk thô (giải mã lỏng, chưa đổi tab) — dùng khi không cần chữ hiển thị. */
+/** Like `inlineHighlights` but over the raw hunk (lossily decoded, tabs unexpanded) — for when display text is not needed. */
 export function hunkHighlights(hunk: DiffHunk): Map<number, TextRange> {
   return inlineHighlights(hunk.lines.map((line) => ({ kind: line.kind, text: decodeUtf8Lossy(line.text) })));
 }

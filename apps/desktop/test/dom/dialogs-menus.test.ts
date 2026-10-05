@@ -1,4 +1,4 @@
-// Hộp thoại (xác nhận + form) và menu nổi: phím Esc / Enter, kiểm tra form, chạy mục menu, điều hướng bằng phím mũi tên.
+// Dialogs (confirm + form) and pop-up menus: Esc / Enter keys, form validation, running a menu item, arrow-key navigation.
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DialogStore, type FormValues } from '../../src/lib/stores/dialogs.svelte.ts';
@@ -56,7 +56,7 @@ describe('DialogHost', () => {
     expect(document.activeElement).toBe(input);
     expect(document.querySelector('.error')?.textContent).toBe('Nhập tên');
     expect(document.querySelector<HTMLButtonElement>('.button.primary')!.disabled).toBe(true);
-    // Enter khi còn lỗi: không gửi.
+    // Enter while errors remain: nothing is submitted.
     key(input, 'Enter');
     expect(store.current).not.toBeNull();
 
@@ -109,7 +109,7 @@ describe('MenuHost', () => {
     expect(items.map((item) => item.textContent?.trim())).toEqual(['Merge', 'Không được', 'Rebase']);
     expect(document.querySelectorAll('[role="separator"]')).toHaveLength(1);
     expect(document.activeElement).toBe(items[0]);
-    // Mục bị tắt bị bỏ qua khi di chuyển.
+    // A disabled entry is skipped while navigating.
     key(document.activeElement!, 'ArrowDown');
     expect(document.activeElement).toBe(items[2]);
     (document.activeElement as HTMLButtonElement).click();

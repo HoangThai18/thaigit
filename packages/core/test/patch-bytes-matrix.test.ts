@@ -1,10 +1,11 @@
-// Ma trận CRLF (FM8/AD9) với git THẬT trong repo tạm cô lập, so sánh BYTE của blob index (`git cat-file blob :path`)
-// và file working tree:
-//   {core.autocrlf true | input | false} × {index LF | CRLF có `-text` | CRLF cũ (không thuộc tính) | lẫn LF/CRLF}
-//   × {file kết thúc bằng newline | không có newline cuối} × {chọn dòng 2 | chọn dòng cuối} × {stage | unstage | huỷ}
-// Kỳ vọng tính từ MÔ HÌNH ĐỘC LẬP (chỉ dòng được chọn đổi, mọi byte khác giữ nguyên), không gọi code đang test —
-// nên test có thể fail. Một số ô có thêm đáp án vàng viết thẳng từng byte. Nhóm cuối ghi lại hành vi của git khi
-// kiểu xuống dòng của working tree khác với cấu hình (git apply tự chuẩn hoá cả file khi huỷ dòng).
+// CRLF matrix (FM8/AD9) against REAL git in an isolated temp repo, comparing the BYTES of the index blob
+// (`git cat-file blob :path`) and the working-tree file:
+//   {core.autocrlf true | input | false} × {index LF | CRLF with `-text` | legacy CRLF (no attribute) | mixed LF/CRLF}
+//   × {file ends with a newline | no final newline} × {select line 2 | select the last line} × {stage | unstage | discard}
+// Expectations come from an INDEPENDENT MODEL (only the selected line changes, every other byte is preserved) rather
+// than from the code under test — so the tests can fail. Some cells add a golden answer spelled out byte by byte. The
+// last group records git's behaviour when the working tree's line terminators differ from the config (git apply
+// normalises the whole file when discarding a line).
 
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { changeLineIndices, isChangeLine, makePatch, parseDiff } from '../src/diff/index.ts';
@@ -44,7 +45,7 @@ function parseLines(bytes: Uint8Array): Line[] {
   return lines;
 }
 
-/** Nội dung blob trong index lúc đầu. Dòng cuối có/không có newline theo `finalEol`. */
+/** Blob content in the index at the start. The last line has a newline or not according to `finalEol`. */
 function baseLines(kind: IndexKind, finalEol: boolean): Line[] {
   const eolOf = (i: number): Eol =>
     kind === 'lf' ? '\n' : kind === 'mixed' ? (i % 2 === 0 ? '\n' : '\r\n') : '\r\n';
@@ -54,16 +55,17 @@ function baseLines(kind: IndexKind, finalEol: boolean): Line[] {
   }));
 }
 
-/** Bộ lọc "clean" của git có chạy ở diff/add không: autocrlf=true|input, file không có CR trong index, không `-text`. */
+/** Does git's "clean" filter run at diff/add time: autocrlf=true|input, no CR in the index file, no `-text`. */
 const normalizes = (autocrlf: AutoCrlf, kind: IndexKind): boolean => autocrlf !== 'false' && kind === 'lf';
 
-/** Dòng như `git diff` hiển thị: CRLF → LF khi bộ lọc clean chạy. */
+/** Line as `git diff` shows it: CRLF becomes LF once the clean filter runs. */
 const asDiffed = (line: Line, normalize: boolean): Line =>
   normalize && line.eol === '\r\n' ? { text: line.text, eol: '\n' } : line;
 
 /**
- * Repo mẫu cho mỗi (autocrlf, loại index, newline cuối): commit nội dung thô (autocrlf=false), chuyển cấu hình rồi
- * checkout lại để worktree đúng như git sẽ tạo. Mỗi ô của ma trận sao chép repo mẫu (rẻ hơn dựng lại bằng 5 lệnh git).
+ * Sample repo per (autocrlf, index kind, final newline): commit the raw content (autocrlf=false), switch the config,
+ * then check out again so the working tree matches what git would create. Each matrix cell copies this sample
+ * (cheaper than rebuilding it with 5 git commands).
  */
 const templates = new Map<string, { repo: TempRepo; base: Line[]; wt0: Line[] }>();
 afterAll(() => {
@@ -103,7 +105,7 @@ function setup(
   const { repo: source, base, wt0 } = template(autocrlf, kind, finalEol);
   const repo = source.fork();
   repos.push(repo);
-  // Sửa dòng 2 và dòng 5 như một trình soạn thảo: giữ ký tự xuống dòng của từng dòng.
+  // Edit line 2 and line 5 the way an editor would: each line keeps its own line terminator.
   const edited = editedOverride
     ? editedOverride(wt0)
     : wt0.map((line, i) => (i === 1 ? { ...line, text: 'A2' } : i === 4 ? { ...line, text: 'A5' } : line));
@@ -111,7 +113,7 @@ function setup(
   return { repo, base, wt0, edited };
 }
 
-/** Chọn cặp xoá+thêm của một dòng (theo chữ L2/A2 hoặc L5/A5; có thể kèm "\r"). */
+/** Pick the deleted+added pair of one line (identified by the L2/A2 or L5/A5 text; possibly carrying "\r"). */
 function pickLine(which: 'second' | 'last') {
   const tokens = which === 'second' ? ['L2', 'A2'] : ['L5', 'A5'];
   return (text: string): boolean => tokens.some((token) => text === token || text === `${token}\r`);
@@ -162,20 +164,20 @@ describe('ma trận CRLF × stage/unstage/huỷ dòng (từng byte, git thật)'
               applySelected(repo, op, pickLine(which));
 
               if (op === 'stage') {
-                // Index: base với dòng đã chọn thay bằng dòng như git diff hiển thị; worktree không đổi.
+                // Index: the base with the selected line replaced by what `git diff` shows; the working tree is unchanged.
                 const expected = base.map((line, i) =>
                   i === position ? asDiffed(edited[i]!, normalize) : line,
                 );
                 expectBytes(repo.indexBlob('data.txt'), toBytes(expected));
                 expectBytes(repo.readFile('data.txt'), wtBefore);
               } else if (op === 'unstage') {
-                // Sau `git add` index = bản đã clean của worktree; bỏ stage riêng dòng đã chọn → dòng đó về như HEAD.
+                // After `git add` the index is the cleaned working tree; unstaging just the selected line returns that line to its HEAD form.
                 const staged = edited.map((line) => asDiffed(line, normalize));
                 const expected = staged.map((line, i) => (i === position ? base[i]! : line));
                 expectBytes(repo.indexBlob('data.txt'), toBytes(expected));
                 expectBytes(repo.readFile('data.txt'), wtBefore);
               } else {
-                // Huỷ dòng đã chọn khỏi worktree: dòng đó về đúng byte lúc checkout, các dòng khác không đổi.
+                // Discarding the selected line from the working tree: that line returns to exactly its checkout bytes, every other line is unchanged.
                 const expected = edited.map((line, i) => (i === position ? wt0[i]! : line));
                 expectBytes(repo.readFile('data.txt'), toBytes(expected));
                 expectBytes(repo.indexBlob('data.txt'), toBytes(base));
@@ -189,15 +191,15 @@ describe('ma trận CRLF × stage/unstage/huỷ dòng (từng byte, git thật)'
 });
 
 describe('đáp án vàng viết thẳng từng byte (file kết thúc bằng newline)', () => {
-  // Worktree sau checkout: chỉ index LF + autocrlf=true bị git đổi sang CRLF; mọi ô còn lại giữ nguyên byte của blob.
+  // Working tree after checkout: only index LF + autocrlf=true is turned into CRLF by git; every other cell keeps the blob's bytes.
   interface Golden {
-    /** Worktree sau khi sửa dòng 2 và 5. */
+    /** Working tree after editing lines 2 and 5. */
     edited: string;
-    /** Index sau khi stage riêng thay đổi ở dòng 2. */
+    /** Index after staging just the line-2 change. */
     stageSecondIndex: string;
-    /** Index sau khi stage hết rồi bỏ stage riêng thay đổi ở dòng 5. */
+    /** Index after staging everything and then unstaging just the line-5 change. */
     unstageLastIndex: string;
-    /** Worktree sau khi huỷ riêng thay đổi ở dòng 5. */
+    /** Working tree after discarding just the line-5 change. */
     discardLastWorktree: string;
   }
   const LF: Golden = {
@@ -218,7 +220,7 @@ describe('đáp án vàng viết thẳng từng byte (file kết thúc bằng ne
     unstageLastIndex: 'L1\nA2\r\nL3\nL4\r\nL5\n',
     discardLastWorktree: 'L1\nA2\r\nL3\nL4\r\nL5\n',
   };
-  // Index LF + autocrlf=true: worktree là CRLF nhưng blob trong index vẫn là LF.
+  // Index LF + autocrlf=true: the working tree is CRLF while the blob in the index stays LF.
   const LF_ON_WINDOWS: Golden = { ...LF, edited: CRLF.edited, discardLastWorktree: CRLF.discardLastWorktree };
 
   const table: [AutoCrlf, IndexKind, Golden][] = [
@@ -234,21 +236,21 @@ describe('đáp án vàng viết thẳng từng byte (file kết thúc bằng ne
 
   for (const [autocrlf, kind, golden] of table) {
     it(`autocrlf=${autocrlf} | ${KIND_NAME[kind]}`, () => {
-      // stage dòng 2
+      // stage line 2
       let cell = setup(autocrlf, kind, true);
       expectBytes(cell.repo.readFile('data.txt'), golden.edited);
       applySelected(cell.repo, 'stage', pickLine('second'));
       expectBytes(cell.repo.indexBlob('data.txt'), golden.stageSecondIndex);
       expectBytes(cell.repo.readFile('data.txt'), golden.edited);
 
-      // unstage dòng cuối
+      // unstage the last line
       cell = setup(autocrlf, kind, true);
       cell.repo.add('data.txt');
       applySelected(cell.repo, 'unstage', pickLine('last'));
       expectBytes(cell.repo.indexBlob('data.txt'), golden.unstageLastIndex);
       expectBytes(cell.repo.readFile('data.txt'), golden.edited);
 
-      // huỷ dòng cuối
+      // discard the last line
       cell = setup(autocrlf, kind, true);
       applySelected(cell.repo, 'discard', pickLine('last'));
       expectBytes(cell.repo.readFile('data.txt'), golden.discardLastWorktree);
@@ -301,7 +303,7 @@ describe('đáp án vàng: file KHÔNG có newline cuối (dòng cuối "L5"/"A5
 });
 
 describe('khi kiểu xuống dòng của worktree KHÁC cấu hình — hành vi của git được ghi lại', () => {
-  /** Chọn cặp xoá+thêm đầu tiên trong hunk duy nhất (đúng như cách người dùng chọn "dòng đầu bị đổi"). */
+  /** Pick the first deleted+added pair in the single hunk (exactly how a user picks "the first changed line"). */
   const firstPair = (repo: TempRepo, op: Op): void => {
     const [file] = parseDiff(repo.diffBytes(op === 'unstage' ? 'staged' : 'unstaged', 'data.txt'));
     const hunk = file!.hunks[0]!;

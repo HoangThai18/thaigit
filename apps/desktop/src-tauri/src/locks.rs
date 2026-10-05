@@ -1,6 +1,7 @@
-//! Khoá theo repo: khoá theo `realpath(commonDir)`, toàn tiến trình (chung mọi cửa sổ, mọi worktree).
-//! `write`/`network` độc quyền, `read` không khoá. Auto-fetch (`background`) chỉ chạy khi `try_lock` được và không có op
-//! chờ; khi một op thường phải chờ sau auto-fetch thì auto-fetch bị huỷ (ưu tiên thấp, có thể bị chen).
+//! Per-repo locking: keyed on `realpath(commonDir)`, process-wide (shared by every window and worktree).
+//! `write`/`network` are exclusive, `read` does not lock. Auto-fetch (`background`) only runs when `try_lock` succeeds and
+//! no op is waiting; when a normal op has to queue behind auto-fetch, auto-fetch is cancelled (lowest priority, it may be
+//! interrupted).
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
@@ -12,7 +13,7 @@ use tokio::sync::OwnedMutexGuard;
 use crate::errors::AppError;
 use crate::exec::CancelToken;
 
-/// Op đang giữ khoá.
+/// The op currently holding the lock.
 #[derive(Clone)]
 pub struct Holder {
     pub op_id: String,
@@ -23,7 +24,7 @@ pub struct Holder {
 #[derive(Default)]
 struct LockState {
     holder: Option<Holder>,
-    /// `(bắt đầu, kết thúc)` của các op write/network gần đây — để tắt tiếng sự kiện watcher theo thời điểm sự kiện xảy ra.
+    /// `(start, end)` of recent write/network ops — to mute watcher events by WHEN the event happened, not when it is handled.
     intervals: VecDeque<(Instant, Option<Instant>)>,
 }
 
@@ -33,12 +34,12 @@ const PREEMPT_POLL: Duration = Duration::from_millis(100);
 pub struct RepoLock {
     gate: Arc<tokio::sync::Mutex<()>>,
     waiting: AtomicUsize,
-    /// Thời gian `git status` lần trước (ms): watcher không phát sự kiện dồn dập hơn mức này.
+    /// Duration of the last `git status` (ms): the watcher does not emit bursts more often than this.
     status_ms: AtomicU64,
     state: Mutex<LockState>,
 }
 
-/// Giữ khoá cho tới khi thả (hết op).
+/// Held until dropped (i.e. until the op ends).
 pub struct LockGuard {
     lock: Arc<RepoLock>,
     _permit: OwnedMutexGuard<()>,
@@ -58,9 +59,9 @@ impl Drop for LockGuard {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AcquireError {
-    /// Op bị huỷ trong lúc xếp hàng.
+    /// The op was cancelled while queued.
     Cancelled,
-    /// Auto-fetch không lấy được khoá ngay.
+    /// Auto-fetch could not take the lock right away.
     Busy,
 }
 
@@ -91,7 +92,7 @@ impl RepoLock {
         self.begin_with(permit, holder, true)
     }
 
-    /// `mute = false`: op không ghi gì vào working tree nên sự kiện watcher trong lúc nó chạy vẫn là của người dùng.
+    /// `mute = false`: the op does not write the working tree, so watcher events during it are still the user's.
     fn begin_with(self: &Arc<Self>, permit: OwnedMutexGuard<()>, holder: Holder, mute: bool) -> LockGuard {
         let mut state = self.state();
         state.holder = Some(holder);
@@ -107,7 +108,7 @@ impl RepoLock {
         LockGuard { lock: self.clone(), _permit: permit }
     }
 
-    /// Xếp hàng lấy khoá độc quyền (FIFO). Nếu đang bị auto-fetch giữ thì huỷ auto-fetch để nhường chỗ.
+    /// Queue for the exclusive lock (FIFO). If auto-fetch holds it, cancel auto-fetch to make room.
     pub async fn acquire(self: &Arc<Self>, holder: Holder, cancel: Option<&CancelToken>) -> Result<LockGuard, AcquireError> {
         struct Waiting<'a>(&'a AtomicUsize);
         impl Drop for Waiting<'_> {
@@ -134,7 +135,7 @@ impl RepoLock {
         }
     }
 
-    /// Auto-fetch: chỉ chạy khi không có op nào đang giữ hoặc đang chờ.
+    /// Auto-fetch: only runs when no op holds the lock or is waiting.
     pub fn try_acquire_background(self: &Arc<Self>, holder: Holder) -> Result<LockGuard, AcquireError> {
         if self.waiting.load(Ordering::SeqCst) > 0 {
             return Err(AcquireError::Busy);
@@ -143,8 +144,8 @@ impl RepoLock {
         Ok(self.begin(permit, holder))
     }
 
-    /// Lệnh ghi nền của snapshot (chỉ ghi vào git dir): như auto-fetch là chỉ chạy khi rảnh và không ai chờ, nhưng KHÔNG bị chen
-    /// ngang (giết `update-ref` giữa chừng để lại file `.lock`) và không tắt tiếng watcher.
+    /// A snapshot background write (only touches the git dir): like auto-fetch it runs only when idle with nobody waiting,
+    /// but it is NEVER interrupted (killing `update-ref` half-way would leave `.lock` files) and does not mute the watcher.
     pub fn try_acquire_quiet(self: &Arc<Self>, holder: Holder) -> Result<LockGuard, AcquireError> {
         if self.waiting.load(Ordering::SeqCst) > 0 {
             return Err(AcquireError::Busy);
@@ -161,12 +162,12 @@ impl RepoLock {
         }
     }
 
-    /// Repo đang có op write/network của app?
+    /// Does the repo have a write/network op of the app?
     pub fn is_active(&self) -> bool {
         self.state().holder.is_some()
     }
 
-    /// Sự kiện xảy ra lúc `when` có nằm trong một op write/network (cộng `grace` sau khi op xong) không?
+    /// Does an event happening at `when` fall inside a write/network op (plus `grace` after it ended)?
     pub fn is_muted_at(&self, when: Instant, grace: Duration) -> bool {
         self.state().intervals.iter().any(|(start, end)| when >= *start && end.is_none_or(|end| when <= end + grace))
     }
@@ -190,7 +191,7 @@ pub struct Locks {
 }
 
 impl Locks {
-    /// Khoá của repo (tạo nếu chưa có); `key` = `path_key(realpath(commonDir))`.
+    /// The repo's lock (created on demand); `key` = `path_key(realpath(commonDir))`.
     pub fn for_key(&self, key: &str) -> Arc<RepoLock> {
         self.map.lock().unwrap_or_else(|p| p.into_inner()).entry(key.to_string()).or_insert_with(RepoLock::new).clone()
     }
@@ -220,7 +221,7 @@ mod tests {
                 events.lock().unwrap().push(format!("end{index}"));
                 drop(guard);
             }));
-            // Đảm bảo thứ tự xếp hàng ổn định.
+            // Keep the queue order stable.
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
         for task in tasks {
@@ -243,7 +244,7 @@ mod tests {
 
     #[tokio::test]
     async fn read_ops_never_take_the_lock() {
-        // `read` không gọi acquire: giữ khoá ghi không ảnh hưởng — chỉ cần xác nhận khoá không bị chiếm bởi việc đọc.
+        // `read` does not call acquire: holding the write lock does not matter — we only need to confirm the lock is not taken by a write.
         let lock = Locks::default().for_key("/r/.git");
         let guard = lock.acquire(holder("w", false), None).await.unwrap();
         assert!(lock.is_active());
@@ -257,7 +258,7 @@ mod tests {
         let guard = lock.try_acquire_background(holder("auto", true)).expect("rảnh thì chạy được");
         assert!(lock.try_acquire_background(holder("auto2", true)).is_err(), "đang có op giữ khoá");
         drop(guard);
-        // Có op đang chờ thì auto-fetch không chen vào.
+        // With an op waiting, auto-fetch does not jump in.
         let held = lock.acquire(holder("w1", false), None).await.unwrap();
         let waiter = {
             let lock = lock.clone();

@@ -1,11 +1,11 @@
-// Tiện ích đường dẫn thuần chuỗi (không `node:`): chạy được trong worker/webview. Hiểu cả `/` lẫn `\` (Windows).
+// Pure string path helpers (no `node:` imports) so they run in workers and the webview. Understand both `/` and `\` (Windows).
 
-/** Đổi `\` thành `/`. */
+/** Convert `\` to `/`. */
 export function toPosix(path: string): string {
   return path.replaceAll('\\', '/');
 }
 
-/** Đường dẫn tuyệt đối: `/x`, `\x`, `C:\x`, `C:/x`, `\\server\share`. (`C:x` kiểu ổ đĩa tương đối không tính.) */
+/** Absolute path: `/x`, `\x`, `C:\x`, `C:/x`, `\\server\share`. (A relative drive spec like `C:x` does not count.) */
 export function isAbsolutePath(path: string): boolean {
   return path.startsWith('/') || path.startsWith('\\') || /^[A-Za-z]:[\\/]/.test(path);
 }
@@ -16,28 +16,28 @@ function trimTrailingSeparators(path: string): string {
   return path.slice(0, end);
 }
 
-/** Tên cuối của đường dẫn hệ điều hành (gốc repo…): bỏ dấu phân cách cuối, hiểu cả `/` và `\`. */
+/** OS path basename (a repo root, …): drops the trailing separator and understands both `/` and `\`. */
 export function osBasename(path: string): string {
   const trimmed = trimTrailingSeparators(path);
   const index = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
   return index < 0 ? trimmed : trimmed.slice(index + 1);
 }
 
-/** Tên file của đường dẫn trong git (luôn `/`, `\` là ký tự tên file hợp lệ trên macOS/Linux). */
+/** File name of a path in git terms (always `/`; `\` is a legal filename character on macOS/Linux). */
 export function gitBasename(path: string): string {
   const index = path.lastIndexOf('/');
   return index < 0 ? path : path.slice(index + 1);
 }
 
-/** Thư mục chứa của đường dẫn trong git; file ở gốc → "". */
+/** Containing directory in git terms; a file at the root yields "". */
 export function gitDirname(path: string): string {
   const index = path.lastIndexOf('/');
   return index < 0 ? '' : path.slice(0, index);
 }
 
 /**
- * Phần còn lại của `path` bên dưới `base` ("" nếu bằng nhau), hoặc null nếu nằm ngoài.
- * So khớp theo ranh giới thư mục (`/a/repo2` không nằm trong `/a/repo`); `ignoreCase` cho ổ NTFS/APFS mặc định.
+ * Remainder of `path` below `base` ("" when equal), or null when it lies outside.
+ * Comparison respects directory boundaries (`/a/repo2` is not inside `/a/repo`); `ignoreCase` covers NTFS/APFS volumes.
  */
 export function relativeTo(base: string, path: string, ignoreCase = false): string | null {
   const fold = (value: string) => (ignoreCase ? value.toLowerCase() : value);
@@ -51,9 +51,9 @@ export function relativeTo(base: string, path: string, ignoreCase = false): stri
 }
 
 /**
- * Kiểm đường dẫn tương đối dùng cho RepoFs: trả lý do từ chối, hoặc null nếu hợp lệ.
- * Luôn từ chối: rỗng, NUL, tuyệt đối, đoạn rỗng/`.`/`..`. `windows` thêm: `\`, `:` (ổ đĩa, ADS), đoạn kết thúc bằng
- * dấu chấm/khoảng trắng (Windows bỏ chúng nên có thể thoát phạm vi hoặc trỏ nhầm file).
+ * Check a relative path for RepoFs: returns the rejection reason, or null when it is acceptable.
+ * Always rejected: empty, NUL, absolute, empty/`.`/`..` segments. `windows` adds `\`, `:` (drive letters, ADS), and
+ * segments ending in a dot or space (Windows strips those, so they can escape the scope or point at the wrong file).
  */
 export function checkRelativePath(relative: string, windows: boolean): string | null {
   if (relative === '') return 'đường dẫn rỗng';
@@ -70,8 +70,9 @@ export function checkRelativePath(relative: string, windows: boolean): string | 
 }
 
 /**
- * Có đoạn nào là `.git` không (không phân biệt hoa thường; bỏ dấu chấm/khoảng trắng cuối và tên ngắn NTFS `GIT~1`)?
- * RepoFs không bao giờ đọc/ghi/dời file trong `.git` qua đường working tree (ghi `.git/hooks/*` là chạy lệnh tuỳ ý).
+ * Does any segment read `.git` (case-insensitive; trailing dots/spaces and the short NTFS name `GIT~1` are ignored)?
+ * RepoFs never reads, writes or moves files inside `.git` through the working tree (writing `.git/hooks/*` means running
+ * arbitrary commands).
  */
 export function hasGitComponent(relative: string): boolean {
   return relative.split(/[\\/]/).some((segment) => {

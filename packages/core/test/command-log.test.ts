@@ -35,7 +35,7 @@ describe('redactSecrets', () => {
   });
 
   it('che token GitHub, GitLab, Slack, AWS', () => {
-    // Token GIẢ, ghép lúc chạy: để nguyên chuỗi trong mã nguồn thì bộ quét bí mật của GitHub chặn push.
+    // FAKE token, built at run time: leaving a real-looking string in the source would get the push blocked by GitHub's secret scanner.
     const fake = (prefix: string, rest: string): string => prefix + rest;
     const samples = [
       fake('ghp_', 'abcdefghijklmnopqrstuvwxyz0123456789'),
@@ -106,7 +106,7 @@ describe('CommandLog', () => {
 
   it('cắt stderr SAU khi che: token nằm ngang chỗ cắt không lọt ra nửa chừng', () => {
     const log = new CommandLog();
-    const token = ['ghp_', 'abcdefghijklmnopqrstuvwxyz0123456789'].join(''); // token giả, ghép để không bị quét
+    const token = ['ghp_', 'abcdefghijklmnopqrstuvwxyz0123456789'].join(''); // fake token, assembled so the scanner misses it
     const stderr = `${'x'.repeat(MAX_STDERR_CHARS - 10)} ${token}`;
     const record = log.record({ ...base, args: ['fetch'], stderr });
     expect(record.stderr).not.toContain('ghp_');

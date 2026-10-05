@@ -13,8 +13,9 @@ async function readOrNull(command: string, args: Record<string, unknown>): Promi
 }
 
 /**
- * RepoFs của một repo đã mở: đọc/ghi theo BYTE trong phạm vi repo (Rust kiểm realpath, từ chối `..`, đường dẫn tuyệt đối,
- * symlink ra ngoài và mọi đoạn `.git`). Ghi gửi byte thô (không JSON) qua thân yêu cầu; tham số nằm ở header.
+ * RepoFs of an opened repo: byte-wise reads/writes confined to the repo (Rust checks realpath and rejects
+ * `..`, absolute paths, symlinks escaping the repo, and every `.git` segment). Writes send raw bytes
+ * (not JSON) in the request body; the arguments ride in the headers.
  */
 export function createRepoFs(repoId: string): RepoFs {
   return {

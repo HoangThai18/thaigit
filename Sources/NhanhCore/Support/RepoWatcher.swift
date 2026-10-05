@@ -1,16 +1,16 @@
 import CoreServices
 import Foundation
 
-/// Theo dõi thay đổi file trong repository bằng FSEvents (tự cập nhật khi sửa file ở editor khác,
-/// commit từ terminal...).
+/// Watches a repository for file changes using FSEvents (so edits made in another editor, a commit from a
+/// terminal… are noticed).
 public final class RepoWatcher: @unchecked Sendable {
     public struct Change: Sendable, OptionSet {
         public let rawValue: Int
         public init(rawValue: Int) { self.rawValue = rawValue }
 
-        /// File trong working tree hoặc index thay đổi.
+        /// A file in the working tree or the index changed.
         public static let workingTree = Change(rawValue: 1 << 0)
-        /// HEAD, refs, packed-refs, trạng thái merge/rebase thay đổi.
+        /// HEAD, refs, packed-refs, or the merge/rebase state changed.
         public static let refs = Change(rawValue: 1 << 1)
     }
 
@@ -92,28 +92,28 @@ public final class RepoWatcher: @unchecked Sendable {
         if !change.isEmpty { handler(change) }
     }
 
-    /// Đường dẫn thật giống cách FSEvents báo về. Không dùng `URL.resolvingSymlinksInPath`
-    /// vì nó bỏ "/private" (/private/tmp → /tmp) nên không khớp với sự kiện.
+    /// The real path, matching how FSEvents reports it. `URL.resolvingSymlinksInPath` is not used because
+    /// it strips "/private" (/private/tmp → /tmp) and would stop matching the events.
     static func canonicalPath(_ url: URL) -> String {
         guard let resolved = realpath(url.path, nil) else { return url.standardizedFileURL.path }
         defer { free(resolved) }
         return String(cString: resolved)
     }
 
-    /// Ổ đĩa macOS mặc định không phân biệt hoa thường nên so khớp tiền tố bỏ qua hoa thường.
+    /// macOS disks are case-insensitive by default, so prefix matching ignores case.
     static func relative(_ path: String, to base: String) -> String? {
         if path.compare(base, options: .caseInsensitive) == .orderedSame { return "" }
         guard let range = path.range(of: base + "/", options: [.anchored, .caseInsensitive]) else { return nil }
         return String(path[range.upperBound...])
     }
 
-    /// Phân loại thay đổi bên trong thư mục .git.
+    /// Classifies a change inside the .git directory.
     static func classifyGitPath(_ relative: String) -> Change {
         if relative.isEmpty { return [] }
         let ignoredPrefixes = ["objects/", "logs/", "lfs/", "hooks/", "info/", "modules/", "fsmonitor", "gc.", "FETCH_HEAD", "ORIG_HEAD.lock"]
         if ignoredPrefixes.contains(where: { relative.hasPrefix($0) }) { return [] }
         if relative.hasSuffix(".lock") { return [] }
-        // Snapshot của app (kể cả của worktree khác thấy qua common dir) không phải thay đổi của người dùng.
+        // The app's own snapshots (including those of another worktree visible through the common dir) are not user changes.
         let snapshotRefs = SnapshotSpec.refDirectory
         if relative.hasPrefix(snapshotRefs) || relative.contains("/" + snapshotRefs) { return [] }
         if relative == "index" { return .workingTree }

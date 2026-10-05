@@ -1,5 +1,6 @@
-//! Ngôn ngữ giao diện cho vài chữ do chính Rust hiện (tiêu đề hộp chọn thư mục / file, hộp "chế độ an toàn" lúc khởi động
-//! — lúc đó chưa có webview). Webview lưu lựa chọn qua `app_set_locale` vào `<data>/locale.json`; mặc định tiếng Việt.
+//! UI language for the few strings Rust renders itself (folder / file picker titles, the "safe mode" dialog at startup —
+//! before any webview exists). The webview persists the choice through `app_set_locale` into `<data>/locale.json`;
+//! the default is Vietnamese.
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -12,7 +13,7 @@ use crate::store;
 
 const FILE: &str = "locale.json";
 
-/// Khớp `Locale` của TypeScript (`'vi' | 'en'`).
+/// Matches TypeScript's `Locale` (`'vi' | 'en'`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Locale {
@@ -21,7 +22,7 @@ pub enum Locale {
     En,
 }
 
-/// Chữ Rust tự hiện, theo từng ngôn ngữ.
+/// Strings Rust renders itself, per language.
 pub struct Texts {
     pub pick_folder: &'static str,
     pub pick_git: &'static str,
@@ -67,21 +68,21 @@ pub struct LocaleState {
     path: PathBuf,
 }
 
-/// Đọc ngôn ngữ đã lưu (file thiếu / hỏng → tiếng Việt). Gọi trong `setup`, trước `safe_mode::init`.
+/// Read the saved language (a missing / corrupt file → Vietnamese). Called in `setup`, before `safe_mode::init`.
 pub fn init<R: Runtime>(app: &AppHandle<R>, data_dir: &Path) {
     let path = data_dir.join(FILE);
     let current = store::read_json::<Saved>(&path).map(|saved| saved.locale).unwrap_or_default();
     app.manage(LocaleState { current: Mutex::new(current), path });
 }
 
-/// Ngôn ngữ hiện tại (chưa `init` → tiếng Việt).
+/// The current language (before `init` → Vietnamese).
 pub fn current<R: Runtime>(app: &AppHandle<R>) -> Locale {
     app.try_state::<LocaleState>()
         .map(|state| *state.current.lock().unwrap_or_else(|poisoned| poisoned.into_inner()))
         .unwrap_or_default()
 }
 
-/// `app_set_locale`: đổi và lưu bền.
+/// `app_set_locale`: change and persist it.
 pub fn set<R: Runtime>(app: &AppHandle<R>, locale: Locale) -> Result<()> {
     let Some(state) = app.try_state::<LocaleState>() else { return Ok(()) };
     *state.current.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = locale;

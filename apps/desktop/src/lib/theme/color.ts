@@ -1,8 +1,8 @@
-/** Tiện ích màu nhỏ cho nhãn (pill) và avatar: tính màu ở TS để không cần `color-mix()` (WebKit cũ chưa có). */
+/** Small colour helpers for labels (pills) and avatars: colours are computed in TS so `color-mix()` isn't needed (older WebKit lacks it). */
 
 export type Rgb = readonly [number, number, number];
 
-/** `#rrggbb` (hoặc `#rgb`) → [r, g, b]; chuỗi sai → xám trung tính. */
+/** `#rrggbb` (or `#rgb`) → [r, g, b]; a malformed string → neutral grey. */
 export function parseHex(hex: string): Rgb {
   let digits = hex.trim().replace(/^#/, '');
   if (digits.length === 3) digits = digits.replace(/./g, (c) => c + c);
@@ -11,13 +11,13 @@ export function parseHex(hex: string): Rgb {
   return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
 }
 
-/** Trộn `amount` (0…1) của `other` vào `base` (như `NSColor.blended(withFraction:of:)`). */
+/** Blend `amount` (0…1) of `other` into `base` (like `NSColor.blended(withFraction:of:)`). */
 export function mixRgb(base: Rgb, other: Rgb, amount: number): Rgb {
   const channel = (a: number, b: number): number => Math.round(a + (b - a) * amount);
   return [channel(base[0], other[0]), channel(base[1], other[1]), channel(base[2], other[2])];
 }
 
-/** `rgb(r g b / a)` — cú pháp màu CSS cấp 4, chạy được trên Safari 12.1+/Chromium 65+. */
+/** `rgb(r g b / a)` — CSS Color 4 syntax, supported on Safari 12.1+ / Chromium 65+. */
 export function rgbCss(rgb: Rgb, alpha = 1): string {
   return alpha >= 1
     ? `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})`

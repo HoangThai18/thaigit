@@ -1,4 +1,4 @@
-/** Bản tiếng Anh của `terminal.vi.ts` (cùng khoá, cùng tham số). */
+/** English translation of `termina.vi.ts` (same keys, same parameters). */
 import type { terminal as terminalSource } from './terminal.vi.ts';
 import type { Translation } from './types.ts';
 

@@ -1,15 +1,17 @@
-//! Rebase tương tác (`git_rebase_interactive`) — lệnh có kiểu, KHÔNG đi qua `git_exec`: `git rebase -i` cần một sequence editor
-//! và message mới chạy qua dòng `exec` của file todo, tức là chạy lệnh shell. Webview (không tin cậy) chỉ gửi kế hoạch có
-//! cấu trúc (sha + thao tác + message); Rust kiểm từng mục rồi TỰ soạn file todo và file message trong `<gitDir>/thaigit-rebase/`.
+//! Interactive rebase (`git_rebase_interactive`) — a typed command that does NOT go through `git_exec`: `git rebase -i`
+//! needs a sequence editor, and a new message only runs through an `exec` line in the todo file, i.e. it runs a shell
+//! command. The webview (untrusted) only sends a structured plan (sha + action + message); Rust validates every entry and
+//! composes the todo and message files ITSELF under `<gitDir>/thaigit-rebase/`.
 //!
-//! - Sequence editor chỉ dùng lệnh dựng sẵn của shell (`read` / `printf`) để chép file todo của app đè lên todo git soạn — không
-//!   gọi chương trình ngoài nào, chạy được cả `sh` của Git for Windows. Đặt qua `GIT_SEQUENCE_EDITOR` nên lấn `sequence.editor`
-//!   do repo tự đặt.
-//! - Reword = `pick` rồi `exec git commit --amend … -F <file message>` (không mở trình soạn thảo). Cờ `-c` an toàn của chính
-//!   sách đi theo sang lệnh `git` con qua `GIT_CONFIG_PARAMETERS` (git tự truyền).
-//! - `squash` giữ message của cả hai commit: `GIT_EDITOR=true` của chính sách nhận nguyên message git đã ghép sẵn.
-//! - Gặp xung đột thì git dừng như rebase thường; app hiện Tiếp tục / Bỏ qua / Huỷ (lệnh `rebase --continue|--skip|--abort`
-//!   thường). File message phải còn tới lúc đó nên chỉ dọn ở lần rebase tương tác kế tiếp.
+//! - The sequence editor uses only the shell's built-ins (`read` / `printf`) to copy the app's todo file over git's — it calls
+//!   no external program and works with Git for Windows' `sh` too. It is set through `GIT_SEQUENCE_EDITOR`, so it takes
+//!   precedence over a repo's own `sequence.editor`.
+//! - Reword = `pick` followed by `exec git commit --amend … -F <message file>` (no editor opens). The policy's safe `-c`
+//!   flags carry over to that child `git` through `GIT_CONFIG_PARAMETERS` (git passes them on itself).
+//! - `squash` keeps the message of both commits: the policy's `GIT_EDITOR=true` accepts the message git already merged.
+//! - On a conflict git stops like a normal rebase; the app shows Continue / Skip / Cancel (the usual `rebase
+//!   --continue|--skip|--abort` commands). The message files must still be there at that point, so they are only cleaned up
+//!   during the next interactive rebase.
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
@@ -23,9 +25,9 @@ use crate::exec::CancelToken;
 use crate::locks::Holder;
 use crate::policy::EnvProfile;
 
-/// Số commit tối đa trong một kế hoạch.
+/// Max commits in one plan.
 const MAX_STEPS: usize = 2000;
-/// Độ dài tối đa của một message mới (byte).
+/// Max length of a new message, in bytes.
 const MAX_MESSAGE: usize = 64 * 1024;
 const DIR_NAME: &str = "thaigit-rebase";
 
@@ -39,18 +41,18 @@ pub enum RebaseAction {
     Drop,
 }
 
-/// Một dòng của kế hoạch (khớp `RebaseStepRequest` trong `packages/contracts/src/ipc.ts`). Xếp cũ → mới, đúng thứ tự áp dụng.
+/// One line of the plan (matching `RebaseStepRequest` in `packages/contracts/src/ipc.ts`). Ordered oldest → newest, exactly the order they are applied.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RebaseStep {
     pub action: RebaseAction,
     pub sha: String,
-    /// Message mới — bắt buộc với `reword`, bị bỏ qua với thao tác khác.
+    /// The new message — required for `reword`, ignored for any other action.
     #[serde(default)]
     pub message: Option<String>,
 }
 
-/// Kết quả (khớp `RebaseResult`): mã thoát ≠ 0 khi git dừng giữa chừng (xung đột…) — phía TS dựng `GitError` để nhận diện.
+/// The result (matching `RebaseResult`): a non-zero exit code means git stopped part-way (a conflict…) — the TS side builds a `GitError` from it.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RebaseOutcome {
@@ -63,7 +65,7 @@ fn is_object_id(value: &str) -> bool {
     matches!(value.len(), 40 | 64) && value.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-/// Kiểm kế hoạch: sha đầy đủ (không ref, không cờ), không trùng, message hợp lệ, commit cũ nhất còn lại không phải gộp.
+/// Validate the plan: full shas (no refs, no flags), no duplicates, valid messages, and the oldest remaining commit is not a squash/fixup.
 pub fn validate_plan(onto: &str, steps: &[RebaseStep]) -> Result<()> {
     if !is_object_id(onto) {
         return Err(AppError::policy("`onto` phải là sha đầy đủ"));
@@ -93,18 +95,18 @@ pub fn validate_plan(onto: &str, steps: &[RebaseStep]) -> Result<()> {
     Ok(())
 }
 
-/// Bọc trong nháy đơn cho `sh` (`it's` → `'it'\''s'`).
+/// Wrap in single quotes for `sh` (`it's` → `'it'\''s'`).
 pub fn sh_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', r"'\''"))
 }
 
-/// Đường dẫn dạng `sh` hiểu được (Windows: `C:/…` thay cho `C:\…`); không phải UTF-8 thì từ chối.
+/// A path `sh` can read (Windows: `C:/…` instead of `C:\…`); rejected when it is not UTF-8.
 fn sh_path(path: &Path) -> Result<String> {
     let text = path.to_str().ok_or_else(|| AppError::Io("đường dẫn repo không phải UTF-8".into()))?;
     Ok(if cfg!(windows) { text.replace('\\', "/") } else { text.to_string() })
 }
 
-/// Nội dung file todo. `message_file(i)` là đường dẫn (dạng `sh`) file message của dòng thứ i.
+/// The todo file content. `message_file(i)` is the `sh`-form path of the i-th line's message file.
 pub fn build_todo(steps: &[RebaseStep], message_file: impl Fn(usize) -> String) -> String {
     let mut lines = Vec::with_capacity(steps.len());
     for (index, step) in steps.iter().enumerate() {
@@ -128,14 +130,14 @@ pub fn build_todo(steps: &[RebaseStep], message_file: impl Fn(usize) -> String) 
     todo
 }
 
-/// Sequence editor: git chạy `sh -c '<editor> "$@"' … <file todo của git>` → chép từng dòng của file todo của app sang.
+/// The sequence editor: git runs `sh -c '<editor> "$@"' … <git's todo file>` → copy each line of the app's todo file over.
 pub fn sequence_editor(todo_path: &str) -> String {
     format!("while IFS= read -r line; do printf '%s\\n' \"$line\"; done < {} >", sh_quote(todo_path))
 }
 
 impl Core {
-    /// `git_rebase_interactive`: rebase nhánh hiện tại lên `onto` theo kế hoạch `steps`, tự cất / trả lại thay đổi chưa commit
-    /// (`--autostash`). Giữ khoá ghi của repo như một lệnh `write` thường.
+    /// `git_rebase_interactive`: rebase the current branch onto `onto` following the plan `steps`, auto-stashing and restoring
+    /// uncommitted changes (`--autostash`). It holds the repo's write lock like any normal `write` command.
     pub async fn git_rebase_interactive(&self, repo_id: &str, onto: &str, steps: &[RebaseStep]) -> Result<RebaseOutcome> {
         validate_plan(onto, steps)?;
         let entry = self.registry.get(repo_id)?;
@@ -236,7 +238,7 @@ mod tests {
         );
         assert!(!todo.contains("pwned"));
         assert_eq!(sequence_editor("/a b/todo"), "while IFS= read -r line; do printf '%s\\n' \"$line\"; done < '/a b/todo' >");
-        // Chính sách vẫn coi `rebase` là lệnh ghi (khoá theo repo, như lệnh này tự giữ).
+        // The policy still treats `rebase` as a write command (per-repo lock, which this command holds itself).
         assert_eq!(policy().derived_kind("rebase", &["-i".to_string()]), Some(crate::policy::ExecKind::Write));
     }
 
@@ -256,7 +258,7 @@ mod tests {
             repo.commit_all(name);
             shas.push(repo.git(&["rev-parse", "HEAD"]).trim().to_string());
         }
-        // Repo tự đặt sequence.editor / core.editor: không bao giờ được chạy.
+        // A repo setting its own sequence.editor / core.editor: never run.
         let marker = repo.tmp().join("editor-ran");
         let evil = format!("touch {}", sh_quote(&marker.to_string_lossy()));
         repo.git(&["config", "sequence.editor", &evil]);
@@ -304,7 +306,7 @@ mod tests {
         let message = repo.git(&["log", "-1", "--format=%B"]);
         assert!(message.contains("hai") && message.contains("ba"), "{message}");
 
-        // Đảo thứ tự hai commit cùng sửa một dòng → xung đột, git dừng (rebase-merge còn đó) như rebase thường.
+        // Reordering two commits editing the same line → a conflict, git stops (rebase-merge is left behind) like a normal rebase.
         let head = repo.git(&["rev-parse", "HEAD"]).trim().to_string();
         repo.git(&["reset", "-q", "--hard", &three]);
         let swapped = [step(RebaseAction::Pick, &three, None), step(RebaseAction::Pick, &two, None)];

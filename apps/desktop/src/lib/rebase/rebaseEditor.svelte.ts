@@ -1,6 +1,7 @@
 /**
- * Kế hoạch rebase tương tác đang soạn (hộp thoại "Rebase tương tác", như GitKraken). `steps` xếp cũ → mới (thứ tự git áp dụng);
- * hộp thoại hiện ngược lại (mới nhất trên cùng, khớp graph) nên mọi chỉ số ở đây là chỉ số HIỂN THỊ.
+ * The interactive rebase plan being edited ("Interactive rebase" dialog, like GitKraken). `steps` is ordered
+ * old → new (the order git applies them); the dialog shows the reverse (newest on top, matching the graph),
+ * so every index here is a DISPLAY index.
  */
 import {
   rebasePlanProblem,
@@ -11,13 +12,13 @@ import {
 } from '@thaigit/core';
 
 export class RebaseSession {
-  /** Commit gốc: các commit SAU nó (tới HEAD) được viết lại. */
+  /** The base commit: the commits AFTER it (up to HEAD) get rewritten. */
   readonly base: Commit;
   readonly branch: string;
-  /** Các commit ban đầu, cũ → mới. */
+  /** The original commits, old → new. */
   readonly original: readonly Commit[];
   steps = $state.raw<readonly RebaseStep[]>([]);
-  /** Message đầy đủ của từng commit (để điền sẵn khi chọn reword). */
+  /** Full message of each commit (to prefill the reword box). */
   private readonly fullMessages = new Map<string, string>();
 
   constructor(
@@ -32,7 +33,7 @@ export class RebaseSession {
     this.reset();
   }
 
-  /** Mới → cũ (thứ tự hiển thị). */
+  /** New → old (display order). */
   get rows(): readonly RebaseStep[] {
     return [...this.steps].reverse();
   }
@@ -68,7 +69,7 @@ export class RebaseSession {
     this.update(row, (step) => ({ ...step, message }));
   }
 
-  /** Chuyển hàng `from` tới vị trí `to` (chỉ số hiển thị). */
+  /** Move row `from` to position `to` (display index). */
   move(from: number, to: number): void {
     const rows = [...this.rows];
     if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return;
@@ -78,7 +79,7 @@ export class RebaseSession {
     this.steps = rows.reverse();
   }
 
-  /** Điền message đầy đủ của commit vào ô soạn của reword (nếu người dùng chưa gõ gì). */
+  /** Pre-fill the reword box with a commit's full message (only while the user hasn't typed). */
   private async prefillMessage(commit: Commit): Promise<void> {
     let message = this.fullMessages.get(commit.id);
     if (message === undefined) {
@@ -98,7 +99,7 @@ export class RebaseSession {
   }
 }
 
-/** Hộp thoại rebase tương tác đang mở (mỗi cửa sổ một repo, nên một phiên là đủ). */
+/** The open interactive rebase dialog (one repo per window, so a single session is enough). */
 class RebaseEditorStore {
   current = $state.raw<RebaseSession | null>(null);
 

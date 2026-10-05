@@ -1,6 +1,7 @@
-// Lọc trước khi gửi diff cho AI: theo TÊN file (lockfile, file sinh tự động, file nhạy cảm) và theo NỘI DUNG (chuỗi trông
-// như khoá / token / mật khẩu — kiểu gitleaks, chỉ các mẫu tín hiệu cao + chuỗi entropy cao gán cho biến tên nhạy cảm).
-// Nguyên tắc: thà bỏ nhầm một đoạn vô hại còn hơn gửi đi một bí mật.
+// Filters diffs before they are sent to the AI: by file NAME (lockfiles, generated files, sensitive files) and by CONTENT
+// (strings that look like keys / tokens / passwords — gitleaks-style, high-signal patterns plus high-entropy strings assigned
+// to sensitive-looking names).
+// Principle: dropping a harmless hunk is much better than sending a real secret.
 
 export type PathSkipReason = 'lockfile' | 'generated' | 'sensitive';
 
@@ -28,7 +29,7 @@ const LOCKFILES = new Set([
   'deno.lock',
 ]);
 
-/** Thư mục chứa file sinh tự động / thư viện bên ngoài (so theo từng đoạn của đường dẫn). */
+/** Directories holding generated files / vendored libraries (matched per path segment). */
 const GENERATED_DIRS = new Set([
   'node_modules',
   'vendor',
@@ -74,7 +75,7 @@ const SENSITIVE_FILES = [
   /^googleservice-info\.plist$/,
 ];
 
-/** Lý do bỏ cả file theo tên; `null` = được xét nội dung. */
+/** Why a whole file is dropped by name; `null` = inspect its content. */
 export function classifyPath(path: string): PathSkipReason | null {
   const segments = path.toLowerCase().split('/');
   const name = segments[segments.length - 1] ?? '';
@@ -95,7 +96,7 @@ export interface SecretRule {
   pattern: RegExp;
 }
 
-/** Mẫu tín hiệu cao (gần như không bao giờ khớp nhầm code thường). */
+/** High-signal patterns (they essentially never match ordinary code by accident). */
 export const SECRET_RULES: readonly SecretRule[] = [
   { id: 'private-key', pattern: /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----/ },
   { id: 'aws-access-key', pattern: /\b(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}\b/ },
@@ -113,15 +114,15 @@ export const SECRET_RULES: readonly SecretRule[] = [
   { id: 'telegram-bot-token', pattern: /\b\d{8,10}:AA[0-9A-Za-z_-]{33}\b/ },
   { id: 'discord-webhook', pattern: /discord(?:app)?\.com\/api\/webhooks\/\d+\/[0-9A-Za-z_-]{20,}/ },
   { id: 'jwt', pattern: /\beyJ[0-9A-Za-z_-]{10,}\.eyJ[0-9A-Za-z_-]{10,}\.[0-9A-Za-z_-]{10,}/ },
-  // URL có mật khẩu: postgres://user:matkhau@host (cần dấu ":" trong phần user, nên https://user@host không khớp).
+  // URLs with a password: postgres://user:secret@host (needs ":" in the user part, so https://user@host does not match).
   { id: 'url-password', pattern: /\b[a-z][a-z0-9+.-]{1,20}:\/\/[^\s:@/'"]{1,64}:[^\s@/'"]{3,}@[^\s'"]+/i },
 ];
 
-/** Biến / khoá có tên nhạy cảm được gán một chuỗi: `API_KEY = "…"`, `password: …`, `"client_secret": "…"`. */
+/** Sensitive-looking variable or key assigned a string: `API_KEY = "…"`, `password: …`, `"client_secret": "…"`. */
 const SENSITIVE_ASSIGNMENT =
   /(?:secret|token|passw(?:or)?d|passwd|pwd|api[_-]?key|access[_-]?key|private[_-]?key|auth[_-]?key|credential)[\w.-]*["']?\s*(?::=|=>|[:=])\s*["'`]?([^\s"'`,;)]{8,})/gi;
 
-/** Entropy Shannon (bit/ký tự). */
+/** Shannon entropy (bits per character). */
 export function shannonEntropy(text: string): number {
   if (text === '') return 0;
   const counts = new Map<string, number>();
@@ -135,18 +136,18 @@ export function shannonEntropy(text: string): number {
   return entropy;
 }
 
-/** Giá trị trông như tham chiếu tới chỗ khác (biến, lời gọi hàm, biến môi trường, chỗ giữ chỗ) — không phải bí mật. */
+/** Value that reads like a reference to something else (a variable, function call, environment variable, placeholder) — not a secret. */
 function looksLikeReference(value: string): boolean {
   return (
     /^[A-Za-z_$][\w$]*(?:\.[\w$]+)+$/.test(value) || // obj.field.sub
-    /[()[\]{}<>]/.test(value) || // lời gọi hàm, ${…}, <placeholder>
+    /[()[\]{}<>]/.test(value) || // function call, ${…}, <placeholder>
     /^(?:process\.env|os\.environ|env|getenv|ENV)\b/i.test(value) ||
     /^(?:x{4,}|\*{4,}|changeme|password|secret|example|placeholder|dummy|test|your[_-].*)$/i.test(value) ||
-    /^[a-z]+(?:_[a-z]+)*$/.test(value) // tên biến snake_case thường
+    /^[a-z]+(?:_[a-z]+)*$/.test(value) // ordinary snake_case variable name
   );
 }
 
-/** Mã luật đầu tiên khớp trong `text`, hoặc `null`. */
+/** First matching rule code in `text`, or `null`. */
 export function findSecret(text: string): string | null {
   for (const rule of SECRET_RULES) {
     if (rule.pattern.test(text)) return rule.id;

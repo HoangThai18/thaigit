@@ -1,24 +1,25 @@
-//! Lỗi chuẩn hoá: mọi lệnh IPC reject với `{ code, message }` (khớp `CommandError` trong `packages/contracts/src/ipc.ts`).
+//! Normalised errors: every IPC command rejects with `{ code, message }` (matching `CommandError` in
+//! `packages/contracts/src/ipc.ts`).
 
 use serde::{Serialize, Serializer};
 
 pub type Result<T> = std::result::Result<T, AppError>;
 
-/// Mã lỗi gửi sang webview; chuỗi phải khớp `CommandError['code']`.
+/// Error code sent to the webview; the string must match `CommandError['code']`.
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
-    /// Lệnh bị chính sách chặn (cờ/env/URL/subcommand không cho phép).
+    /// The command was blocked by policy (a flag / env / URL / subcommand is not allowed).
     #[error("{0}")]
     Policy(String),
     #[error("{0}")]
     NotFound(String),
-    /// Đường dẫn thoát khỏi phạm vi repo.
+    /// The path escapes the repository scope.
     #[error("{0}")]
     OutOfScope(String),
-    /// File đổi bên ngoài (CAS), đích đã tồn tại…
+    /// The file changed externally (CAS), the target already exists…
     #[error("{0}")]
     Conflict(String),
-    /// Repo đang bận (khoá theo repo).
+    /// The repo is busy (per-repo lock).
     #[error("{0}")]
     Busy(String),
     #[error("{0}")]
@@ -27,10 +28,10 @@ pub enum AppError {
     GitMissing(String),
     #[error("{0}")]
     GitTooOld(String),
-    /// Repo chưa được tin cậy nên không chạy được thao tác này.
+    /// The repo is not trusted yet, so this operation cannot run.
     #[error("{0}")]
     Untrusted(String),
-    /// Đăng nhập / token không hợp lệ, hoặc kho bí mật của hệ điều hành không mở được.
+    /// Invalid sign-in / token, or the OS keystore could not be opened.
     #[error("{0}")]
     Auth(String),
     #[error("{0}")]
@@ -38,7 +39,7 @@ pub enum AppError {
 }
 
 impl AppError {
-    /// Mã gửi sang TypeScript.
+    /// The code sent to TypeScript.
     pub fn code(&self) -> &'static str {
         match self {
             Self::Policy(_) => "policy",

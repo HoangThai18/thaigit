@@ -1,5 +1,5 @@
-// Tên nhánh / tệp chứa ký tự đảo chiều (`fix-‮gnp.exe` hiện thành `fix-exe.png`) phải hiện ký hiệu thay vì đảo chữ, và nằm trong
-// <bdi> để không kéo đổi thứ tự chữ xung quanh (L3).
+// Branch / file names containing bidi characters (`fix-‮gnp.exe` renders as `fix-exe.png`) must show a
+// marker instead of reversed characters, and sit in <bdi> so they don't reorder the text around them (L3).
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { flushSync, mount, tick, unmount, type Component, type ComponentProps } from 'svelte';
@@ -38,7 +38,7 @@ async function bidiRepo(): Promise<LoadedRepo> {
   return repo;
 }
 
-// `any` ở đây chỉ để nhận mọi component Svelte; kiểu của `props` vẫn suy ra chính xác từ component (`ComponentProps`).
+// `any` is only here so any Svelte component can be passed; the type of `props` is still inferred exactly from the component (`ComponentProps`).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mountInto<C extends Component<any>>(component: C, props: ComponentProps<C>): HTMLElement {
   const target = document.createElement('div');
@@ -52,7 +52,7 @@ function mountInto<C extends Component<any>>(component: C, props: ComponentProps
   return target;
 }
 
-/** Không chữ nào hiển thị còn ký tự điều khiển bidi thô (kể cả trong `title`). */
+/** No displayed text still contains a raw bidi control character (not even inside a `title`). */
 function rawControls(root: HTMLElement): string[] {
   const found: string[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);

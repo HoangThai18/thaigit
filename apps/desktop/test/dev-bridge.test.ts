@@ -1,6 +1,7 @@
-// Cầu nối DEV (dev/bridge-plugin.ts): kiểm đường chạy THẬT — dựng một Vite dev server với plugin trên một repo tạm rồi gọi qua HTTP
-// như trình duyệt: token/Host/Origin, chỉ-đọc (không bao giờ ghi repo), khung exec, theo dõi thay đổi, và `RepoStore` chạy trọn
-// vòng qua client của cầu nối.
+// The DEV bridge (dev/bridge-plugin.ts): exercises the REAL code path — boots a Vite dev server with the
+// plugin against a temporary repo, then talks to it over HTTP exactly like a browser: token / Host / Origin,
+// read-only behaviour (it never writes to the repo), exec frames, change watching, and a full `RepoStore`
+// round trip through the bridge client.
 import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -99,7 +100,7 @@ describe('checkReadOnly (cổng chỉ-đọc theo chính sách)', () => {
     ] as const) {
       expect(check('read', sub, ...args).ok, `${sub} ${args.join(' ')}`).toBe(false);
     }
-    // Revision/đường dẫn trong repo, dải `a..b`, tuỳ chọn có `=` vẫn được.
+    // Revisions / paths inside the repo, ranges `a..b`, and forms with `=` are all allowed.
     for (const [sub, args] of [
       ['diff', ['HEAD~1..HEAD', '--', 'src/a.ts']],
       ['diff', ['main...feature']],
@@ -153,7 +154,7 @@ describe('khung exec nhị phân', () => {
   });
 });
 
-// --- dựng server thật -----------------------------------------------------------------------------------------------------
+// --- booting a real server ---------------------------------------------------------------------------------------------
 
 interface Bridge {
   server: ViteDevServer;
@@ -337,7 +338,7 @@ describe('plugin: chạy git chỉ-đọc', () => {
     const bridge = await startBridge();
     const remotesBefore = rawGit(bridge.repo, ['remote', '-v']);
     const attempts: [string, string[]][] = [
-      // `-v` đứng trước subcommand: git vẫn chạy subcommand đó (ghi cấu hình / gọi máy chủ).
+      // `-v` before the subcommand: git still runs that subcommand (writing config / contacting the server).
       ['remote', ['-v', 'add', 'evil', 'https://example.com/x.git']],
       ['remote', ['--verbose', 'add', 'evil', 'https://example.com/x.git']],
       ['remote', ['-v', 'remove', 'origin']],
@@ -345,7 +346,7 @@ describe('plugin: chạy git chỉ-đọc', () => {
       ['remote', ['-v', 'prune', 'origin']],
       ['remote', ['-v', 'set-url', 'origin', 'https://example.com/x.git']],
       ['remote', ['show', 'origin']],
-      // `diff <đường dẫn ngoài repo> <đường dẫn>` ngầm là `--no-index`: đọc file bất kỳ trên máy.
+      // `diff <path outside the repo> <path>` is implicitly `--no-index`: reads any file on the machine.
       ['diff', ['/etc/hosts', '/dev/null']],
       ['diff', ['/dev/null', '/etc/hosts']],
       ['diff', ['--', '/etc/hosts', '/dev/null']],
@@ -363,7 +364,7 @@ describe('plugin: chạy git chỉ-đọc', () => {
     }
     expect(rawGit(bridge.repo, ['remote', '-v'])).toBe(remotesBefore);
 
-    // Dạng chỉ-đọc hợp lệ và lệnh bình thường vẫn chạy.
+    // Valid read-only shapes and ordinary commands still run.
     for (const [sub, args] of [
       ['remote', []],
       ['remote', ['-v']],
@@ -426,7 +427,7 @@ describe('plugin: chạy git chỉ-đọc', () => {
 describe('client của cầu nối + RepoStore (trọn vòng như trình duyệt)', () => {
   it('mở repo cố định, nạp lịch sử, nhận sự kiện watcher và làm mới', async () => {
     const bridge = await startBridge({ autoOpen: true });
-    // Giả lập môi trường trình duyệt: <meta> và fetch với URL tương đối.
+    // Emulate a browser environment: <meta> and relative-URL fetch.
     vi.stubGlobal('document', {
       querySelector: () => ({ content: bridge.token, dataset: { autoOpen: '1' } }),
     });
@@ -452,17 +453,17 @@ describe('client của cầu nối + RepoStore (trọn vòng như trình duyệt
     expect(store.entries.map((entry) => entry.commit.subject)).toEqual(['Khởi tạo']);
     expect(store.currentBranch).toBe('main');
 
-    // Ghi bị từ chối ở cả hai lớp: client (fs/typedGit) và server.
+    // Writes are refused at both layers: the client (fs / typedGit) and the server.
     await expect(port!.fs.writeWorktreeFile('a.txt', new Uint8Array(), null)).rejects.toThrow(/chỉ đọc/);
     await expect(port!.typedGit?.configSet('user.name', 'x', 'local')).rejects.toThrow(/chỉ đọc/);
     await expect(store.git.commit('x', { allowEmpty: true })).rejects.toThrow(/chỉ đọc|chính sách/);
 
-    // File mới trong repo → watcher của cầu nối → store làm mới và hiện dòng WIP.
+    // A new file in the repo → the bridge's watcher → the store refreshes and shows the WIP line.
     await writeFile(join(bridge.repo, 'chua-track.txt'), 'x\n');
     await until(() => store.hasWorkingTreeRow);
     expect(store.status.unstaged.map((change) => change.path)).toEqual(['chua-track.txt']);
 
-    // Commit từ terminal → lịch sử nạp lại.
+    // A commit from the terminal → history reloads.
     rawGit(bridge.repo, ['add', '.']);
     rawGit(bridge.repo, ['commit', '-q', '-m', 'Commit thứ hai']);
     await until(() => store.entries[0]?.commit.subject === 'Commit thứ hai');

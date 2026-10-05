@@ -1,8 +1,8 @@
 #!/bin/bash
-# Build Thaigit.app từ mã nguồn.
-#   ./scripts/build-app.sh            → build/Thaigit.app (bản release)
-#   ./scripts/build-app.sh --install  → build rồi chép vào /Applications
-#   ./scripts/build-app.sh --debug    → bản debug (build nhanh hơn)
+# Builds Thaigit.app from source.
+#   ./scripts/build-app.sh            → build/Thaigit.app (release build)
+#   ./scripts/build-app.sh --install  → build, then copy into /Applications
+#   ./scripts/build-app.sh --debug    → debug build (faster)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -15,14 +15,14 @@ for arg in "$@"; do
   esac
 done
 
-# Tab "Có gì mới" trong app đọc CHANGELOG.md: thiếu file thì dừng ngay — trước khi xoá bản build/Thaigit.app đang có.
+# The app's "What's new" tab reads CHANGELOG.md: stop immediately when the file is missing — before deleting the existing build/Thaigit.app.
 if [ ! -f CHANGELOG.md ]; then
   echo "Thiếu CHANGELOG.md (tab \"Có gì mới\" trong app đọc file này)."
   exit 1
 fi
 
-# macOS 27 SDK biến @State thành macro, cần plugin chỉ có trong Xcode.
-# Khi chỉ có Command Line Tools thì build bằng SDK macOS 26 (app vẫn chạy bình thường trên macOS 27).
+# The macOS 27 SDK turns @State into a macro, which needs a plugin only present in Xcode.
+# With just Command Line Tools installed, build against the macOS 26 SDK (the app still runs fine on macOS 27).
 if ! xcode-select -p 2>/dev/null | grep -q "Xcode.app"; then
   for sdk in MacOSX26.sdk MacOSX26.5.sdk MacOSX15.sdk; do
     if [ -d "/Library/Developer/CommandLineTools/SDKs/$sdk" ]; then
@@ -36,7 +36,7 @@ echo "▸ swift build -c $CONFIG ${SDKROOT:+(SDK: $(basename "$SDKROOT"))}"
 swift build -c "$CONFIG" --product Nhanh
 BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
 
-# Icon: sinh từ logo gốc (brand/thaigit-logo-source.png) nếu chưa có.
+# Icon: generated from the source logo (brand/thaigit-logo-source.png) when missing.
 if [ ! -f Resources/AppIcon.icns ]; then
   echo "▸ Tạo icon"
   python3 scripts/make-icons.py
@@ -48,15 +48,15 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Nhanh" "$APP/Contents/MacOS/Thaigit"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-# Bản dịch giao diện (chuỗi gốc trong code là tiếng Việt; en.lproj là tiếng Anh). Cài đặt → Chung → Ngôn ngữ.
+# UI translations (strings in code are Vietnamese; en.lproj is English). Settings → General → Language.
 for lproj in Resources/*.lproj; do
   cp -R "$lproj" "$APP/Contents/Resources/"
 done
-# Tab "Có gì mới" trong app đọc nhật ký thay đổi này.
+# The app's "What's new" tab reads this changelog.
 cp CHANGELOG.md "$APP/Contents/Resources/CHANGELOG.md"
-# Ký bằng chứng chỉ cố định "Thaigit Code Signing" (tự ký, trong Keychain đăng nhập) để Keychain nhận mọi bản build /
-# bản cập nhật là cùng một app — ký tạm (ad-hoc) thì mỗi bản build mới đều bị hỏi lại quyền đọc token, khoá SSH.
-# Không có chứng chỉ thì ký tạm (chỉ nên dùng khi thử nghiệm); THAIGIT_SIGN_IDENTITY để chọn chứng chỉ khác.
+# Sign with the stable certificate "Thaigit Code Signing" (self-signed, in the login Keychain) so Keychain treats every build /
+# update as the same app — ad-hoc signing makes Keychain re-prompt for token and SSH key access on every build.
+# Without a certificate the build is signed ad-hoc (only for experiments); set THAIGIT_SIGN_IDENTITY to pick another one.
 IDENTITY="${THAIGIT_SIGN_IDENTITY:-Thaigit Code Signing}"
 if security find-identity -p codesigning 2>/dev/null | grep -q "\"$IDENTITY\""; then
   codesign --force --sign "$IDENTITY" --timestamp=none "$APP" >/dev/null

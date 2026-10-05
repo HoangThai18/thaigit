@@ -56,7 +56,7 @@ struct RepositoryTests {
         #expect(diff.isNewFile)
         #expect(diff.hunks.first?.lines.first?.text == "xin chào")
 
-        // Amend đổi message.
+        // Amend changes the message.
         try await t.repo.commit(message: "Commit đã sửa", amend: true)
         let amended = try await t.repo.log(limit: 10, order: .date, includeHEAD: true)
         #expect(amended.count == 1 && amended[0].subject == "Commit đã sửa")
@@ -87,7 +87,7 @@ struct RepositoryTests {
         try t.write("f.txt", lines.joined(separator: "\n") + "\n")
         try await t.commitAll("init")
 
-        // Hai vùng thay đổi cách xa nhau → hai hunk.
+        // Two change regions far apart → two hunks.
         lines[1] = "LINE TWO"
         lines[19] = "LINE TWENTY"
         lines.insert("inserted after 20", at: 20)
@@ -97,7 +97,7 @@ struct RepositoryTests {
         var diff = try #require(try await t.repo.workingDiff(change, kind: .unstaged))
         #expect(diff.hunks.count == 2)
 
-        // Stage nguyên hunk thứ hai.
+        // Stage the whole second hunk.
         let patch = try #require(PatchBuilder.makePatch(file: diff, selection: PatchBuilder.selectionForWholeHunk(diff.hunks[1]), reverse: false))
         try await t.repo.applyPatch(patch, cached: true, reverse: false)
         var staged = try #require(try await t.repo.workingDiff(change, kind: .staged))
@@ -108,7 +108,7 @@ struct RepositoryTests {
         #expect(diff.hunks.count == 1)
         #expect(diff.hunks[0].lines.contains { $0.text == "LINE TWO" })
 
-        // Unstage riêng dòng "inserted after 20" (áp ngược vào index).
+        // Unstage only the line "inserted after 20" (applied in reverse into the index).
         let insertedIndex = try #require(staged.hunks[0].lines.firstIndex { $0.text == "inserted after 20" })
         let unstagePatch = try #require(PatchBuilder.makePatch(file: staged, selection: [staged.hunks[0].id: [insertedIndex]], reverse: true))
         try await t.repo.applyPatch(unstagePatch, cached: true, reverse: true)
@@ -116,7 +116,7 @@ struct RepositoryTests {
         #expect(staged.hunks[0].lines.contains { $0.kind == .addition && $0.text == "LINE TWENTY" })
         #expect(!staged.hunks[0].lines.contains { $0.kind == .addition && $0.text == "inserted after 20" })
 
-        // Stage riêng dòng thêm "LINE TWO" nhưng không stage dòng xoá "line 2".
+        // Stage only the added line "LINE TWO" without staging the deleted line "line 2".
         diff = try #require(try await t.repo.workingDiff(change, kind: .unstaged))
         let hunk = try #require(diff.hunks.first { $0.lines.contains { $0.text == "LINE TWO" } })
         let addIndex = try #require(hunk.lines.firstIndex { $0.kind == .addition && $0.text == "LINE TWO" })
@@ -125,7 +125,7 @@ struct RepositoryTests {
         let index = try await t.git("show", ":f.txt")
         #expect(index.contains("line 2\nLINE TWO\nline 3"))
 
-        // Huỷ (discard) dòng "inserted after 20" khỏi working tree.
+        // Discard the line "inserted after 20" from the working tree.
         diff = try #require(try await t.repo.workingDiff(change, kind: .unstaged))
         let discardHunk = try #require(diff.hunks.first { $0.lines.contains { $0.text == "inserted after 20" } })
         let discardIndex = try #require(discardHunk.lines.firstIndex { $0.kind == .addition && $0.text == "inserted after 20" })
@@ -146,7 +146,7 @@ struct RepositoryTests {
         let change = FileChange(path: "g.txt", kind: .modified)
         let diff = try #require(try await t.repo.workingDiff(change, kind: .unstaged))
         let hunk = diff.hunks[0]
-        // Chỉ stage việc đổi b → B.
+        // Stage only the b → B change.
         let selected = Set(hunk.lines.indices.filter { hunk.lines[$0].text == "b" || hunk.lines[$0].text == "B" })
         let patch = try #require(PatchBuilder.makePatch(file: diff, selection: [hunk.id: selected], reverse: false))
         try await t.repo.applyPatch(patch, cached: true, reverse: false)
@@ -186,19 +186,19 @@ struct RepositoryTests {
             return result
         }
 
-        // Stage cặp thứ hai (b → B) và việc sửa foo → bar, giữ nguyên a và baz.
+        // Stage the second pair (b → B) plus the foo → bar edit, keeping a and baz unchanged.
         var diff = try #require(try await t.repo.workingDiff(change, kind: .unstaged))
         let stagePatch = try #require(PatchBuilder.makePatch(file: diff, selection: select(diff, ["b", "B", "foo", "bar"]), reverse: false))
         try await t.repo.applyPatch(stagePatch, cached: true, reverse: false)
         #expect(try await t.git("show", ":p.txt") == "top\na\nB\nmid\nbar\nbaz\nend\n")
 
-        // Huỷ trong working tree cặp a → A (khôi phục "a"), giữ các thay đổi còn lại.
+        // Discard the a → A pair in the working tree (restoring "a"), keeping the other changes.
         diff = try #require(try await t.repo.workingDiff(change, kind: .unstaged))
         let discardPatch = try #require(PatchBuilder.makePatch(file: diff, selection: select(diff, ["a", "A"]), reverse: true))
         try await t.repo.applyPatch(discardPatch, cached: false, reverse: true)
         #expect(try t.read("p.txt") == "top\na\nB\nmid\nbar\nend\n")
 
-        // Unstage riêng việc sửa b → B khỏi index.
+        // Unstage only the b → B edit from the index.
         let staged = try #require(try await t.repo.workingDiff(change, kind: .staged))
         let unstagePatch = try #require(PatchBuilder.makePatch(file: staged, selection: select(staged, ["b", "B"]), reverse: true))
         try await t.repo.applyPatch(unstagePatch, cached: true, reverse: true)
@@ -219,7 +219,7 @@ struct RepositoryTests {
         try await t.repo.restoreWorkingFiles(from: snapshot, paths: ["a.txt"])
         #expect(try t.read("a.txt") == "đã sửa\n")
 
-        // Stash ghi lại commit lơ lửng → danh sách stash vẫn trống.
+        // The stash records a dangling commit → the stash list stays empty.
         #expect(try await t.repo.stashes().isEmpty)
         _ = try t.repo.trashUntracked(paths: ["junk.txt"])
         #expect(!FileManager.default.fileExists(atPath: t.url.appendingPathComponent("junk.txt").path))
@@ -274,7 +274,7 @@ struct RepositoryTests {
         try t.write("a.txt", "ours\n")
         try await t.commitAll("main")
 
-        // Rebase có xung đột rồi huỷ.
+        // A rebase that hit a conflict, then aborted.
         await #expect(throws: GitError.self) { try await t.repo.rebase(onto: "other") }
         guard case .rebasing = t.repo.operationState() else {
             Issue.record("Phải đang rebase")
@@ -284,7 +284,7 @@ struct RepositoryTests {
         #expect(t.repo.operationState() == nil)
         #expect(try t.read("a.txt") == "ours\n")
 
-        // Merge rồi chọn toàn bộ bên kia.
+        // A merge, then taking the whole other side.
         await #expect(throws: GitError.self) { try await t.repo.merge("other") }
         try await t.repo.resolveConflict(path: "a.txt", kind: .bothModified, useOurs: false)
         #expect(try t.read("a.txt") == "theirs\n")
@@ -313,7 +313,7 @@ struct RepositoryTests {
         let untrackedDiff = try #require(try await t.repo.stashDiff(stashes[0], file: FileChange(path: "new.txt", kind: .untracked)))
         #expect(untrackedDiff.additions == 1)
 
-        // Xoá rồi khôi phục stash.
+        // Delete a stash, then restore it.
         try await t.repo.stashDrop(stashes[0].selector)
         #expect(try await t.repo.stashes().isEmpty)
         try await t.repo.stashStore(sha: stashes[0].sha, message: stashes[0].message)
@@ -372,7 +372,7 @@ struct RepositoryTests {
         let remotes = try await clone.remotes()
         #expect(remotes.map(\.name) == ["origin"])
 
-        // Commit ở clone rồi push.
+        // Commit in the clone, then push.
         try Data("2\n".utf8).write(to: destination.appendingPathComponent("a.txt"))
         try await clone.stageAll()
         try await clone.commit(message: "từ clone", amend: false)
@@ -381,7 +381,7 @@ struct RepositoryTests {
         try await clone.push(remote: "origin", localBranch: "main", remoteBranch: "main", setUpstream: false, force: false)
         #expect(try origin.read("a.txt") == "2\n")
 
-        // Commit ở origin rồi fetch + pull.
+        // Commit in origin, then fetch + pull.
         try origin.write("b.txt", "b\n")
         try await origin.commitAll("từ origin")
         try await clone.fetch(remote: nil, prune: true)
@@ -392,7 +392,7 @@ struct RepositoryTests {
         #expect(status.behind == 0 && status.ahead == 0)
         #expect(FileManager.default.fileExists(atPath: destination.appendingPathComponent("b.txt").path))
 
-        // Nhánh mới đẩy lên kèm upstream.
+        // Push a new branch together with its upstream.
         try await clone.createBranch("tinh-nang", at: nil, checkout: true)
         try await clone.push(remote: "origin", localBranch: "tinh-nang", remoteBranch: "tinh-nang", setUpstream: true, force: false)
         let refs = try await clone.refs()
@@ -414,7 +414,7 @@ struct RepositoryTests {
     @Test func repoConfiguredFsmonitorCommandNeverRuns() async throws {
         let test = try await TestRepo.make()
         defer { test.cleanup() }
-        // Repo lạ đặt core.fsmonitor thành script: mở/làm mới repo (git status) không được chạy nó.
+        // An untrusted repo sets core.fsmonitor to a script: opening / refreshing the repo (git status) must not run it.
         let marker = test.url.appendingPathComponent("fsmonitor-ran")
         let script = test.url.appendingPathComponent("hook.sh")
         try test.write("hook.sh", "#!/bin/sh\ntouch \"\(marker.path)\"\n")

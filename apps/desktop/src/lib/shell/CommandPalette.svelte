@@ -122,7 +122,7 @@
     return items;
   }
 
-  // Dựng một lần khi mở (trạng thái repo không đổi trong lúc gõ vài chữ).
+  // Built once on open (the repo state doesn't change while a few characters are typed).
   const items = allItems();
   const results = $derived(filterPalette(query, items));
   let highlighted = $derived(results.length > 0 ? 0 : -1);
@@ -152,7 +152,7 @@
   }
 
   function onkeydown(event: KeyboardEvent): void {
-    // Phím trong hộp không lan ra ngoài (Esc không đóng luôn khung diff phía sau, phím tắt repo không chạy).
+    // Keys inside the box must not escape (Esc shouldn't also close the diff pane behind, repo shortcuts must not fire).
     event.stopPropagation();
     if (event.key === 'Escape') {
       event.preventDefault();

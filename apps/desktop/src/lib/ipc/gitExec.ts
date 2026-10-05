@@ -4,12 +4,13 @@ import type { ExecRequest, ExecResult } from '@thaigit/core';
 import { CommandFailure, toCommandFailure } from './errors.ts';
 import { call } from './invoke.ts';
 
-/** Thông điệp `Channel<ArrayBuffer>`: Raw tới dạng `ArrayBuffer` (đường eval nhỏ và đường fetch lớn đều vậy). */
+/** `Channel<ArrayBuffer>` message: a `Raw` arrives as an `ArrayBuffer` (true for both the small eval path and the large fetch path). */
 export type RawFrame = ArrayBuffer | ArrayBufferView | readonly number[];
 
 /**
- * Sau khi `invoke` xong mà frame `exit` chưa tới (Rust luôn gửi nó TRƯỚC khi lệnh trả về) thì coi là lỗi giao thức. Ngoại lệ hợp lệ
- * là lệnh bị Rust dừng vì output vượt giới hạn (256 MiB): khi đó `invoke` REJECT với mã `io` và không có frame `exit`.
+ * Treat a missing `exit` frame after `invoke` resolved as a protocol error (Rust always sends it BEFORE
+ * the command returns). The legitimate exception is a command Rust killed for exceeding the output cap
+ * (256 MiB): `invoke` then REJECTS with code `io` and no `exit` frame ever arrives.
  */
 export const EXIT_FRAME_GRACE_MS = 10_000;
 
@@ -30,9 +31,10 @@ function concat(chunks: readonly Uint8Array[], total: number): Uint8Array {
 }
 
 /**
- * Gom frame `[tag|bytes]` của `git_exec`: tag 1 = khối stdout (nối theo thứ tự nhận), tag 2 = một dòng stderr (không kèm
- * ký tự tách, giữ nguyên byte), tag 3 = exit (i32 LE + cancelled), luôn là frame cuối. Chỉ tin frame exit để kết thúc —
- * lời gọi `invoke` có thể resolve trước khi các khối cuối tới.
+ * Reassemble the `[tag|bytes]` frames of `git_exec`: tag 1 = a stdout chunk (concatenate in arrival
+ * order), tag 2 = one stderr line (no separator included, bytes kept verbatim), tag 3 = exit (i32 LE +
+ * cancelled), always the final frame. Only the exit frame ends the call — the `invoke` promise can
+ * resolve before the last chunks arrive.
  */
 export class FrameCollector {
   private readonly stdout: Uint8Array[] = [];
@@ -64,7 +66,7 @@ export class FrameCollector {
         try {
           this.onStderrLine?.(line);
         } catch {
-          // Callback tiến độ của người gọi hỏng không được làm hỏng lệnh git.
+          // A broken progress callback from the caller must not break the git command.
         }
         return;
       }
@@ -76,7 +78,7 @@ export class FrameCollector {
     }
   }
 
-  /** Kết quả khi đã nhận exit. stderr nối các dòng, mỗi dòng kết thúc bằng `\n`. */
+  /** Result once `exit` has been received. stderr lines are concatenated, each terminated by `\n`. */
   result(): ExecResult {
     if (!this.exitFrame) throw new CommandFailure('internal', 'Chưa nhận frame exit');
     const stderrLines = this.stderr.map((line) => {
@@ -97,7 +99,7 @@ export class FrameCollector {
   }
 }
 
-/** Base64 của byte (stdin của `git_exec`: patch, danh sách path ngăn bằng NUL — luôn nhỏ). */
+/** Base64 of bytes (`git_exec` stdin: patches, NUL-separated path lists — always small). */
 export function bytesToBase64(bytes: Uint8Array): string {
   const CHUNK = 0x8000;
   let binary = '';
@@ -107,7 +109,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** `opId` ngẫu nhiên (chữ + số + `-`, ≤ 64 ký tự); không dùng `crypto.randomUUID` vì WKWebView cũ (macOS 11) chưa có. */
+/** Random `opId` (letters + digits + `-`, ≤ 64 chars); not `crypto.randomUUID` because old WKWebView (macOS 11) lacks it. */
 export function newOpId(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -118,7 +120,7 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Huỷ có thử lại: lệnh huỷ có thể tới Rust trước khi op kịp đăng ký (trả `false`). */
+/** Cancellation that allows a retry: a cancelled command can reach Rust before its op is registered (returns `false`). */
 async function cancelUntilAcknowledged(opId: string, isFinished: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 20 && !isFinished(); attempt++) {
     try {
@@ -131,9 +133,10 @@ async function cancelUntilAcknowledged(opId: string, isFinished: () => boolean):
 }
 
 /**
- * Chạy một lệnh git trong repo đã mở. Rust kiểm chính sách, thêm cờ `-c` và env chuẩn; ở đây chỉ gửi `sub` + `args`
- * (+ vài env được phép). Chỉ lệnh `network` huỷ được qua `signal` (huỷ theo bậc: mềm → cứng); với loại khác `signal` bị bỏ qua.
- * Resolve duy nhất khi nhận frame `exit`.
+ * Run one git command inside an open repo. Rust enforces the policy, adds the `-c` flags and the standard
+ * environment; here we only send `sub` + `args` (plus a few allowed env vars). Only `network` commands
+ * can be cancelled via `signal` (soft → hard escalation); for every other kind `signal` is ignored.
+ * Resolves only once the `exit` frame arrives.
  */
 export async function runGit(repoId: string, request: ExecRequest): Promise<ExecResult> {
   if (request.signal?.aborted && request.kind === 'network') {

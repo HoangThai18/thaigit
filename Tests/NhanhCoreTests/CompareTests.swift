@@ -22,10 +22,10 @@ struct CompareTests {
         try await t.commitAll("main đi tiếp")
         let main = try await t.repo.resolveCommit("HEAD")
 
-        // Hai commit bất kỳ: các file khác nhau giữa hai bản.
+        // Two arbitrary commits: the files differing between the two revisions.
         let files = try await t.repo.changedFiles(commit: feature, parent: main)
         #expect(Set(files.map(\.path)) == ["a.txt", "b.txt", "c.txt", "moi.txt"])
-        // Nhánh so với điểm tách: chỉ thay đổi của riêng nhánh.
+        // A branch against the divergence point: only that branch's own changes.
         let base = try #require(await t.repo.mergeBase(main, feature))
         #expect(base == root)
         let featureOnly = try await t.repo.changedFiles(commit: feature, parent: base)

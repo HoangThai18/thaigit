@@ -143,25 +143,25 @@ describe('Parsers (port ParserTests.swift)', () => {
   it('remote có "/" trong tên (team/a): nhận đúng remote khi biết danh sách remote, khớp dài nhất khi lồng nhau', () => {
     const ref = (fullName: string) => ({ fullName, kind: 'remoteBranch' as const });
     const nested = ref('refs/remotes/team/a/feature/x');
-    // Không biết danh sách remote: cắt ở "/" đầu tiên (hành vi cũ, đúng với remote thường).
+    // Remote list unknown: split at the first "/" (the old behaviour, correct for ordinary remotes).
     expect(refRemoteName(nested)).toBe('team');
     expect(refShortBranchName(nested)).toBe('a/feature/x');
     expect(refRemoteName(nested, ['origin', 'team/a'])).toBe('team/a');
     expect(refShortBranchName(nested, ['origin', 'team/a'])).toBe('feature/x');
     expect(refRemoteName(ref('refs/remotes/team/a/main'), ['team/a'])).toBe('team/a');
-    // Cả `team` lẫn `team/a`: mỗi ref thuộc đúng MỘT remote, khớp dài nhất thắng.
+    // Both `team` and `team/a`: each ref belongs to exactly ONE remote, the longest match wins.
     expect(refRemoteName(nested, ['team', 'team/a'])).toBe('team/a');
     expect(refRemoteName(nested, ['team/a', 'team'])).toBe('team/a');
     expect(refRemoteName(ref('refs/remotes/team/b'), ['team', 'team/a'])).toBe('team');
     expect(refShortBranchName(ref('refs/remotes/team/b'), ['team', 'team/a'])).toBe('b');
-    // Chỉ khớp theo ranh giới "/" và cần có phần tên nhánh; remote thường vẫn đúng.
+    // Matching respects "/" boundaries and needs a branch part; ordinary remotes still work.
     expect(refRemoteName(ref('refs/remotes/teammate/x'), ['team'])).toBe('teammate');
     expect(refRemoteName(ref('refs/remotes/team/'), ['team'])).toBe('team');
     expect(refRemoteName(ref('refs/remotes/origin/main'), ['origin', 'team/a'])).toBe('origin');
     expect(refShortBranchName(ref('refs/remotes/origin/main'), ['origin', 'team/a'])).toBe('main');
-    // Remote không có trong danh sách: quay về cách cắt cũ.
+    // Remote missing from the list: fall back to the old split.
     expect(refRemoteName(ref('refs/remotes/ghost/main'), ['origin'])).toBe('ghost');
-    // Không phải nhánh remote.
+    // Not a remote branch.
     expect(refRemoteName({ fullName: 'refs/heads/team/a/x', kind: 'localBranch' }, ['team/a'])).toBeNull();
     expect(refShortBranchName({ fullName: 'refs/heads/team/a/x', kind: 'localBranch' }, ['team/a'])).toBe(
       'team/a/x',

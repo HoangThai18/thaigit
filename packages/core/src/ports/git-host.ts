@@ -1,6 +1,6 @@
-/** Thao tác git chưa gắn với repo nào. `destination` là đường dẫn (Node) hoặc mã thư mục do dialog native trả về (Tauri). */
+/** Git operations not tied to a repository. `destination` is a path (Node) or a folder token returned by the native dialog (Tauri). */
 export interface GitHost {
-  /** Ví dụ "git version 2.54.0". */
+  /** e.g. "git version 2.54.0". */
   version(): Promise<string>;
   init(destination: string): Promise<void>;
   clone(

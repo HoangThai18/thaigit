@@ -1,6 +1,6 @@
 import Foundation
 
-/// Cấu hình Git Flow (cùng khoá `gitflow.*` với git-flow AVH / GitKraken, nên dùng chung được với công cụ khác).
+/// Git Flow configuration (the same `gitflow.*` keys as git-flow AVH / GitKraken, so it interoperates with those tools).
 public struct GitFlowConfig: Sendable, Equatable {
     public var main: String
     public var develop: String
@@ -27,12 +27,12 @@ public struct GitFlowConfig: Sendable, Equatable {
         }
     }
 
-    /// Nhánh bắt đầu: feature / release từ develop, hotfix từ main.
+    /// The starting branches: feature / release from develop, hotfix from main.
     public func base(_ kind: GitFlowKind) -> String {
         kind == .hotfix ? main : develop
     }
 
-    /// Nhánh Git Flow (loại + tên ngắn) của một nhánh local, nil nếu không theo tiền tố nào.
+    /// The Git Flow branch (kind + short name) a local branch belongs to, nil when it matches no prefix.
     public func classify(_ branch: String) -> (kind: GitFlowKind, name: String)? {
         for kind in GitFlowKind.allCases {
             let prefix = prefix(kind)
@@ -71,7 +71,7 @@ public enum GitFlowKind: String, Sendable, CaseIterable, Identifiable {
     }
 }
 
-/// Bước Git Flow bị dừng giữa chừng (thường do conflict khi merge): các bước trước đã xong, phần còn lại cần làm tiếp.
+/// A Git Flow step that stopped midway (usually a merge conflict): the earlier steps are done, the rest still has to run.
 public struct GitFlowStepError: LocalizedError, Sendable {
     public let step: String
     public let remaining: [String]
@@ -85,7 +85,7 @@ public struct GitFlowStepError: LocalizedError, Sendable {
 }
 
 extension GitRepository {
-    /// Cấu hình Git Flow của repo, nil nếu chưa khởi tạo (thiếu gitflow.branch.develop).
+    /// The repo's Git Flow config, nil when it isn't initialised (gitflow.branch.develop missing).
     public func gitFlowConfig() async -> GitFlowConfig? {
         guard let output = try? await runner.output(["config", "--get-regexp", #"^gitflow\."#]) else { return nil }
         var values: [String: String] = [:]
@@ -101,7 +101,7 @@ extension GitRepository {
         return config
     }
 
-    /// Khởi tạo Git Flow: ghi cấu hình vào repo, tạo nhánh develop từ main nếu chưa có.
+    /// Initialise Git Flow: write the config into the repo and create the develop branch from main when it doesn't exist.
     public func initGitFlow(_ config: GitFlowConfig) async throws {
         guard (try? await resolveCommit(config.main)) != nil else {
             throw GitFlowStepError(step: String(localized: "Kiểm tra nhánh \(config.main)"), remaining: [],
@@ -115,14 +115,14 @@ extension GitRepository {
         }
     }
 
-    /// Bắt đầu feature / release / hotfix: tạo nhánh `<tiền tố><tên>` từ nhánh gốc và checkout.
+    /// Start a feature / release / hotfix: create branch `<prefix><name>` from the source branch and check it out.
     public func startFlow(_ kind: GitFlowKind, name: String, config: GitFlowConfig) async throws {
         try await createBranch(config.prefix(kind) + name, at: config.base(kind), checkout: true)
     }
 
-    /// Kết thúc nhánh Git Flow như git-flow: feature merge (--no-ff) vào develop; release / hotfix merge vào main,
-    /// gắn tag phiên bản, merge vào develop. Xong thì xoá nhánh. Conflict giữa chừng: dừng lại (repo ở trạng thái
-    /// merge dở) và báo các bước còn lại.
+    /// Finish a Git Flow branch like git-flow does: a feature merges (--no-ff) into develop; a release / hotfix merges
+    /// into main, gets the version tag, then merges into develop. The branch is deleted afterwards. On a
+    /// mid-way conflict it stops (the repo is left in an unfinished merge state) and reports the remaining steps.
     public func finishFlow(_ kind: GitFlowKind, name: String, config: GitFlowConfig, tagMessage: String? = nil) async throws {
         let branch = config.prefix(kind) + name
         var steps: [(String, () async throws -> Void)] = []

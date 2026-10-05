@@ -1,8 +1,8 @@
 import NhanhCore
 import SwiftUI
 
-/// Panel bên phải khi xem một Pull Request / Merge Request (như trang PR / MR trên GitHub / GitLab): tiêu đề, tác giả, nhánh,
-/// mô tả, người review, người được gán, rồi các commit và file thay đổi so với nhánh đích — bấm file để xem diff ở giữa màn hình.
+/// The right-hand panel while viewing a Pull Request / Merge Request (like the PR / MR page on GitHub / GitLab): title, author,
+/// branches, description, reviewers, assignees, then the commits and changed files against the target branch — click a file to see its diff in the centre.
 struct ReviewView: View {
     @Bindable var model: RepoModel
     let from: String
@@ -27,7 +27,7 @@ struct ReviewView: View {
     }
 }
 
-/// Phần đầu của panel review: thông tin PR / MR, người review / người được gán và các nút thao tác.
+/// The top of the review panel: PR / MR info, reviewers / assignees and the action buttons.
 private struct ReviewHeader: View {
     @Bindable var model: RepoModel
     let request: ForgeRequest
@@ -40,7 +40,7 @@ private struct ReviewHeader: View {
     private var authorSummary: String {
         var text = request.author.isEmpty ? "" : String(localized: "Tác giả: @") + request.author
         if let updated = request.updatedAt { text += String(localized: " · cập nhật ") + VietnameseDate.relative(updated) }
-        // Chưa biết tác giả (MR vừa tạo): bỏ dấu phân cách " · " đứng đầu.
+        // Author unknown (a just-created MR): drop the leading " · " separator.
         return text.trimmingCharacters(in: CharacterSet(charactersIn: " ·"))
     }
 
@@ -164,7 +164,7 @@ private struct ReviewHeader: View {
     }
 }
 
-/// Một dòng "Người review" / "Người được gán": tên những người hiện có và nút mở bảng chọn người.
+/// A "Reviewers" / "Assignees" row: the current names plus a button that opens the people picker.
 private struct ReviewPeopleRow: View {
     @Bindable var model: RepoModel
     let role: ReviewPeopleRole
@@ -240,7 +240,7 @@ private struct ReviewPersonLabel: View {
     }
 }
 
-/// Bảng chọn người (người review hoặc người được gán): tìm theo tên, tick chọn, rồi bấm "Áp dụng" để gửi lên máy chủ.
+/// The people picker (reviewers or assignees): search by name, tick, then press "Apply" to send it to the host.
 private struct ReviewPeoplePicker: View {
     @Bindable var model: RepoModel
     let role: ReviewPeopleRole
@@ -261,7 +261,7 @@ private struct ReviewPeoplePicker: View {
         role == .reviewers ? String(localized: "Nhờ review") : String(localized: "Gán cho")
     }
 
-    /// Ứng viên: danh sách từ máy chủ cộng thêm những người đã được chọn mà không có trong danh sách; người review không gồm tác giả.
+    /// Candidates: what the host returned plus already-selected people missing from it; reviewers exclude the author.
     private var candidates: [ForgePerson] {
         guard let session = model.review, case .loaded(let all) = session.people else { return [] }
         var list = all

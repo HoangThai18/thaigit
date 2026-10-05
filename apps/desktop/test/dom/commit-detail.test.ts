@@ -1,4 +1,4 @@
-// CommitDetail dựng bằng Svelte thật trên RepoStore + repo git thật.
+// CommitDetail built with real Svelte on top of RepoStore + a real git repo.
 import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 import CommitDetail from '../../src/lib/inspector/CommitDetail.svelte';

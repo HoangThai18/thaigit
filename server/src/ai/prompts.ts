@@ -1,5 +1,6 @@
-// Prompt phiên bản 1 (nằm ở máy chủ: chỉnh prompt không cần phát bản app). Chỉ dẫn viết bằng tiếng Anh (model theo
-// tốt nhất), ngôn ngữ đầu ra do tuỳ chọn quyết định. Diff là DỮ LIỆU — model được dặn bỏ qua mọi chỉ dẫn nằm trong đó.
+// Version 1 prompts (they live on the server, so tuning them needs no app release). Instructions are written in English
+// (the model performs best that way); the output language follows the chosen option. The diff is DATA — the model is told
+// to ignore any instructions inside it.
 
 import type {
   AiDiffContext,

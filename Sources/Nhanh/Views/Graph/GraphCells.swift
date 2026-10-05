@@ -2,12 +2,12 @@ import AppKit
 import NhanhCore
 import SwiftUI
 
-/// Ô vẽ graph: các đường làn, đường cong rẽ/nhập nhánh và node commit (ảnh đại diện tác giả, chưa có ảnh thì chữ cái đầu).
+/// The cell that draws the graph: the lane lines, the curves where a branch turns in or leaves, and the commit node (the author's avatar, or initials when there is none).
 final class GraphCellView: NSTableCellView {
     var entry: GraphEntry? {
         didSet {
             needsDisplay = true
-            // Cột Tác giả / Thời gian mặc định ẩn: rê chuột vào chấm (avatar) để biết ai commit, lúc nào.
+            // The Author / Date columns are hidden by default: hover the dot (avatar) to see who committed and when.
             if let commit = entry?.commit, !commit.isWorkingTree {
                 toolTip = "\(commit.authorName) <\(commit.authorEmail)>\n\(VietnameseDate.absolute(commit.authorDate))"
             } else {
@@ -39,7 +39,7 @@ final class GraphCellView: NSTableCellView {
         context.setLineCap(.round)
         context.setLineJoin(.round)
 
-        // Đường nối từ nhãn nhánh (cột bên trái) tới node.
+        // The connector from the branch label (left column) into the node.
         if !entry.labels.isEmpty {
             let color = GraphStyle.color(row.color).withAlphaComponent(0.55 * alpha)
             context.setStrokeColor(color.cgColor)
@@ -69,7 +69,7 @@ final class GraphCellView: NSTableCellView {
                     path.move(to: CGPoint(x: laneX, y: 0))
                     path.addLine(to: CGPoint(x: laneX, y: mid))
                 } else {
-                    // Đi thẳng xuống trong làn rồi bo góc rẽ ngang vào node.
+                    // Straight down inside the lane, then a rounded corner turning horizontally into the node.
                     let radius = min(mid, abs(nodeX - laneX))
                     let direction: CGFloat = nodeX > laneX ? 1 : -1
                     path.move(to: CGPoint(x: laneX, y: 0))
@@ -82,7 +82,7 @@ final class GraphCellView: NSTableCellView {
                     path.move(to: CGPoint(x: laneX, y: mid))
                     path.addLine(to: CGPoint(x: laneX, y: height))
                 } else {
-                    // Đi ngang khỏi node rồi bo góc rẽ xuống làn của commit cha.
+                    // Horizontally away from the node, then a rounded corner turning down into the parent lane.
                     let radius = min(height - mid, abs(laneX - nodeX))
                     let direction: CGFloat = laneX > nodeX ? 1 : -1
                     path.move(to: CGPoint(x: nodeX, y: mid))
@@ -91,7 +91,7 @@ final class GraphCellView: NSTableCellView {
                     path.addLine(to: CGPoint(x: laneX, y: height))
                 }
             }
-            // Làn như ống kính: một lớp sáng mờ rộng bên dưới nét chính.
+            // Lens-like lane: a wide soft glow underneath the main stroke.
             if line.color != GraphLayout.workingTreeColor {
                 context.addPath(path)
                 context.setStrokeColor(color.withAlphaComponent(0.16 * alpha).cgColor)
@@ -117,7 +117,7 @@ final class GraphCellView: NSTableCellView {
             context.setLineDash(phase: 0, lengths: [2.5, 2])
             context.strokeEllipse(in: rect)
             context.setLineDash(phase: 0, lengths: [])
-            // Có avatar thì mặt người đủ nói "việc của bạn" và vòng đứt khoét đã nói "chưa commit".
+            // With an avatar the face already says "your work", and the dashed ring says "not committed".
             if let avatar {
                 drawAvatar(avatar, in: rect.insetBy(dx: 2, dy: 2), ring: .clear, alpha: alpha, context: context)
             } else {
@@ -149,7 +149,7 @@ final class GraphCellView: NSTableCellView {
         context.restoreGState()
     }
 
-    /// Node commit kiểu "viên ngọc kính" như trong logo: đậm dần xuống dưới, viền kính sáng, điểm phản chiếu.
+    /// A commit node as a "glass pearl" like in the logo: darker towards the bottom, bright glass rim, specular highlight.
     private func drawGlassPearl(in rect: CGRect, color: NSColor, alpha: CGFloat, context: CGContext) {
         context.saveGState()
         context.setAlpha(alpha)
@@ -180,8 +180,8 @@ final class GraphCellView: NSTableCellView {
         context.restoreGState()
     }
 
-    /// Ảnh đại diện tròn trong viền màu của làn (như GitKraken). `ring` là `.clear` ở node WIP — vòng đứt khoét
-    /// đã vẽ sẵn bên ngoài nên không vẽ thêm đĩa màu.
+    /// A circular avatar inside the lane's coloured ring (like GitKraken). `ring` is `.clear` on the WIP node — the dashed ring
+    /// is already drawn outside, so no coloured disc is added.
     private func drawAvatar(_ image: NSImage, in rect: CGRect, ring color: NSColor, alpha: CGFloat, context: CGContext) {
         context.saveGState()
         context.setAlpha(alpha)
@@ -229,7 +229,7 @@ final class GraphCellView: NSTableCellView {
     }
 }
 
-/// Ô nhãn nhánh/tag: các "viên" màu theo làn, nhánh hiện tại có dấu ✓, local+remote gộp chung.
+/// The branch / tag label cell: coloured "pills" per lane, a ✓ on the current branch, local + remote merged together.
 final class RefsCellView: NSTableCellView {
     var labels: [RefLabel] = [] {
         didSet {
@@ -251,15 +251,15 @@ final class RefsCellView: NSTableCellView {
     }
     var laneColor: NSColor = .systemBlue { didSet { needsDisplay = true } }
     var dimmed = false { didSet { needsDisplay = true } }
-    /// Số file chưa commit: badge "✎ N" đứng trong viên của nhánh đang checkout (thay đổi thuộc nhánh đó,
-    /// không thuộc dòng "// WIP"). 0 = không có badge.
+    /// The uncommitted file count: an "✎ N" badge inside the checked-out branch's pill (those changes belong to that
+    /// branch, not to the "// WIP" row). 0 = no badge.
     var pendingCount: Int = 0 {
         didSet {
             guard pendingCount != oldValue else { return }
             needsDisplay = true
         }
     }
-    /// Tóm tắt chi tiết ("✎ 3 file sửa  ● 1 đã stage") hiện ở tooltip của viên có badge.
+    /// The details summary ("✎ 3 modified  ● 1 staged") shown in the pill's tooltip when it has a badge.
     var pendingSummary: String = "" {
         didSet {
             guard pendingSummary != oldValue else { return }
@@ -274,7 +274,7 @@ final class RefsCellView: NSTableCellView {
     private static let iconSize: CGFloat = 10
     private static let badgeFont = NSFont.systemFont(ofSize: 10, weight: .bold)
     private static let badgeGap: CGFloat = 5
-    /// Đệm hai bên của badge (bề rộng viên đã tính sẵn phần này, DOM của app Tauri cũng vậy).
+    /// The badge's horizontal padding (already counted in the pill width, same in the Tauri app's DOM).
     private static let badgePadX: CGFloat = 4
 
     private struct Pill {
@@ -292,18 +292,18 @@ final class RefsCellView: NSTableCellView {
     private static let textAttributes: [NSAttributedString.Key: Any] = [.font: font]
     private static let badgeAttributes: [NSAttributedString.Key: Any] = [.font: badgeFont]
 
-    /// Badge của viên `label` (chỉ nhánh đang đứng mới có), `nil` khi không có file chưa commit.
+    /// The badge of pill `label` (only the checked-out branch has one), `nil` when nothing is uncommitted.
     private func badge(for label: RefLabel) -> String? {
         guard label.isCurrentBranch, pendingCount > 0 else { return nil }
         return "✎ \(pendingCount)"
     }
 
-    /// Bề rộng badge gồm cả đệm hai bên — phải khớp `PILL.badgePadX` của app Tauri để hai bản nhìn giống nhau.
+    /// The badge width including its horizontal padding — it has to match `PILL.badgePadX` in the Tauri app so both versions look the same.
     private func badgeSize(_ text: String) -> CGFloat {
         ceil(NSAttributedString(string: text, attributes: Self.badgeAttributes).size().width) + Self.badgePadX * 2
     }
 
-    /// Vị trí các viên nhãn trong ô (dùng chung cho vẽ và xác định nhãn dưới con trỏ khi kéo-thả).
+    /// Where the label pills sit in the cell (shared by painting and by hit-testing the label under the cursor while dragging).
     private func pillLayout() -> Layout {
         var result = Layout()
         let mid = (bounds.height / 2).rounded()
@@ -331,7 +331,7 @@ final class RefsCellView: NSTableCellView {
         return result
     }
 
-    // MARK: Rê chuột vào "+N": khung nổi liệt kê các nhánh / tag bị gom (như GitKraken)
+    // MARK: Hovering "+N": a popover listing the branches / tags that were folded in (like GitKraken)
 
     private var hoverTracking: NSTrackingArea?
     private var overflowPopover: NSPopover?
@@ -379,12 +379,12 @@ final class RefsCellView: NSTableCellView {
         overflowPopover = nil
     }
 
-    /// Điểm `point` (toạ độ của ô) nằm trên viên "+N" (các nhãn không đủ chỗ hiện).
+    /// Whether `point` (cell coordinates) is over the "+N" pill (the labels that didn't fit).
     func isOverflowHit(at point: CGPoint) -> Bool {
         pillLayout().moreRect?.insetBy(dx: -3, dy: -4).contains(point) ?? false
     }
 
-    /// Nhãn nằm dưới điểm `point` (toạ độ của ô).
+    /// The label under `point` (cell coordinates).
     func label(at point: CGPoint) -> RefLabel? {
         let layout = pillLayout()
         for pill in layout.pills where pill.rect.insetBy(dx: -2, dy: -4).contains(point) {
@@ -444,7 +444,7 @@ final class RefsCellView: NSTableCellView {
             drawMore(count: layout.moreCount, in: more, alpha: alpha)
         }
 
-        // Đường nối sang cột graph.
+        // The connector into the graph column.
         let connector = NSBezierPath()
         connector.move(to: CGPoint(x: layout.end, y: mid))
         connector.line(to: CGPoint(x: bounds.width, y: mid))
@@ -461,7 +461,7 @@ final class RefsCellView: NSTableCellView {
         return shadow
     }()
 
-    /// Viên nhãn kiểu kính: sáng ở trên, đậm dần xuống dưới, viền sáng bên trong, viền màu mảnh bên ngoài.
+    /// A glass-style label pill: light on top, darker towards the bottom, bright inner rim, thin coloured outer rim.
     private func drawGlassPill(in rect: CGRect, color: NSColor, opacity: CGFloat, emphasized: Bool) {
         let radius = rect.height / 2
         let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
@@ -477,7 +477,7 @@ final class RefsCellView: NSTableCellView {
         path.stroke()
     }
 
-    /// Ảnh "viên nhãn" dùng khi kéo nhánh.
+    /// The image used for a "label pill" while dragging a branch.
     static func dragImage(text: String, symbol: String, color: NSColor) -> NSImage {
         let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: NSColor.white]
         let string = NSAttributedString(string: text, attributes: attributes)
@@ -512,7 +512,7 @@ final class RefsCellView: NSTableCellView {
         return icons
     }
 
-    /// Badge "✎ N" cuối viên: số file chưa commit của nhánh đang checkout.
+    /// The "✎ N" badge at the end of a pill: the checked-out branch's uncommitted file count.
     private func drawBadge(_ text: String, in rect: CGRect, alpha: CGFloat) {
         NSColor.black.withAlphaComponent(0.22 * alpha).setFill()
         NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2).fill()
@@ -551,7 +551,7 @@ final class RefsCellView: NSTableCellView {
     }
 }
 
-/// Ô chữ dùng chung (message, tác giả, ngày, SHA).
+/// A shared text cell (message, author, date, SHA).
 final class TextCellView: NSTableCellView {
     let label = NSTextField(labelWithString: "")
 
@@ -580,7 +580,7 @@ final class TextCellView: NSTableCellView {
     }
 }
 
-/// Nội dung khung nổi khi rê chuột vào "+N": các nhãn bị gom, bấm "+N" để chọn thao tác.
+/// The popover content when hovering "+N": the folded-in labels; click "+N" to pick an action.
 private struct OverflowRefsList: View {
     let labels: [RefLabel]
 
