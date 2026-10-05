@@ -392,6 +392,312 @@ export const GUIDES: Guide[] = [
       },
     ],
   },
+  {
+    slug: 'cherry-pick',
+    title: 'Git cherry-pick là gì? Lấy đúng một commit sang nhánh khác',
+    short: 'Git cherry-pick',
+    description:
+      'Dùng git cherry-pick để chép riêng một hoặc vài commit sang nhánh khác mà không merge cả nhánh. Cách dùng, xử lý conflict, và cherry-pick bằng chuột phải trong Thaigit.',
+    updated: '2026-10-05',
+    minutes: 4,
+    intro: [
+      'Bạn sửa một lỗi trên nhánh tính năng, nhưng bản vá đó cần có ngay trên nhánh chính. Merge cả nhánh thì chưa được vì tính năng chưa xong — lúc này dùng cherry-pick: chép đúng commit đó sang nhánh khác.',
+    ],
+    sections: [
+      {
+        heading: 'Cherry-pick hoạt động thế nào?',
+        paragraphs: [
+          'Git lấy thay đổi của commit được chọn và tạo một commit mới có cùng nội dung trên nhánh bạn đang đứng. Commit mới có mã SHA khác commit gốc, nhưng message và thay đổi giống nhau.',
+        ],
+      },
+      {
+        heading: 'Dùng bằng dòng lệnh',
+        steps: [
+          'Chuyển sang nhánh cần nhận commit (ví dụ main).',
+          'Lấy mã SHA của commit cần chép (git log --oneline).',
+          'Chạy git cherry-pick kèm mã SHA đó.',
+        ],
+        code: [
+          'git switch main',
+          'git log --oneline feature/giao-dien',
+          'git cherry-pick a1b2c3d',
+          'git cherry-pick a1b2c3d..e4f5g6h   # nhiều commit liên tiếp',
+        ],
+      },
+      {
+        heading: 'Khi bị conflict',
+        paragraphs: [
+          'Nếu code ở nhánh đích đã khác nhiều, Git dừng và báo conflict. Giải quyết xong thì đánh dấu đã giải quyết rồi chạy tiếp; muốn bỏ thì huỷ cả thao tác.',
+        ],
+        code: [
+          'git add src/gia.ts',
+          'git cherry-pick --continue',
+          'git cherry-pick --abort    # bỏ, quay về như cũ',
+        ],
+      },
+      {
+        heading: 'Cherry-pick trong Thaigit',
+        steps: [
+          'Chuột phải vào commit trên graph, chọn Cherry-pick vào <nhánh>.',
+          'Thaigit chạy và báo kết quả. Nếu có conflict, banner “Đang cherry-pick” hiện ra cùng trình giải xung đột (xem bài Giải conflict Git).',
+          'Chọn nhầm commit? Bấm Hoàn tác cherry-pick.',
+        ],
+        shot: 'overview',
+      },
+    ],
+    faq: [
+      {
+        q: 'Cherry-pick khác merge thế nào?',
+        a: [
+          'Merge đưa toàn bộ lịch sử của một nhánh vào nhánh khác, còn cherry-pick chỉ chép đúng những commit bạn chọn. Cherry-pick tạo commit trùng nội dung nhưng khác SHA, nên dùng nhiều dễ gây lộn xộn lịch sử.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'gitignore',
+    title: '.gitignore là gì? Cách bỏ qua file không muốn đưa lên Git',
+    short: 'File .gitignore',
+    description:
+      'Cách dùng .gitignore để Git không theo dõi file rác, file build, file bí mật (.env). Cú pháp cơ bản, xử lý file lỡ commit, và thêm nhanh vào .gitignore bằng Thaigit.',
+    updated: '2026-10-05',
+    minutes: 4,
+    intro: [
+      'Không phải file nào trong thư mục dự án cũng nên vào Git: thư mục node_modules, file build, file cấu hình có mật khẩu (.env), file hệ thống như .DS_Store… File .gitignore cho Git biết những thứ cần bỏ qua.',
+    ],
+    sections: [
+      {
+        heading: 'Cú pháp cơ bản',
+        paragraphs: [
+          'Tạo file tên .gitignore ở thư mục gốc dự án, mỗi dòng là một mẫu. Dòng bắt đầu bằng # là chú thích; dấu / ở cuối chỉ thư mục; dấu * thay cho nhiều ký tự; dấu ! để loại trừ một mẫu.',
+        ],
+        sample: [
+          '# Thư viện cài sẵn',
+          'node_modules/',
+          '',
+          '# File build',
+          'dist/',
+          '*.log',
+          '',
+          '# Bí mật — không bao giờ commit',
+          '.env',
+          '',
+          '# Nhưng giữ file mẫu',
+          '!.env.example',
+        ],
+      },
+      {
+        heading: 'File đã lỡ commit thì sao?',
+        paragraphs: [
+          '.gitignore chỉ có tác dụng với file Git chưa theo dõi. Nếu file đã được commit trước đó, bạn phải bảo Git ngừng theo dõi nó (file trên máy vẫn còn nguyên).',
+        ],
+        code: ['git rm --cached .env', 'git commit -m "Ngừng theo dõi .env"'],
+      },
+      {
+        heading: 'Lỡ commit mật khẩu hoặc khoá bí mật?',
+        paragraphs: [
+          'Xoá file ở commit mới là chưa đủ vì nó vẫn nằm trong lịch sử. Hãy đổi ngay mật khẩu / khoá đó, coi như đã lộ. Sau đó mới cân nhắc viết lại lịch sử.',
+        ],
+      },
+      {
+        heading: 'Thêm vào .gitignore bằng Thaigit',
+        steps: [
+          'Trong danh sách “Chưa stage”, chuột phải vào file hoặc thư mục cần bỏ qua.',
+          'Chọn “Thêm vào .gitignore”. Thaigit ghi mẫu phù hợp vào file .gitignore và báo lại đã thêm gì.',
+          'File biến khỏi danh sách thay đổi; chỉ cần commit file .gitignore.',
+        ],
+        shot: 'diff-lines',
+      },
+    ],
+    faq: [
+      {
+        q: '.gitignore nên đặt ở đâu?',
+        a: [
+          'Thường đặt ở thư mục gốc dự án. Có thể đặt thêm file .gitignore trong thư mục con để áp dụng riêng cho thư mục đó.',
+        ],
+      },
+      {
+        q: 'Làm sao bỏ qua file chỉ trên máy của tôi, không đưa vào repo?',
+        a: [
+          'Ghi mẫu vào file .git/info/exclude trong repo. Cú pháp giống .gitignore nhưng file này không được commit.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'pull-va-fetch',
+    title: 'git fetch và git pull khác nhau thế nào? Nên dùng cái nào',
+    short: 'Fetch và pull',
+    description:
+      'So sánh git fetch và git pull, pull merge hay pull rebase, khi nào dùng fast-forward only, và cách chọn kiểu pull trong Thaigit.',
+    updated: '2026-10-05',
+    minutes: 4,
+    intro: [
+      'Cả hai đều lấy thay đổi từ remote về máy. Khác nhau ở chỗ có tự động đưa thay đổi vào nhánh của bạn hay không.',
+    ],
+    sections: [
+      {
+        heading: 'git fetch: chỉ tải về, chưa đụng code của bạn',
+        paragraphs: [
+          'fetch cập nhật thông tin về các nhánh trên remote (origin/main…) nhưng không đổi nhánh hiện tại hay file đang làm. Chạy lúc nào cũng an toàn; sau đó bạn xem có gì mới rồi mới quyết định merge hay rebase.',
+        ],
+        code: ['git fetch', 'git log HEAD..origin/main --oneline   # xem remote có gì mới'],
+      },
+      {
+        heading: 'git pull: fetch rồi hợp nhất luôn',
+        paragraphs: [
+          'pull = fetch + merge (mặc định) hoặc fetch + rebase. Tiện nhưng đổi nhánh của bạn ngay, nên đôi khi gây conflict bất ngờ.',
+        ],
+        code: [
+          'git pull                 # fetch + merge',
+          'git pull --rebase        # fetch + rebase, lịch sử thẳng hàng',
+          'git pull --ff-only       # chỉ cho phép khi không cần merge',
+        ],
+      },
+      {
+        heading: 'Chọn kiểu nào?',
+        steps: [
+          'Muốn an toàn nhất: fetch trước, xem xong mới merge.',
+          'Muốn lịch sử gọn: pull --rebase (chỉ với commit chưa push).',
+          'Muốn tránh merge commit vô tình: pull --ff-only — nếu không fast-forward được, Git dừng và để bạn quyết.',
+        ],
+      },
+      {
+        heading: 'Fetch và pull trong Thaigit',
+        steps: [
+          'Bấm Fetch trên thanh công cụ để cập nhật mọi remote; Thaigit cũng tự fetch định kỳ.',
+          'Bấm Pull để kéo về nhánh hiện tại. Mũi tên nhỏ cạnh nút cho chọn Pull (merge), Pull (rebase) hoặc Pull (chỉ fast-forward).',
+          'Muốn nút Pull luôn dùng một kiểu: chọn ở mục “Nút Pull dùng” trong Cài đặt.',
+          'Pull xong thấy không ổn? Bấm Hoàn tác pull.',
+        ],
+        shot: 'overview',
+      },
+    ],
+    faq: [
+      {
+        q: 'Vì sao nên fetch thường xuyên?',
+        a: [
+          'Fetch giúp bạn biết đồng nghiệp đã push gì mà chưa đụng vào code của mình, nên ít bị bất ngờ khi push hoặc merge.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'git-tag',
+    title: 'Git tag là gì? Đánh dấu phiên bản phát hành cho dự án',
+    short: 'Git tag',
+    description:
+      'Git tag dùng để đánh dấu một commit quan trọng như phiên bản v1.0. Phân biệt lightweight và annotated tag, cách tạo, push, xoá tag, và tạo tag bằng chuột phải trong Thaigit.',
+    updated: '2026-10-05',
+    minutes: 4,
+    intro: [
+      'Nhánh luôn di chuyển theo commit mới, còn tag thì đứng yên. Vì vậy tag hợp để đánh dấu những điểm cần nhớ lâu dài — điển hình là các phiên bản phát hành như v1.0.0.',
+    ],
+    sections: [
+      {
+        heading: 'Hai loại tag',
+        paragraphs: [
+          'Lightweight tag chỉ là một cái nhãn gắn vào commit. Annotated tag lưu thêm người tạo, ngày và một message, nên được khuyên dùng cho bản phát hành.',
+        ],
+      },
+      {
+        heading: 'Các lệnh hay dùng',
+        code: [
+          'git tag v1.0.0                       # lightweight tag',
+          'git tag -a v1.0.0 -m "Bản đầu tiên"   # annotated tag',
+          'git tag                               # liệt kê tag',
+          'git push origin v1.0.0                # đẩy một tag lên remote',
+          'git push origin --tags                # đẩy mọi tag',
+          'git tag -d v1.0.0                     # xoá tag trên máy',
+          'git push origin --delete v1.0.0       # xoá tag trên remote',
+        ],
+      },
+      {
+        heading: 'Tạo tag trong Thaigit',
+        steps: [
+          'Chuột phải vào commit trên graph, chọn “Tạo tag tại đây…”.',
+          'Nhập tên tag. Điền thêm message nếu muốn tạo annotated tag.',
+          'Muốn đưa lên remote: kéo nhãn tag thả lên remote (origin) để push. Tag hiện ngay trên graph.',
+          'Xoá nhầm tag? Bấm Hoàn tác hoặc Khôi phục tag.',
+        ],
+        shot: 'drag',
+      },
+    ],
+    faq: [
+      {
+        q: 'Đặt tên tag thế nào?',
+        a: [
+          'Phổ biến nhất là dạng v + số phiên bản theo semver, ví dụ v1.2.3: số đầu tăng khi thay đổi lớn, số giữa khi thêm tính năng, số cuối khi sửa lỗi.',
+        ],
+      },
+      {
+        q: 'Tag có tự đẩy lên remote khi push không?',
+        a: ['Không. Mặc định git push không gửi tag, bạn phải push tag riêng (git push origin <tag>).'],
+      },
+    ],
+  },
+  {
+    slug: 'khoa-ssh-github',
+    title: 'Tạo khoá SSH để dùng GitHub, GitLab không cần nhập mật khẩu',
+    short: 'Khoá SSH GitHub',
+    description:
+      'Cách tạo khoá SSH (ed25519), thêm khoá công khai lên GitHub / GitLab và clone repo bằng git@github.com. Làm bằng dòng lệnh hoặc tạo khoá ngay trong Thaigit.',
+    updated: '2026-10-05',
+    minutes: 5,
+    intro: [
+      'Mỗi lần push lên GitHub mà phải gõ lại mật khẩu hay token rất phiền. Khoá SSH giải quyết việc này: bạn tạo một cặp khoá, đưa nửa công khai lên GitHub, và máy tự chứng minh danh tính mỗi lần kết nối.',
+      'Lưu ý: GitHub không còn nhận mật khẩu tài khoản khi dùng Git qua HTTPS — bạn cần dùng khoá SSH hoặc Personal access token.',
+    ],
+    sections: [
+      {
+        heading: 'Tạo khoá bằng dòng lệnh',
+        steps: [
+          'Chạy lệnh ssh-keygen với kiểu ed25519 (loại GitHub và GitLab khuyên dùng).',
+          'Bấm Enter để lưu ở vị trí mặc định; đặt passphrase nếu muốn bảo vệ thêm.',
+          'In nội dung khoá công khai (file .pub) rồi sao chép.',
+        ],
+        code: [
+          'ssh-keygen -t ed25519 -C "may-cua-an"',
+          'cat ~/.ssh/id_ed25519.pub     # macOS / Linux',
+          'type %USERPROFILE%\\.ssh\\id_ed25519.pub   # Windows (cmd)',
+        ],
+      },
+      {
+        heading: 'Thêm khoá công khai lên GitHub',
+        steps: [
+          'Vào GitHub → Settings → SSH and GPG keys → New SSH key.',
+          'Đặt tên dễ nhận ra (ví dụ “MacBook công ty”), dán khoá công khai vào ô Key rồi lưu.',
+          'Kiểm tra kết nối bằng ssh -T git@github.com.',
+          'Với GitLab thì vào Preferences → SSH Keys, các bước tương tự.',
+        ],
+        code: ['ssh -T git@github.com', 'git clone git@github.com:ten-ban/du-an.git'],
+      },
+      {
+        heading: 'Tạo khoá ngay trong Thaigit',
+        steps: [
+          'Mở Cài đặt → Khoá SSH, bấm “Tạo khoá mới” và đặt tên theo máy.',
+          'Bấm “Sao chép khoá công khai”, dán lên GitHub / GitLab như bước trên.',
+          'Từ đó clone, fetch, push repo dạng git@github.com:… mà không cần cấu hình ssh-agent hay thư mục .ssh.',
+          'Không dùng khoá nữa? Xoá khoá trong Thaigit và nhớ gỡ khoá công khai trên GitHub / GitLab.',
+        ],
+        shot: 'welcome',
+      },
+    ],
+    faq: [
+      {
+        q: 'Khoá riêng (private key) có được chia sẻ không?',
+        a: [
+          'Tuyệt đối không. Chỉ file .pub (khoá công khai) mới đưa lên GitHub. Ai có khoá riêng là giả danh được bạn.',
+        ],
+      },
+      {
+        q: 'SSH hay HTTPS tiện hơn?',
+        a: [
+          'SSH tiện khi dùng lâu dài vì không phải nhập lại thông tin. HTTPS với token thì dễ cài hơn lúc đầu, nhất là trên máy mượn hoặc sau tường lửa chặn cổng 22.',
+        ],
+      },
+    ],
+  },
 ];
 
 export function findGuide(slug: string): Guide | undefined {
