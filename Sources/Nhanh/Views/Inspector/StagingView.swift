@@ -8,8 +8,10 @@ struct StagingView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            if !model.riskFlags.isEmpty {
-                RiskBanner(flags: model.riskFlags)
+            if !model.riskFlags.isEmpty, model.dismissedRiskFlags != model.riskFlags {
+                RiskBanner(flags: model.riskFlags) {
+                    withAnimation(.snappy) { model.dismissedRiskFlags = model.riskFlags }
+                }
             }
             Divider()
             if !model.status.conflicts.isEmpty {
@@ -32,6 +34,8 @@ struct StagingView: View {
                     rowAction: { model.stage($0) },
                     emptyText: String(localized: "Không có thay đổi nào chưa stage")
                 )
+                // Danh sách trống thu nhỏ để danh sách kia hiện được nhiều file (như GitKraken).
+                .frame(minHeight: 90, maxHeight: model.status.unstaged.isEmpty && !model.status.staged.isEmpty ? 110 : .infinity)
                 FileSection(
                     model: model,
                     title: String(localized: "Đã stage"),
@@ -47,6 +51,7 @@ struct StagingView: View {
                     rowAction: { model.unstage($0) },
                     emptyText: String(localized: "Chưa stage file nào — bấm “Stage” hoặc kéo chọn file ở trên")
                 )
+                .frame(minHeight: 90, maxHeight: model.status.staged.isEmpty ? 110 : .infinity)
             }
             Divider()
             CommitComposer(model: model)
@@ -438,12 +443,22 @@ struct CommitComposer: View {
 /// mật. Chỉ là cảnh báo, không chặn commit.
 private struct RiskBanner: View {
     let flags: [RiskFlag]
+    let onDismiss: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("Nên xem lại trước khi commit", systemImage: "exclamationmark.triangle.fill")
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(.orange)
+            HStack {
+                Label("Nên xem lại trước khi commit", systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.orange)
+                Spacer()
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.borderless)
+                .help("Ẩn cảnh báo này (hiện lại khi có cảnh báo mới)")
+            }
             ForEach(flags) { flag in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title(flag))

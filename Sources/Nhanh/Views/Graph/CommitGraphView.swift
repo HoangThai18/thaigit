@@ -560,6 +560,22 @@ private struct CommitTable: NSViewRepresentable {
 
         @objc func doubleClicked(_ sender: Any?) {
             guard let table, entries.indices.contains(table.clickedRow) else { return }
+            // Nhấp đúp lên một nhãn: checkout đúng nhánh đó (như GitKraken), không phải nhánh đầu dòng.
+            if let point = (table as? CommitNSTableView)?.lastMouseDownPoint,
+               let label = label(at: point, row: table.clickedRow), !label.isDetachedHead {
+                if let local = label.localRef {
+                    if local.name == model.currentBranch {
+                        model.toast(.info, String(localized: "Đang ở nhánh \(local.name)"))
+                    } else {
+                        model.checkout(local)
+                    }
+                    return
+                }
+                if let remote = label.remoteRefs.first {
+                    model.checkout(remote)
+                    return
+                }
+            }
             activate(entries[table.clickedRow])
         }
 

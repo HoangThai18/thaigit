@@ -131,8 +131,11 @@ private struct DiffHeader: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
+                        .help(file.change.oldPath.map { "\($0) → \(file.change.path)" } ?? file.change.path)
                 }
             }
+            // Tên + đường dẫn file được ưu tiên chỗ hơn các nút (đường dẫn không còn bị cắt còn "cd…ss").
+            .layoutPriority(1)
             Spacer(minLength: 8)
 
             if !editing, let place = model.openFilePlace, place.total > 1 {
@@ -142,7 +145,9 @@ private struct DiffHeader: View {
             if editing, let session = model.fileEditor {
                 EditorControls(model: model, session: session)
             } else {
+                // Nút không bao giờ bị cắt chữ; thiếu chỗ thì đường dẫn file co lại (cắt giữa) trước.
                 diffControls
+                    .fixedSize()
             }
 
             Menu {

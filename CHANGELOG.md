@@ -17,6 +17,9 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Cạnh tên nhánh trên thanh công cụ luôn có số file chưa commit (bấm để về WIP), rê chuột vào tên nhánh để biết nhánh đang theo dõi trên remote
 - Rê chuột vào chấm avatar hoặc message trên graph để xem tên người commit và thời gian
 - Cùng một thông báo lỗi (vd. bấm checkout hai lần) chỉ hiện một lần
+- Nhấp đúp lên một nhãn nhánh trên graph checkout đúng nhánh đó (trước đây lấy nhánh đầu dòng)
+- Panel thay đổi: danh sách đang trống (Chưa stage / Đã stage) thu nhỏ để danh sách kia hiện được nhiều file hơn; dải "Nên xem lại trước khi commit" có nút ẩn
+- Đầu diff: nút không còn bị cắt chữ, rê chuột vào đường dẫn để xem đủ
 
 ## 1.1.1 — 2026-10-03
 

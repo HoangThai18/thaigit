@@ -102,6 +102,8 @@ final class RepoModel {
     @ObservationIgnored var lastSnapshotPruneAt = Date.distantPast
     /// Cờ rủi ro của thay đổi chưa commit (dải cảnh báo trên panel WIP).
     var riskFlags: [RiskFlag] = []
+    /// Cờ rủi ro người dùng đã bấm ẩn: dải cảnh báo chỉ hiện lại khi danh sách cờ đổi.
+    var dismissedRiskFlags: [RiskFlag]?
     @ObservationIgnored var riskTask: Task<Void, Never>?
     var searchText = "" {
         didSet { if searchText != oldValue { updateSearch() } }

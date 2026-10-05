@@ -1132,6 +1132,7 @@
 "đường dẫn PR" = "PR link";
 "Ảnh đại diện thật (GitHub / Gravatar)" = "Real Avatars (GitHub / Gravatar)";
 "Ảnh đại diện thật (GitHub, Gravatar)" = "Real avatars (GitHub, Gravatar)";
+"Ẩn cảnh báo này (hiện lại khi có cảnh báo mới)" = "Hide this warning (it comes back when something new is flagged)";
 "Ẩn khỏi graph" = "Hide from Graph";
 "Ẩn nhánh khỏi graph" = "Hide Branch from Graph";
 "Ẩn terminal trong app" = "Hide In-App Terminal";
