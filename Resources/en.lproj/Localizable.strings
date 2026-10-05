@@ -136,6 +136,9 @@
 "Chưa tự cập nhật được" = "Can't update automatically yet";
 "Chưa đăng nhập tài khoản GitHub nào." = "Not signed in to any GitHub account.";
 "Chưa đăng nhập được" = "Couldn't sign in";
+"Chưa đặt email Git" = "Git email not set";
+"Chưa đặt tên & email Git" = "Git name & email not set";
+"Chưa đặt tên Git" = "Git name not set";
 "Chưa đặt tên và email cho git — chạy git config --global user.name / user.email rồi thử lại." = "Your git name and email aren't set — run git config --global user.name / user.email and try again.";
 "Chưa đọc được token của @%@ — đăng nhập lại tài khoản này" = "Couldn't read the token of @%@ — sign in to this account again";
 "Chương trình git" = "Git program";
@@ -180,6 +183,8 @@
 "Commit mới ở %@ sẽ được ký bằng %@" = "New commits in %@ will be signed with %@";
 "Commit này đã được đảo ngược, không có gì để revert" = "This commit was already reversed — nothing to revert";
 "Commit rồi push lên remote (⌘⇧↩)" = "Commit, then push to the remote (⌘⇧↩)";
+"Cài đặt" = "Settings";
+"Cài đặt (⌘,)" = "Settings (⌘,)";
 "Cài đặt…" = "Settings…";
 "Các bản Thaigit tự lưu thư mục làm việc — quay lại khi có gì hỏng" = "Snapshots Thaigit saves of your working folder — go back when something breaks";
 "Các commit này đã có trên remote: rebase xong cần force push, người khác đang dùng nhánh sẽ bị lệch." = "These commits are already on the remote: after rebasing you'll need to force push, and others using the branch will be out of sync.";
@@ -796,6 +801,7 @@
 "Trước khi khôi phục" = "Before restore";
 "Tài khoản" = "Accounts";
 "Tài khoản GitHub" = "GitHub Accounts";
+"Tài khoản GitHub / GitLab cho repo này…" = "GitHub / GitLab Account for This Repo…";
 "Tài khoản GitHub cho %@" = "GitHub Account for %@";
 "Tài khoản GitHub cho repo này" = "GitHub Account for This Repository";
 "Tài khoản GitHub cho repo này…" = "GitHub Account for This Repository…";
@@ -805,6 +811,7 @@
 "Tác giả: @" = "Author: @";
 "Hai cột (trước | sau)" = "Split (before | after)";
 "Tên & email cho Git" = "Name & Email for Git";
+"Tên & email này được ghi vào mọi commit bạn tạo trong repo này." = "This name & email go into every commit you make in this repo.";
 "Tên (thường là origin)" = "Name (usually origin)";
 "Tên commit" = "Commit name";
 "Tên hiện tại: %@" = "Current name: %@";
@@ -1136,6 +1143,7 @@
 "Đổi loại file" = "File type changed";
 "Đổi thư mục…" = "Change Folder…";
 "Đổi tên" = "Renamed";
+"Đổi tên & email Git…" = "Change Git Name & Email…";
 "Đổi tên nhánh" = "Rename Branch";
 "Đổi tên “%@” → “%@”, nội dung không đổi." = "Renamed “%@” → “%@”, content unchanged.";
 "Đổi tên…" = "Rename…";

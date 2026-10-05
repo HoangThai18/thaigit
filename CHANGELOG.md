@@ -28,6 +28,8 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Đầu diff gọn hơn: nút Sửa / Huỷ chỉ còn biểu tượng để tên file hiện đủ
 - Nút Undo trên thanh công cụ (như GitKraken): hoàn tác thao tác git gần nhất — commit, checkout, pull, huỷ thay đổi… Nút tự tắt khi repo đã đổi khác sau thao tác đó để không đè lên việc mới
 - Danh sách file thay đổi xem được dạng cây thư mục (nút cạnh "Stage tất cả", như Path / Tree của GitKraken): gập / mở thư mục, stage hoặc bỏ stage cả thư mục một lần bấm
+- Hàng nút trên thanh công cụ gọn và dễ nhìn hơn: nền sáng, mỗi thao tác một màu biểu tượng (Fetch xanh dương, Pull xanh ngọc, Push xanh lá, Branch tím, Stash / Pop cam), cả giao diện sáng lẫn tối
+- Nút Cài đặt và Profile ở góc phải thanh công cụ: avatar tên / email đang dùng để commit, bấm để đổi tên & email Git, chọn tài khoản GitHub / GitLab cho repo hoặc mở Cài đặt
 
 ## 1.1.1 — 2026-10-03
 

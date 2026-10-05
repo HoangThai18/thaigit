@@ -166,10 +166,8 @@ struct RepoActionBar: View {
             bar(titles: true)
             bar(titles: false)
         }
-        .menuStyle(.button)
-        .glassButtonStyle()
-        // Mũi tên của menu (Pull ▾, nhánh ▾) xám như nút thường, không nhuộm màu nhấn.
-        .tint(.secondary)
+        .buttonStyle(ToolbarButtonStyle())
+        .menuStyle(.borderlessButton)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .frame(maxWidth: .infinity)
@@ -181,7 +179,7 @@ struct RepoActionBar: View {
             Button {
                 withAnimation { columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly }
             } label: {
-                Label("Sidebar", systemImage: "sidebar.left").labelStyle(.iconOnly)
+                ToolLabel("Sidebar", systemImage: "sidebar.left", color: ToolColor.neutral).labelStyle(.iconOnly)
             }
             .help("Ẩn/hiện danh sách nhánh")
 
@@ -195,7 +193,7 @@ struct RepoActionBar: View {
             Spacer(minLength: 8)
 
             Button { model.undoLast() } label: {
-                Label("Undo", systemImage: "arrow.uturn.backward")
+                ToolLabel("Undo", systemImage: "arrow.uturn.backward", color: ToolColor.undo)
             }
             .disabled(!model.canUndoLast)
             .help(model.canUndoLast
@@ -203,7 +201,7 @@ struct RepoActionBar: View {
                 : String(localized: "Hoàn tác thao tác git gần nhất (commit, checkout, pull, huỷ thay đổi…)"))
 
             Button { model.fetch() } label: {
-                Label("Fetch", systemImage: "arrow.triangle.2.circlepath")
+                ToolLabel("Fetch", systemImage: "arrow.triangle.2.circlepath", color: ToolColor.fetch)
             }
             .help("Lấy thông tin mới từ mọi remote (⌥⌘F)")
 
@@ -220,31 +218,37 @@ struct RepoActionBar: View {
                 }
                 Button("Merge từ repository khác…") { model.beginMergeFromRepository() }
             } label: {
-                Label(model.status.behind > 0 ? "Pull ↓\(model.status.behind)" : "Pull", systemImage: "arrow.down.circle")
+                ToolLabel(verbatim: model.status.behind > 0 ? "Pull ↓\(model.status.behind)" : "Pull", systemImage: "arrow.down.circle",
+                          color: ToolColor.pull)
+                    .foregroundStyle(.primary)
             } primaryAction: {
                 model.pull()
             }
             .fixedSize()
+            .padding(.horizontal, 8)
+            .frame(minHeight: 28)
+            .background(ToolbarChrome())
             .help("Lấy commit mới từ remote về nhánh hiện tại (⇧⌘L)")
 
             Button { model.push() } label: {
-                Label(model.status.ahead > 0 ? "Push ↑\(model.status.ahead)" : "Push", systemImage: "arrow.up.circle")
+                ToolLabel(verbatim: model.status.ahead > 0 ? "Push ↑\(model.status.ahead)" : "Push", systemImage: "arrow.up.circle",
+                          color: ToolColor.push)
             }
             .help("Đẩy commit của nhánh hiện tại lên remote (⇧⌘P)")
 
             Button { model.beginCreateBranchAtHead() } label: {
-                Label("Branch", systemImage: "arrow.triangle.branch")
+                ToolLabel("Branch", systemImage: "arrow.triangle.branch", color: ToolColor.branch)
             }
             .help("Tạo nhánh mới từ commit hiện tại (⇧⌘B)")
 
             Button { model.quickStash() } label: {
-                Label("Stash", systemImage: "archivebox")
+                ToolLabel("Stash", systemImage: "archivebox.fill", color: ToolColor.stash)
             }
             .disabled(model.status.isClean)
             .help("Cất tạm mọi thay đổi chưa commit")
 
             Button { model.popLatestStash() } label: {
-                Label("Pop", systemImage: "archivebox.circle")
+                ToolLabel("Pop", systemImage: "tray.and.arrow.up.fill", color: ToolColor.pop)
             }
             .disabled(model.stashes.isEmpty)
             .help("Lấy lại stash mới nhất")
@@ -258,9 +262,12 @@ struct RepoActionBar: View {
                 Button("Nhật ký lệnh git…") { model.sheet = .commandLog }
                 Button("Làm mới") { model.refreshEverything() }
             } label: {
-                Label("Mở", systemImage: "terminal").labelStyle(.iconOnly)
+                ToolLabel("Mở", systemImage: "terminal", color: ToolColor.neutral).labelStyle(.iconOnly)
             }
             .fixedSize()
+            .padding(.horizontal, 8)
+            .frame(minHeight: 28)
+            .background(ToolbarChrome())
             .help("Mở repository bằng ứng dụng khác")
 
             Spacer(minLength: 8)
@@ -268,9 +275,13 @@ struct RepoActionBar: View {
             searchField
 
             Button { model.toggleInspector() } label: {
-                Label("Chi tiết", systemImage: "sidebar.trailing").labelStyle(.iconOnly)
+                ToolLabel("Chi tiết", systemImage: "sidebar.trailing", color: ToolColor.neutral).labelStyle(.iconOnly)
             }
             .help("Ẩn/hiện panel chi tiết (⌥⌘I)")
+
+            SettingsToolButton()
+
+            ProfileButton(model: model)
         }
         .labelStyle(titles ? AnyLabelStyle(.titleAndIcon) : AnyLabelStyle(.iconOnly))
     }
@@ -296,7 +307,7 @@ struct RepoActionBar: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 6)
-        .frame(minWidth: 150, idealWidth: 230, maxWidth: 230)
+        .frame(minWidth: 110, idealWidth: 170, maxWidth: 200)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.06)))
         // ⌘F: tới ô tìm commit (nút ẩn chỉ để nhận phím tắt).
         .background {
@@ -334,9 +345,14 @@ struct BranchSwitcher: View {
             Button("Tìm & chuyển nhánh…") { model.sheet = .switchBranch }
             Button("Tạo nhánh mới…") { model.beginCreateBranchAtHead() }
         } label: {
-            Label(model.headDescription.isEmpty ? "—" : model.headDescription, systemImage: "arrow.triangle.branch")
+            ToolLabel(verbatim: model.headDescription.isEmpty ? "—" : model.headDescription, systemImage: "arrow.triangle.branch",
+                      color: ToolColor.branch)
                 .labelStyle(.titleAndIcon)
+                .fontWeight(.semibold)
         }
+        .padding(.horizontal, 8)
+        .frame(minHeight: 28)
+        .background(ToolbarChrome())
         .help(branchHelp)
     }
 
@@ -359,10 +375,12 @@ struct WorkingTreeChip: View {
 
     var body: some View {
         Button { model.selectWorkingTree() } label: {
-            Label(String(localized: "\(count) file chưa commit"), systemImage: model.status.conflicts.isEmpty ? "pencil.circle" : "exclamationmark.triangle.fill")
+            ToolLabel(verbatim: String(localized: "\(count) file chưa commit"),
+                      systemImage: model.status.conflicts.isEmpty ? "pencil.circle" : "exclamationmark.triangle",
+                      color: model.status.conflicts.isEmpty ? ToolColor.stash : Color(nsColor: .systemRed))
                 .labelStyle(.titleAndIcon)
         }
-        .glassButtonStyle()
+        .buttonStyle(ToolbarButtonStyle())
         .help("Xem thay đổi chưa commit (⌘0)")
     }
 }
@@ -634,5 +652,79 @@ private struct GraphFilterBar: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 7)
         .glassSurface(in: Capsule())
+    }
+}
+
+/// Nút Cài đặt trên hàng công cụ (⌘,).
+private struct SettingsToolButton: View {
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Button { openSettings() } label: {
+            ToolLabel("Cài đặt", systemImage: "gearshape", color: ToolColor.neutral).labelStyle(.iconOnly)
+        }
+        .help("Cài đặt (⌘,)")
+    }
+}
+
+/// Profile (như GitKraken): ảnh đại diện của tên / email đang dùng để commit; bấm để xem, đổi danh tính Git, tài khoản
+/// GitHub / GitLab của repo và mở Cài đặt.
+private struct ProfileButton: View {
+    @Bindable var model: RepoModel
+    @Environment(\.openSettings) private var openSettings
+    @State private var showing = false
+
+    private var name: String { model.committerIdentity?.name ?? "" }
+    private var email: String? { model.committerIdentity?.email }
+
+    var body: some View {
+        Button { showing.toggle() } label: {
+            AvatarView(name: name.isEmpty ? "?" : name, email: email, size: 24)
+        }
+        .buttonStyle(.plain)
+        .help(name.isEmpty ? String(localized: "Chưa đặt tên & email Git") : "\(name) <\(email ?? "")>")
+        .popover(isPresented: $showing, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    AvatarView(name: name.isEmpty ? "?" : name, email: email, size: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(name.isEmpty ? String(localized: "Chưa đặt tên Git") : name)
+                            .font(.headline)
+                        Text(email ?? String(localized: "Chưa đặt email Git"))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                }
+                Text("Tên & email này được ghi vào mọi commit bạn tạo trong repo này.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider()
+                VStack(alignment: .leading, spacing: 4) {
+                    profileRow("Đổi tên & email Git…", systemImage: "person.text.rectangle") { model.sheet = .identity }
+                    profileRow("Tài khoản GitHub / GitLab cho repo này…", systemImage: "person.crop.circle.badge.checkmark") {
+                        model.sheet = .githubAccount(owner: nil)
+                    }
+                    profileRow("Cài đặt…", systemImage: "gearshape") { openSettings() }
+                }
+            }
+            .padding(14)
+            .frame(width: 300)
+        }
+        .onAppear { if model.committerIdentity == nil { model.loadCommitterIdentity() } }
+    }
+
+    private func profileRow(_ title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button {
+            showing = false
+            action()
+        } label: {
+            Label(title, systemImage: systemImage)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
