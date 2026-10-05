@@ -293,8 +293,7 @@ enum AutomationHarness {
             case "term":
                 // Mở terminal trong app và chạy lệnh: act:term:git status
                 if model.terminal?.isVisible != true { model.toggleTerminal() }
-                model.terminal?.input = value
-                model.terminal?.run()
+                model.terminal?.send(value)
             case "ai":
                 // AI viết commit message cho thay đổi đã stage, ghi kết quả ra log.
                 log("ai: " + (CommitMessageAI.unavailableReason ?? "sẵn sàng"))

@@ -253,6 +253,12 @@ struct RepoActionBar: View {
             .disabled(model.stashes.isEmpty)
             .help("Pop stash mới nhất")
 
+            Button { model.toggleTerminal() } label: {
+                ToolLabel("Terminal", systemImage: "apple.terminal", color: ToolColor.neutral)
+            }
+            .keyboardShortcut("`", modifiers: .control)
+            .help("Mở / ẩn terminal ngay trong cửa sổ repo (⌃`)")
+
             Menu {
                 Button(model.terminal?.isVisible == true ? "Ẩn terminal trong app" : "Terminal trong app") { model.toggleTerminal() }
                 Button("Mở trong Terminal") { model.openInTerminal() }

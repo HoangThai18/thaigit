@@ -344,6 +344,7 @@
 "Mọi đoạn chưa chọn: giữ Current" = "All remaining conflicts: Keep Current";
 "Mọi đoạn chưa chọn: giữ Incoming" = "All remaining conflicts: Keep Incoming";
 "Mọi đoạn chưa chọn: giữ cả hai" = "All remaining conflicts: Keep Both";
+"Mở / ẩn terminal ngay trong cửa sổ repo (⌃`)" = "Show / hide the terminal inside the repository window (⌃`)";
 "Mở danh sách file chưa commit để stage, bỏ stage, huỷ và commit (⌘0)" = "Open the uncommitted files to stage, unstage, discard and commit (⌘0)";
 "Một cột (unified)" = "Unified";
 "Amend thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó" = "Amend the last commit with the staged changes and/or edit its message";
@@ -809,6 +810,7 @@
 "Thêm remote" = "Add Remote";
 "Thêm remote %@" = "Add Remote %@";
 "Thêm remote…" = "Add Remote…";
+"Thêm tab terminal" = "New Terminal Tab";
 "Thêm thao tác" = "More Actions";
 "Thêm tài khoản" = "Add Account";
 "Thêm tài khoản GitLab bằng token" = "Add a GitLab Account with a Token";
@@ -1205,6 +1207,7 @@
 "Đóng dòng thời gian" = "Close Timeline";
 "Đóng repository" = "Close Repository";
 "Đóng tab" = "Close Tab";
+"Đóng tab (dừng shell của tab này)" = "Close tab (stops this tab’s shell)";
 "Đóng tab (⌘W)" = "Close Tab (⌘W)";
 "Đóng terminal (⌃`)" = "Close Terminal (⌃`)";
 "Đăng nhập / thêm tài khoản GitHub…" = "Sign In / Add GitHub Account…";
@@ -1249,6 +1252,7 @@
 "Ẩn cảnh báo này (hiện lại khi có cảnh báo mới)" = "Hide this warning (it comes back when something new is flagged)";
 "Ẩn khỏi graph" = "Hide from Graph";
 "Ẩn nhánh khỏi graph" = "Hide Branch from Graph";
+"Ẩn terminal (⌃`) — các lệnh đang chạy vẫn tiếp tục" = "Hide the terminal (⌃`) — running commands keep going";
 "Ẩn terminal trong app" = "Hide In-App Terminal";
 "Ẩn/hiện danh sách nhánh" = "Show/Hide Branch List";
 "Ẩn/hiện panel chi tiết" = "Show/Hide Details Panel";

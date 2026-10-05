@@ -184,6 +184,7 @@ final class RepoModel {
 
     func stop() {
         isActive = false
+        terminal?.closeAll()
         watcher?.stop()
         watcher = nil
         autoFetchTask?.cancel()

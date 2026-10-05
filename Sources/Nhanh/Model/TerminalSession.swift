@@ -1,167 +1,141 @@
 import AppKit
 import NhanhCore
+import SwiftTerm
 import SwiftUI
 
-/// Terminal đơn giản dưới graph (như terminal tích hợp của GitKraken, bản rút gọn): gõ một lệnh, chạy trong thư mục
-/// repo, xem output. Mỗi lệnh là một tiến trình riêng không tương tác — chỉ chạy lệnh người dùng tự gõ.
+/// Terminal thật dưới graph (như terminal tích hợp của GitKraken): shell đăng nhập của người dùng (zsh / bash…) chạy trong
+/// thư mục repo qua PTY, có màu, chạy được lệnh tương tác (vim, `git rebase -i`, ssh…). Nhiều tab; ẩn panel thì shell vẫn
+/// chạy, đóng tab / đóng repo thì shell bị dừng. Repo tự làm mới qua theo dõi file như khi sửa ở terminal ngoài.
 @Observable
 final class TerminalSession {
-    enum Kind {
-        case command
-        case output
-        case error
-        case info
-    }
+    /// Một tab terminal. Giữ nguyên `view` suốt đời tab để ẩn / hiện panel không mất nội dung.
+    final class Tab: Identifiable {
+        let id = UUID()
+        var title: String
+        var exited = false
+        let view: LocalProcessTerminalView
+        fileprivate let delegate: Delegate
 
-    struct Line: Identifiable {
-        let id: Int
-        let text: String
-        let kind: Kind
+        fileprivate init(title: String, view: LocalProcessTerminalView, delegate: Delegate) {
+            self.title = title
+            self.view = view
+            self.delegate = delegate
+        }
     }
-
-    static let maxLines = 5000
 
     let root: URL
-    private(set) var lines: [Line] = []
-    private(set) var directory: URL
-    private(set) var isRunning = false
-    var input = ""
+    private(set) var tabs: [Tab] = []
+    var selectedID: UUID?
     var isVisible = false
-    var height: CGFloat = 240
-    /// Gọi sau mỗi lệnh (làm mới repo: lệnh có thể đã commit, checkout…).
-    @ObservationIgnored var onFinish: (() -> Void)?
-    @ObservationIgnored private var history: [String] = []
-    @ObservationIgnored private var historyIndex: Int?
-    @ObservationIgnored private var task: Task<Void, Never>?
-    @ObservationIgnored private var nextID = 0
+    var height: CGFloat = 280
+    /// Bộ đếm tên tab: "Terminal", "Terminal 2"…
+    @ObservationIgnored private var created = 0
+    @ObservationIgnored private let environment: () -> [String: String]
 
-    init(root: URL) {
+    init(root: URL, environment: @escaping () -> [String: String]) {
         self.root = root
-        directory = root
+        self.environment = environment
     }
 
-    /// "repo/thư-mục-con" — thư mục hiện tại tính từ thư mục cha của repo.
-    var promptPath: String {
-        let base = root.deletingLastPathComponent().path
-        let path = directory.path
-        if path.hasPrefix(base + "/") { return String(path.dropFirst(base.count + 1)) }
-        return (path as NSString).abbreviatingWithTildeInPath
-    }
+    var selected: Tab? { tabs.first { $0.id == selectedID } ?? tabs.last }
 
-    func run() {
-        let command = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !command.isEmpty, !isRunning else { return }
-        input = ""
-        historyIndex = nil
-        if history.last != command { history.append(command) }
-        if command == "clear" || command == "cls" {
-            lines = []
-            return
+    /// Mở thêm một tab terminal ở thư mục repo.
+    @discardableResult
+    func newTab() -> Tab {
+        created += 1
+        let view = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 240))
+        view.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        view.configureNativeColors()
+        // Option gõ được ký tự đặc biệt / tiếng Việt như Terminal.app thay vì làm phím Meta.
+        view.optionAsMetaKey = false
+        let tab = Tab(title: created == 1 ? "Terminal" : "Terminal \(created)", view: view, delegate: Delegate())
+        tab.delegate.onExit = { [weak self, weak tab] in
+            guard let self, let tab else { return }
+            tab.exited = true
+            self.close(tab)
         }
-        append(.command, "\(promptPath) ❯ \(command)")
-        isRunning = true
-        let buffer = TerminalOutputBuffer()
-        let directory = directory
-        let environment = TerminalShell.environment(base: ProcessInfo.processInfo.environment)
-        task = Task { [weak self] in
-            let flusher = Task { [weak self] in
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .milliseconds(60))
-                    self?.appendOutput(buffer.take())
-                }
-            }
-            var finalDirectory = directory
-            do {
-                let result = try await TerminalShell.run(command, in: directory, environment: environment) { line, isError in
-                    buffer.add(line, isError: isError)
-                }
-                flusher.cancel()
-                self?.appendOutput(buffer.take())
-                finalDirectory = result.directory
-                if Task.isCancelled {
-                    self?.append(.info, String(localized: "Đã dừng lệnh"))
-                } else if result.exitCode != 0 {
-                    self?.append(.info, String(localized: "↳ thoát với mã \(result.exitCode)"))
-                }
-            } catch {
-                flusher.cancel()
-                self?.appendOutput(buffer.take())
-                self?.append(.error, FriendlyError.message(for: error))
-            }
-            guard let self else { return }
-            if FileManager.default.fileExists(atPath: finalDirectory.path) { self.directory = finalDirectory }
-            isRunning = false
-            task = nil
-            onFinish?()
+        tab.delegate.onTitle = { [weak tab] title in
+            let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { tab?.title = String(trimmed.prefix(40)) }
         }
+        view.processDelegate = tab.delegate
+        let shell = Self.shell
+        view.startProcess(executable: shell, args: ["-l"], environment: Self.environmentList(environment()),
+                          execName: "-" + (shell as NSString).lastPathComponent, currentDirectory: root.path)
+        tabs.append(tab)
+        selectedID = tab.id
+        return tab
     }
 
-    func stop() {
-        task?.cancel()
+    func close(_ tab: Tab) {
+        if !tab.exited { tab.view.terminate() }
+        tabs.removeAll { $0.id == tab.id }
+        if selectedID == tab.id { selectedID = tabs.last?.id }
+        if tabs.isEmpty { withAnimation(.snappy(duration: 0.2)) { isVisible = false } }
     }
 
-    func clear() {
-        lines = []
+    /// Dừng mọi shell (đóng repo / đóng tab app).
+    func closeAll() {
+        for tab in tabs where !tab.exited { tab.view.terminate() }
+        tabs = []
+        selectedID = nil
     }
 
-    /// ↑ / ↓ trong ô lệnh: lệnh đã gõ trước đó.
-    func recall(_ step: Int) {
-        guard !history.isEmpty else { return }
-        let current = historyIndex ?? history.count
-        let next = min(max(current + step, 0), history.count)
-        historyIndex = next
-        input = next == history.count ? "" : history[next]
+    /// Gõ một dòng vào tab đang chọn (dùng cho kiểm thử tự động).
+    func send(_ line: String) {
+        (selected ?? newTab()).view.send(txt: line + "\n")
     }
 
-    private func appendOutput(_ items: [(String, Bool)]) {
-        guard !items.isEmpty else { return }
-        for (text, isError) in items { appendLine(isError ? .error : .output, text) }
-        trim()
+    /// Shell đăng nhập của người dùng; không có thì zsh (mặc định của macOS).
+    static var shell: String {
+        let value = ProcessInfo.processInfo.environment["SHELL"] ?? ""
+        return !value.isEmpty && FileManager.default.isExecutableFile(atPath: value) ? value : "/bin/zsh"
     }
 
-    private func append(_ kind: Kind, _ text: String) {
-        appendLine(kind, text)
-        trim()
+    /// Môi trường của shell: như của app (PATH đầy đủ từ login shell), bỏ các biến app đặt riêng cho lệnh git nền (không mở
+    /// editor, không hỏi mật khẩu trong terminal, thông báo tiếng Anh…) để terminal chạy như Terminal.app.
+    static func environmentList(_ base: [String: String]) -> [String] {
+        var env = base
+        for key in ["GIT_TERMINAL_PROMPT", "GIT_EDITOR", "GIT_MERGE_AUTOEDIT", "GIT_PAGER", "PAGER", "LC_MESSAGES", "LANGUAGE",
+                    "GIT_ASKPASS", "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE", "DISPLAY"] {
+            env.removeValue(forKey: key)
+        }
+        env["TERM"] = "xterm-256color"
+        env["COLORTERM"] = "truecolor"
+        env["TERM_PROGRAM"] = "Thaigit"
+        if env["LANG"] == nil { env["LANG"] = "en_US.UTF-8" }
+        return env.map { "\($0.key)=\($0.value)" }
     }
 
-    private func appendLine(_ kind: Kind, _ text: String) {
-        lines.append(Line(id: nextID, text: text, kind: kind))
-        nextID += 1
-    }
+    fileprivate final class Delegate: LocalProcessTerminalViewDelegate {
+        var onExit: (() -> Void)?
+        var onTitle: ((String) -> Void)?
 
-    private func trim() {
-        if lines.count > Self.maxLines { lines.removeFirst(lines.count - Self.maxLines) }
-    }
-}
+        func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
 
-/// Output gom từ luồng đọc của tiến trình, giao cho luồng chính theo từng đợt (giữ đúng thứ tự, không vẽ lại từng dòng).
-nonisolated final class TerminalOutputBuffer: @unchecked Sendable {
-    private let lock = NSLock()
-    private var items: [(String, Bool)] = []
+        func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
+            let onTitle = self.onTitle
+            DispatchQueue.main.async { onTitle?(title) }
+        }
 
-    func add(_ line: String, isError: Bool) {
-        lock.lock()
-        items.append((line, isError))
-        lock.unlock()
-    }
+        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
 
-    func take() -> [(String, Bool)] {
-        lock.lock()
-        defer { lock.unlock() }
-        let taken = items
-        items = []
-        return taken
+        func processTerminated(source: TerminalView, exitCode: Int32?) {
+            let onExit = self.onExit
+            DispatchQueue.main.async { onExit?() }
+        }
     }
 }
 
 extension RepoModel {
-    /// Bật / tắt terminal trong app (tạo ở thư mục repo lần đầu).
+    /// Bật / tắt panel terminal (⌃`); lần đầu mở thì tạo một tab.
     func toggleTerminal() {
         if terminal == nil {
-            let session = TerminalSession(root: repository.root)
-            session.onFinish = { [weak self] in self?.requestRefresh(.all) }
-            terminal = session
+            let store = repository.runner.environmentStore
+            terminal = TerminalSession(root: repository.root) { store.value.variables }
         }
-        withAnimation(.snappy(duration: 0.2)) { terminal?.isVisible.toggle() }
+        guard let terminal else { return }
+        if terminal.tabs.isEmpty { terminal.newTab() }
+        withAnimation(.snappy(duration: 0.2)) { terminal.isVisible.toggle() }
     }
 }
