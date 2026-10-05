@@ -2,7 +2,7 @@
 
 Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
-## Chưa phát hành
+## 1.4.0 — 2026-10-05
 
 - Dòng “// WIP” trên graph có avatar của chính bạn, giống các commit khác; số file chưa commit nằm ngay cạnh tên nhánh đang ở (rê chuột vào xem chi tiết) thay vì nằm ở dòng WIP — đúng nhánh thì mới thấy số file của nhánh đó
 - Giải xung đột nhanh hơn: tick chọn từng dòng của mỗi bên, xem trước cả file kết quả và sửa tay trước khi lưu, nhảy giữa các đoạn xung đột bằng nút hoặc ⌥⌘↑ / ⌥⌘↓, chọn nhanh cho mọi đoạn còn lại
