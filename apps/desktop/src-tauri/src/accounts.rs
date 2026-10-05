@@ -218,11 +218,13 @@ pub struct Login {
 /// client không phải bí mật. Người dùng vẫn ghi đè được trong Cài đặt (GitHub Enterprise, GitLab tự host…).
 /// GitHub có sẵn Client ID của OAuth App "Thaigit" (bật Device Flow, token không hết hạn) — giống `Resources/Info.plist`.
 const GITHUB_CLIENT_ID: &str = "Ov23li9UeeQjJJwQqLqH";
+/// Application ID của OAuth App "Thaigit" trên gitlab.com (không confidential, bật device authorization grant).
+const GITLAB_CLIENT_ID: &str = "506513c86541200954d6656725fab6cc78b0b458cae231f79a72e09c9b94f66d";
 
 fn builtin_client_id(host: &str) -> Option<&'static str> {
     let value = match host {
         "github.com" => option_env!("THAIGIT_GITHUB_CLIENT_ID").or(Some(GITHUB_CLIENT_ID)),
-        "gitlab.com" => option_env!("THAIGIT_GITLAB_CLIENT_ID"),
+        "gitlab.com" => option_env!("THAIGIT_GITLAB_CLIENT_ID").or(Some(GITLAB_CLIENT_ID)),
         _ => None,
     };
     value.map(str::trim).filter(|id| !id.is_empty())
