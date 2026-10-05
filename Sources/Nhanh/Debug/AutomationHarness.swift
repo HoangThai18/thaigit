@@ -9,7 +9,8 @@ import SwiftUI
 enum AutomationHarness {
     private static var started = false
     /// Đang chạy kịch bản chụp ảnh: không gọi API GitHub thật (dùng dữ liệu giả qua `act:fakeprs`).
-    static var isActive: Bool { ProcessInfo.processInfo.environment["NHANH_SNAPSHOT_DIR"] != nil }
+    /// Chạy tự động: kho bí mật dùng bản trong bộ nhớ, không đụng Keychain thật (không bật hộp hỏi quyền).
+    nonisolated static var isActive: Bool { ProcessInfo.processInfo.environment["NHANH_SNAPSHOT_DIR"] != nil }
     /// Mốc thời gian khởi động (đặt trong applicationDidFinishLaunching) để đo tốc độ tải.
     private static var launchTime = Date()
 

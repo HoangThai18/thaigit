@@ -60,7 +60,7 @@ final class GitHubAccountManager {
     nonisolated private init() {
         auth = GitHubAuth(clientID: Bundle.main.object(forInfoDictionaryKey: "ThaigitGitHubClientID") as? String)
         clientID = auth.clientID
-        store = GitHubAccountStore()
+        store = AutomationHarness.isActive ? GitHubAccountStore(tokens: InMemoryGitHubTokenStore()) : GitHubAccountStore()
         // Chỉ đọc UserDefaults ở đây; token được nạp từ Keychain khi cần.
         tokens = GitHubTokenProvider(state: store.loadState(), tokenStore: store.tokens)
     }

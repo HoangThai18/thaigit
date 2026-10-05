@@ -10,7 +10,8 @@ final class JiraConnection {
 
     private static let siteKey = "jira.site"
     private static let emailKey = "jira.email"
-    nonisolated private static let tokens = KeychainTokenStore(service: "com.phanthai.thaigit.jira")
+    nonisolated private static let tokens: any GitHubTokenStore = AutomationHarness.isActive
+        ? InMemoryGitHubTokenStore() : KeychainTokenStore(service: "com.phanthai.thaigit.jira")
 
     private(set) var site: String = UserDefaults.standard.string(forKey: JiraConnection.siteKey) ?? ""
     private(set) var email: String = UserDefaults.standard.string(forKey: JiraConnection.emailKey) ?? ""

@@ -25,7 +25,7 @@ final class SSHKeyManager {
         didSet { keyring.isEnabled = isEnabled }
     }
 
-    @ObservationIgnored let keyring = SSHKeyring()
+    @ObservationIgnored let keyring = AutomationHarness.isActive ? SSHKeyring(secrets: InMemorySSHKeyStore()) : SSHKeyring()
     @ObservationIgnored private var environment: GitEnvironmentStore?
 
     private init() {

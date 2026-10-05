@@ -41,7 +41,7 @@ final class GitLabAccountManager {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let clientID = raw.isEmpty ? nil : raw
         self.clientID = clientID
-        store = GitLabAccounts(clientIDs: { host in host == GitLabAccountManager.defaultHost ? clientID : nil })
+        store = GitLabAccounts(tokens: AutomationHarness.isActive ? InMemoryGitLabTokenStore() : KeychainGitLabTokenStore(), clientIDs: { host in host == GitLabAccountManager.defaultHost ? clientID : nil })
         accounts = store.accounts
     }
 

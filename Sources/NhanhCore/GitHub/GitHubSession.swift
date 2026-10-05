@@ -9,6 +9,26 @@ public protocol GitHubTokenStore: Sendable {
     func deleteToken(account login: String) throws
 }
 
+/// Token chỉ trong bộ nhớ (chế độ kiểm thử tự động của app — không đụng Keychain thật, không bật hộp hỏi quyền).
+public final class InMemoryGitHubTokenStore: GitHubTokenStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var tokens: [String: String] = [:]
+
+    public init() {}
+
+    public func readToken(account login: String) throws -> String? {
+        lock.withLock { tokens[login] }
+    }
+
+    public func saveToken(_ token: String, account login: String) throws {
+        lock.withLock { tokens[login] = token }
+    }
+
+    public func deleteToken(account login: String) throws {
+        lock.withLock { tokens[login] = nil }
+    }
+}
+
 /// Token trong Keychain của macOS: mật khẩu chung (generic password), service `com.phanthai.thaigit.github`,
 /// account = login, chỉ đọc được sau lần mở khoá đầu tiên, không đồng bộ iCloud.
 public struct KeychainTokenStore: GitHubTokenStore {
