@@ -10,6 +10,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Danh sách file xung đột hiện số đoạn của từng file; chọn nhiều file (Ctrl-click) hoặc bấm “Giải quyết tất cả” để dùng bản Current / Incoming cho nhiều file một lần
 - Terminal ngay trong cửa sổ repo (nút Terminal hoặc Ctrl+`): mở sẵn ở thư mục repo, nhiều tab, ẩn đi các lệnh vẫn chạy tiếp
 - Menu chuột phải của commit đầy đủ hơn: sửa message, xoá commit, đưa commit lên / xuống, sao chép patch, mở commit trên GitHub / GitLab / Bitbucket và sao chép link — đều có Hoàn tác
+- Nút PR (GitLab là MR) ngay trên thanh công cụ của mỗi tab repo để tạo Pull Request / Merge Request cho nhánh đang đứng; repo ở GitLab thì nút, hộp thoại và thông báo đều gọi là Merge Request
 
 ## 2.3.0 — 2026-10-05
 

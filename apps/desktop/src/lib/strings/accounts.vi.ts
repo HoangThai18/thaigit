@@ -109,4 +109,20 @@ export const pullRequests = {
     'Máy chủ không nhận Pull Request — nhánh nguồn đã push chưa, hay nhánh này đã có Pull Request đang mở?',
   createdToast: (number: string) => `Đã tạo Pull Request #${number}.`,
   needsTitle: 'Tiêu đề phải có nội dung.',
+  buttonLabel: 'PR',
+  buttonTip: (branch: string) => `Tạo Pull Request từ nhánh ${branch}`,
+  buttonNoBranch: 'Cần đứng trên một nhánh để tạo Pull Request',
+  merge: {
+    create: 'Tạo Merge Request',
+    createFrom: (branch: string) => `Tạo Merge Request từ ${branch}`,
+    submit: 'Tạo Merge Request',
+    notPushed: (branch: string) =>
+      `Nhánh ${branch} chưa có trên remote — push lên trước rồi tạo Merge Request.`,
+    rejected:
+      'Máy chủ không nhận Merge Request — nhánh nguồn đã push chưa, hay nhánh này đã có Merge Request đang mở?',
+    createdToast: (number: string) => `Đã tạo Merge Request !${number}.`,
+    buttonLabel: 'MR',
+    buttonTip: (branch: string) => `Tạo Merge Request từ nhánh ${branch}`,
+    buttonNoBranch: 'Cần đứng trên một nhánh để tạo Merge Request',
+  },
 } as const;

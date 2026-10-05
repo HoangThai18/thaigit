@@ -113,4 +113,20 @@ export const pullRequests: Translation<typeof pullRequestsSource> = {
     "The server didn't accept the Pull Request — has the source branch been pushed, or does it already have an open Pull Request?",
   createdToast: (number: string) => `Created Pull Request #${number}.`,
   needsTitle: 'The title cannot be empty.',
+  buttonLabel: 'PR',
+  buttonTip: (branch: string) => `Create a Pull Request from branch ${branch}`,
+  buttonNoBranch: 'Check out a branch to create a Pull Request',
+  merge: {
+    create: 'Create Merge Request',
+    createFrom: (branch: string) => `Create Merge Request from ${branch}`,
+    submit: 'Create Merge Request',
+    notPushed: (branch: string) =>
+      `Branch ${branch} isn't on the remote yet — push it first, then create the Merge Request.`,
+    rejected:
+      "The server didn't accept the Merge Request — has the source branch been pushed, or does it already have an open Merge Request?",
+    createdToast: (number: string) => `Created Merge Request !${number}.`,
+    buttonLabel: 'MR',
+    buttonTip: (branch: string) => `Create a Merge Request from branch ${branch}`,
+    buttonNoBranch: 'Check out a branch to create a Merge Request',
+  },
 };

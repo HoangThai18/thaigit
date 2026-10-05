@@ -30,6 +30,7 @@ import {
 import { assignAccountForRepo } from '../forge/assignOwner.ts';
 import { createPullRequest } from '../forge/createPullRequest.svelte.ts';
 import { targetOf } from '../forge/pullRequests.ts';
+import { requestWording } from '../forge/wording.ts';
 import { commitWebUrl } from '../forge/target.ts';
 import { openUrl } from '../ipc/os.ts';
 import {
@@ -507,7 +508,7 @@ export function repoForgeItems(store: RepoStore): MenuItem[] {
   const head = store.currentBranchRef ? refName(store.currentBranchRef) : null;
   return tidyMenu([
     head !== null && {
-      title: vi.pullRequests.createFrom(head),
+      title: requestWording(target.provider).createFrom(head),
       icon: 'globe',
       run: () => void createPullRequest.open(store, head),
     },

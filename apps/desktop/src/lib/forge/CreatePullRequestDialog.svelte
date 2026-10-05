@@ -9,6 +9,7 @@
   } from '../forge/createPullRequest.svelte.ts';
   import { AI_ENABLED } from '../ai/enabled.ts';
   import Icon from '../ui/Icon.svelte';
+  import { requestWording } from './wording.ts';
 
   interface Props {
     store?: CreatePullRequestStore;
@@ -18,6 +19,7 @@
 
   const current = $derived(store.current);
   const text = vi.pullRequests;
+  const wording = $derived(requestWording(current?.provider));
   let titleInput = $state<HTMLInputElement | null>(null);
 
   $effect(() => {
@@ -50,7 +52,7 @@
       onclick={(event) => event.stopPropagation()}
       {onkeydown}
     >
-      <h2 id="create-pr-title">{text.createFrom(current.sourceBranch)}</h2>
+      <h2 id="create-pr-title">{wording.createFrom(current.sourceBranch)}</h2>
 
       <label class="field">
         <span class="label">{text.targetBranch}</span>
@@ -114,7 +116,7 @@
           type="button"
           class="button primary"
           disabled={current.submitting || current.title.trim() === ''}
-          onclick={() => void store.submit()}>{current.submitting ? text.creating : text.submit}</button
+          onclick={() => void store.submit()}>{current.submitting ? text.creating : wording.submit}</button
         >
       </div>
     </div>

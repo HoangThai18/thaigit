@@ -1,7 +1,7 @@
 // Hộp thoại tạo Pull Request / Merge Request: nhánh đích, tiêu đề, mô tả (có nút viết bằng AI), nháp. Một hộp tại một
 // thời điểm; mọi chữ do máy chủ trả về đều hiển thị dạng text.
 
-import type { ForgeMergeRequest } from '@thaigit/contracts';
+import type { ForgeMergeRequest, ForgeProvider } from '@thaigit/contracts';
 import { finalizeMarkdown, refName, stripThinking } from '@thaigit/core';
 import { prContext } from '../ai/context.ts';
 import { friendlyError } from '../errors/friendly.ts';
@@ -12,6 +12,7 @@ import type { RepoStore } from '../stores/repo.svelte.ts';
 import { toasts } from '../stores/toasts.svelte.ts';
 import { vi } from '../strings.vi.ts';
 import { targetOf } from './pullRequests.ts';
+import { requestWording } from './wording.ts';
 
 const text = vi.pullRequests;
 
@@ -49,6 +50,7 @@ export interface CreateState {
   store: RepoStore;
   /** Remote chứa repo trên máy chủ (`origin`…) — dùng để so diff với nhánh đích khi viết mô tả. */
   remote: string;
+  provider: ForgeProvider | null;
   /** Nhánh nguồn trên remote. */
   sourceBranch: string;
   bases: readonly string[];
@@ -89,7 +91,7 @@ export class CreatePullRequestStore {
     }
     const source = pushedName(store, target.remote, head);
     if (source === null) {
-      toasts.error(text.notPushed(head));
+      toasts.error(requestWording(target.provider).notPushed(head));
       return false;
     }
     const bases = branchesOnRemote(store, target.remote).filter((name) => name !== source);
@@ -107,6 +109,7 @@ export class CreatePullRequestStore {
     this.current = {
       store,
       remote,
+      provider: target.provider,
       sourceBranch: source,
       bases,
       base,
@@ -207,12 +210,12 @@ export class CreatePullRequestStore {
         targetBranch: current.base,
         draft: current.draft,
       });
-      toasts.success(text.createdToast(created.number));
+      toasts.success(requestWording(target.provider).createdToast(created.number));
       this.close();
       onCreated?.(created);
     } catch (error) {
       const code = (error as { code?: unknown } | null)?.code;
-      current.error = code === 'conflict' ? text.rejected : forgeErrorText(error);
+      current.error = code === 'conflict' ? requestWording(target.provider).rejected : forgeErrorText(error);
     } finally {
       current.submitting = false;
     }

@@ -3,8 +3,11 @@
   khác), Push, Branch, Stash, Pop và menu "Thêm". Cửa sổ hẹp thì chỉ còn biểu tượng (chú thích vẫn hiện khi rê chuột).
 -->
 <script lang="ts">
-  import { isStatusClean } from '@thaigit/core';
+  import { isStatusClean, refName } from '@thaigit/core';
   import { beginCreateBranch } from '../actions/branches.ts';
+  import { createPullRequest } from '../forge/createPullRequest.svelte.ts';
+  import { targetOf } from '../forge/pullRequests.ts';
+  import { requestWording } from '../forge/wording.ts';
   import { fetch, pull, push, sync } from '../actions/remote.ts';
   import { popLatestStash, quickStash } from '../actions/stash.ts';
   import { repoForgeItems, repoOsItems } from '../actions/menus.ts';
@@ -34,6 +37,9 @@
   const behind = $derived(store.status.behind);
   const ahead = $derived(store.status.ahead);
   const busy = $derived(store.busy !== null);
+  const forgeTarget = $derived(targetOf(store));
+  const requestHead = $derived(store.currentBranchRef ? refName(store.currentBranchRef) : null);
+  const wording = $derived(requestWording(forgeTarget?.provider));
   let pullMenuButton = $state<HTMLButtonElement | null>(null);
   let moreButton = $state<HTMLButtonElement | null>(null);
 
@@ -175,6 +181,21 @@
     {#if ahead > 0}<span class="badge compact">{ahead}</span>{/if}
   </button>
 
+  {#if forgeTarget}
+    <button
+      type="button"
+      class="action"
+      title={requestHead === null ? wording.buttonNoBranch : wording.buttonTip(requestHead)}
+      disabled={busy || requestHead === null}
+      onclick={() => {
+        if (requestHead !== null) void createPullRequest.open(store, requestHead);
+      }}
+    >
+      <span class="tone request"><Icon name="merge" size={16} /></span>
+      <span class="label">{wording.buttonLabel}</span>
+    </button>
+  {/if}
+
   <span class="gap"></span>
 
   <button
@@ -301,6 +322,10 @@
   .tone.stash,
   .tone.pop {
     color: #ff9500;
+  }
+
+  .tone.request {
+    color: #ff375f;
   }
 
   .tone.terminal {

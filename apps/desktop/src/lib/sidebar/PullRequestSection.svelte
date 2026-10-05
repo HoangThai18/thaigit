@@ -22,6 +22,7 @@
   import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
   import { vi } from '../strings.vi.ts';
   import Icon from '../ui/Icon.svelte';
+  import { requestWording } from '../forge/wording.ts';
   import './sidebar.css';
 
   interface Props {
@@ -159,7 +160,7 @@
           type="button"
           class="mini"
           disabled={loading || head === null}
-          title={text.create}
+          title={requestWording(target?.provider).create}
           onclick={create}
         >
           <Icon name="plus" size={12} strokeWidth={2.4} />
