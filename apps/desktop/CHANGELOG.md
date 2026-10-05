@@ -18,6 +18,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Hộp chọn thư mục / chọn chương trình git do Rust hiện đổi sang "Choose Folder" / "Choose the Git executable"
 - Dòng bản quyền trong thông tin gói cài đặt đổi sang tiếng Anh
 - Trang chủ có nút Cài đặt và Tài khoản GitHub / GitLab (mở thẳng tới mục tài khoản trong Cài đặt)
+- Đăng nhập GitHub bằng mã dùng được ngay: bản cài có sẵn OAuth App Thaigit, không phải tự nhập Client ID
 
 ## 2.1.0 — 2026-10-04
 
