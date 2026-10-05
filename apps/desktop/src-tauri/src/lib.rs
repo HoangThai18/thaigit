@@ -9,6 +9,7 @@ use tauri::{Emitter, Manager, WindowEvent};
 
 pub mod accounts;
 pub mod askpass;
+pub mod avatars;
 mod commands;
 pub mod core;
 pub mod credential;
@@ -155,6 +156,7 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::git_worktree_add,
         commands::open_related_repo,
         commands::repo_health,
+        commands::avatar_lookup,
         commands::remove_stale_lock,
         commands::fs_read_git_file,
         commands::fs_read_worktree_file,

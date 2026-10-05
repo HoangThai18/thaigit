@@ -20,6 +20,8 @@ struct CommitGraphView: View {
                 isSearching: !model.searchText.trimmingCharacters(in: .whitespaces).isEmpty,
                 headOID: model.headOID,
                 workingTreeSummary: workingTreeSummary,
+                pendingCount: model.status.changedFileCount,
+                committerEmail: model.committerIdentity?.email,
                 isHidden: model.openFile != nil
             )
             if model.hasLoaded && model.entries.isEmpty {
@@ -254,6 +256,10 @@ private struct CommitTable: NSViewRepresentable {
         var headOID: String?
         var workingTreeSummary = ""
         var lastWorkingTreeSummary = ""
+        /// Số file chưa commit (đổi theo status): badge ở viên nhánh đang checkout.
+        var pendingCount = 0
+        /// Email người đang commit — node dòng WIP vẽ avatar của chính người đó.
+        var committerEmail: String?
         var isUpdatingSelection = false
         var didInitialSizing = false
         /// Dòng người dùng vừa chọn nhưng chưa báo cho model (báo ở vòng lặp sau để tránh gọi lồng vào NSTableView).
@@ -425,11 +431,15 @@ private struct CommitTable: NSViewRepresentable {
             entries.count
         }
 
+        /// Email để tìm ảnh đại diện: dòng WIP là người đang commit, còn lại là tác giả của commit.
+        private func avatarEmail(for commit: Commit) -> String {
+            commit.isWorkingTree ? (committerEmail ?? "") : commit.authorEmail
+        }
+
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard let column = tableColumn, entries.indices.contains(row) else { return nil }
             let entry = entries[row]
             let dimmed = isSearching && !searchMatches.contains(row) && !entry.commit.isWorkingTree
-
             switch column.identifier {
             case Column.refs:
                 let cell = tableView.makeView(withIdentifier: Column.refs, owner: nil) as? RefsCellView ?? {
@@ -440,6 +450,9 @@ private struct CommitTable: NSViewRepresentable {
                 cell.laneColor = GraphStyle.color(entry.row.color)
                 cell.dimmed = dimmed
                 cell.labels = entry.labels
+                // Badge "✎ N" chỉ ở viên của nhánh đang checkout: số file chưa commit thuộc nhánh đó.
+                cell.pendingCount = entry.labels.contains(where: \.isCurrentBranch) ? pendingCount : 0
+                cell.pendingSummary = pendingCount > 0 ? workingTreeSummary : ""
                 return cell
             case Column.graph:
                 let cell = tableView.makeView(withIdentifier: Column.graph, owner: nil) as? GraphCellView ?? {
@@ -449,8 +462,9 @@ private struct CommitTable: NSViewRepresentable {
                 }()
                 cell.isHead = entry.commit.id == headOID
                 cell.dimmed = dimmed
-                cell.avatar = entry.commit.isWorkingTree || entry.commit.isMerge ? nil
-                    : AvatarStore.shared.image(email: entry.commit.authorEmail, repo: githubRepo)
+                // Dòng WIP vẽ avatar của chính người đang commit; commit merge không có ảnh (node tròn xám).
+                cell.avatar = entry.commit.isMerge ? nil : AvatarStore.shared.image(email: avatarEmail(for: entry.commit),
+                                                                                      repo: githubRepo)
                 cell.entry = entry
                 return cell
             case Column.message:

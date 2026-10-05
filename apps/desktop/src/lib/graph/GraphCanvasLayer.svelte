@@ -10,6 +10,7 @@
   import { GraphStyle, initials, readLaneColors } from './style.ts';
   import type { GraphEntry } from '../stores/repo.svelte.ts';
   import { untrack } from 'svelte';
+  import type { AvatarStore } from './avatars.svelte.ts';
 
   interface Props {
     entries: readonly GraphEntry[];
@@ -25,9 +26,24 @@
     end: number;
     /** Đổi khi bảng màu đổi (sáng/tối). */
     themeVersion: number;
+    /** Ảnh đại diện tác giả đã tải; `version` của nó cũng là một phần của điều kiện vẽ lại. */
+    avatars: AvatarStore;
+    /** Email người đang commit: node dòng WIP vẽ avatar của chính người đó. */
+    wipEmail: string | null;
   }
 
-  let { entries, version, headOid, width, left, start, end, themeVersion }: Props = $props();
+  let {
+    entries,
+    version,
+    headOid,
+    width,
+    left,
+    start,
+    end,
+    themeVersion,
+    avatars,
+    wipEmail,
+  }: Props = $props();
 
   const ROW = GraphStyle.rowHeight;
   /** Giới hạn cạnh canvas (px thiết bị) để an toàn trên WebKit. */
@@ -101,22 +117,25 @@
       workingTreeColor: style.getPropertyValue('--text-secondary').trim() || '#8a93a3',
       background: style.getPropertyValue('--bg-2').trim() || '#e9eff6',
       initialsColor: '#ffffff',
+      avatar: (email) => avatars.image(email),
     };
   }
 
   function toPaintRow(entry: GraphEntry | undefined): PaintRow | undefined {
     if (!entry) return undefined;
     const { commit, row, labels } = entry;
+    const wip = isWorkingTreeCommit(commit);
     return {
       lane: row.lane,
       color: row.color,
       lines: row.lines,
-      isWorkingTree: isWorkingTreeCommit(commit),
+      isWorkingTree: wip,
       isMerge: commit.parents.length > 1,
       isHead: commit.id === headOid,
       hasLabels: labels.length > 0,
       dimmed: false,
       initials: initials(commit.authorName),
+      authorEmail: wip ? (wipEmail ?? '') : commit.authorEmail,
     };
   }
 

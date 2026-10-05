@@ -24,6 +24,7 @@
     "allow-git-worktree-add",
     "allow-open-related-repo",
     "allow-repo-health",
+    "allow-avatar-lookup",
     "allow-remove-stale-lock",
     "allow-fs-read-git-file",
     "allow-fs-read-worktree-file",

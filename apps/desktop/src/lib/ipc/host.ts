@@ -41,6 +41,14 @@ export function removeStaleLock(repoId: string, path: string): Promise<void> {
   return call<void>(Commands.removeStaleLock, { repoId, path });
 }
 
+/**
+ * Ảnh đại diện người commit dạng data URL (`null` = không có ảnh / không tải được). Rust tải và cache; webview
+ * không tự gọi mạng được nên phải đi qua IPC.
+ */
+export function avatarLookup(email: string): Promise<string | null> {
+  return call<string | null>(Commands.avatarLookup, { email });
+}
+
 // --- git (định vị) ------------------------------------------------------------------------------------------------------
 
 export function locateGit(): Promise<GitInfo> {

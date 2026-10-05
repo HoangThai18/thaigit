@@ -111,6 +111,8 @@ export const shell: Translation<typeof source> = {
     emptyHint:
       'Add files to the repository folder, then stage them and create the first commit in the right panel.',
     wip: '// WIP',
+    /** Badge số file chưa commit, đứng cạnh tên nhánh đang checkout. */
+    pillPending: (count: number) => `✎ ${count}`,
     wipTooltip: 'Uncommitted changes — click to view',
     ariaLabel: 'Commit history',
     pillMore: (count: number) => `+${count}`,

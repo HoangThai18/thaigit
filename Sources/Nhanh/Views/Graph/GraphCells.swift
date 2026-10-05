@@ -117,7 +117,12 @@ final class GraphCellView: NSTableCellView {
             context.setLineDash(phase: 0, lengths: [2.5, 2])
             context.strokeEllipse(in: rect)
             context.setLineDash(phase: 0, lengths: [])
-            drawSymbol("pencil", in: rect.insetBy(dx: 4, dy: 4), color: .secondaryLabelColor)
+            // Có avatar thì mặt người đủ nói "việc của bạn" và vòng đứt khoét đã nói "chưa commit".
+            if let avatar {
+                drawAvatar(avatar, in: rect.insetBy(dx: 2, dy: 2), ring: .clear, alpha: alpha, context: context)
+            } else {
+                drawSymbol("pencil", in: rect.insetBy(dx: 4, dy: 4), color: .secondaryLabelColor)
+            }
         } else if entry.commit.isMerge {
             let radius = GraphStyle.mergeNodeRadius + 0.5
             let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
@@ -175,15 +180,18 @@ final class GraphCellView: NSTableCellView {
         context.restoreGState()
     }
 
-    /// Ảnh đại diện tròn trong viền màu của làn (như GitKraken).
+    /// Ảnh đại diện tròn trong viền màu của làn (như GitKraken). `ring` là `.clear` ở node WIP — vòng đứt khoét
+    /// đã vẽ sẵn bên ngoài nên không vẽ thêm đĩa màu.
     private func drawAvatar(_ image: NSImage, in rect: CGRect, ring color: NSColor, alpha: CGFloat, context: CGContext) {
         context.saveGState()
         context.setAlpha(alpha)
-        context.setShadow(offset: CGSize(width: 0, height: 1), blur: 2.5, color: NSColor.black.withAlphaComponent(0.28).cgColor)
-        context.setFillColor(color.cgColor)
-        context.fillEllipse(in: rect)
-        context.setShadow(offset: .zero, blur: 0, color: nil)
-        let inner = rect.insetBy(dx: 2, dy: 2)
+        if color != .clear {
+            context.setShadow(offset: CGSize(width: 0, height: 1), blur: 2.5, color: NSColor.black.withAlphaComponent(0.28).cgColor)
+            context.setFillColor(color.cgColor)
+            context.fillEllipse(in: rect)
+            context.setShadow(offset: .zero, blur: 0, color: nil)
+        }
+        let inner = color == .clear ? rect : rect.insetBy(dx: 2, dy: 2)
         context.addEllipse(in: inner)
         context.clip()
         NSColor.windowBackgroundColor.setFill()
@@ -226,7 +234,7 @@ final class RefsCellView: NSTableCellView {
     var labels: [RefLabel] = [] {
         didSet {
             needsDisplay = true
-            toolTip = labels.isEmpty ? nil : labels.flatMap { label -> [String] in
+            let refs = labels.isEmpty ? "" : labels.flatMap { label -> [String] in
                 if label.isDetachedHead { return [String(localized: "HEAD (detached)")] }
                 let pull = label.pullRequest.map { ["Pull Request #\($0.number): \($0.title)"] } ?? []
                 return pull + label.refs.map { ref in
@@ -237,16 +245,35 @@ final class RefsCellView: NSTableCellView {
                     }
                 }
             }.joined(separator: "\n")
+            let joined = [pendingSummary, refs].filter { !$0.isEmpty }.joined(separator: "\n")
+            toolTip = joined.isEmpty ? nil : joined
         }
     }
     var laneColor: NSColor = .systemBlue { didSet { needsDisplay = true } }
     var dimmed = false { didSet { needsDisplay = true } }
+    /// Số file chưa commit: badge "✎ N" đứng trong viên của nhánh đang checkout (thay đổi thuộc nhánh đó,
+    /// không thuộc dòng "// WIP"). 0 = không có badge.
+    var pendingCount: Int = 0 {
+        didSet {
+            guard pendingCount != oldValue else { return }
+            needsDisplay = true
+        }
+    }
+    /// Tóm tắt chi tiết ("✎ 3 file sửa  ● 1 đã stage") hiện ở tooltip của viên có badge.
+    var pendingSummary: String = "" {
+        didSet {
+            guard pendingSummary != oldValue else { return }
+            needsDisplay = true
+        }
+    }
 
     override var isFlipped: Bool { true }
 
     private static let font = NSFont.systemFont(ofSize: 11, weight: .semibold)
     private static let pillHeight: CGFloat = 18
     private static let iconSize: CGFloat = 10
+    private static let badgeFont = NSFont.systemFont(ofSize: 10, weight: .bold)
+    private static let badgeGap: CGFloat = 5
 
     private struct Pill {
         let index: Int
@@ -261,6 +288,17 @@ final class RefsCellView: NSTableCellView {
     }
 
     private static let textAttributes: [NSAttributedString.Key: Any] = [.font: font]
+    private static let badgeAttributes: [NSAttributedString.Key: Any] = [.font: badgeFont]
+
+    /// Badge của viên `label` (chỉ nhánh đang đứng mới có), `nil` khi không có file chưa commit.
+    private func badge(for label: RefLabel) -> String? {
+        guard label.isCurrentBranch, pendingCount > 0 else { return nil }
+        return "✎ \(pendingCount)"
+    }
+
+    private func badgeSize(_ text: String) -> CGFloat {
+        ceil(NSAttributedString(string: text, attributes: Self.badgeAttributes).size().width)
+    }
 
     /// Vị trí các viên nhãn trong ô (dùng chung cho vẽ và xác định nhãn dưới con trỏ khi kéo-thả).
     private func pillLayout() -> Layout {
@@ -273,14 +311,15 @@ final class RefsCellView: NSTableCellView {
             let reserve: CGFloat = remaining > 0 ? 30 : 0
             let iconsWidth = CGFloat(iconNames(for: label).count) * (Self.iconSize + 3)
             let textWidth = ceil(NSAttributedString(string: label.text, attributes: Self.textAttributes).size().width)
+            let badgeWidth = badge(for: label).map { Self.badgeGap + badgeSize($0) } ?? 0
             let available = maxX - x - reserve
-            if available < 44 {
+            if available - badgeWidth < 44 {
                 result.moreRect = CGRect(x: x, y: mid - Self.pillHeight / 2, width: 26, height: Self.pillHeight)
                 result.moreCount = labels.count - index
                 result.end = x + 26
                 return result
             }
-            let width = min(7 + iconsWidth + textWidth + 7, available)
+            let width = min(7 + iconsWidth + textWidth + badgeWidth + 7, available)
             let rect = CGRect(x: x, y: mid - Self.pillHeight / 2, width: width, height: Self.pillHeight)
             result.pills.append(Pill(index: index, rect: rect))
             result.end = rect.maxX
@@ -380,7 +419,9 @@ final class RefsCellView: NSTableCellView {
                 drawSymbol(icon, at: CGPoint(x: cursor, y: mid - Self.iconSize / 2), alpha: alpha)
                 cursor += Self.iconSize + 3
             }
-            let textRect = CGRect(x: cursor, y: mid - 7.5, width: max(0, rect.maxX - 6 - cursor), height: 15)
+            let badge = badge(for: label)
+            let badgeWidth = badge.map { Self.badgeGap + badgeSize($0) } ?? 0
+            let textRect = CGRect(x: cursor, y: mid - 7.5, width: max(0, rect.maxX - 6 - badgeWidth - cursor), height: 15)
             let paragraph = NSMutableParagraphStyle()
             paragraph.lineBreakMode = .byTruncatingTail
             let attributes: [NSAttributedString.Key: Any] = [
@@ -391,6 +432,10 @@ final class RefsCellView: NSTableCellView {
             ]
             NSAttributedString(string: label.text, attributes: attributes)
                 .draw(with: textRect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
+            if let badge {
+                drawBadge(badge, in: CGRect(x: rect.maxX - 6 - badgeSize(badge), y: mid - 7,
+                                           width: badgeSize(badge), height: 14), alpha: alpha)
+            }
         }
         if let more = layout.moreRect {
             drawMore(count: layout.moreCount, in: more, alpha: alpha)
@@ -462,6 +507,19 @@ final class RefsCellView: NSTableCellView {
         if label.remoteCount > 0 { icons.append("cloud.fill") }
         if label.pullRequest != nil { icons.append("arrow.triangle.pull") }
         return icons
+    }
+
+    /// Badge "✎ N" cuối viên: số file chưa commit của nhánh đang checkout.
+    private func drawBadge(_ text: String, in rect: CGRect, alpha: CGFloat) {
+        NSColor.black.withAlphaComponent(0.22 * alpha).setFill()
+        NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2).fill()
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: Self.badgeFont,
+            .foregroundColor: NSColor.white.withAlphaComponent(alpha),
+        ]
+        let attributed = NSAttributedString(string: text, attributes: attributes)
+        let size = attributed.size()
+        attributed.draw(at: CGPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2))
     }
 
     private func drawMore(count: Int, in rect: CGRect, alpha: CGFloat) {

@@ -198,6 +198,8 @@ export const PILL = {
   moreReserve: 30,
   /** Dưới ngưỡng này thì không vẽ thêm viên nào mà gộp vào "+N". */
   minAvailable: 44,
+  /** Khoảng cách giữa tên nhánh và badge số file chưa commit. */
+  badgeGap: 5,
 } as const;
 
 export interface PillPlacement {
@@ -217,11 +219,15 @@ export interface PillLayout {
 /**
  * Xếp các nhãn trong ô rộng `width`. `measure(text)` trả độ rộng chữ (px). Viên cuối có thể bị co lại (chữ cắt "…").
  * Luật như Swift: còn nhãn phía sau thì chừa 30px cho "+N"; chỗ trống < 44px thì dừng và hiện "+N" ở vị trí đó.
+ *
+ * `pendingCount` > 0 thì viên của nhánh đang đứng rộng thêm chỗ cho badge "✎ N" — số file chưa commit thuộc nhánh
+ * đó nên đứng cạnh tên nhánh, không phải trên dòng "// WIP".
  */
 export function layoutPills(
   labels: readonly RefLabel[],
   width: number,
   measure: (text: string) => number,
+  pendingCount = 0,
 ): PillLayout {
   const layout: PillLayout = { pills: [], more: null, end: PILL.startX };
   const maxX = width - PILL.rightPadding;
@@ -233,18 +239,29 @@ export function layoutPills(
     const reserve = remaining > 0 ? PILL.moreReserve : 0;
     const iconsWidth = pillIcons(label).length * (PILL.iconSize + PILL.iconGap);
     const textWidth = Math.ceil(measure(label.text));
+    const badgeWidth = badgeExtra(label, pendingCount, measure);
     const available = maxX - x - reserve;
-    if (available < PILL.minAvailable) {
+    if (available - badgeWidth < PILL.minAvailable) {
       layout.more = { x, count: labels.length - index };
       layout.end = x + PILL.moreWidth;
       return layout;
     }
-    const pillWidth = Math.min(PILL.padding + iconsWidth + textWidth + PILL.padding, available);
+    const pillWidth = Math.min(PILL.padding + iconsWidth + textWidth + badgeWidth + PILL.padding, available);
     layout.pills.push({ index, x, width: pillWidth });
     layout.end = x + pillWidth;
     x = layout.end + PILL.gap;
   }
   return layout;
+}
+
+/** Phần chừa thêm cho badge "✎ N" (khoảng cách + chữ) — chỉ viên của nhánh đang đứng. */
+function badgeExtra(
+  label: RefLabel,
+  pendingCount: number,
+  measure: (text: string) => number,
+): number {
+  if (!label.isCurrentBranch || pendingCount <= 0) return 0;
+  return PILL.badgeGap + Math.ceil(measure(vi.graph.pillPending(pendingCount)));
 }
 
 // MARK: - Màu

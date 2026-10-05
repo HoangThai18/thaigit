@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:git}",
+      "name": "Debug Nhanh",
+      "target": "Nhanh",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug Nhanh"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:git}",
+      "name": "Release Nhanh",
+      "target": "Nhanh",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release Nhanh"
+    }
+  ]
+}

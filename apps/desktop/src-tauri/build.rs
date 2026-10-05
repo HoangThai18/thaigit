@@ -19,6 +19,7 @@ const APP_COMMANDS: &[&str] = &[
     "git_worktree_add",
     "open_related_repo",
     "repo_health",
+    "avatar_lookup",
     "remove_stale_lock",
     "fs_read_git_file",
     "fs_read_worktree_file",

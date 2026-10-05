@@ -124,6 +124,7 @@ export const Commands = {
   gitWorktreeAdd: 'git_worktree_add',
   openRelatedRepo: 'open_related_repo',
   repoHealth: 'repo_health',
+  avatarLookup: 'avatar_lookup',
   removeStaleLock: 'remove_stale_lock',
   fsReadGitFile: 'fs_read_git_file',
   fsReadWorktreeFile: 'fs_read_worktree_file',

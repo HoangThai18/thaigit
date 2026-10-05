@@ -6,9 +6,10 @@
 <script lang="ts">
   import type { GraphSearch } from './search.svelte.ts';
   import { drag as dragDrop, dropAttr, parseDropTarget } from '../dnd/drag.svelte.ts';
-  import { isMergeCommit, isWorkingTreeCommit, shortSha } from '@thaigit/core';
+  import { changedFileCount, isMergeCommit, isWorkingTreeCommit, shortSha } from '@thaigit/core';
   import { untrack } from 'svelte';
   import { checkout } from '../actions/branches.ts';
+  import { loadIdentity } from '../actions/identity.ts';
   import { commitMenu, labelsMenu } from '../actions/menus.ts';
   import { showBidi } from '../format/bidi.ts';
   import { formatAbsolute, formatCommitTime } from '../format/time.ts';
@@ -29,6 +30,7 @@
     type SizedColumn,
   } from './columns.ts';
   import { autoLoadMore } from './autoLoadMore.svelte.ts';
+  import { avatars } from './avatars.svelte.ts';
   import GraphCanvasLayer from './GraphCanvasLayer.svelte';
   import { measurePillText } from './measure.ts';
   import { layoutPills, pillAppearance, pillIcons, pillTooltip, PILL, type RefLabel } from './pills.ts';
@@ -89,10 +91,37 @@
       : undefined,
   );
   const relative = $derived(prefs.value.relativeDates);
+  /** Số file chưa commit: hiện trên pill nhánh đang đứng (thay đổi thuộc nhánh đó, không thuộc dòng "// WIP"). */
+  const pendingCount = $derived(changedFileCount(store.status));
+  /** HEAD tách rời thì không có nhánh để gắn số file, dòng WIP phải tự nói mình có bao nhiêu thay đổi. */
+  const pendingOnCurrent = $derived(store.currentBranch === null ? 0 : pendingCount);
   const wipSummary = $derived(workingTreeSummary(store.status));
   const showLoading = $derived(!store.hasLoaded);
   const showError = $derived(store.hasLoaded && store.historyError !== null && store.entries.length === 0);
   const showEmpty = $derived(store.hasLoaded && store.historyError === null && store.entries.length === 0);
+
+  /** Email người đang commit: node dòng WIP vẽ avatar của chính người đó. */
+  let wipEmail = $state<string | null>(null);
+  $effect(() => {
+    let alive = true;
+    void loadIdentity(store).then((identity) => {
+      if (alive) wipEmail = identity.email;
+    });
+    return () => {
+      alive = false;
+    };
+  });
+
+  /** Tải ảnh đại diện cho các hàng đang thấy (kể cả hàng vừa cuộn tới): Rust cache sẵn nên lần sau không tải lại. */
+  $effect(() => {
+    const first = Math.max(0, rangeStart - OVERSCAN);
+    const last = Math.min(store.entries.length, rangeEnd + OVERSCAN);
+    for (let index = first; index < last; index++) {
+      const commit = store.entryAt(index)?.commit;
+      if (!commit) continue;
+      avatars.ensure(isWorkingTreeCommit(commit) ? (wipEmail ?? '') : commit.authorEmail);
+    }
+  });
 
   // --- chọn hàng, bàn phím ---
   /** Bấm giữ lên nhãn nhánh / tag rồi kéo: thả lên nhánh khác để merge / rebase, lên remote để push. */
@@ -302,8 +331,11 @@
   >
     <div class="cell refs">
       {#if entry.labels.length > 0}
-        {@const placement = layoutPills(entry.labels, refsWidth, (text) =>
-          measurePillText(showBidi(text), fontFamily),
+        {@const placement = layoutPills(
+          entry.labels,
+          refsWidth,
+          (text) => measurePillText(showBidi(text), fontFamily),
+          pendingOnCurrent,
         )}
         {@const lane = laneColor(laneColors, entry.row.color, '#8a93a3')}
         {#each placement.pills as pill (pill.index)}
@@ -313,6 +345,7 @@
             {@const primary = label.isDetachedHead
               ? undefined
               : (label.refs.find((ref) => ref.kind === 'localBranch') ?? label.refs[0])}
+            {@const badge = label.isCurrentBranch && pendingOnCurrent > 0 ? vi.graph.pillPending(pendingOnCurrent) : null}
             <span
               class="pill"
               class:current={label.isCurrentBranch}
@@ -324,13 +357,14 @@
               style:--pill-rim={look.rim}
               style:--pill-rim-width="{look.rimWidth}px"
               style:--pill-edge={look.edge}
-              title={showBidi(pillTooltip(label))}
+              title={showBidi(badge === null ? pillTooltip(label) : `${pillTooltip(label)}\n${wipSummary}`)}
               data-pill={pill.index}
             >
               {#each pillIcons(label) as icon (icon)}
                 <Icon name={icon} size={PILL.iconSize} strokeWidth={2.6} />
               {/each}
               <span class="pill-text"><bdi>{showBidi(label.text)}</bdi></span>
+              {#if badge}<span class="pill-badge">{badge}</span>{/if}
             </span>
           {/if}
         {/each}
@@ -362,7 +396,6 @@
     <div class="cell message" title={isWip ? vi.graph.wipTooltip : showBidi(commit.subject)}>
       {#if isWip}
         <span class="wip-label">{vi.graph.wip}</span>
-        {#if wipSummary}<span class="wip-summary">{wipSummary}</span>{/if}
       {:else}
         <span class="subject selectable" class:merge={isMergeCommit(commit)}
           ><bdi>{showBidi(commit.subject)}</bdi></span
@@ -400,6 +433,8 @@
     start={range.start}
     end={range.end}
     themeVersion={theme.version}
+    {avatars}
+    wipEmail={wipEmail}
   />
 {/snippet}
 
@@ -645,12 +680,6 @@
     font-style: italic;
     color: var(--text-secondary);
   }
-  .wip-summary {
-    margin-left: 14px;
-    font-size: 12px;
-    color: var(--text-tertiary);
-    white-space: pre;
-  }
 
   /* --- nhãn nhánh/tag kiểu kính --- */
   .pill {
@@ -680,6 +709,18 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* Badge số file chưa commit: đứng trong viên, cạnh tên nhánh đang checkout. */
+  .pill-badge {
+    flex: none;
+    margin-left: 5px;
+    padding: 0 4px;
+    border-radius: 7px;
+    background: rgb(0 0 0 / 0.22);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 13px;
   }
 
   .more {

@@ -111,6 +111,8 @@ export const shell = {
     emptyTitle: 'Chưa có commit nào',
     emptyHint: 'Thêm file vào thư mục repository, sau đó stage và tạo commit đầu tiên ở panel bên phải.',
     wip: '// WIP',
+    /** Badge số file chưa commit, đứng cạnh tên nhánh đang checkout. */
+    pillPending: (count: number) => `✎ ${count}`,
     wipTooltip: 'Thay đổi chưa commit — bấm để xem',
     ariaLabel: 'Lịch sử commit',
     pillMore: (count: number) => `+${count}`,

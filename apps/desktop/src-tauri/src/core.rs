@@ -146,6 +146,8 @@ pub struct Core {
     pub credential: std::sync::OnceLock<Arc<CredentialServer>>,
     /// Khoá SSH riêng của Thaigit (khoá bí mật trong kho bí mật của hệ điều hành) — nạp vào ssh-agent tạm cho lệnh chạm remote SSH.
     pub ssh_keys: Arc<crate::ssh_keys::SshKeys>,
+    /// Ảnh đại diện người commit tải + cache trên đĩa (chung cho mọi cửa sổ repo).
+    pub avatars: Arc<crate::avatars::Avatars>,
     pub timing: CancelTiming,
     /// Giới hạn output của `git_exec`/`git_clone` (xem `MAX_EXEC_OUTPUT_BYTES`).
     pub exec_output_limit: u64,
@@ -235,6 +237,7 @@ impl Core {
             accounts,
             credential: std::sync::OnceLock::new(),
             ssh_keys,
+            avatars: crate::avatars::Avatars::new(&data_dir),
             timing: CancelTiming::default(),
             exec_output_limit: MAX_EXEC_OUTPUT_BYTES,
             internal_output_limit: MAX_INTERNAL_OUTPUT_BYTES,
@@ -297,6 +300,7 @@ impl Core {
             accounts,
             credential: std::sync::OnceLock::new(),
             ssh_keys: crate::ssh_keys::SshKeys::load(data_dir, Arc::new(crate::accounts::MemoryStore::default())),
+            avatars: crate::avatars::Avatars::with_cache_dir(data_dir.join("avatars")),
             timing: CancelTiming {
                 soft_wait: Duration::from_millis(600),
                 group_grace: Duration::from_millis(200),

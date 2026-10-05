@@ -32,6 +32,7 @@ export {
 } from './gitHost.ts';
 export type { CloneOptions } from './gitHost.ts';
 export {
+  avatarLookup,
   forgetRecentRepo,
   listRecentRepos,
   locateGit,

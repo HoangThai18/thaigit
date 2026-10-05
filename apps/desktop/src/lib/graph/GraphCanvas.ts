@@ -1,3 +1,4 @@
+import type { AvatarImage } from './avatars.svelte.ts';
 import { GraphStyle, laneColor, laneX } from './style.ts';
 
 /** Một đoạn đường trong hàng (giống GraphLine.swift). */
@@ -20,6 +21,8 @@ export interface PaintRow {
   /** Mờ đi khi đang tìm kiếm mà hàng không khớp. */
   dimmed: boolean;
   initials: string;
+  /** Email tác giả: dòng WIP dùng email người đang commit, còn lại là email của commit. */
+  authorEmail: string;
 }
 
 export interface PaintTheme {
@@ -27,6 +30,8 @@ export interface PaintTheme {
   workingTreeColor: string;
   background: string;
   initialsColor: string;
+  /** Ảnh đại diện đã giải mã theo email; không có thì node vẽ chữ viết tắt. */
+  avatar?: (email: string) => AvatarImage | null;
 }
 
 /**
@@ -158,11 +163,22 @@ function paintNode(context: CanvasRenderingContext2D, row: PaintRow, top: number
     context.setLineDash([2.5, 2]);
     context.stroke();
     context.setLineDash([]);
-    // Bút chì nhỏ: thay đổi đang làm.
-    context.beginPath();
-    context.moveTo(x - 3, mid + 3);
-    context.lineTo(x + 3, mid - 3);
-    context.stroke();
+    // Có avatar thì mặt người đủ nói "việc của bạn"; vòng đứt khoét đã nói "chưa commit". Không có avatar mới vẽ bút chì.
+    const avatar = theme.avatar?.(row.authorEmail) ?? null;
+    if (avatar) {
+      context.save();
+      context.beginPath();
+      context.arc(x, mid, radius - 2.5, 0, Math.PI * 2);
+      context.clip();
+      drawAvatarImage(context, avatar, x, mid, (radius - 2.5) * 2);
+      context.restore();
+    } else {
+      // Bút chì nhỏ: thay đổi đang làm.
+      context.beginPath();
+      context.moveTo(x - 3, mid + 3);
+      context.lineTo(x + 3, mid - 3);
+      context.stroke();
+    }
     context.globalAlpha = 1;
     return;
   }
@@ -180,8 +196,13 @@ function paintNode(context: CanvasRenderingContext2D, row: PaintRow, top: number
     context.stroke();
     context.restore();
   }
-  paintGlassPearl(context, x, mid, radius, color, alpha);
-  if (!row.isMerge) {
+  const avatar = row.isMerge ? null : (theme.avatar?.(row.authorEmail) ?? null);
+  if (avatar) {
+    paintAvatarDisc(context, avatar, x, mid, radius, color, alpha);
+  } else {
+    paintGlassPearl(context, x, mid, radius, color, alpha);
+  }
+  if (!row.isMerge && !avatar) {
     context.save();
     context.globalAlpha = alpha;
     context.fillStyle = theme.initialsColor;
@@ -194,6 +215,48 @@ function paintNode(context: CanvasRenderingContext2D, row: PaintRow, top: number
     context.fillText(row.initials, x, mid + 0.5);
     context.restore();
   }
+}
+
+/** Vẽ ảnh vuông cạnh `size`×`size` quanh tâm (`x`, `y`): giữ nguyên tỉ lệ, canh giữa — như GitKraken. */
+function drawAvatarImage(
+  context: CanvasRenderingContext2D,
+  image: AvatarImage,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  const scale = size / Math.max(image.naturalWidth, image.naturalHeight);
+  const width = image.naturalWidth * scale;
+  const height = image.naturalHeight * scale;
+  context.drawImage(image, x - width / 2, y - height / 2, width, height);
+}
+
+/** Ảnh đại diện tròn trong viền màu của làn (như `drawAvatar` của app Swift). */
+function paintAvatarDisc(
+  context: CanvasRenderingContext2D,
+  image: AvatarImage,
+  x: number,
+  y: number,
+  radius: number,
+  color: string,
+  alpha: number,
+): void {
+  context.save();
+  context.globalAlpha = alpha;
+  context.shadowColor = 'rgb(0 0 0 / 0.28)';
+  context.shadowBlur = 2.5;
+  context.shadowOffsetY = 1;
+  context.fillStyle = color;
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  context.fill();
+  context.shadowColor = 'transparent';
+  const inner = radius - 2;
+  context.beginPath();
+  context.arc(x, y, inner, 0, Math.PI * 2);
+  context.clip();
+  drawAvatarImage(context, image, x, y, inner * 2);
+  context.restore();
 }
 
 /** Node commit kiểu "viên ngọc kính" như logo: đậm dần xuống dưới, viền kính sáng, điểm phản chiếu. */

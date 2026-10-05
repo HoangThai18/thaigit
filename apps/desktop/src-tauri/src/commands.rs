@@ -173,6 +173,13 @@ pub fn remove_stale_lock(core: CoreState<'_>, repo_id: String, path: String) -> 
     core.remove_stale_lock(&repo_id, &path)
 }
 
+/// Ảnh đại diện của người commit, dạng data URL để canvas graph vẽ được (webview không tự gọi mạng).
+/// `None` khi không có ảnh hoặc không tải được — giao diện vẽ chữ viết tắt, không cần báo lỗi.
+#[tauri::command]
+pub async fn avatar_lookup(core: CoreState<'_>, email: String) -> Result<Option<String>> {
+    Ok(core.avatars.data_url(&email, crate::avatars::AVATAR_SIZE).await)
+}
+
 // --- RepoFs -------------------------------------------------------------------------------------------------------------
 
 #[tauri::command]
