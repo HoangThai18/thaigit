@@ -4,11 +4,10 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## 2.3.0 — 2026-10-05
 
-- Khoá SSH riêng của Thaigit (Cài đặt → Khoá SSH): tạo khoá Ed25519 hoặc nhập khoá có sẵn, khoá bí mật chỉ nằm trong Credential Manager của máy (như 1Password) — fetch / pull / push / clone repo SSH tự dùng khoá qua một ssh-agent tạm, không cần cấu hình thư mục .ssh; thêm khoá lên GitHub / GitLab một bước, nút kiểm tra kết nối
-- Tài khoản GitLab đăng nhập bằng mã không còn bị đăng xuất sau 2 giờ: Thaigit tự làm mới token trước khi fetch / pull / push hay gọi API
-- Đăng nhập GitLab.com bằng mã dùng được ngay: bản cài có sẵn OAuth App Thaigit trên GitLab, không phải tự nhập Client ID
-- Lỗi rò tiếng Việt khi giao diện là tiếng Anh: banner thao tác dở dang và dòng phụ dưới tên repo vẫn hiện "Đang merge", "Đang rebase (2/5)"…; giờ hiện "Merging", "Rebasing (2/5)" theo ngôn ngữ đang chọn (tiếng Việt giữ nguyên)
-- Nhãn thao tác dở dang, loại xung đột lấy từ bảng chuỗi thay vì hardcode trong lõi dùng chung — trước đây lõi trả về tiếng Việt nên lọt vào giao diện tiếng Anh
+- Khoá SSH ngay trong Thaigit (Cài đặt → Khoá SSH): tạo khoá mới hoặc nhập khoá có sẵn chỉ với vài cú bấm, khoá được cất an toàn trên máy — clone / fetch / push repo SSH không cần tự cấu hình gì thêm
+- Thêm khoá SSH lên GitHub / GitLab chỉ một bước, kèm nút kiểm tra kết nối
+- Đăng nhập GitLab.com bằng mã, và giữ đăng nhập GitLab lâu dài — không còn bị đăng xuất sau vài giờ
+- Giao diện tiếng Anh không còn lẫn chữ tiếng Việt ở dòng báo thao tác đang làm dở (merge, rebase…)
 
 ## 2.2.0 — 2026-10-05
 
@@ -23,10 +22,10 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Nút Cài đặt và Profile ở góc phải thanh công cụ: avatar tên / email Git đang dùng để commit, bấm để đổi tên & email (cho riêng repo hoặc mọi repo), chọn tài khoản GitHub / GitLab cho repo hoặc mở Cài đặt
 - Chữ chú giải trên thanh công cụ và thông báo gọi đúng tên lệnh: "Fetch từ mọi remote", "Pull commit mới từ remote về nhánh hiện tại", "Push commit của nhánh hiện tại lên remote", "Stash mọi thay đổi chưa commit", "Pop stash mới nhất", "Fetch đầy đủ từ remote", "Đã pop thay đổi từ stash" thay cho "lấy thông tin mới", "đẩy commit", "cất tạm", "lấy lại stash", "lấy đầy đủ"
 - Bản tiếng Anh dùng đúng thuật ngữ git (Fetch / Pull / Push / Stash / Pop) thay cho các cụm diễn giải như "Get the latest information…", "Bring new commits…", "Put all uncommitted changes aside", "Bring back the latest stash"
-- Hộp chọn thư mục / chọn chương trình git do Rust hiện đổi sang "Choose Folder" / "Choose the Git executable"
+- Hộp chọn thư mục / chọn chương trình git hiện bằng tiếng Anh khi giao diện là tiếng Anh
 - Dòng bản quyền trong thông tin gói cài đặt đổi sang tiếng Anh
 - Trang chủ có nút Cài đặt và Tài khoản GitHub / GitLab (mở thẳng tới mục tài khoản trong Cài đặt)
-- Đăng nhập GitHub bằng mã dùng được ngay: bản cài có sẵn OAuth App Thaigit, không phải tự nhập Client ID
+- Đăng nhập GitHub bằng mã dùng được ngay
 
 ## 2.1.0 — 2026-10-04
 

@@ -4,9 +4,9 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 
 ## 1.3.0 — 2026-10-05
 
-- Khoá SSH riêng của Thaigit (Cài đặt → SSH): tạo khoá Ed25519 hoặc nhập khoá có sẵn, khoá bí mật chỉ nằm trong Keychain của máy (như 1Password) — lệnh git tới remote SSH tự dùng khoá qua một ssh-agent tạm, không cần cấu hình ~/.ssh; thêm khoá lên GitHub một bước, mở trang GitLab để dán, nút kiểm tra kết nối
-- Kết nối GitLab (Cài đặt → Tài khoản): đăng nhập gitlab.com hoặc dán personal access token cho cả GitLab tự host của công ty — fetch / pull / push repo HTTPS không phải nhập mật khẩu, token chỉ nằm trong Keychain và tự làm mới khi hết hạn; thêm khoá SSH lên GitLab một bước
-- Đăng nhập GitLab.com bằng mã dùng được ngay (bản cài có sẵn OAuth App Thaigit trên GitLab)
+- Khoá SSH ngay trong Thaigit (Cài đặt → SSH): tạo khoá mới hoặc nhập khoá có sẵn chỉ với vài cú bấm, khoá được cất an toàn trên máy — clone / fetch / push repo SSH không cần tự cấu hình gì thêm
+- Thêm khoá SSH lên GitHub / GitLab chỉ một bước, kèm nút kiểm tra kết nối
+- Kết nối GitLab (Cài đặt → Tài khoản): đăng nhập gitlab.com bằng mã, hoặc dùng token cho GitLab của công ty — fetch / pull / push không phải nhập mật khẩu
 
 ## 1.2.0 — 2026-10-05
 
@@ -34,14 +34,14 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Rê chuột vào viên "+N" trên graph hiện ngay danh sách nhánh / tag bị gom
 - Đang xem một commit mà còn file chưa commit: đầu panel chi tiết nhắc "N file chưa commit" kèm nút Stage tất cả / Xem & commit
 - Diff tô màu cú pháp (từ khoá, chuỗi, comment, số) cho JS / TS, PHP, Swift, Python, Go, Rust, Java / Kotlin, C / C++, C#, CSS, JSON, YAML, shell, SQL, HTML…
-- Nút "Bỏ qua khoảng trắng" ở đầu diff (git diff -w) — khi bật chỉ stage / bỏ stage được cả file
+- Nút "Bỏ qua khoảng trắng" ở đầu diff — khi bật chỉ stage / bỏ stage được cả file
 - Đầu diff gọn hơn: nút Sửa / Huỷ chỉ còn biểu tượng để tên file hiện đủ
 - Nút Undo trên thanh công cụ (như GitKraken): hoàn tác thao tác git gần nhất — commit, checkout, pull, huỷ thay đổi… Nút tự tắt khi repo đã đổi khác sau thao tác đó để không đè lên việc mới
 - Danh sách file thay đổi xem được dạng cây thư mục (nút cạnh "Stage tất cả", như Path / Tree của GitKraken): gập / mở thư mục, stage hoặc bỏ stage cả thư mục một lần bấm
 - Hàng nút trên thanh công cụ gọn và dễ nhìn hơn: nền sáng, mỗi thao tác một màu biểu tượng (Fetch xanh dương, Pull xanh ngọc, Push xanh lá, Branch tím, Stash / Pop cam), cả giao diện sáng lẫn tối
 - Nút Cài đặt và Profile ở góc phải thanh công cụ: avatar tên / email đang dùng để commit, bấm để đổi tên & email Git, chọn tài khoản GitHub / GitLab cho repo hoặc mở Cài đặt
 - Trang chủ có nút Cài đặt và Tài khoản GitHub / GitLab ngay dưới Mở / Clone / Tạo repository
-- Đăng nhập GitHub bằng mã dùng được ngay: bản cài có sẵn OAuth App Thaigit, không còn báo *Chưa cấu hình*
+- Đăng nhập GitHub bằng mã dùng được ngay
 
 ## 1.1.1 — 2026-10-03
 
