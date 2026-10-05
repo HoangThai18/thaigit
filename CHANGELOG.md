@@ -11,6 +11,8 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Menu chuột phải của commit đầy đủ hơn: sửa message, xoá commit, đưa commit lên / xuống, sao chép patch và sao chép link commit trên web — đều có Hoàn tác
 - Hết cảnh mỗi lần mở app sau khi cập nhật lại bị macOS hỏi quyền dùng mật khẩu đã lưu: sau bản này chỉ cần bấm “Luôn cho phép” một lần
 - Nút PR (GitLab là MR) ngay trên thanh công cụ của mỗi tab repo để tạo Pull Request / Merge Request cho nhánh đang đứng; repo ở GitLab (gitlab.com hoặc máy chủ tự host) giờ cũng tạo được Merge Request, nhánh chưa push thì tự push trước
+- Review Pull Request / Merge Request ngay trong app: bấm một PR / MR ở sidebar để xem mô tả, nhánh, các commit và file thay đổi so với nhánh đích (như tab “Files changed” trên web), bấm file để xem diff; repo ở GitLab giờ có mục MERGE REQUESTS ở sidebar như GitHub có mục PULL REQUESTS
+- Gán người review và người được gán (assignee) cho PR / MR ngay trong panel review, trên cả GitHub và GitLab; tạo PR / MR xong có nút “Xem & gán reviewer”
 
 ## 1.3.0 — 2026-10-05
 

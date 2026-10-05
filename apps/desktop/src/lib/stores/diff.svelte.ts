@@ -25,7 +25,8 @@ import { friendlyError } from '../errors/friendly.ts';
 export type DiffSource =
   | { readonly kind: 'unstaged' }
   | { readonly kind: 'staged' }
-  | { readonly kind: 'commit'; readonly sha: string; readonly parent: string | null }
+  /** `label`: chữ nhận diện ở đầu diff thay cho "Commit <sha>" (diff của cả PR so với điểm tách khỏi nhánh đích, vd. `#12`). */
+  | { readonly kind: 'commit'; readonly sha: string; readonly parent: string | null; readonly label?: string }
   | { readonly kind: 'stash'; readonly sha: string }
   /** File đang xung đột: mở trình giải xung đột thay vì diff. */
   | { readonly kind: 'conflict' };

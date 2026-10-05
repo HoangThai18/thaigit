@@ -45,6 +45,7 @@ import { DiffStore } from './diff.svelte.ts';
 import { TimelineStore } from '../snapshots/timeline.svelte.ts';
 import { BlameStore } from '../history/blame.svelte.ts';
 import { FileHistoryStore } from '../history/fileHistory.svelte.ts';
+import { ReviewStore } from '../forge/review.svelte.ts';
 import { RiskStore } from '../risk/risks.svelte.ts';
 import { commitDrafts, type CommitDrafts } from '../staging/commitDrafts.ts';
 import { loadGraphFilter, saveGraphFilter } from '../graph/filterStorage.ts';
@@ -224,6 +225,8 @@ export class RepoStore {
   readonly timeline: TimelineStore;
   /** Lịch sử một file — panel bên phải thay cho chi tiết khi mở. */
   readonly fileHistory: FileHistoryStore;
+  /** Review một Pull Request / Merge Request — panel bên phải thay cho chi tiết khi mở. */
+  readonly review: ReviewStore;
   /** Blame một file — vùng giữa (thay graph) khi mở, dưới diff nếu có diff đang mở. */
   readonly blame: BlameStore;
   /** Cờ rủi ro của thay đổi chưa commit (dải cảnh báo trên panel WIP). */
@@ -318,6 +321,7 @@ export class RepoStore {
       notify: (style, title, options) => store.notify(style, title, options),
       showError: (title, error) => store.showError(title, error),
       closeFileHistory: () => store.fileHistory.close(),
+      closeReview: () => store.review.close(),
     });
     this.fileHistory = new FileHistoryStore({
       get git() {
@@ -327,7 +331,15 @@ export class RepoStore {
         return store.diff;
       },
       closeTimeline: () => store.timeline.close(),
+      closeReview: () => store.review.close(),
       showError: (title, error) => store.showError(title, error),
+    });
+    this.review = new ReviewStore({
+      get diff() {
+        return store.diff;
+      },
+      closeTimeline: () => store.timeline.close(),
+      closeFileHistory: () => store.fileHistory.close(),
     });
     this.blame = new BlameStore({
       get git() {
@@ -819,10 +831,11 @@ export class RepoStore {
 
   // MARK: - Chọn commit / stash
 
-  /** Người dùng chọn (graph, sidebar, tìm kiếm): luôn đóng Dòng thời gian / Lịch sử file để panel phải hiện đúng mục vừa chọn. */
+  /** Người dùng chọn (graph, sidebar, tìm kiếm): luôn đóng Dòng thời gian / Lịch sử file / Review để panel phải hiện đúng mục vừa chọn. */
   select(next: RepoSelection, reveal = false): void {
     this.timeline.close();
     this.fileHistory.close();
+    this.review.close();
     this.applySelection(next, reveal);
   }
 

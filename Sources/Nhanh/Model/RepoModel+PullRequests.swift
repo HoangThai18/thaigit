@@ -81,6 +81,7 @@ extension RepoModel {
                 let items = try await GitHubRepoAPI().openPullRequests(in: repo, token: token)
                 guard !Task.isCancelled, pullRequests.repo == repo else { return }
                 pullRequests = PullRequestList(state: .loaded, items: items, repo: repo, remoteName: remoteName, loadedAt: Date())
+                syncReviewWithLists(kind: .github)
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError), pullRequests.repo == repo else { return }
                 var list = PullRequestList(repo: repo, remoteName: remoteName, loadedAt: Date())
@@ -189,28 +190,6 @@ extension RepoModel {
         }
     }
 
-    /// So sánh nhánh của PR với nhánh đích (như tab "Files changed" trên GitHub: tính từ điểm tách).
-    func compareWithBase(_ pull: GitHubPullRequest) {
-        guard let remote = githubRemote?.name else { return }
-        guard commit(for: pull.headSHA) != nil || row(for: .commit(pull.headSHA)) != nil
-                || remoteBranches.contains(where: { $0.target == pull.headSHA }) else {
-            revealPullRequest(pull)
-            return
-        }
-        let base = remoteBranches.first { $0.remoteName == remote && $0.shortBranchName == pull.baseBranch }?.target
-        guard let base else {
-            toast(.info, String(localized: "Chưa có nhánh \(remote)/\(pull.baseBranch) trên máy — hãy fetch trước"), actions: [
-                ToastAction(title: "Fetch") { [weak self] in self?.fetch() },
-            ])
-            return
-        }
-        let repository = repository
-        Task {
-            let from = await repository.mergeBase(base, pull.headSHA) ?? base
-            select(.compare(from: from, to: pull.headSHA), reveal: true)
-        }
-    }
-
     func openOnGitHub(_ pull: GitHubPullRequest) {
         guard let url = pull.webURL else { return }
         NSWorkspace.shared.open(url)
@@ -222,8 +201,8 @@ extension RepoModel {
                 self?.openOnGitHub(pull)
             },
             .action(String(localized: "Checkout nhánh của PR"), systemImage: "arrow.uturn.right") { [weak self] in self?.checkoutPullRequest(pull) },
-            .action(String(localized: "Xem thay đổi so với \(pull.baseBranch)"), systemImage: "arrow.left.arrow.right") { [weak self] in
-                self?.compareWithBase(pull)
+            .action(String(localized: "Xem & review PR #\(pull.number)"), systemImage: "text.badge.checkmark") { [weak self] in
+                self?.openReview(pull.forgeRequest)
             },
             .action(String(localized: "Tới commit mới nhất của PR"), systemImage: "scope") { [weak self] in self?.revealPullRequest(pull) },
             .separator,
@@ -319,9 +298,13 @@ extension RepoModel {
             created = try await GitHubRepoAPI().createPullRequest(new, in: repo, token: token)
         } onSuccess: { [weak self] in
             guard let self, let created else { return }
-            toast(.success, String(localized: "Đã tạo Pull Request #\(created.number)"), message: created.title, actions: created.webURL.map { url in
-                [ToastAction(title: String(localized: "Mở trên GitHub")) { NSWorkspace.shared.open(url) }]
-            } ?? [])
+            // Mở luôn review của PR vừa tạo để gán người review / người xử lý.
+            let request = created.forgeRequest
+            var actions = [ToastAction(title: String(localized: "Xem & gán reviewer")) { [weak self] in self?.openReview(request) }]
+            if let url = created.webURL {
+                actions.append(ToastAction(title: String(localized: "Mở trên GitHub")) { NSWorkspace.shared.open(url) })
+            }
+            toast(.success, String(localized: "Đã tạo Pull Request #\(created.number)"), message: created.title, actions: actions)
             loadPullRequests(force: true)
         } onError: { [weak self] error in
             guard let self else { return false }

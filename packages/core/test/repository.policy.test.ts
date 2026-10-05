@@ -110,6 +110,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     });
     await r.log({ limit: 5, order: 'date', includeHead: true });
     await r.commitMessage(SHA);
+    await r.commitPatch(SHA);
     await r.changedFiles(SHA, SHA);
     await r.changedFiles(SHA, null);
     await r.commitDetails(COMMIT);
@@ -237,6 +238,12 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.trackAllBranches('origin');
     await r.unshallow('origin', network);
     await r.fetchRefspec('origin', '+refs/pull/42/head:refs/remotes/origin/pr/42', network);
+    await r.fetchRefspec(
+      'origin',
+      ['+refs/pull/42/head:refs/remotes/origin/pr/42', '+refs/heads/main:refs/remotes/origin/main'],
+      network,
+    );
+    await r.mergeBase('origin/main', 'origin/pr/42');
     for (const mode of ['merge', 'rebase', 'fastForwardOnly'] as const) await r.pull(mode, network);
     await r.push({
       remote: 'origin',

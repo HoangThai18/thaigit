@@ -2,7 +2,9 @@
 // sau mỗi lần fetch. Mọi chữ do máy chủ trả về đều hiển thị dạng text.
 
 import type { ForgeMergeRequest, ForgeProvider } from '@thaigit/contracts';
+import { isValidRefName } from '@thaigit/core';
 import { forgeListMergeRequests } from '../ipc/accounts.ts';
+import { vi } from '../strings.vi.ts';
 import { forgeErrorText } from '../stores/accounts.svelte.ts';
 import type { RepoStore } from '../stores/repo.svelte.ts';
 import { repoForgeTarget, type RepoForgeTarget } from './target.ts';
@@ -91,4 +93,42 @@ export function pullRequestCheckout(
     };
   }
   return null;
+}
+
+/** Cách lấy PR về máy để review: refspec cần fetch (nhánh nguồn + nhánh đích) và hai ref nhận về để so sánh. */
+export interface PullRequestReview {
+  refspecs: string[];
+  /** Ref đầu nhánh của PR (đã fetch). */
+  headRef: string;
+  /** Ref nhánh đích (đã fetch): điểm tách của PR khỏi nó là mốc của "Files changed". */
+  baseRef: string;
+}
+
+/**
+ * Cùng điều kiện với `pullRequestCheckout` (PR từ fork của Bitbucket không có ref để lấy → `null`, chỉ xem trên web), thêm nhánh đích.
+ * Tên nhánh do máy chủ trả về nên chỉ được ghép vào refspec khi là tên nhánh hợp lệ (ký tự `:` hay `+` đổi nghĩa refspec).
+ */
+export function pullRequestReview(
+  item: ForgeMergeRequest,
+  provider: ForgeProvider | null,
+  owner: string,
+  remote: string,
+): PullRequestReview | null {
+  const plan = pullRequestCheckout(item, provider, owner, remote);
+  if (plan === null || !isValidRefName(item.targetBranch)) return null;
+  if (plan.sameRepo && !isValidRefName(item.sourceBranch)) return null;
+  const baseRef = `refs/remotes/${remote}/${item.targetBranch}`;
+  return {
+    refspecs: [plan.refspec, `+refs/heads/${item.targetBranch}:${baseRef}`],
+    headRef: `refs/remotes/${plan.remoteRef}`,
+    baseRef,
+  };
+}
+
+/** Nhãn trạng thái ngắn của một PR ở danh sách / panel review (PR đang mở và không phải nháp thì để trống). */
+export function requestStateLabel(item: ForgeMergeRequest): string {
+  const text = vi.pullRequests;
+  if (item.state === 'merged') return text.merged;
+  if (item.state === 'closed') return text.closed;
+  return item.draft ? text.draft : '';
 }

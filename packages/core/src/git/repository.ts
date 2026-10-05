@@ -536,6 +536,17 @@ export class GitRepository {
     return (await this.runner.text('rev-parse', ['--verify', '--quiet', `${rev}^{commit}`])).trim();
   }
 
+  /**
+   * Commit tổ tiên chung gần nhất của `a` và `b` (điểm tách của một nhánh khỏi nhánh đích — mốc để xem "Files changed" của
+   * Pull Request). `null` khi hai bên không có lịch sử chung (git thoát mã 1).
+   */
+  async mergeBase(a: string, b: string): Promise<string | null> {
+    assertArgument(a);
+    assertArgument(b);
+    const out = await this.runner.run('merge-base', [a, b], { acceptExitCodes: [0, 1] });
+    return out.code === 0 ? decodeUtf8(out.stdout).trim() || null : null;
+  }
+
   /** Giá trị cấu hình (null nếu chưa đặt). Mã thoát 1 của `git config --get` = chưa đặt; lỗi khác vẫn ném. */
   async config(key: string): Promise<string | null> {
     assertArgument(key);
@@ -995,10 +1006,15 @@ export class GitRepository {
    * Fetch một refspec cụ thể (vd. `+refs/pull/42/head:refs/remotes/origin/pr/42` khi checkout Pull Request). Refspec
    * được kiểm là chuỗi không trắng / không bắt đầu bằng `-` trước khi đưa vào lệnh git.
    */
-  async fetchRefspec(remote: string, refspec: string, options: NetworkOptions = {}): Promise<void> {
+  async fetchRefspec(
+    remote: string,
+    refspec: string | readonly string[],
+    options: NetworkOptions = {},
+  ): Promise<void> {
     assertArgument(remote);
-    assertArgument(refspec);
-    await this.runner.run('fetch', ['--progress', remote, refspec], networkRunOptions(options));
+    const refspecs = typeof refspec === 'string' ? [refspec] : refspec;
+    for (const item of refspecs) assertArgument(item);
+    await this.runner.run('fetch', ['--progress', remote, ...refspecs], networkRunOptions(options));
   }
 
   /** Lấy phần lịch sử còn thiếu của clone nông từ `remote` (`fetch --unshallow`). */

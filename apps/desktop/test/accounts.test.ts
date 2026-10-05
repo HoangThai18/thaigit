@@ -275,6 +275,8 @@ function pr(partial: Partial<ForgeMergeRequest>): ForgeMergeRequest {
     headOwner: 'acme',
     updatedAt: '',
     commits: null,
+    assignees: [],
+    reviewers: [],
     ...partial,
   };
 }

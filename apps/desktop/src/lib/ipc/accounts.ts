@@ -4,6 +4,7 @@ import type {
   ForgeAccount,
   ForgeDeviceCode,
   ForgeMergeRequest,
+  ForgePerson,
   ForgeProvider,
   ForgeRepository,
 } from '@thaigit/contracts';
@@ -116,4 +117,25 @@ export interface NewMergeRequest extends ForgeRepoRef {
 /** Tạo PR / MR từ nhánh hiện tại; trả PR vừa tạo (webview chỉ hiện, không tự đoán trạng thái). */
 export function forgeCreateMergeRequest(request: NewMergeRequest): Promise<ForgeMergeRequest> {
   return call<ForgeMergeRequest>(Commands.forgeCreateMergeRequest, { request });
+}
+
+/** Người có thể gán vào PR / MR của repo (GitHub `assignees`, GitLab thành viên project). */
+export function forgeListAssignable(repo: ForgeRepoRef): Promise<ForgePerson[]> {
+  return call<ForgePerson[]>(Commands.forgeListAssignable, { repo });
+}
+
+/** Danh sách nào của PR / MR đang sửa. */
+export type PeopleRole = 'reviewers' | 'assignees';
+
+export interface SetPeopleRequest extends ForgeRepoRef {
+  /** Số PR / iid của MR. */
+  number: string;
+  role: PeopleRole;
+  /** Danh sách MỚI (thay hẳn danh sách cũ); rỗng là bỏ hết. */
+  people: ForgePerson[];
+}
+
+/** Đặt lại người review / người được gán; trả PR / MR đọc lại từ máy chủ (webview không tự đoán kết quả). */
+export function forgeSetPeople(request: SetPeopleRequest): Promise<ForgeMergeRequest> {
+  return call<ForgeMergeRequest>(Commands.forgeSetPeople, { request });
 }

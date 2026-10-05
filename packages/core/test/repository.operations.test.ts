@@ -214,6 +214,20 @@ describe('merge / cherry-pick / revert / reset', () => {
       expect((await t.repo.log({ limit: 1, order: 'date', includeHead: true }))[0]?.parents).toHaveLength(1);
     }));
 
+  it('mergeBase: điểm tách của nhánh khỏi nhánh đích, null khi không có lịch sử chung', () =>
+    withTestRepo(async (t) => {
+      await twoBranches(t);
+      const base = await t.repo.resolveCommit('main');
+      await commitFile(t, 'm.txt', 'm\n', 'main đi tiếp');
+      expect(await t.repo.mergeBase('main', 'feature')).toBe(base);
+      expect(await t.repo.mergeBase('feature', 'main')).toBe(base);
+      expect(await t.repo.mergeBase('feature', 'feature')).toBe(await t.repo.resolveCommit('feature'));
+
+      t.git('checkout', '-q', '--orphan', 'lonely');
+      await commitFile(t, 'x.txt', 'x\n', 'gốc khác');
+      expect(await t.repo.mergeBase('main', 'lonely')).toBeNull();
+    }));
+
   it('cherry-pick và revert thành công', () =>
     withTestRepo(async (t) => {
       await twoBranches(t);
@@ -669,6 +683,27 @@ describe('remote cục bộ: pull 3 chế độ, tag, upstream, fast-forward', (
     await b.commitAll(message);
     b.git('push', 'origin', 'main');
   }
+
+  it('fetchRefspec: một lần fetch nhiều refspec (nhánh nguồn + nhánh đích của một PR)', () =>
+    withTempDir(async (parent) => {
+      const { a, b } = await setup(parent);
+      b.git('checkout', '-q', '-b', 'feat');
+      await b.write('feat.txt', 'f\n');
+      await b.commitAll('feat');
+      b.git('push', 'origin', 'feat');
+      b.git('checkout', '-q', 'main');
+      await pushFrom(b, 'm.txt', 'm\n', 'main đi tiếp');
+
+      await a.repo.fetchRefspec('origin', [
+        '+refs/heads/feat:refs/remotes/origin/feat',
+        '+refs/heads/main:refs/remotes/origin/main',
+      ]);
+      const feat = await a.repo.resolveCommit('refs/remotes/origin/feat');
+      const main = await a.repo.resolveCommit('refs/remotes/origin/main');
+      expect(await a.repo.mergeBase(main, feat)).toBe(await a.repo.resolveCommit('HEAD'));
+      const files = await a.repo.changedFiles(feat, await a.repo.mergeBase(main, feat));
+      expect(files.map((file) => file.path)).toEqual(['feat.txt']);
+    }));
 
   it('pull merge: fast-forward khi không có commit local, merge commit khi đã tách', () =>
     withTempDir(async (parent) => {

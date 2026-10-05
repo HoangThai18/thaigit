@@ -70,6 +70,8 @@ const APP_COMMANDS: &[&str] = &[
     "ssh_keys_test",
     "forge_list_merge_requests",
     "forge_create_merge_request",
+    "forge_list_assignable",
+    "forge_set_people",
 ];
 
 fn main() {

@@ -29,6 +29,8 @@ export interface TimelineHost {
   showError(title: string, error: unknown): void;
   /** Hai panel cùng chỗ bên phải: mở Dòng thời gian thì đóng Lịch sử file. */
   closeFileHistory?(): void;
+  /** Mở Dòng thời gian thì đóng Review PR (cùng chỗ bên phải). */
+  closeReview?(): void;
 }
 
 export interface TimelineComparison {
@@ -78,6 +80,7 @@ export class TimelineStore {
 
   open(): void {
     this.host.closeFileHistory?.();
+    this.host.closeReview?.();
     this.isOpen = true;
     void this.load();
   }

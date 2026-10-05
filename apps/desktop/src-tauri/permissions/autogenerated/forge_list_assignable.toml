@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forge-list-assignable"
+description = "Enables the forge_list_assignable command without any pre-configured scope."
+commands.allow = ["forge_list_assignable"]
+
+[[permission]]
+identifier = "deny-forge-list-assignable"
+description = "Denies the forge_list_assignable command without any pre-configured scope."
+commands.deny = ["forge_list_assignable"]

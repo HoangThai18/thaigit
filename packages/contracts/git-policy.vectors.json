@@ -19,6 +19,17 @@
     { "sub": "push", "args": ["--force-with-lease", "origin", "main"], "reject": null },
     { "sub": "fetch", "args": ["--all", "--prune", "--progress"], "reject": null },
     { "sub": "fetch", "args": ["https://github.com/HoangThai18/thaigit.git", "main"], "reject": null },
+    {
+      "sub": "fetch",
+      "args": [
+        "--progress",
+        "origin",
+        "+refs/pull/7/head:refs/remotes/origin/pr/7",
+        "+refs/heads/main:refs/remotes/origin/main"
+      ],
+      "reject": null
+    },
+    { "sub": "merge-base", "args": ["refs/remotes/origin/main", "refs/remotes/origin/pr/7"], "reject": null },
     { "sub": "switch", "args": ["-c", "feature/moi", "--track", "origin/feature/moi"], "reject": null },
     { "sub": "stash", "args": ["push", "-u", "--message=Đang làm dở"], "reject": null },
     { "sub": "add", "args": ["--pathspec-from-file=-", "--pathspec-file-nul"], "reject": null },

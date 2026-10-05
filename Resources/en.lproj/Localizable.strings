@@ -122,7 +122,6 @@
 "Chưa có khoá SSH nào đang bật." = "No SSH key is enabled.";
 "Chưa có mốc nào. Thaigit sẽ tự lưu khi file trong repo thay đổi." = "No snapshots yet. Thaigit saves one when files in this repo change.";
 "Chưa có nhánh %@ (cần ít nhất một commit)." = "Branch %@ doesn't exist yet (needs at least one commit).";
-"Chưa có nhánh %@/%@ trên máy — hãy fetch trước" = "Branch %@/%@ isn't on your Mac yet — fetch first";
 "Chưa có nhánh nào" = "No branches yet";
 "Chưa có nhật ký thay đổi" = "No release notes yet";
 "Chưa có repository nào" = "No repositories yet";
@@ -1005,7 +1004,6 @@
 "Xem quyền của Thaigit" = "Review Thaigit's Permissions";
 "Xem thay đổi" = "Show Changes";
 "Xem thay đổi chưa commit (⌘0)" = "Show uncommitted changes (⌘0)";
-"Xem thay đổi so với %@" = "View Changes Compared with %@";
 "Xem toàn bộ mô tả" = "Show Full Description";
 "Xem đầy đủ" = "Show All";
 "Xong" = "Done";
@@ -1315,3 +1313,39 @@
 "● %lld đã stage" = "● %lld staged";
 "✎ %lld file sửa" = "✎ %lld modified";
 "＋ %lld file mới" = "＋ %lld new";
+
+/* Review Pull Request / Merge Request, gán người review / người được gán */
+"Checkout nhánh của MR" = "Check Out MR Branch";
+"Chưa có ai" = "No one yet";
+"Chọn người review" = "Choose reviewers";
+"Chọn người được gán" = "Choose assignees";
+"Gán cho" = "Assign to";
+"Không có MR khớp" = "No matching MRs";
+"Không có MR nào đang mở" = "No open MRs";
+"Không có mô tả." = "No description.";
+"Không cập nhật được người review / người được gán" = "Couldn't update reviewers / assignees";
+"Không nhờ chính tác giả review được." = "You can't ask the author to review their own change.";
+"Không thấy ai khớp" = "No one matches";
+"Không tải được MR — thử lại" = "Couldn't load MRs — try again";
+"Lấy MR !%lld" = "Fetch MR !%lld";
+"Lấy thay đổi của %@" = "Fetch changes of %@";
+"Máy chủ không nhận thay đổi người review / người được gán — thử lại hoặc làm trên web." = "The server didn't accept the reviewer / assignee change — try again or do it on the web.";
+"Mở MR !%lld trên GitLab" = "Open MR !%lld on GitLab";
+"Người này chưa phải cộng tác viên của repo nên chưa nhờ review được." = "This person isn't a collaborator on the repository, so they can't be asked to review yet.";
+"Người review" = "Reviewers";
+"Người được gán" = "Assignees";
+"Nháp" = "Draft";
+"Nhờ review" = "Request review";
+"Sao chép đường dẫn MR" = "Copy MR Link";
+"Thêm tài khoản GitLab trong Cài đặt để xem MR" = "Add a GitLab account in Settings to see MRs";
+"Tài khoản này chưa đủ quyền gán người cho PR / MR ở đây — cần quyền ghi (GitHub) hoặc Developer trở lên (GitLab)." = "This account doesn't have enough permission to assign people on this PR / MR — it needs write access (GitHub) or Developer or higher (GitLab).";
+"Tìm theo tên…" = "Search by name…";
+"Tải lại danh sách MR" = "Reload MR List";
+"Xem & gán reviewer" = "View & Assign Reviewers";
+"Xem & review MR !%lld" = "View & Review MR !%lld";
+"Xem & review PR #%lld" = "View & Review PR #%lld";
+"Áp dụng" = "Apply";
+"Đã cập nhật người review" = "Reviewers updated";
+"Đã cập nhật người được gán" = "Assignees updated";
+"Đóng review" = "Close Review";
+"đường dẫn MR" = "MR link";

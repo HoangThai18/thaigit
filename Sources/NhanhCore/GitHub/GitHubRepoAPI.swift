@@ -15,9 +15,14 @@ public struct GitHubPullRequest: Sendable, Equatable, Identifiable {
     public let headRepository: String?
     public let baseBranch: String
     public let updatedAt: Date?
+    /// Tên đăng nhập của người được gán xử lý PR (`assignees`).
+    public let assignees: [String]
+    /// Tên đăng nhập của người đang được nhờ review (`requested_reviewers`).
+    public let reviewers: [String]
 
     public init(number: Int, title: String, body: String? = nil, isDraft: Bool = false, webURL: URL? = nil, author: String,
-                headBranch: String, headSHA: String, headRepository: String?, baseBranch: String, updatedAt: Date? = nil) {
+                headBranch: String, headSHA: String, headRepository: String?, baseBranch: String, updatedAt: Date? = nil,
+                assignees: [String] = [], reviewers: [String] = []) {
         self.number = number
         self.title = title
         self.body = body
@@ -29,6 +34,8 @@ public struct GitHubPullRequest: Sendable, Equatable, Identifiable {
         self.headRepository = headRepository
         self.baseBranch = baseBranch
         self.updatedAt = updatedAt
+        self.assignees = assignees
+        self.reviewers = reviewers
     }
 
     public var id: Int { number }
@@ -180,6 +187,65 @@ public struct GitHubRepoAPI: Sendable {
         return info.default_branch
     }
 
+    /// Người có thể được gán vào PR / issue của repo (`GET /repos/{owner}/{repo}/assignees`), tối đa 3 trang × 100.
+    public func assignableUsers(in repo: GitHubRepoRef, token: String) async throws -> [ForgePerson] {
+        guard var next = Self.url(repo, "/assignees", query: [URLQueryItem(name: "per_page", value: "100")])
+        else { throw GitHubRepoAPIError.invalidRepository }
+        struct User: Decodable { let login: String }
+        var result: [ForgePerson] = []
+        var seen = Set<String>()
+        for _ in 0..<Self.maxPages {
+            let (data, response) = try await send(Self.request(next, token: token))
+            try Self.check(response, data: data)
+            guard let page = try? JSONDecoder().decode([User].self, from: data) else { throw GitHubError.invalidResponse }
+            for user in page {
+                if seen.insert(user.login.lowercased()).inserted { result.append(ForgePerson(username: user.login)) }
+            }
+            guard let url = GitHubAuth.nextPageURL(linkHeader: response.value(forHTTPHeaderField: "Link")).flatMap(GitHubAuth.trustedAPIURL)
+            else { break }
+            next = url
+        }
+        return result
+    }
+
+    /// Đặt lại người được gán xử lý PR (`PATCH /repos/{owner}/{repo}/issues/{number}`): gửi cả danh sách mới, danh sách rỗng là bỏ hết.
+    public func setAssignees(_ logins: [String], number: Int, in repo: GitHubRepoRef, token: String) async throws {
+        guard let url = Self.url(repo, "/issues/\(number)") else { throw GitHubRepoAPIError.invalidRepository }
+        var request = Self.request(url, token: token)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["assignees": logins])
+        let (data, response) = try await send(request)
+        try Self.checkAssignment(response, data: data)
+        // GitHub trả 200 nhưng âm thầm bỏ qua người gán khi tài khoản không có quyền push (hoặc người đó không gán được): so với
+        // danh sách `assignees` trong phản hồi để không báo "đã cập nhật" khi thực tế chưa đổi gì.
+        struct Echo: Decodable {
+            struct User: Decodable { let login: String }
+            let assignees: [User]?
+        }
+        if let echoed = (try? JSONDecoder().decode(Echo.self, from: data))?.assignees {
+            let applied = Set(echoed.map { $0.login.lowercased() })
+            if !Set(logins.map { $0.lowercased() }).isSubset(of: applied) { throw ForgeReviewError.rejected }
+        }
+    }
+
+    /// Nhờ thêm người review (`POST …/pulls/{number}/requested_reviewers`) và bỏ những người không còn cần (`DELETE` cùng đường dẫn).
+    /// Bỏ trước, thêm sau; mỗi nhóm một lệnh gọi (nhóm rỗng thì không gọi).
+    public func updateReviewers(add: [String], remove: [String], number: Int, in repo: GitHubRepoRef, token: String) async throws {
+        guard let url = Self.url(repo, "/pulls/\(number)/requested_reviewers") else { throw GitHubRepoAPIError.invalidRepository }
+        if !remove.isEmpty { try await sendReviewers(remove, method: "DELETE", to: url, token: token) }
+        if !add.isEmpty { try await sendReviewers(add, method: "POST", to: url, token: token) }
+    }
+
+    private func sendReviewers(_ logins: [String], method: String, to url: URL, token: String) async throws {
+        var request = Self.request(url, token: token)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["reviewers": logins])
+        let (data, response) = try await send(request)
+        try Self.checkAssignment(response, data: data)
+    }
+
     // MARK: - Nội bộ
 
     /// `https://api.github.com/repos/{owner}/{repo}{suffix}` — nil nếu owner / repo có ký tự ngoài bộ GitHub cho phép
@@ -226,6 +292,23 @@ public struct GitHubRepoAPI: Sendable {
             throw GitHubRepoAPIError.notFound
         case 422: throw GitHubRepoAPIError.rejected(rejectionMessage(data))
         default: throw GitHubError.badResponse(response.statusCode)
+        }
+    }
+
+    /// Kiểm phản hồi của thao tác gán người: 403 / 404 là thiếu quyền, 422 thì đoán lý do từ câu của GitHub.
+    static func checkAssignment(_ response: HTTPURLResponse, data: Data) throws {
+        switch response.statusCode {
+        case 200..<300: return
+        case 403 where response.value(forHTTPHeaderField: "x-ratelimit-remaining") == "0": throw GitHubRepoAPIError.rateLimited
+        case 429: throw GitHubRepoAPIError.rateLimited
+        case 403, 404: throw ForgeReviewError.noPermission
+        case 422:
+            let text = String(decoding: data, as: UTF8.self).lowercased()
+            if text.contains("pull request author") { throw ForgeReviewError.authorCannotReview }
+            if text.contains("collaborator") { throw ForgeReviewError.notCollaborator }
+            throw ForgeReviewError.rejected
+        default:
+            try check(response, data: data)
         }
     }
 
@@ -282,6 +365,8 @@ public struct GitHubRepoAPI: Sendable {
         let head: Branch
         let base: Branch
         let updated_at: String?
+        let assignees: [User]?
+        let requested_reviewers: [User]?
 
         var pullRequest: GitHubPullRequest {
             GitHubPullRequest(
@@ -289,7 +374,8 @@ public struct GitHubRepoAPI: Sendable {
                 webURL: html_url.flatMap(GitHubRepoAPI.trustedWebURL),
                 author: user?.login ?? "?",
                 headBranch: head.ref, headSHA: head.sha, headRepository: head.repo?.full_name,
-                baseBranch: base.ref, updatedAt: updated_at.flatMap(GitHubRepository.parseDate))
+                baseBranch: base.ref, updatedAt: updated_at.flatMap(GitHubRepository.parseDate),
+                assignees: (assignees ?? []).map(\.login), reviewers: (requested_reviewers ?? []).map(\.login))
         }
     }
 

@@ -183,6 +183,9 @@ export const Commands = {
   // Pull Request (GitHub / Bitbucket) và Merge Request (GitLab).
   forgeListMergeRequests: 'forge_list_merge_requests',
   forgeCreateMergeRequest: 'forge_create_merge_request',
+  // Gán người review / người được gán cho PR / MR.
+  forgeListAssignable: 'forge_list_assignable',
+  forgeSetPeople: 'forge_set_people',
 } as const;
 
 export const Events = {
@@ -357,6 +360,19 @@ export interface ForgeMergeRequest {
   headOwner: string;
   updatedAt: string;
   commits: number | null;
+  /** Người được gán xử lý (Bitbucket không có khái niệm này nên luôn rỗng). */
+  assignees: ForgePerson[];
+  /** Người được nhờ review. */
+  reviewers: ForgePerson[];
+}
+
+/** Người dùng trên máy chủ có thể được gán vào PR / MR (hoặc đã được gán). */
+export interface ForgePerson {
+  username: string;
+  /** Tên hiển thị; có thể trống (GitHub chỉ trả tên đăng nhập). */
+  name: string;
+  /** GitLab gán người theo số id; GitHub gán theo `username` (không có id). */
+  id: number | null;
 }
 
 /** Mã để người dùng nhập ở trang đăng nhập của máy chủ (OAuth device flow). */

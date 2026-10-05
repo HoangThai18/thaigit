@@ -31,7 +31,10 @@ final class RepoModel {
     private(set) var isLoadingHistory = false
     private(set) var hasLoaded = false
     var lastFetch: Date? {
-        didSet { loadPullRequests() }
+        didSet {
+            loadPullRequests()
+            loadMergeRequests()
+        }
     }
     /// Nhánh ẩn / solo trên graph, nhớ riêng cho từng repo (xem RepoModel+GraphFilter.swift).
     var graphFilter = GraphRefFilter() {
@@ -44,6 +47,11 @@ final class RepoModel {
     /// Pull Request đang mở trên GitHub (xem RepoModel+PullRequests.swift).
     var pullRequests = PullRequestList()
     @ObservationIgnored var pullRequestsTask: Task<Void, Never>?
+    /// Merge Request đang mở trên GitLab (xem RepoModel+Review.swift).
+    var mergeRequests = MergeRequestList()
+    @ObservationIgnored var mergeRequestsTask: Task<Void, Never>?
+    /// PR / MR đang xem ở panel review (xem RepoModel+Review.swift).
+    var review: ReviewSession?
 
     @ObservationIgnored private var rowIndex: [String: Int] = [:]
     @ObservationIgnored private var rawCommits: [Commit] = []
@@ -323,6 +331,7 @@ final class RepoModel {
         if case .success(let value)? = newRemotes, value != remotes {
             remotes = value
             loadPullRequests()
+            loadMergeRequests()
         }
         if wantsRefs { loadExtras() }
         let newOperation = repository.operationState()
@@ -576,6 +585,7 @@ final class RepoModel {
     func applySelection(_ newSelection: RepoSelection, reveal: Bool = false) {
         if newSelection != selection {
             selection = newSelection
+            dropReviewIfLeft()
             closeFile()
             loadDetails()
         }

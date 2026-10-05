@@ -145,7 +145,11 @@ struct InspectorPanel: View {
         case .stash(let sha):
             StashDetailView(model: model, sha: sha)
         case .compare(let from, let to):
-            ComparisonView(model: model, from: from, to: to)
+            if let review = model.review, review.from == from, review.to == to {
+                ReviewView(model: model, from: from, to: to)
+            } else {
+                ComparisonView(model: model, from: from, to: to)
+            }
         case .none:
             ContentUnavailableView("Chọn một commit", systemImage: "point.3.connected.trianglepath.dotted",
                                    description: Text("Bấm vào một commit trên graph để xem chi tiết, hoặc chọn dòng “WIP” để stage và commit."))
