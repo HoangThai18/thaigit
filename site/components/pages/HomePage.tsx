@@ -15,6 +15,7 @@ import {
   UndoIcon,
   WindowsIcon,
 } from '@/components/Icons';
+import { DownloadCount } from '@/components/DownloadCount';
 import { DownloadButton, ReleaseDetails } from '@/components/ReleaseInfo';
 import { JsonLd } from '@/components/Seo';
 import { Shot, ThemedShot } from '@/components/Shot';
@@ -114,6 +115,7 @@ export async function HomePage({ lang }: { lang: Lang }) {
             {text.hero.checks.map((check) => (
               <span key={check}>{check}</span>
             ))}
+            <DownloadCount />
           </div>
 
           <div className="hero-stage">

@@ -1,4 +1,4 @@
-// API công khai (sau nginx/Caddy): /v1/ai/* (proxy tới Hermes), /v1/telemetry/ping, /download/:asset, /healthz.
+// API công khai (sau nginx/Caddy): /v1/ai/* (proxy tới Hermes), /v1/telemetry/ping, /v1/stats/downloads, /download/:asset, /healthz.
 // Không bao giờ ghi nội dung diff / message / IP / ID gốc vào DB hay log — chỉ số liệu kỹ thuật.
 
 import { existsSync } from 'node:fs';
@@ -98,6 +98,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
   const telemetryNewIds = new DailyCounter();
   const activeInstalls = new Set<string>();
   const versions = new Map<DownloadAsset, { version: string | null; fetchedAt: number }>();
+  let downloadTotals: { body: { total: number; mac: number; win: number }; at: number } | null = null;
 
   const app = new Hono<Env>();
 
@@ -460,6 +461,25 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
     }
     c.header('Cache-Control', 'no-store');
     return c.redirect(target.url, 302);
+  });
+
+  // ── Tổng lượt tải công khai cho trang chủ (bỏ lượt của bot / curl, nhớ 5 phút) ─────────────────────────────────
+  app.get('/v1/stats/downloads', (c) => {
+    if (downloadTotals === null || now() - downloadTotals.at >= 5 * 60_000) {
+      try {
+        const row = db
+          .prepare(
+            `SELECT COALESCE(SUM(asset = 'mac'), 0) AS mac, COALESCE(SUM(asset = 'win'), 0) AS win
+             FROM downloads WHERE ua_family != 'bot'`,
+          )
+          .get() as { mac: number; win: number };
+        downloadTotals = { body: { total: row.mac + row.win, mac: row.mac, win: row.win }, at: now() };
+      } catch {
+        return c.body(null, 503);
+      }
+    }
+    c.header('Cache-Control', 'public, max-age=300');
+    return c.json(downloadTotals.body);
   });
 
   app.notFound((c) => c.json({ error: { code: 'bad_request' } }, 404));

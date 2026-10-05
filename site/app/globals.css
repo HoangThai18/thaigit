@@ -511,6 +511,10 @@ button {
   font-weight: 700;
 }
 
+.checks-row .dl-count::before {
+  content: '↓';
+}
+
 .hero-stage {
   position: relative;
   max-width: 1120px;

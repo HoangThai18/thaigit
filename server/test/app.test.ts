@@ -268,4 +268,19 @@ describe('thống kê và lượt tải', () => {
       { asset: 'mac', ua_family: 'macos' },
     ]);
   });
+
+  it('stats/downloads: tổng lượt tải theo nền tảng, bỏ lượt của bot', async () => {
+    const { app } = setup();
+    const browser = { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } };
+    await app.request('/download/win', browser);
+    await app.request('/download/win', browser);
+    await app.request('/download/mac', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X)' },
+    });
+    await app.request('/download/mac', { headers: { 'User-Agent': 'curl/8.7.1' } });
+    const response = await app.request('/v1/stats/downloads');
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('public, max-age=300');
+    expect(await response.json()).toEqual({ total: 3, mac: 1, win: 2 });
+  });
 });

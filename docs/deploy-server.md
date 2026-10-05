@@ -8,6 +8,7 @@
 | `POST /v1/ai/commit-message` · `/v1/ai/explain-commit` · `/v1/ai/pr-description` | chuyển ngữ cảnh đã lọc cho **Hermes trên chính VPS**, stream chữ về app (SSE) |
 | `POST /v1/telemetry/ping` | thống kê ẩn danh — chỉ máy nào bật trong Cài đặt |
 | `GET /download/mac`, `/download/win` | đếm một lượt tải (không IP) rồi chuyển tới file trên GitHub Releases |
+| `GET /v1/stats/downloads` | `{total, mac, win}` — tổng lượt tải công khai (bỏ bot / curl) cho bộ đếm trên trang chủ |
 | `GET /healthz` | `{api, db, ai}` |
 | `http://127.0.0.1:8788/` | trang admin **chỉ-đọc**, không ra Internet |
 

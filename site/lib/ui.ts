@@ -29,6 +29,7 @@ const vi = {
     free: 'Tải miễn phí',
     noRelease: 'Bản phát hành đầu tiên đang được chuẩn bị.',
     released: 'Phát hành',
+    count: (total: string) => `${total} lượt tải`,
   },
   cta: {
     title: 'Làm việc với Git nhẹ nhàng hơn',
@@ -87,6 +88,7 @@ const en: typeof vi = {
     free: 'Download free',
     noRelease: 'The first release is being prepared.',
     released: 'Released',
+    count: (total: string) => `${total} downloads`,
   },
   cta: {
     title: 'Make Git a little easier today',
