@@ -51,7 +51,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Thaigit — Git client for macOS and Windows</string>
 	<key>ThaigitGitHubClientID</key>
-	<string></string>
+	<string>Ov23li9UeeQjJJwQqLqH</string>
 	<key>ThaigitUpdateFeedURL</key>
 	<string>https://github.com/HoangThai18/thaigit/releases/latest/download/update.json</string>
 	<key>ThaigitUpdatePublicKey</key>
