@@ -36,6 +36,8 @@ struct SheetContent: View {
             GitHubRepoAccountSheet(model: model, owner: owner)
         case .interactiveRebase(let base, let label):
             InteractiveRebaseSheet(model: model, base: base, baseLabel: label)
+        case .rewordCommit(let sha, let label):
+            RewordCommitSheet(model: model, sha: sha, label: label)
         case .blame(let path, let rev):
             BlameSheet(model: model, path: path, rev: rev)
         case .createPullRequest(let head):
@@ -103,6 +105,49 @@ enum RefNameRules {
         if name.contains("..") || name.contains("//") || name.contains("@{") || name.contains("/.") { return String(localized: "Không được chứa .. // @{ hoặc /.") }
         if name == "@" || name == "HEAD" { return String(localized: "Tên này được git dành riêng") }
         return nil
+    }
+}
+
+/// Sửa message một commit: điền sẵn message đầy đủ, ⌘↩ để lưu (↩ xuống dòng).
+private struct RewordCommitSheet: View {
+    @Bindable var model: RepoModel
+    let sha: String
+    let label: String
+    @State private var message = ""
+    @State private var original: String?
+    @FocusState private var focused: Bool
+
+    private var trimmed: String { message.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        SheetFrame(title: String(localized: "Sửa message commit"), systemImage: "pencil", confirmTitle: String(localized: "Lưu message"),
+                   canConfirm: original != nil && !trimmed.isEmpty && trimmed != original?.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            model.reword(sha, message: trimmed)
+        } content: {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Commit \(label) và các commit sau nó trên nhánh sẽ được viết lại (đổi SHA).")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                TextEditor(text: $message)
+                    .font(.body)
+                    .frame(minHeight: 140)
+                    .scrollContentBackground(.hidden)
+                    .padding(6)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.15)))
+                    .focused($focused)
+                    .disabled(original == nil)
+                if original != nil, trimmed.isEmpty {
+                    Text("Message mới không được để trống.").font(.caption).foregroundStyle(.red)
+                }
+            }
+        }
+        .task {
+            let text = (try? await model.repository.commitMessage(sha)) ?? ""
+            original = text
+            message = text.trimmingCharacters(in: .newlines)
+            focused = true
+        }
     }
 }
 

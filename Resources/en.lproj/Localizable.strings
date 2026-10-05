@@ -183,12 +183,15 @@
 "Clone repository…" = "Clone Repository…";
 "Commit %@ không nằm trên nhánh hiện tại nên không rebase từ đó được." = "Commit %@ isn't on the current branch, so you can't rebase from it.";
 "Commit %@ nằm ngoài %lld commit đã tải" = "Commit %@ is outside the %lld loaded commits";
+"Commit %@ và các commit sau nó trên nhánh sẽ được viết lại (đổi SHA)." = "Commit %@ and every commit after it on the branch will be rewritten (new SHAs).";
 "Commit %@ đã được đảo ngược, không có gì để revert." = "Commit %@ was already reversed — nothing to revert.";
 "Commit bởi %@ · %@" = "Committed by %@ · %@";
 "Commit cũ nhất còn lại không gộp được (không có commit nào phía trước để gộp vào)." = "The oldest remaining commit can't be squashed (there's no earlier commit to squash into).";
 "Commit hoặc stash chúng trước, nếu không chúng sẽ lẫn vào commit revert." = "Commit or stash them first, otherwise they'd end up in the revert commit.";
 "Commit mới nhất của PR #%lld chưa có trên graph" = "The latest commit of PR #%lld isn't in the graph yet";
 "Commit mới ở %@ sẽ được ký bằng %@" = "New commits in %@ will be signed with %@";
+"Commit này không nằm trên nhánh hiện tại" = "This commit isn't on the current branch";
+"Commit này đã mới nhất trên nhánh." = "This commit is already the newest on the branch.";
 "Commit này đã được đảo ngược, không có gì để revert" = "This commit was already reversed — nothing to revert";
 "Commit rồi push lên remote (⌘⇧↩)" = "Commit, then push to the remote (⌘⇧↩)";
 "Cài đặt" = "Settings";
@@ -211,6 +214,8 @@
 "Cả hai bên đều xoá" = "Both sides deleted";
 "Cả hai bên đều xoá file này. Chọn bất kỳ để xác nhận xoá." = "Both sides deleted this file. Choose either to confirm the deletion.";
 "Sao chép khoá công khai" = "Copy Public Key";
+"Sao chép link commit" = "Copy link to commit";
+"Sao chép patch" = "Copy patch";
 "Stash mọi thay đổi chưa commit" = "Stash all uncommitted changes";
 "Cấu hình ký commit" = "Configure Commit Signing";
 "Cần cài GnuPG (brew install gnupg) và thêm khoá công khai GPG vào GitHub để hiện “Verified”." = "Install GnuPG (brew install gnupg) and add your GPG public key to GitHub to show “Verified”.";
@@ -450,6 +455,7 @@
 "Không có commit nào khác giữa hai nhánh — chưa có gì để tạo Pull Request." = "There are no different commits between the two branches — nothing to open a Pull Request for.";
 "Không có commit nào sau %@ trên nhánh hiện tại." = "No commits after %@ on the current branch.";
 "Không có commit nào để rebase." = "No commits to rebase.";
+"Không có commit thường nào bên dưới để đổi chỗ." = "There is no regular commit below to swap with.";
 "Không có gì để commit." = "Nothing to commit.";
 "Không có issue khớp" = "No matching issues";
 "Không có issue nào đang mở" = "No open issues";
@@ -513,6 +519,7 @@
 "Không đọc / ghi được Keychain của macOS. Hãy mở khoá Keychain rồi thử lại." = "Couldn't read or write the macOS Keychain. Unlock the Keychain and try again.";
 "Không đọc / ghi được file trên máy — kiểm tra quyền truy cập và dung lượng ổ đĩa." = "Couldn't read / write files on this Mac — check permissions and free disk space.";
 "Không đọc được dòng thời gian" = "Couldn’t read the timeline";
+"Không đọc được patch của commit" = "Couldn't read the commit's patch";
 "Không đọc được token của " = "Couldn't read the token of ";
 "Không đọc được trạng thái repository" = "Couldn't read the repository status";
 "Không ẩn được nhánh đang checkout" = "Can't hide the checked-out branch";
@@ -552,6 +559,7 @@
 "Lưu & đánh dấu đã giải quyết" = "Save & Mark Resolved";
 "Lưu file (⌘S)" = "Save File (⌘S)";
 "Lưu file đã giải quyết" = "Save Resolved File";
+"Lưu message" = "Save message";
 "Lưu mốc ngay" = "Save a Snapshot Now";
 "Lưu thủ công" = "Manual";
 "Lưu tên & email Git" = "Save Git Name & Email";
@@ -766,6 +774,8 @@
 "Sửa commit trước (amend)" = "Amend previous commit";
 "Sửa file ngay trong app (UTF-8)" = "Edit the file right in the app (UTF-8)";
 "Reword — sửa message" = "Reword — edit message";
+"Sửa message commit" = "Edit commit message";
+"Sửa message commit…" = "Edit commit message…";
 "Sửa tay" = "Edit";
 "Sửa trực tiếp nội dung sẽ được lưu" = "Edit the content that will be saved";
 "Sửa tên & email commit…" = "Edit Commit Name & Email…";
@@ -984,6 +994,9 @@
 "Xong" = "Done";
 "Xoá" = "Delete";
 "Xoá %@" = "Delete %@";
+"Xoá commit" = "Drop commit";
+"Xoá commit %@?" = "Drop commit %@?";
+"Xoá commit này…" = "Drop this commit…";
 "Xoá khoá" = "Delete Key";
 "Xoá khoá “%@”?" = "Delete key “%@”?";
 "Xoá khoá…" = "Delete Key…";
@@ -1166,6 +1179,7 @@
 "Đã stage" = "Staged";
 "Đã sửa" = "Modified";
 "Đã sửa commit trước" = "Previous commit amended";
+"Đã sửa message commit" = "Commit message updated";
 "Đã thêm khoá “%@” lên %@ @%@." = "Added key “%@” to %@ @%@.";
 "Đã thêm khoá “%@” lên GitHub @%@." = "Added key “%@” to GitHub @%@.";
 "Đã thêm remote %@" = "Added remote %@";
@@ -1185,6 +1199,7 @@
 "Đã xoá" = "Deleted";
 "Đã xoá %@" = "Deleted %@";
 "Đã xoá @%@ và token của nó khỏi máy. Token vẫn còn hiệu lực trên GitHub cho tới khi bạn thu hồi quyền của Thaigit." = "Removed @%@ and its token from this Mac. The token stays valid on GitHub until you revoke Thaigit's access.";
+"Đã xoá commit khỏi nhánh" = "Commit dropped from the branch";
 "Đã xoá file rỗng." = "Deleted an empty file.";
 "Đã xoá khoá “%@” khỏi Keychain. Nhớ gỡ khoá công khai trên GitHub / GitLab nếu không dùng nữa." = "Deleted key “%@” from the Keychain. Remember to remove its public key on GitHub / GitLab if you no longer use it.";
 "Đã xoá nhánh %@" = "Deleted branch %@";
@@ -1198,6 +1213,7 @@
 "Đã apply stash “%@”" = "Applied stash “%@”";
 "Đã đăng nhập" = "Signed in";
 "Đã đưa thư mục làm việc về như trước khi khôi phục" = "Your working folder is back to how it was before the restore";
+"Đã đổi thứ tự commit" = "Commits reordered";
 "Đã đổi tên %@ → %@" = "Renamed %@ → %@";
 "Đã ẩn %@ khỏi graph" = "Hid %@ from the graph";
 "Đóng" = "Close";
@@ -1224,6 +1240,8 @@
 "Đăng nhập lại…" = "Sign In Again…";
 "Đăng nhập để clone, fetch, push không phải nhập lại" = "Sign in once to clone, fetch and push without retyping";
 "Đăng nhập để fetch / pull / push repo HTTPS trên github.com và chọn nhanh repo khi clone — không cần tự tạo token. Có thể thêm nhiều tài khoản (cá nhân, công ty…)." = "Sign in to fetch / pull / push HTTPS repositories on github.com and quickly pick repositories when cloning — no need to create a token yourself. You can add several accounts (personal, work…).";
+"Đưa lên (sau commit mới hơn)" = "Move up (after the newer commit)";
+"Đưa xuống (trước commit cũ hơn)" = "Move down (before the older commit)";
 "Đường dẫn git" = "Git path";
 "Push commit của nhánh hiện tại lên remote (⇧⌘P)" = "Push the current branch's commits to the remote (⇧⌘P)";
 "Đặt làm mặc định" = "Make Default";
@@ -1239,6 +1257,7 @@
 "Đổi chiều so sánh" = "Swap Comparison";
 "Đổi loại file" = "File type changed";
 "Đổi thư mục…" = "Change Folder…";
+"Đổi thứ tự" = "Reorder";
 "Đổi tên" = "Renamed";
 "Đổi tên & email Git…" = "Change Git Name & Email…";
 "Đổi tên khoá" = "Rename Key";
@@ -1262,6 +1281,7 @@
 "“%@” không phải là một Git repository." = "“%@” isn't a Git repository.";
 "“%@” không phải văn bản UTF-8 — Thaigit không sửa nội dung file này trong app để tránh làm hỏng ký tự." = "“%@” isn't UTF-8 text — Thaigit won't edit this file in the app to avoid damaging characters.";
 "“%@” là bare repository (không có working tree) — Thaigit chưa hỗ trợ loại này." = "“%@” is a bare repository (no working tree) — Thaigit doesn't support those yet.";
+"“%@” sẽ bị bỏ khỏi %@, các commit sau nó được viết lại. Có thể hoàn tác ngay sau khi xong." = "“%@” will be removed from %@ and the commits after it rewritten. You can undo right after.";
 "“%@” vừa được sửa bên ngoài Thaigit nên chưa ghi đè. Hãy xem lại nội dung mới rồi giải tiếp." = "“%@” was just changed outside Thaigit, so it wasn't overwritten. Review the new content and continue resolving.";
 "“Bỏ stage file”" = "“Unstage File”";
 "“Current” là bản trên nhánh hiện tại (HEAD), “Incoming” là bản đang được đưa vào." = "“Current” is the version on the current branch (HEAD); “Incoming” is the version being brought in.";

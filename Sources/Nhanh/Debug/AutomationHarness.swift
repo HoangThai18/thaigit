@@ -263,6 +263,12 @@ enum AutomationHarness {
             case "irebase":
                 // Interactive rebase từ commit ở dòng n của graph: act:irebase:4
                 if let entry = model.entry(at: Int(value) ?? 3) { model.beginInteractiveRebase(from: entry.commit) }
+            case "reword":
+                // Mở hộp sửa message cho commit ở dòng n: act:reword:2
+                if let entry = model.entry(at: Int(value) ?? 1) { model.beginReword(entry.commit) }
+            case "moveup", "movedown":
+                // Đổi chỗ commit ở dòng n với commit liền sau / liền trước: act:moveup:3
+                if let entry = model.entry(at: Int(value) ?? 1) { model.move(entry.commit, up: pieces[0] == "moveup") }
             case "fakeprs":
                 // PR giả cho mọi nhánh của remote GitHub (trừ main) và một PR từ fork — không gọi mạng.
                 if let github = model.githubRemote {

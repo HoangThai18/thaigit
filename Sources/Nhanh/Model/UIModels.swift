@@ -158,6 +158,8 @@ enum RepoSheet: Identifiable {
     case githubAccount(owner: String?)
     /// Interactive rebase các commit sau `base` (như GitKraken).
     case interactiveRebase(base: String, label: String)
+    /// Sửa message một commit (menu chuột phải).
+    case rewordCommit(sha: String, label: String)
     /// Blame một file; `rev` nil là bản trong working tree.
     case blame(path: String, rev: String?)
     /// Tạo Pull Request trên GitHub từ nhánh `head` (tên nhánh trên remote GitHub).
@@ -191,6 +193,7 @@ enum RepoSheet: Identifiable {
         case .githubLogin: return "github-login"
         case .githubAccount(let owner): return "github-account-\(owner ?? "")"
         case .interactiveRebase(let base, _): return "interactive-rebase-\(base)"
+        case .rewordCommit(let sha, _): return "reword-\(sha)"
         case .blame(let path, let rev): return "blame-\(rev ?? "")-\(path)"
         case .createPullRequest(let head): return "create-pr-\(head)"
         case .commitSigning: return "commit-signing"

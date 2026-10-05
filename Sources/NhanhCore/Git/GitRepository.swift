@@ -152,6 +152,11 @@ public struct GitRepository: Sendable {
         try await runner.output(["show", "-s", "--format=%B", sha, "--"])
     }
 
+    /// Commit dạng patch email (như `git format-patch -1 --stdout`) — áp lại được bằng `git am`.
+    public func commitPatch(_ sha: String) async throws -> String {
+        try await runner.output(["show", "--format=email", "--patch", "--stat", "--binary", "--no-color", sha, "--"])
+    }
+
     /// File thay đổi trong commit (so với cha đầu tiên; commit gốc so với cây rỗng).
     public func changedFiles(commit sha: String, parent: String?) async throws -> [FileChange] {
         var args = ["diff-tree", "-r", "-z", "--name-status", "-M", "--no-commit-id"]

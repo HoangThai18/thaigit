@@ -52,6 +52,23 @@ public enum RebasePlan {
         return nil
     }
 
+    /// Kế hoạch dựng sẵn cho thao tác nhanh trên một commit (menu chuột phải): mọi commit `pick`, riêng `sha` làm `action`.
+    public static func single(_ commits: [Commit], sha: String, action: RebaseAction, message: String? = nil) -> [RebaseStep] {
+        commits.map { commit in
+            commit.id == sha ? RebaseStep(commit: commit, action: action, message: message) : RebaseStep(commit: commit)
+        }
+    }
+
+    /// Đổi chỗ `sha` với commit liền sau (`up` — mới hơn) hoặc liền trước (cũ hơn); nil khi không có commit để đổi chỗ.
+    public static func swapped(_ commits: [Commit], sha: String, up: Bool) -> [RebaseStep]? {
+        var steps = commits.map { RebaseStep(commit: $0) }
+        guard let index = steps.firstIndex(where: { $0.commit.id == sha }) else { return nil }
+        let other = up ? index + 1 : index - 1
+        guard steps.indices.contains(other) else { return nil }
+        steps.swapAt(index, other)
+        return steps
+    }
+
     /// Nội dung file todo cho `git rebase -i`. Sửa lời commit = `pick` rồi `exec git commit --amend` với file lời
     /// mới (không cần mở trình soạn thảo); `messageFile(i)` là đường dẫn file lời cho dòng thứ i.
     static func todo(_ steps: [RebaseStep], messageFile: (Int) -> String) -> String {

@@ -54,6 +54,28 @@ struct InteractiveRebaseTests {
         #expect(!FileManager.default.fileExists(atPath: t.repo.gitDir.appendingPathComponent("thaigit-rebase").path))
     }
 
+    @Test func quickPlansForOneCommit() async throws {
+        let (t, base, commits) = try await makeRepo()
+        defer { t.cleanup() }
+        #expect(RebasePlan.swapped(commits, sha: commits[3].id, up: true) == nil)
+        #expect(RebasePlan.swapped(commits, sha: commits[0].id, up: false) == nil)
+        let moved = try #require(RebasePlan.swapped(commits, sha: commits[1].id, up: true))
+        #expect(moved.map(\.commit.subject) == ["c1", "c3", "c2", "c4"])
+        _ = try await t.repo.interactiveRebase(onto: base, steps: moved)
+        #expect(try await subjects(t) == ["c4", "c2", "c3", "c1", "gốc"])
+
+        let after = try await t.repo.rebaseCommits(after: base)
+        let dropped = RebasePlan.single(after, sha: after[1].id, action: .drop)
+        #expect(dropped.map(\.action) == [.pick, .drop, .pick, .pick])
+        _ = try await t.repo.interactiveRebase(onto: base, steps: dropped)
+        #expect(try await subjects(t) == ["c4", "c2", "c1", "gốc"])
+
+        let patch = try await t.repo.commitPatch("HEAD")
+        #expect(patch.hasPrefix("From "))
+        #expect(patch.contains("Subject: [PATCH] c4"))
+        #expect(patch.contains("+4"))
+    }
+
     @Test func fixupKeepsOnlyFirstMessageAndAutostashes() async throws {
         let (t, base, commits) = try await makeRepo()
         defer { t.cleanup() }

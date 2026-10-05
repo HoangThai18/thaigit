@@ -1200,11 +1200,31 @@ extension RepoModel {
             .action(String(localized: "Interactive rebase \(branchLabel) từ đây…"), systemImage: "list.bullet.indent",
                     enabled: canInteractiveRebase(from: commit)) { [weak self] in self?.beginInteractiveRebase(from: commit) },
             .separator,
+            .action(String(localized: "Sửa message commit…"), systemImage: "pencil", enabled: canRewrite(commit)) { [weak self] in
+                self?.beginReword(commit)
+            },
+            .submenu(String(localized: "Đổi thứ tự"), systemImage: "arrow.up.arrow.down", items: [
+                .action(String(localized: "Đưa lên (sau commit mới hơn)"), systemImage: "arrow.up", enabled: canRewrite(commit) && !isHead) { [weak self] in
+                    self?.move(commit, up: true)
+                },
+                .action(String(localized: "Đưa xuống (trước commit cũ hơn)"), systemImage: "arrow.down", enabled: canRewrite(commit)) { [weak self] in
+                    self?.move(commit, up: false)
+                },
+            ]),
+            .action(String(localized: "Xoá commit này…"), systemImage: "trash", destructive: true, enabled: canRewrite(commit)) { [weak self] in
+                self?.confirmDrop(commit)
+            },
+            .separator,
             .action(String(localized: "Sao chép SHA"), systemImage: "number") { [weak self] in self?.copy(commit.id, label: "SHA") },
             .action(String(localized: "Sao chép message"), systemImage: "doc.on.doc") { [weak self] in self?.copy(commit.subject, label: "message") },
+            .action(String(localized: "Sao chép patch"), systemImage: "doc.plaintext") { [weak self] in self?.copyPatch(commit) },
         ]
         if let url = webURL(forCommit: commit.id) {
+            items.append(.separator)
             items.append(.action(String(localized: "Mở trên web"), systemImage: "safari") { NSWorkspace.shared.open(url) })
+            items.append(.action(String(localized: "Sao chép link commit"), systemImage: "link") { [weak self] in
+                self?.copy(url.absoluteString, label: "link")
+            })
         }
         return items
     }
