@@ -54,6 +54,19 @@
       </div>
     {/if}
 
+    <div class="quick">
+      <button type="button" class="quick-button" onclick={() => settingsStore.open()}>
+        <Icon name="settings" size={15} />
+        <span>{vi.settings.title}</span>
+      </button>
+      {#if inApp}
+        <button type="button" class="quick-button" onclick={() => settingsStore.open('accounts')}>
+          <Icon name="user" size={15} />
+          <span>{vi.welcome.accounts}</span>
+        </button>
+      {/if}
+    </div>
+
     {#if unavailable}
       <p class="notice" role="status">{unavailable}</p>
     {/if}
@@ -128,6 +141,34 @@
     gap: 18px;
     margin-top: 10px;
     font-size: 13px;
+  }
+
+  .quick {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .quick-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid color-mix(in srgb, var(--text) 11%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--text) 4.5%, transparent);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .quick-button:hover {
+    background: color-mix(in srgb, var(--text) 9%, transparent);
+  }
+
+  .quick-button :global(svg) {
+    color: var(--text-secondary);
   }
 
   .ask {

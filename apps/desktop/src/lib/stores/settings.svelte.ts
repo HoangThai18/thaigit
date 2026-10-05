@@ -12,6 +12,8 @@ export function defaultChannel(version: string): UpdateChannel {
 
 export class SettingsStore {
   isOpen = $state(false);
+  /** Mục cần cuộn tới khi mở (vd. "Tài khoản" từ trang chủ); panel xoá sau khi cuộn. */
+  focus = $state<'accounts' | null>(null);
   channel = $state<UpdateChannel>('stable');
   readonly #storage: KeyValueStorage | null;
 
@@ -29,7 +31,8 @@ export class SettingsStore {
     this.channel = saved === 'beta' || saved === 'stable' ? saved : defaultChannel(version);
   }
 
-  open(): void {
+  open(focus: 'accounts' | null = null): void {
+    this.focus = focus;
     this.isOpen = true;
   }
 

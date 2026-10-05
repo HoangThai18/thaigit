@@ -17,6 +17,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Bản tiếng Anh dùng đúng thuật ngữ git (Fetch / Pull / Push / Stash / Pop) thay cho các cụm diễn giải như "Get the latest information…", "Bring new commits…", "Put all uncommitted changes aside", "Bring back the latest stash"
 - Hộp chọn thư mục / chọn chương trình git do Rust hiện đổi sang "Choose Folder" / "Choose the Git executable"
 - Dòng bản quyền trong thông tin gói cài đặt đổi sang tiếng Anh
+- Trang chủ có nút Cài đặt và Tài khoản GitHub / GitLab (mở thẳng tới mục tài khoản trong Cài đặt)
 
 ## 2.1.0 — 2026-10-04
 

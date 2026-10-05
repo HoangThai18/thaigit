@@ -7,6 +7,7 @@ export const shell = {
   appName: 'Thaigit',
 
   welcome: {
+    accounts: 'Tài khoản GitHub / GitLab',
     tagline: 'Git client trực quan, miễn phí — graph nhiều màu, thao tác bằng chuột.',
     openFolder: 'Mở thư mục…',
     opening: 'Đang mở…',

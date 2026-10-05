@@ -66,6 +66,14 @@
     if (settings.isOpen) void defaultAccounts.refresh().catch(() => undefined);
   });
 
+  // Mở từ nút "Tài khoản" ở trang chủ: cuộn thẳng tới mục Tài khoản.
+  let accountsAnchor = $state<HTMLElement | null>(null);
+  $effect(() => {
+    if (!settings.isOpen || settings.focus !== 'accounts' || !accountsAnchor) return;
+    accountsAnchor.scrollIntoView({ block: 'start' });
+    settings.focus = null;
+  });
+
   function numberInput(event: Event, apply: (value: number) => void): void {
     const input = event.currentTarget as HTMLInputElement;
     const parsed = Number(input.value);
@@ -350,7 +358,9 @@
         {/if}
 
         {#if inApp}
-          <AccountsSection />
+          <div bind:this={accountsAnchor}>
+            <AccountsSection />
+          </div>
         {/if}
 
         <section>

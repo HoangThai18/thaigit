@@ -6,6 +6,7 @@ export const shell: Translation<typeof source> = {
   appName: 'Thaigit',
 
   welcome: {
+    accounts: 'GitHub / GitLab accounts',
     tagline: 'A free, visual Git client — colorful graph, everything with the mouse.',
     openFolder: 'Open folder…',
     opening: 'Opening…',
