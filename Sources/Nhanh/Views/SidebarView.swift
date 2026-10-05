@@ -9,7 +9,7 @@ struct SidebarView: View {
     @State private var selection: String?
     @State private var filter = ""
     /// Chờ một nhịp rồi mới mở review của PR / MR vừa chọn: lướt phím mũi tên qua nhiều dòng không fetch từng dòng.
-    @State private var reviewTask: Task<Void, Never>?
+    @State private var reviewDebounce = ReviewDebounce()
     @AppStorage("sidebar.showLocal") private var showLocal = true
     @AppStorage("sidebar.showRemote") private var showRemote = true
     @AppStorage("sidebar.showTags") private var showTags = false
@@ -104,8 +104,10 @@ struct SidebarView: View {
             } else if let stash = stash(for: id) {
                 model.applyStash(stash)
             } else if let pull = pullRequest(for: id) {
+                reviewDebounce.task?.cancel()
                 model.checkoutPullRequest(pull)
             } else if let request = mergeRequest(for: id) {
+                reviewDebounce.task?.cancel()
                 model.checkoutMergeRequest(request)
             } else if let path = openablePath(for: id) {
                 model.openInNewTab(path)
@@ -425,8 +427,8 @@ struct SidebarView: View {
     }
 
     private func scheduleReview(_ request: ForgeRequest, id: String) {
-        reviewTask?.cancel()
-        reviewTask = Task {
+        reviewDebounce.task?.cancel()
+        reviewDebounce.task = Task {
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled, selection == id else { return }
             model.openReview(request)
@@ -587,6 +589,12 @@ private struct PullRequestRow: View {
         }
         .help(tooltip)
     }
+}
+
+/// Giữ tác vụ chờ mở review trong một đối tượng tham chiếu: ghi vào `@State` kiểu giá trị sẽ làm sidebar dựng lại cả List
+/// mỗi lần bấm một PR / MR, còn đổi thuộc tính của đối tượng này thì không.
+private final class ReviewDebounce {
+    var task: Task<Void, Never>?
 }
 
 private struct MergeRequestRow: View {

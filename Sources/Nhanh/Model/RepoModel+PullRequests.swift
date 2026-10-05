@@ -81,7 +81,7 @@ extension RepoModel {
                 let items = try await GitHubRepoAPI().openPullRequests(in: repo, token: token)
                 guard !Task.isCancelled, pullRequests.repo == repo else { return }
                 pullRequests = PullRequestList(state: .loaded, items: items, repo: repo, remoteName: remoteName, loadedAt: Date())
-                syncReviewWithLists()
+                syncReviewWithLists(kind: .github)
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError), pullRequests.repo == repo else { return }
                 var list = PullRequestList(repo: repo, remoteName: remoteName, loadedAt: Date())

@@ -95,7 +95,7 @@ extension RepoModel {
                 let items = try await GitLabAPI().openMergeRequests(in: project, token: token)
                 guard !Task.isCancelled, mergeRequests.project == project else { return }
                 mergeRequests = MergeRequestList(state: .loaded, items: items, project: project, remoteName: remoteName, loadedAt: Date())
-                syncReviewWithLists()
+                syncReviewWithLists(kind: .gitlab)
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError), mergeRequests.project == project else { return }
                 let message = FriendlyError.message(for: error)
@@ -129,11 +129,13 @@ extension RepoModel {
             // Mở lại đúng PR / MR đang xem (Tải lại): giữ bản đã thấy (kể cả thay đổi vừa lưu) và danh sách người đã nạp.
             var shown = request
             var people = ReviewPeopleState.idle
+            var saving = false
             if let kept = review, kept.request.number == request.number, kept.request.kind == request.kind {
                 shown = kept.request
                 people = kept.people
+                saving = kept.isSaving
             }
-            review = ReviewSession(request: shown, from: range.from, to: range.to, people: people)
+            review = ReviewSession(request: shown, from: range.from, to: range.to, people: people, isSaving: saving)
             select(.compare(from: range.from, to: range.to), reveal: true)
         } onError: { [weak self] error in
             guard let self else { return false }
@@ -155,8 +157,9 @@ extension RepoModel {
     }
 
     /// Cập nhật review đang mở theo danh sách PR / MR vừa tải về (người khác có thể đã sửa tiêu đề, mô tả, người review).
-    func syncReviewWithLists() {
-        guard let current = review, !current.isSaving else { return }
+    /// `kind`: loại danh sách vừa tải — chỉ đồng bộ khi review đang mở cùng loại (danh sách của máy chủ kia không liên quan).
+    func syncReviewWithLists(kind: ForgeRequest.Kind) {
+        guard let current = review, current.request.kind == kind, !current.isSaving else { return }
         let items: [ForgeRequest]
         switch current.request.kind {
         case .github: items = pullRequests.items.map(\.forgeRequest)

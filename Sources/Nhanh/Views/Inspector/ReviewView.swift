@@ -40,7 +40,8 @@ private struct ReviewHeader: View {
     private var authorSummary: String {
         var text = request.author.isEmpty ? "" : String(localized: "Tác giả: @") + request.author
         if let updated = request.updatedAt { text += String(localized: " · cập nhật ") + VietnameseDate.relative(updated) }
-        return text.trimmingCharacters(in: .whitespaces)
+        // Chưa biết tác giả (MR vừa tạo): bỏ dấu phân cách " · " đứng đầu.
+        return text.trimmingCharacters(in: CharacterSet(charactersIn: " ·"))
     }
 
     private var trimmedBody: String {
