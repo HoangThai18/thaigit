@@ -236,6 +236,16 @@ struct RepoActionBar: View {
             }
             .help("Push commit của nhánh hiện tại lên remote (⇧⌘P)")
 
+            if let forge = model.forgeRemote {
+                Button { model.beginCreatePullRequest() } label: {
+                    ToolLabel(verbatim: forge.kind.shortName, systemImage: "arrow.triangle.pull", color: ToolColor.request)
+                }
+                .disabled(model.currentBranchRef == nil)
+                .help(forge.kind == .github
+                    ? String(localized: "Tạo Pull Request từ nhánh hiện tại")
+                    : String(localized: "Tạo Merge Request từ nhánh hiện tại"))
+            }
+
             Button { model.beginCreateBranchAtHead() } label: {
                 ToolLabel("Branch", systemImage: "arrow.triangle.branch", color: ToolColor.branch)
             }

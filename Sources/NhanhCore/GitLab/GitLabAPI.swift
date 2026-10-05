@@ -11,6 +11,18 @@ public enum GitLabError: LocalizedError, Sendable, Equatable {
     case badResponse(Int)
     case invalidResponse
     case keychain(Int32)
+    /// 404: project không tồn tại hoặc tài khoản không thấy được.
+    case projectNotFound
+    /// 403: tài khoản / token không có quyền tạo Merge Request ở project này.
+    case forbidden
+    case mergeRequestRejected(MergeRequestRejection)
+
+    public enum MergeRequestRejection: Sendable, Equatable {
+        case alreadyExists
+        case sourceMissing
+        case targetMissing
+        case other
+    }
 
     public var errorDescription: String? {
         switch self {
@@ -23,6 +35,12 @@ public enum GitLabError: LocalizedError, Sendable, Equatable {
         case .badResponse(let status): return String(localized: "GitLab trả về lỗi \(status).")
         case .invalidResponse: return String(localized: "Phản hồi của GitLab không đúng định dạng.")
         case .keychain: return String(localized: "Không đọc / ghi được Keychain của macOS. Hãy mở khoá Keychain rồi thử lại.")
+        case .projectNotFound: return String(localized: "Không thấy project trên GitLab — project riêng tư cần đăng nhập tài khoản có quyền.")
+        case .forbidden: return String(localized: "Tài khoản GitLab này không có quyền tạo Merge Request ở project này (token cần quyền api).")
+        case .mergeRequestRejected(.alreadyExists): return String(localized: "Nhánh này đã có Merge Request đang mở.")
+        case .mergeRequestRejected(.sourceMissing): return String(localized: "Nhánh nguồn chưa có trên GitLab — hãy push lên trước.")
+        case .mergeRequestRejected(.targetMissing): return String(localized: "Nhánh đích không có trên GitLab.")
+        case .mergeRequestRejected(.other): return String(localized: "GitLab không nhận Merge Request này — hai nhánh có khác nhau và đã push chưa?")
         }
     }
 }
@@ -183,6 +201,46 @@ public struct GitLabAPI: Sendable {
         return user
     }
 
+    /// Tạo Merge Request; trả về MR vừa tạo (có số và đường dẫn). Token chỉ đi tới `https://<host của project>`.
+    public func createMergeRequest(_ new: NewMergeRequest, in project: GitLabProjectRef, token: String) async throws -> GitLabMergeRequest {
+        var request = Self.apiRequest(host: project.host, path: "/api/v4/projects/\(project.encodedPath)/merge_requests", token: token)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "source_branch": new.sourceBranch, "target_branch": new.targetBranch,
+            "title": new.submittedTitle, "description": new.description,
+        ])
+        let (data, response) = try await send(request)
+        switch response.statusCode {
+        case 200..<300:
+            struct Payload: Decodable { let iid: Int; let title: String; let web_url: String? }
+            guard let payload = try? JSONDecoder().decode(Payload.self, from: data) else { throw GitLabError.invalidResponse }
+            return GitLabMergeRequest(iid: payload.iid, title: payload.title,
+                                      webURL: Self.trustedWebURL(payload.web_url, host: project.host))
+        case 400, 409, 422:
+            throw GitLabError.mergeRequestRejected(Self.rejection(from: data))
+        case 403: throw GitLabError.forbidden
+        case 404: throw GitLabError.projectNotFound
+        default:
+            try Self.check(response)
+            throw GitLabError.badResponse(response.statusCode)
+        }
+    }
+
+    /// Nhánh mặc định của project (nhánh đích gợi ý khi tạo MR).
+    public func defaultBranch(of project: GitLabProjectRef, token: String?) async throws -> String {
+        var request = Self.apiRequest(host: project.host, path: "/api/v4/projects/\(project.encodedPath)", token: token ?? "")
+        if token == nil { request.setValue(nil, forHTTPHeaderField: "Authorization") }
+        let (data, response) = try await send(request)
+        if response.statusCode == 404 { throw GitLabError.projectNotFound }
+        try Self.check(response)
+        struct Info: Decodable { let default_branch: String? }
+        guard let branch = (try? JSONDecoder().decode(Info.self, from: data))?.default_branch, !branch.isEmpty else {
+            throw GitLabError.invalidResponse
+        }
+        return branch
+    }
+
     public enum SSHKeyUpload: Sendable, Equatable {
         case added, alreadyExists, missingScope
     }
@@ -208,6 +266,25 @@ public struct GitLabAPI: Sendable {
     }
 
     // MARK: - Nội bộ
+
+    /// Lý do GitLab từ chối MR, đoán từ câu `message` (chuỗi hoặc mảng chuỗi) — không đưa nguyên văn lên giao diện.
+    static func rejection(from data: Data) -> GitLabError.MergeRequestRejection {
+        var text = String(decoding: data, as: UTF8.self).lowercased()
+        if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let message = object["message"] {
+            text = "\(message)".lowercased()
+        }
+        if text.contains("already exists") { return .alreadyExists }
+        if text.contains("source branch") && (text.contains("does not exist") || text.contains("not exist")) { return .sourceMissing }
+        if text.contains("target branch") && (text.contains("does not exist") || text.contains("not exist")) { return .targetMissing }
+        return .other
+    }
+
+    /// Chỉ nhận đường dẫn https trên đúng host của project.
+    static func trustedWebURL(_ text: String?, host: String) -> URL? {
+        guard let text, let url = URL(string: text), url.scheme == "https",
+              let urlHost = url.host?.lowercased(), urlHost == GitLabProjectRef.stripPort(host) else { return nil }
+        return url
+    }
 
     private struct OAuthResponse: Decodable {
         var deviceCode: String?

@@ -1,13 +1,14 @@
 import NhanhCore
 import SwiftUI
 
-/// Tạo Pull Request trên GitHub như GitKraken: chọn nhánh đích, tiêu đề và mô tả điền sẵn từ các commit của nhánh,
-/// nhánh chưa push thì push trước rồi mới tạo.
+/// Tạo Pull Request trên GitHub (remote GitLab: Merge Request) như GitKraken: chọn nhánh đích, tiêu đề và mô tả điền sẵn từ
+/// các commit của nhánh, nhánh chưa push thì push trước rồi mới tạo.
 struct CreatePullRequestSheet: View {
     @Bindable var model: RepoModel
     /// Nhánh local (hoặc tên nhánh trên remote GitHub) chứa thay đổi.
     let head: String
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openSettings) private var openSettings
 
     @State private var base = ""
     @State private var title = ""
@@ -19,8 +20,14 @@ struct CreatePullRequestSheet: View {
     @State private var didPrefill = false
     @FocusState private var titleFocused: Bool
 
-    private var remote: String { model.githubRemote?.name ?? "origin" }
-    private var repoName: String { model.githubRemote.map { "\($0.repo.owner)/\($0.repo.name)" } ?? "" }
+    private var forge: ForgeRemote? { model.forgeRemote }
+    private var kind: ForgeKind { forge?.kind ?? .github }
+    private var remote: String { forge?.name ?? "origin" }
+    private var siteName: String { forge?.siteName ?? "" }
+    private var repoName: String { forge?.github.map { "\($0.owner)/\($0.name)" } ?? "" }
+    private var requestTitle: String {
+        kind == .github ? String(localized: "Tạo Pull Request") : String(localized: "Tạo Merge Request")
+    }
     private var headBranch: String { model.pullRequestHeadBranch(head) }
     private var push: PushRequest? { model.pendingPush(forPullRequestHead: head) }
 
@@ -38,15 +45,15 @@ struct CreatePullRequestSheet: View {
 
     private var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var canCreate: Bool {
-        !trimmedTitle.isEmpty && !base.isEmpty && model.canUseGitHubAccount && !(commits.isEmpty && !isLoadingCommits && push == nil)
+        !trimmedTitle.isEmpty && !base.isEmpty && model.canUseForgeAccount && !(commits.isEmpty && !isLoadingCommits && push == nil)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
-                Label("Tạo Pull Request", systemImage: "arrow.triangle.pull")
+                Label { Text(requestTitle) } icon: { Image(systemName: "arrow.triangle.pull") }
                     .font(.title3.bold())
-                Text("Trên github.com/\(repoName)")
+                Text("Trên \(siteName)")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -91,18 +98,24 @@ struct CreatePullRequestSheet: View {
                 Spacer()
                 Button("Huỷ") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                if model.canUseGitHubAccount {
-                    Button(push == nil ? String(localized: "Tạo Pull Request") : String(localized: "Push & tạo Pull Request")) {
+                if model.canUseForgeAccount {
+                    Button(createButtonTitle) {
                         model.createPullRequest(NewPullRequest(title: trimmedTitle, body: bodyText, head: headBranch, base: base, draft: draft),
                                                 pushFirst: push)
                         dismiss()
                     }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canCreate)
-                } else {
+                } else if kind == .github {
                     Button("Đăng nhập GitHub…") { model.sheet = .githubLogin }
                         .keyboardShortcut(.defaultAction)
                         .disabled(!GitHubAccountManager.shared.isConfigured)
+                } else {
+                    Button("Mở Cài đặt…") {
+                        UserDefaults.standard.set(SettingsTab.ssh.rawValue, forKey: Prefs.settingsTab)
+                        openSettings()
+                    }
+                    .keyboardShortcut(.defaultAction)
                 }
             }
         }
@@ -111,6 +124,24 @@ struct CreatePullRequestSheet: View {
         .task { await loadDefaultBranch() }
         .task(id: base) { await loadCommits() }
         .onAppear { titleFocused = true }
+    }
+
+    private var createButtonTitle: String {
+        switch (kind, push == nil) {
+        case (.github, true): return String(localized: "Tạo Pull Request")
+        case (.github, false): return String(localized: "Push & tạo Pull Request")
+        case (.gitlab, true): return String(localized: "Tạo Merge Request")
+        case (.gitlab, false): return String(localized: "Push & tạo Merge Request")
+        }
+    }
+
+    private var accountHint: String {
+        if kind == .gitlab {
+            return String(localized: "Cần thêm tài khoản GitLab có quyền với \(siteName) (Cài đặt → SSH) để tạo Merge Request.")
+        }
+        return GitHubAccountManager.shared.isConfigured
+            ? String(localized: "Cần đăng nhập tài khoản GitHub có quyền với \(repoName) để tạo Pull Request.")
+            : GitHubAccountManager.notConfiguredMessage
     }
 
     private func branchChip(_ name: String, systemImage: String) -> some View {
@@ -149,14 +180,12 @@ struct CreatePullRequestSheet: View {
                       systemImage: "arrow.up.circle")
                     .foregroundStyle(.orange)
             }
-            if !model.canUseGitHubAccount {
-                Label(GitHubAccountManager.shared.isConfigured
-                      ? String(localized: "Cần đăng nhập tài khoản GitHub có quyền với \(repoName) để tạo Pull Request.")
-                      : GitHubAccountManager.notConfiguredMessage,
-                      systemImage: "person.crop.circle.badge.exclamationmark")
+            if !model.canUseForgeAccount {
+                Label(accountHint, systemImage: "person.crop.circle.badge.exclamationmark")
                     .foregroundStyle(.secondary)
             } else {
-                Text("Tiêu đề, mô tả và tên hai nhánh sẽ được gửi lên GitHub.")
+                Text(kind == .github ? String(localized: "Tiêu đề, mô tả và tên hai nhánh sẽ được gửi lên GitHub.")
+                                     : String(localized: "Tiêu đề, mô tả và tên hai nhánh sẽ được gửi lên GitLab."))
                     .foregroundStyle(.secondary)
             }
         }
@@ -171,9 +200,17 @@ struct CreatePullRequestSheet: View {
         if base.isEmpty {
             base = ["main", "master", "develop"].first(where: choices.contains) ?? choices.first ?? ""
         }
-        guard let repo = model.githubRemote?.repo, !AutomationHarness.isActive else { return }
-        let token = await Task.detached { GitHubAccountManager.shared.apiToken(forOwner: repo.owner) }.value
-        if let branch = try? await GitHubRepoAPI().defaultBranch(of: repo, token: token), choices.contains(branch) {
+        guard !AutomationHarness.isActive, let forge else { return }
+        var fetched: String?
+        if let repo = forge.github {
+            let token = await Task.detached { GitHubAccountManager.shared.apiToken(forOwner: repo.owner) }.value
+            fetched = try? await GitHubRepoAPI().defaultBranch(of: repo, token: token)
+        } else if let project = forge.gitlab {
+            let accounts = GitLabAccountManager.shared.store
+            let token = await Task.detached { await accounts.apiToken(forHost: project.host) }.value
+            fetched = try? await GitLabAPI().defaultBranch(of: project, token: token)
+        }
+        if let branch = fetched, choices.contains(branch) {
             defaultBranch = branch
             if !didPrefill || commits.isEmpty { base = branch }
         }

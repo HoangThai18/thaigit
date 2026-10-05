@@ -131,6 +131,23 @@ public final class GitLabAccounts: @unchecked Sendable {
     /// Host có tài khoản (để nhận remote HTTPS của GitLab tự host).
     public var hosts: Set<String> { Set(accounts.map(\.host)) }
 
+    /// Tài khoản dùng cho một host: khớp đúng host (kể cả cổng) rồi mới khớp theo tên host; ưu tiên `preferredUser`.
+    public func account(forHost host: String, preferredUser: String? = nil) -> GitLabAccount? {
+        let bare = GitLabProjectRef.stripPort(host.lowercased())
+        let known = accounts
+        let candidates = known.filter { $0.host == host.lowercased() }.isEmpty
+            ? known.filter { GitLabProjectRef.stripPort($0.host) == bare }
+            : known.filter { $0.host == host.lowercased() }
+        let wanted = preferredUser?.lowercased()
+        return candidates.first(where: { $0.user.username.lowercased() == wanted }) ?? candidates.first
+    }
+
+    /// Token API dùng ngay của tài khoản ứng với `host` (làm mới nếu sắp hết hạn); nil khi chưa có tài khoản / token.
+    public func apiToken(forHost host: String, preferredUser: String? = nil) async -> String? {
+        guard let account = account(forHost: host, preferredUser: preferredUser) else { return nil }
+        return await validToken(for: account)?.accessToken
+    }
+
     /// Thêm (hoặc cập nhật token của) tài khoản sau khi đăng nhập / dán token.
     public func add(host: String, user: GitLabUser, token: GitLabToken) throws -> GitLabAccount {
         let account = GitLabAccount(host: host, user: user)

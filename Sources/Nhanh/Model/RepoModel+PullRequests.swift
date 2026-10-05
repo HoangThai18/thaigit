@@ -239,8 +239,15 @@ extension RepoModel {
         return items
     }
 
-    /// Mục menu của nhánh: mở PR đang có, hoặc tạo PR mới từ nhánh này.
+    /// Mục menu của nhánh: mở PR đang có, hoặc tạo PR mới từ nhánh này (remote GitLab: tạo Merge Request).
     func pullRequestMenuItems(for ref: GitRef) -> [MenuItemSpec] {
+        if let forge = forgeRemote, forge.kind == .gitlab, ref.kind != .tag {
+            if ref.kind == .remoteBranch, ref.remoteName != forge.name { return [] }
+            return [.action(String(localized: "Tạo Merge Request từ \(ref.kind == .remoteBranch ? ref.shortBranchName : ref.name)…"),
+                            systemImage: "arrow.triangle.pull") { [weak self] in
+                self?.beginCreatePullRequest(from: ref)
+            }]
+        }
         guard let remote = githubRemote?.name, ref.kind != .tag else { return [] }
         if let pull = pullRequest(for: ref) {
             return [.action(String(localized: "Mở Pull Request #\(pull.number) trên GitHub"), systemImage: "arrow.triangle.pull", enabled: pull.webURL != nil) {
@@ -256,14 +263,16 @@ extension RepoModel {
 
     // MARK: - Tạo PR
 
-    /// Mở hộp tạo PR cho nhánh `ref` (mặc định: nhánh hiện tại).
+    /// Mở hộp tạo PR (remote GitLab: Merge Request) cho nhánh `ref` (mặc định: nhánh hiện tại).
     func beginCreatePullRequest(from ref: GitRef? = nil) {
-        guard githubRemote != nil else {
-            toast(.info, String(localized: "Repo này chưa có remote trên GitHub"))
+        guard let forge = forgeRemote else {
+            toast(.info, String(localized: "Repo này chưa có remote trên GitHub hoặc GitLab"))
             return
         }
         guard let ref = ref ?? currentBranchRef else {
-            toast(.warning, String(localized: "Cần đứng trên một nhánh (hoặc chuột phải vào nhánh) để tạo Pull Request"))
+            toast(.warning, forge.kind == .github
+                ? String(localized: "Cần đứng trên một nhánh (hoặc chuột phải vào nhánh) để tạo Pull Request")
+                : String(localized: "Cần đứng trên một nhánh (hoặc chuột phải vào nhánh) để tạo Merge Request"))
             return
         }
         sheet = .createPullRequest(head: ref.kind == .remoteBranch ? ref.shortBranchName : ref.name)
@@ -271,7 +280,7 @@ extension RepoModel {
 
     /// Nhánh local tên `head` cần push trước khi tạo PR (chưa có trên remote GitHub hoặc còn commit chưa push).
     func pendingPush(forPullRequestHead head: String) -> PushRequest? {
-        guard let remote = githubRemote?.name,
+        guard let remote = forgeRemote?.name,
               let local = localBranches.first(where: { $0.name == head }) else { return nil }
         if let upstream = local.upstream, !local.upstreamGone, let target = splitUpstream(upstream), target.remote == remote {
             return local.ahead > 0
@@ -284,15 +293,20 @@ extension RepoModel {
     /// Tên nhánh trên GitHub ứng với `head` (nhánh local đã có upstream thì lấy tên nhánh upstream).
     func pullRequestHeadBranch(_ head: String) -> String {
         if let local = localBranches.first(where: { $0.name == head }), let upstream = local.upstream,
-           let target = splitUpstream(upstream), target.remote == githubRemote?.name {
+           let target = splitUpstream(upstream), target.remote == forgeRemote?.name {
             return target.branch
         }
         return head
     }
 
-    /// Push (nếu cần) rồi gửi PR lên GitHub. Chỉ gửi tiêu đề / mô tả / tên nhánh người dùng vừa xem trong hộp thoại.
+    /// Push (nếu cần) rồi gửi PR lên GitHub (remote GitLab: Merge Request). Chỉ gửi tiêu đề / mô tả / tên nhánh người dùng vừa xem
+    /// trong hộp thoại.
     func createPullRequest(_ new: NewPullRequest, pushFirst push: PushRequest?) {
-        guard let repo = githubRemote?.repo else { return }
+        if let forge = forgeRemote, forge.kind == .gitlab, let project = forge.gitlab {
+            createMergeRequest(new, in: project, pushFirst: push)
+            return
+        }
+        guard let repo = forgeRemote?.github else { return }
         let progress = progressReporter()
         var created: GitHubPullRequest?
         perform(push == nil ? String(localized: "Tạo Pull Request") : String(localized: "Push & tạo Pull Request"), showsProgress: true, refresh: [.refs, .status]) { git in

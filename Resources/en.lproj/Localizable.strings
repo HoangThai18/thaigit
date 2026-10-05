@@ -222,10 +222,13 @@
 "Cần có ít nhất một commit trước khi tạo nhánh" = "You need at least one commit before creating a branch";
 "Cần macOS 26 trở lên (Apple Intelligence)" = "Requires macOS 26 or later (Apple Intelligence)";
 "Cần đăng nhập GitHub (tài khoản có quyền với %@/%@) để tạo Pull Request" = "Sign in to GitHub (with an account that has access to %@/%@) to create a Pull Request";
+"Cần thêm tài khoản GitLab (có quyền với %@) trong Cài đặt để tạo Merge Request" = "Add a GitLab account (with access to %@) in Settings to create a Merge Request";
 "Cần đăng nhập lại (không có token trong Keychain)" = "Needs signing in again (no token in the Keychain)";
 "Cần đăng nhập tài khoản GitHub có quyền với %@ để tạo Pull Request." = "Sign in with a GitHub account that has access to %@ to create a Pull Request.";
+"Cần thêm tài khoản GitLab có quyền với %@ (Cài đặt → SSH) để tạo Merge Request." = "Add a GitLab account with access to %@ (Settings → SSH) to create a Merge Request.";
 "Cần đặt tên và email cho Git trước khi commit" = "Set your Git name and email before committing";
 "Cần đứng trên một nhánh (hoặc chuột phải vào nhánh) để tạo Pull Request" = "Be on a branch (or right-click a branch) to create a Pull Request";
+"Cần đứng trên một nhánh (hoặc chuột phải vào nhánh) để tạo Merge Request" = "Be on a branch (or right-click a branch) to create a Merge Request";
 "Cần đứng trên một nhánh để merge" = "You need to be on a branch to merge";
 "Cần đứng trên một nhánh để pull" = "You need to be on a branch to pull";
 "Cần đứng trên một nhánh để push" = "You need to be on a branch to push";
@@ -517,6 +520,12 @@
 "Không được chứa khoảng trắng hoặc ký tự ~ ^ : ? * [ \\" = "Can't contain spaces or the characters ~ ^ : ? * [ \\";
 "Không được kết thúc bằng / . hoặc .lock" = "Can't end with / . or .lock";
 "Không đọc / ghi được Keychain của macOS. Hãy mở khoá Keychain rồi thử lại." = "Couldn't read or write the macOS Keychain. Unlock the Keychain and try again.";
+"Không thấy project trên GitLab — project riêng tư cần đăng nhập tài khoản có quyền." = "Project not found on GitLab — a private project needs an account with access.";
+"Tài khoản GitLab này không có quyền tạo Merge Request ở project này (token cần quyền api)." = "This GitLab account isn't allowed to create Merge Requests in this project (the token needs the api scope).";
+"Nhánh này đã có Merge Request đang mở." = "This branch already has an open Merge Request.";
+"Nhánh nguồn chưa có trên GitLab — hãy push lên trước." = "The source branch isn't on GitLab yet — push it first.";
+"Nhánh đích không có trên GitLab." = "The target branch doesn't exist on GitLab.";
+"GitLab không nhận Merge Request này — hai nhánh có khác nhau và đã push chưa?" = "GitLab didn't accept this Merge Request — are the two branches different, and has the source been pushed?";
 "Không đọc / ghi được file trên máy — kiểm tra quyền truy cập và dung lượng ổ đĩa." = "Couldn't read / write files on this Mac — check permissions and free disk space.";
 "Không đọc được dòng thời gian" = "Couldn’t read the timeline";
 "Không đọc được patch của commit" = "Couldn't read the commit's patch";
@@ -630,6 +639,8 @@
 "Mở trong Terminal" = "Open in Terminal";
 "Mở trong tab mới" = "Open in New Tab";
 "Mở trên GitHub" = "Open on GitHub";
+"Mở Cài đặt…" = "Open Settings…";
+"Mở trên GitLab" = "Open on GitLab";
 "Mở trên web" = "Open on the Web";
 "Mở trình giải quyết xung đột" = "Open the conflict resolver";
 "Mở worktree %@" = "Open Worktree %@";
@@ -695,6 +706,7 @@
 "Pull trước" = "Pull First";
 "Push %@ lên %@" = "Push %@ to %@";
 "Push & tạo Pull Request" = "Push & Create Pull Request";
+"Push & tạo Merge Request" = "Push & Create Merge Request";
 "Push bị từ chối — remote có commit mà máy bạn chưa có" = "Push rejected — the remote has commits you don't have yet";
 "Push lên remote" = "Push to Remote";
 "Push tag %@ lên %@" = "Push Tag %@ to %@";
@@ -718,7 +730,7 @@
 "Repo chỉ đang lấy một vài nhánh của %@ nên các nhánh khác trên remote không hiện, kể cả khi Fetch." = "The repository only tracks a few branches of %@, so other branches on the remote don't show up, even after Fetch.";
 "Repo công khai" = "Public repository";
 "Repo của %@ dùng @%@, nhưng commit đang ký %@." = "Repositories of %@ use @%@, but commits are signed as %@.";
-"Repo này chưa có remote trên GitHub" = "This repository has no GitHub remote yet";
+"Repo này chưa có remote trên GitHub hoặc GitLab" = "This repository has no GitHub or GitLab remote yet";
 "Repo này giờ commit với tên %@ <%@>" = "This repository now commits as %@ <%@>";
 "Repo này không có remote trên GitHub" = "This repository has no GitHub remote";
 "Repo riêng tư" = "Private repository";
@@ -850,6 +862,7 @@
 "Thử lại" = "Try Again";
 "Tiêu đề" = "Title";
 "Tiêu đề, mô tả và tên hai nhánh sẽ được gửi lên GitHub." = "The title, description and both branch names will be sent to GitHub.";
+"Tiêu đề, mô tả và tên hai nhánh sẽ được gửi lên GitLab." = "The title, description and both branch names will be sent to GitLab.";
 "Tiếp tục" = "Continue";
 "Tiếp tục %@" = "Continue %@";
 "Tiền tố feature" = "Feature prefix";
@@ -867,7 +880,7 @@
 "Trang cài đặt" = "Installation Page";
 "Trong diff: đỏ là chỉ có ở “Từ”, xanh là chỉ có ở “Tới”. Giữ ⌘ và bấm 2 commit trên graph để so sánh hai commit bất kỳ." = "In the diff: red is only in “From”, green is only in “To”. Hold ⌘ and click 2 commits in the graph to compare any two commits.";
 "Trong khung Kết quả còn dòng <<<<<<< / ======= / >>>>>>>. Lưu như vậy thì file vẫn chứa dấu xung đột." = "The result still contains <<<<<<< / ======= / >>>>>>> lines. Saving it like this keeps the conflict markers in the file.";
-"Trên github.com/%@" = "On github.com/%@";
+"Trên %@" = "On %@";
 "Trước" = "Before";
 "Trước khi khôi phục" = "Before restore";
 "Tài khoản" = "Accounts";
@@ -911,7 +924,11 @@
 "Tạo & checkout" = "Create & Check Out";
 "Tạo API token…" = "Create API Token…";
 "Tạo Pull Request" = "Create Pull Request";
+"Tạo Merge Request" = "Create Merge Request";
 "Tạo Pull Request từ %@…" = "Create Pull Request from %@…";
+"Tạo Merge Request từ nhánh hiện tại" = "Create a Merge Request from the current branch";
+"Tạo Pull Request từ nhánh hiện tại" = "Create a Pull Request from the current branch";
+"Tạo Merge Request từ %@…" = "Create Merge Request from %@…";
 "Tạo Pull Request…" = "Create Pull Request…";
 "Tạo branch mới…" = "New Branch…";
 "Tạo dạng nháp (Draft) — chưa nhờ review" = "Create as Draft — not ready for review";
@@ -1187,6 +1204,7 @@
 "Đã tiếp tục" = "Continued";
 "Đã tạo %@%@ từ %@" = "Created %@%@ from %@";
 "Đã tạo Pull Request #%lld" = "Created Pull Request #%lld";
+"Đã tạo Merge Request !%lld" = "Created Merge Request !%lld";
 "Đã tạo commit revert “%@”" = "Created revert commit “%@”";
 "Đã tạo khoá SSH “%@”. Thêm khoá công khai lên GitHub / GitLab để dùng." = "Created SSH key “%@”. Add its public key to GitHub / GitLab to use it.";
 "Đã tạo nhánh %@" = "Created branch %@";

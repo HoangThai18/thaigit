@@ -142,5 +142,6 @@ enum ToolColor {
     static let branch = Color(nsColor: .systemPurple)
     static let stash = Color(nsColor: .systemOrange)
     static let pop = Color(nsColor: .systemOrange)
+    static let request = Color(nsColor: .systemPink)
     static let neutral = Color(nsColor: .secondaryLabelColor)
 }

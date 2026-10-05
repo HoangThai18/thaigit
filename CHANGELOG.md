@@ -10,6 +10,7 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Terminal ngay trong cửa sổ repo (nút Terminal trên thanh công cụ hoặc ⌃`): terminal thật như Terminal.app — có màu, chạy được vim, `git rebase -i`, ssh…, nhiều tab, kéo để đổi chiều cao
 - Menu chuột phải của commit đầy đủ hơn: sửa message, xoá commit, đưa commit lên / xuống, sao chép patch và sao chép link commit trên web — đều có Hoàn tác
 - Hết cảnh mỗi lần mở app sau khi cập nhật lại bị macOS hỏi quyền dùng mật khẩu đã lưu: sau bản này chỉ cần bấm “Luôn cho phép” một lần
+- Nút PR (GitLab là MR) ngay trên thanh công cụ của mỗi tab repo để tạo Pull Request / Merge Request cho nhánh đang đứng; repo ở GitLab (gitlab.com hoặc máy chủ tự host) giờ cũng tạo được Merge Request, nhánh chưa push thì tự push trước
 
 ## 1.3.0 — 2026-10-05
 
