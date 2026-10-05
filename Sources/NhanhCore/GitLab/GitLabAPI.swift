@@ -1,0 +1,292 @@
+import Foundation
+
+/// Lỗi khi nói chuyện với GitLab. Thông báo viết cho người dùng — không chứa token hay nội dung phản hồi thô.
+public enum GitLabError: LocalizedError, Sendable, Equatable {
+    case notConfigured
+    case invalidHost
+    case expired
+    case accessDenied
+    case unauthorized
+    case network
+    case badResponse(Int)
+    case invalidResponse
+    case keychain(Int32)
+
+    public var errorDescription: String? {
+        switch self {
+        case .notConfigured: return String(localized: "Bản này chưa có OAuth App của GitLab — hãy thêm tài khoản bằng token.")
+        case .invalidHost: return String(localized: "Địa chỉ máy chủ GitLab không hợp lệ (vd. gitlab.com hoặc gitlab.cong-ty.vn).")
+        case .expired: return String(localized: "Mã xác nhận đã hết hạn — hãy đăng nhập lại để lấy mã mới.")
+        case .accessDenied: return String(localized: "Bạn đã từ chối cấp quyền cho Thaigit trên GitLab.")
+        case .unauthorized: return String(localized: "Token GitLab không hợp lệ hoặc đã hết hạn — đăng nhập lại hoặc tạo token mới.")
+        case .network: return String(localized: "Không kết nối được tới máy chủ GitLab. Kiểm tra mạng rồi thử lại.")
+        case .badResponse(let status): return String(localized: "GitLab trả về lỗi \(status).")
+        case .invalidResponse: return String(localized: "Phản hồi của GitLab không đúng định dạng.")
+        case .keychain: return String(localized: "Không đọc / ghi được Keychain của macOS. Hãy mở khoá Keychain rồi thử lại.")
+        }
+    }
+}
+
+/// Người dùng GitLab (`GET /api/v4/user`).
+public struct GitLabUser: Codable, Sendable, Equatable {
+    public let id: Int
+    public let username: String
+    public let name: String?
+    public let avatarURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, username, name
+        case avatarURL = "avatar_url"
+    }
+
+    public init(id: Int, username: String, name: String?, avatarURL: String?) {
+        self.id = id
+        self.username = username
+        self.name = name
+        self.avatarURL = avatarURL
+    }
+}
+
+/// Token GitLab: token OAuth (sống ~2 giờ, làm mới bằng refresh token) hoặc personal access token do người dùng dán.
+public struct GitLabToken: Codable, Sendable, Equatable, CustomStringConvertible {
+    public let accessToken: String
+    public let refreshToken: String?
+    public let expiresAt: Date?
+
+    public init(accessToken: String, refreshToken: String?, expiresAt: Date?) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.expiresAt = expiresAt
+    }
+
+    /// Token OAuth (có refresh token) — git dùng username "oauth2".
+    public var isOAuth: Bool { refreshToken != nil }
+
+    /// Sắp hết hạn (còn dưới 2 phút) thì làm mới trước khi dùng.
+    public func needsRefresh(now: Date = Date()) -> Bool {
+        guard let expiresAt, refreshToken != nil else { return false }
+        return expiresAt.timeIntervalSince(now) < 120
+    }
+
+    public var description: String { "GitLabToken(<ẩn>)" }
+}
+
+/// Mã đăng nhập của device flow.
+public struct GitLabDeviceCode: Sendable, Equatable {
+    public let deviceCode: String
+    public let userCode: String
+    public let verificationURL: URL
+    public let expiresIn: Int
+    public let interval: Int
+}
+
+/// API GitLab (gitlab.com hoặc tự host): device flow OAuth (public client, không client secret), làm mới token, người
+/// dùng hiện tại, thêm khoá SSH. Mọi request chỉ tới `https://<host>` của chính tài khoản.
+public struct GitLabAPI: Sendable {
+    public typealias Transport = @Sendable (URLRequest) async throws -> (Data, HTTPURLResponse)
+
+    public static let scopes = "api read_user read_repository write_repository"
+    static let userAgent = "Thaigit"
+
+    let transport: Transport
+    let sleep: @Sendable (Duration) async throws -> Void
+
+    public init(transport: Transport? = nil, sleep: (@Sendable (Duration) async throws -> Void)? = nil) {
+        self.transport = transport ?? { request in
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw GitLabError.invalidResponse }
+            return (data, http)
+        }
+        self.sleep = sleep ?? { try await Task.sleep(for: $0) }
+    }
+
+    /// "gitlab.com", "https://gitlab.cong-ty.vn/" → host viết thường; nil nếu không hợp lệ.
+    public static func normalizedHost(_ text: String) -> String? {
+        var value = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let scheme = value.range(of: "://") { value = String(value[scheme.upperBound...]) }
+        value = String(value.prefix { $0 != "/" })
+        guard !value.isEmpty, value.count < 256, !value.contains("@"),
+              value.allSatisfy({ $0.isLetter || $0.isNumber || "-.:".contains($0) }),
+              value.contains(".") || value.hasPrefix("localhost")
+        else { return nil }
+        return value
+    }
+
+    // MARK: - Device flow
+
+    public func requestDeviceCode(host: String, clientID: String) async throws -> GitLabDeviceCode {
+        let (data, response) = try await send(Self.formRequest(host: host, path: "/oauth/authorize_device", [
+            ("client_id", clientID), ("scope", Self.scopes),
+        ]))
+        if [400, 401, 404].contains(response.statusCode) { throw GitLabError.notConfigured }
+        guard (200..<300).contains(response.statusCode) else { throw GitLabError.badResponse(response.statusCode) }
+        guard let body = try? JSONDecoder().decode(OAuthResponse.self, from: data),
+              let deviceCode = body.deviceCode, let userCode = body.userCode, !deviceCode.isEmpty, !userCode.isEmpty
+        else { throw GitLabError.invalidResponse }
+        return GitLabDeviceCode(
+            deviceCode: deviceCode,
+            userCode: userCode,
+            verificationURL: Self.sameHostPage(body.verificationURIComplete ?? body.verificationURI, host: host),
+            expiresIn: max(1, body.expiresIn ?? 300),
+            interval: max(1, body.interval ?? 5)
+        )
+    }
+
+    /// Hỏi token theo `interval` cho tới khi người dùng xác nhận.
+    public func pollForToken(host: String, clientID: String, code: GitLabDeviceCode, now: @Sendable () -> Date = Date.init) async throws -> GitLabToken {
+        var interval = code.interval
+        var waited = 0
+        while true {
+            guard waited + interval <= code.expiresIn else { throw GitLabError.expired }
+            try await sleep(.seconds(interval))
+            waited += interval
+            try Task.checkCancellation()
+            let (data, response) = try await send(Self.formRequest(host: host, path: "/oauth/token", [
+                ("client_id", clientID), ("device_code", code.deviceCode),
+                ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
+            ]))
+            let body = try? JSONDecoder().decode(OAuthResponse.self, from: data)
+            if let token = body?.token(now: now()) { return token }
+            switch body?.error {
+            case "authorization_pending"?: continue
+            case "slow_down"?: interval += 5
+            case "expired_token"?: throw GitLabError.expired
+            case "access_denied"?: throw GitLabError.accessDenied
+            case "invalid_client"?, "unauthorized_client"?: throw GitLabError.notConfigured
+            default:
+                if response.statusCode >= 500 { continue }
+                throw GitLabError.badResponse(response.statusCode)
+            }
+        }
+    }
+
+    /// Làm mới token OAuth (public client: chỉ cần client ID). Refresh token cũ hết hiệu lực sau lần này.
+    public func refresh(host: String, clientID: String, token: GitLabToken, now: Date = Date()) async throws -> GitLabToken {
+        guard let refreshToken = token.refreshToken else { return token }
+        let (data, response) = try await send(Self.formRequest(host: host, path: "/oauth/token", [
+            ("client_id", clientID), ("refresh_token", refreshToken), ("grant_type", "refresh_token"),
+        ]))
+        if [400, 401].contains(response.statusCode) { throw GitLabError.unauthorized }
+        guard (200..<300).contains(response.statusCode) else { throw GitLabError.badResponse(response.statusCode) }
+        guard let fresh = (try? JSONDecoder().decode(OAuthResponse.self, from: data))?.token(now: now) else {
+            throw GitLabError.invalidResponse
+        }
+        return fresh
+    }
+
+    // MARK: - REST API
+
+    public func fetchUser(host: String, token: String) async throws -> GitLabUser {
+        let (data, response) = try await send(Self.apiRequest(host: host, path: "/api/v4/user", token: token))
+        try Self.check(response)
+        guard let user = try? JSONDecoder().decode(GitLabUser.self, from: data) else { throw GitLabError.invalidResponse }
+        return user
+    }
+
+    public enum SSHKeyUpload: Sendable, Equatable {
+        case added, alreadyExists, missingScope
+    }
+
+    /// Thêm khoá SSH công khai (`POST /api/v4/user/keys`, cần scope `api`).
+    public func addSSHKey(host: String, token: String, title: String, publicKey: String) async throws -> SSHKeyUpload {
+        var request = Self.apiRequest(host: host, path: "/api/v4/user/keys", token: token)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["title": title, "key": publicKey])
+        let (data, response) = try await send(request)
+        switch response.statusCode {
+        case 200..<300: return .added
+        case 403: return .missingScope
+        case 400:
+            let text = String(decoding: data, as: UTF8.self).lowercased()
+            if text.contains("taken") || text.contains("already") { return .alreadyExists }
+            throw GitLabError.badResponse(400)
+        default:
+            try Self.check(response)
+            throw GitLabError.badResponse(response.statusCode)
+        }
+    }
+
+    // MARK: - Nội bộ
+
+    private struct OAuthResponse: Decodable {
+        var deviceCode: String?
+        var userCode: String?
+        var verificationURI: String?
+        var verificationURIComplete: String?
+        var expiresIn: Int?
+        var interval: Int?
+        var accessToken: String?
+        var refreshToken: String?
+        var error: String?
+
+        enum CodingKeys: String, CodingKey {
+            case deviceCode = "device_code"
+            case userCode = "user_code"
+            case verificationURI = "verification_uri"
+            case verificationURIComplete = "verification_uri_complete"
+            case expiresIn = "expires_in"
+            case interval
+            case accessToken = "access_token"
+            case refreshToken = "refresh_token"
+            case error
+        }
+
+        func token(now: Date) -> GitLabToken? {
+            guard let accessToken, !accessToken.isEmpty else { return nil }
+            return GitLabToken(accessToken: accessToken, refreshToken: refreshToken,
+                               expiresAt: expiresIn.map { now.addingTimeInterval(TimeInterval($0)) })
+        }
+    }
+
+    private func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        do {
+            return try await transport(request)
+        } catch let error as GitLabError {
+            throw error
+        } catch {
+            if Task.isCancelled || error is CancellationError { throw CancellationError() }
+            throw GitLabError.network
+        }
+    }
+
+    static func check(_ response: HTTPURLResponse) throws {
+        switch response.statusCode {
+        case 200..<300: return
+        case 401: throw GitLabError.unauthorized
+        default: throw GitLabError.badResponse(response.statusCode)
+        }
+    }
+
+    /// Chỉ mở trang xác nhận https trên đúng host đó.
+    static func sameHostPage(_ text: String?, host: String) -> URL {
+        let fallback = URL(string: "https://\(host)/oauth/device")!
+        guard let text, let url = URL(string: text), url.scheme == "https", url.host?.lowercased() == host.split(separator: ":").first.map(String.init)
+        else { return fallback }
+        return url
+    }
+
+    static func url(host: String, path: String) -> URL {
+        URL(string: "https://\(host)\(path)")!
+    }
+
+    static func formRequest(host: String, path: String, _ fields: [(String, String)]) -> URLRequest {
+        var request = URLRequest(url: url(host: host, path: path))
+        request.httpMethod = "POST"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.httpBody = Data(GitHubAuth.formEncoded(fields).utf8)
+        return request
+    }
+
+    static func apiRequest(host: String, path: String, token: String) -> URLRequest {
+        var request = URLRequest(url: url(host: host, path: path))
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        return request
+    }
+}

@@ -101,10 +101,18 @@ public struct GitRunner: Sendable {
         credentialURLs: [String] = [],
         onProgress: (@Sendable (String) -> Void)? = nil
     ) async throws -> ProcessOutput {
-        let (environment, github, ssh) = environmentStore.snapshot()
+        let (environment, github, ssh, gitlab) = environmentStore.snapshot()
         // Lệnh chạm remote HTTPS trên github.com: thêm credential helper chọn token theo owner, đọc token từ biến môi
         // trường của riêng tiến trình này. Nhật ký lệnh và GitError chỉ giữ `arguments` của người gọi — không chứa token.
-        let credentials = GitCredentialInjection.additions(forURLs: credentialURLs, credentials: github)
+        var credentials = GitCredentialInjection.additions(forURLs: credentialURLs, credentials: github)
+        // Remote HTTPS trên một host GitLab đã đăng nhập (gitlab.com, GitLab tự host): token qua helper riêng, token OAuth
+        // sắp hết hạn được làm mới trước.
+        if let gitlab, !credentialURLs.isEmpty {
+            let credential = await gitlab.accounts.credential(forURLs: credentialURLs)
+            let extra = GitLabCredentialInjection.additions(for: credential, helperPath: gitlab.helperPath)
+            credentials.arguments += extra.arguments
+            for (key, value) in extra.environment { credentials.environment[key] = value }
+        }
         var variables = environment.variables
         for (key, value) in credentials.environment { variables[key] = value }
         for (key, value) in extra { variables[key] = value }

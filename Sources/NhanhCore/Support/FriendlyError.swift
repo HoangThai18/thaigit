@@ -68,6 +68,7 @@ public enum FriendlyError {
         case let error as GitHubRepoAPIError: return message(for: error)
         case let error as JiraError: return message(for: error)
         case let error as SSHKeyError: return error.errorDescription ?? unexpected
+        case let error as GitLabError: return error.errorDescription ?? unexpected
         case is ProcessLaunchError: return String(localized: "Không chạy được công cụ cần thiết (git / git-lfs…) — kiểm tra đã cài đặt.")
         case let error as URLError: return error.code == .cancelled ? cancelled : network
         case is CocoaError: return fileAccess

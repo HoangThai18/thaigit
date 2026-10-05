@@ -136,6 +136,29 @@ final class SSHKeyManager {
         }
     }
 
+    /// Thêm khoá công khai lên tài khoản GitLab. Token thiếu quyền `api` thì sao chép khoá và mở trang thêm khoá.
+    func addToGitLab(_ key: SSHKeyInfo, account: GitLabAccount) {
+        busy = true
+        problem = nil
+        Task {
+            defer { busy = false }
+            do {
+                switch try await GitLabAccountManager.shared.addSSHKey(account: account, title: Self.uploadTitle(key), publicKey: key.publicKey) {
+                case .added:
+                    notice = String(localized: "Đã thêm khoá “\(key.name)” lên \(account.host) @\(account.user.username).")
+                case .alreadyExists:
+                    notice = String(localized: "Khoá “\(key.name)” đã có trên \(account.host).")
+                case .missingScope:
+                    copyPublicKey(key)
+                    NSWorkspace.shared.open(GitLabAccountManager.sshKeysPage(host: account.host))
+                    notice = String(localized: "Token GitLab thiếu quyền api nên chưa thêm khoá tự động được. Đã sao chép khoá và mở trang GitLab — dán vào ô Key rồi bấm Add key.")
+                }
+            } catch {
+                problem = FriendlyError.message(for: error)
+            }
+        }
+    }
+
     // MARK: - Kiểm tra kết nối
 
     /// `ssh -T git@<host>` bằng đúng các khoá của Thaigit (agent tạm), không hỏi gì (BatchMode). Host lần đầu gặp được

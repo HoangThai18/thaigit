@@ -44,6 +44,8 @@
 "Apple Intelligence chưa sẵn sàng" = "Apple Intelligence isn't ready";
 "Apple Intelligence chưa sẵn sàng trên máy này." = "Apple Intelligence isn't ready on this Mac.";
 "Apply (giữ stash)" = "Apply (keep stash)";
+"Bạn đã từ chối cấp quyền cho Thaigit trên GitLab." = "You declined to authorize Thaigit on GitLab.";
+"Bản này chưa có OAuth App của GitLab — hãy thêm tài khoản bằng token." = "This build has no GitLab OAuth app — add the account with a token instead.";
 "Bấm “+%lld” để checkout / merge…" = "Click “+%lld” to check out / merge…";
 "Blame file đang mở" = "Blame Open File";
 "Blame — ai sửa từng dòng" = "Blame — Who Changed Each Line";
@@ -228,6 +230,7 @@
 "Cửa sổ mới" = "New Window";
 "Diff rất lớn" = "Very large diff";
 "Double-click để giữ bản %@" = "Double-click to keep the %@ version";
+"Dán personal access token — dùng cho gitlab.com hoặc GitLab tự host" = "Paste a personal access token — works for gitlab.com and self-hosted GitLab";
 "Dòng chưa commit" = "Uncommitted line";
 "Dòng thời gian" = "Timeline";
 "Dòng thời gian…" = "Timeline…";
@@ -236,6 +239,7 @@
 "Dùng của @%@…" = "Use @%@'s Identity…";
 "Dùng khoá" = "Usage";
 "Dùng khoá của Thaigit cho remote SSH" = "Use Thaigit keys for SSH remotes";
+"Dùng token…" = "Use a Token…";
 "Dùng toàn bộ Current" = "Use All Current";
 "Dùng toàn bộ Incoming" = "Use All Incoming";
 "Dùng toàn bộ bản Current" = "Use All of Current";
@@ -313,7 +317,9 @@
 "GitHub từ chối đăng nhập: %@" = "GitHub rejected the sign-in: %@";
 "GitHub từ chối: %@" = "GitHub rejected: %@";
 "GitHub đang gặp sự cố — thử lại sau." = "GitHub is having problems — try again later.";
+"GitLab trả về lỗi %lld." = "GitLab returned error %lld.";
 "Giải quyết" = "Resolve";
+"Phản hồi của GitLab không đúng định dạng." = "GitLab's response wasn't in the expected format.";
 "Pick — giữ nguyên" = "Pick — keep as is";
 "Giữ Current" = "Keep Current";
 "Giữ Incoming" = "Keep Incoming";
@@ -329,6 +335,7 @@
 "Gắn tag %@" = "Tag %@";
 "Gồm cả file mới (chưa track)" = "Include new (untracked) files";
 "Squash — gộp, giữ message" = "Squash — combine, keep message";
+"Máy chủ" = "Server";
 "Mở danh sách file chưa commit để stage, bỏ stage, huỷ và commit (⌘0)" = "Open the uncommitted files to stage, unstage, discard and commit (⌘0)";
 "Một cột (unified)" = "Unified";
 "Amend thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó" = "Amend the last commit with the staged changes and/or edit its message";
@@ -404,6 +411,7 @@
 "Khoá của máy chủ %@ không khớp với lần trước (known_hosts). Kiểm tra lại mạng trước khi tiếp tục." = "The host key of %@ doesn't match the one seen before (known_hosts). Check your network before continuing.";
 "Khoá phần cứng" = "Hardware key";
 "Khoá đã bị thu hồi" = "Key revoked";
+"Khoá “%@” đã có trên %@." = "Key “%@” is already on %@.";
 "Khoá “%@” đã có trên GitHub." = "Key “%@” is already on GitHub.";
 "Khác" = "Other";
 "Khác với bây giờ" = "Differences from now";
@@ -424,6 +432,7 @@
 "Không cài được bản cập nhật — thử thoát Thaigit rồi mở lại." = "Couldn't install the update — try quitting and reopening Thaigit.";
 "Không cài được bản cập nhật: %@." = "Couldn't install the update: %@.";
 "Không cài được credential helper cho GitHub: %@" = "Couldn't install the GitHub credential helper: %@";
+"Không cài được credential helper cho GitLab." = "Couldn't install the credential helper for GitLab.";
 "Không còn dấu xung đột trong file — có thể bạn đã sửa xong bằng trình soạn thảo." = "No conflict markers left in the file — you may have fixed it in an editor.";
 "Không có PR khớp" = "No matching PRs";
 "Không có PR nào đang mở" = "No open PRs";
@@ -459,6 +468,7 @@
 "Không kết nối được tới GitHub: %@" = "Couldn't connect to GitHub: %@";
 "Không kết nối được tới Jira — kiểm tra mạng rồi thử lại." = "Couldn't connect to Jira — check your network and try again.";
 "Không kết nối được tới Jira: %@" = "Couldn't connect to Jira: %@";
+"Không kết nối được tới máy chủ GitLab. Kiểm tra mạng rồi thử lại." = "Couldn't connect to the GitLab server. Check your network and try again.";
 "Không kết nối được tới remote — kiểm tra mạng rồi thử lại." = "Couldn't connect to the remote — check your network and try again.";
 "Không kết nối được — kiểm tra mạng rồi thử lại." = "Couldn't connect — check your network and try again.";
 "Không lưu được %@" = "Couldn't save %@";
@@ -518,6 +528,7 @@
 "Ký mọi commit" = "Sign all commits";
 "Ký annotated tag" = "Sign annotated tags";
 "Kết nối" = "Connect";
+"Kết nối GitLab để fetch / pull / push repo HTTPS trên gitlab.com hoặc máy chủ GitLab của công ty, và thêm khoá SSH lên GitLab một bước." = "Connect GitLab to fetch / pull / push HTTPS repositories on gitlab.com or your company's GitLab server, and add SSH keys to GitLab in one step.";
 "Kết nối Jira Cloud để xem issue giao cho bạn, tạo nhánh và gắn mã issue vào commit." = "Connect Jira Cloud to see issues assigned to you, create branches and add issue keys to commits.";
 "Kết quả" = "Result";
 "Kết thúc" = "Finish";
@@ -590,6 +601,7 @@
 "Mở các file xung đột ở panel bên phải để chọn bản giữ lại, rồi bấm “Tiếp tục”." = "Open the conflicted files in the right panel to choose what to keep, then click “Continue”.";
 "Mở file" = "Open File";
 "Mở gần đây" = "Open Recent";
+"Mở lại trang GitLab" = "Open GitLab Page Again";
 "Mở repo %@" = "Open Repository %@";
 "Mở repository" = "Open Repository";
 "Mở repository bằng ứng dụng khác" = "Open the repository in another app";
@@ -640,6 +652,7 @@
 "Nhập khoá" = "Import Key";
 "Nhập khoá có sẵn…" = "Import Existing Key…";
 "Nhập mã này trên GitHub rồi bấm Authorize để cho phép Thaigit fetch, pull, push và clone repo của bạn." = "Enter this code on GitHub, then click Authorize to let Thaigit fetch, pull, push and clone your repositories.";
+"Nhập mã này ở trang GitLab vừa mở, rồi bấm Authorize:" = "Enter this code on the GitLab page that just opened, then click Authorize:";
 "Nhập tóm tắt để commit" = "Enter a summary to commit";
 "Nhật ký lệnh git" = "Git Command Log";
 "Nhật ký lệnh git…" = "Git Command Log…";
@@ -779,12 +792,15 @@
 "Thêm lên GitHub (mở trang, dán khoá)…" = "Add to GitHub (open page, paste key)…";
 "Thêm lên GitHub @%@" = "Add to GitHub @%@";
 "Thêm lên GitLab (mở trang, dán khoá)…" = "Add to GitLab (open page, paste key)…";
+"Thêm lên GitLab @%@ (%@)" = "Add to GitLab @%@ (%@)";
 "Thêm mã giảm giá vào giỏ hàng" = "Add a discount code to the cart";
 "Thêm mới" = "Added";
 "Thêm remote" = "Add Remote";
 "Thêm remote %@" = "Add Remote %@";
 "Thêm remote…" = "Add Remote…";
 "Thêm thao tác" = "More Actions";
+"Thêm tài khoản" = "Add Account";
+"Thêm tài khoản GitLab bằng token" = "Add a GitLab Account with a Token";
 "Thêm tài khoản…" = "Add Account…";
 "Thêm vào .gitignore" = "Add to .gitignore";
 "Thêm worktree" = "Add Worktree";
@@ -820,6 +836,9 @@
 "Token GitHub của @%@ không còn hợp lệ — đăng nhập lại" = "The GitHub token of @%@ is no longer valid — sign in again";
 "Token GitHub của @%@ không còn hợp lệ — đăng nhập lại." = "The GitHub token of @%@ is no longer valid — sign in again.";
 "Token GitHub không còn hợp lệ — đăng nhập lại." = "The GitHub token is no longer valid — sign in again.";
+"Token GitLab không hợp lệ hoặc đã hết hạn — đăng nhập lại hoặc tạo token mới." = "The GitLab token is invalid or expired — sign in again or create a new token.";
+"Token GitLab thiếu quyền api nên chưa thêm khoá tự động được. Đã sao chép khoá và mở trang GitLab — dán vào ô Key rồi bấm Add key." = "The GitLab token lacks the api scope, so the key couldn't be added automatically. The key was copied and the GitLab page opened — paste it into the Key field and click Add key.";
+"Token bị xoá khỏi Keychain. Token vẫn còn hiệu lực trên %@ cho tới khi bạn thu hồi trong trang cài đặt GitLab." = "The token is removed from the Keychain. It stays valid on %@ until you revoke it in your GitLab settings.";
 "Trang chủ" = "Home";
 "Trang chủ — mở, clone, tạo repository (⌘1)" = "Home — open, clone, create repositories (⌘1)";
 "Trang cài đặt" = "Installation Page";
@@ -836,6 +855,7 @@
 "Tài khoản GitHub cho repo này" = "GitHub Account for This Repository";
 "Tài khoản GitHub cho repo này…" = "GitHub Account for This Repository…";
 "Tài khoản GitHub…" = "GitHub Accounts…";
+"Tài khoản GitLab" = "GitLab Accounts";
 "Tài khoản này chưa có repo nào." = "This account has no repositories yet.";
 "Tác giả" = "Author";
 "Tác giả: @" = "Author: @";
@@ -888,6 +908,7 @@
 "Tạo nhánh từ issue này và checkout" = "Create a branch from this issue and check it out";
 "Tạo nhánh từ issue, gắn issue vào commit" = "Create a branch from an issue, link issues to commits";
 "Tạo nhánh từ tag…" = "Create Branch from Tag…";
+"Tạo personal access token với quyền api, read_user, read_repository, write_repository rồi dán vào đây. Token chỉ lưu trong Keychain của máy này." = "Create a personal access token with the api, read_user, read_repository and write_repository scopes, then paste it here. The token is stored only in this Mac's Keychain.";
 "Tạo repository" = "Create Repository";
 "Tạo repository mới" = "New Repository";
 "Tạo repository mới…" = "New Repository…";
@@ -895,6 +916,7 @@
 "Tạo tag %@" = "Create Tag %@";
 "Tạo tag tại commit này" = "Create Tag at This Commit";
 "Tạo tag tại đây…" = "Create Tag Here…";
+"Tạo token trên %@…" = "Create a token on %@…";
 "Tạo worktree" = "Create Worktree";
 "Tạo worktree %@" = "Create Worktree %@";
 "Tải / cập nhật mọi submodule" = "Download / Update All Submodules";
@@ -976,10 +998,12 @@
 "Xoá trên remote…" = "Delete on Remote…";
 "Xoá tài khoản" = "Remove Account";
 "Xoá tài khoản @%@?" = "Remove account @%@?";
+"Xoá tài khoản GitLab @%@?" = "Remove GitLab account @%@?";
 "Xoá tài khoản…" = "Remove Account…";
 "Xoá worktree" = "Remove Worktree";
 "Xoá worktree %@?" = "Remove worktree %@?";
 "Xoá worktree…" = "Remove Worktree…";
+"Xoá…" = "Remove…";
 "Xung đột" = "Conflicts";
 "Xung đột %lld/%lld" = "Conflict %lld/%lld";
 "Xung đột cần giải quyết (%lld)" = "Conflicts to resolve (%lld)";
@@ -1034,9 +1058,11 @@
 "Đang chỉ hiện nhánh này (solo)" = "Showing only this branch (solo)";
 "Đang dùng" = "In use";
 "Đang dùng: %@ <%@>" = "In use: %@ <%@>";
+"Đang hoàn tất…" = "Finishing…";
 "Đang kiểm tra…" = "Checking…";
 "Đang kết nối…" = "Connecting…";
 "Đang lấy mã xác nhận từ GitHub…" = "Getting a verification code from GitHub…";
+"Đang lấy mã đăng nhập…" = "Getting a sign-in code…";
 "Đang merge" = "Merging";
 "Đang mở repository…" = "Opening repository…";
 "Đang phát triển" = "In development";
@@ -1122,6 +1148,7 @@
 "Đã stage" = "Staged";
 "Đã sửa" = "Modified";
 "Đã sửa commit trước" = "Previous commit amended";
+"Đã thêm khoá “%@” lên %@ @%@." = "Added key “%@” to %@ @%@.";
 "Đã thêm khoá “%@” lên GitHub @%@." = "Added key “%@” to GitHub @%@.";
 "Đã thêm remote %@" = "Added remote %@";
 "Đã thêm “%@” vào .gitignore" = "Added “%@” to .gitignore";
@@ -1170,6 +1197,8 @@
 "Đăng nhập GitHub để chọn nhanh repo của bạn và clone repo riêng tư qua HTTPS." = "Sign in to GitHub to quickly pick your repositories and clone private ones over HTTPS.";
 "Đăng nhập GitHub để xem PR" = "Sign in to GitHub to see PRs";
 "Đăng nhập GitHub…" = "Sign In to GitHub…";
+"Đăng nhập GitLab.com" = "Sign In to GitLab.com";
+"Đăng nhập GitLab.com…" = "Sign In to GitLab.com…";
 "Đăng nhập bị lỗi khi mật khẩu có dấu" = "Sign-in fails when the password has accents";
 "Đăng nhập lại" = "Sign In Again";
 "Đăng nhập lại @%@" = "Sign In Again as @%@";
@@ -1183,6 +1212,7 @@
 "Để tìm ảnh, Thaigit gửi mã băm SHA-256 của email người commit tới Gravatar; với repo có remote github.com, gửi email người commit tới API GitHub. Tắt thì không gửi gì nữa." = "To find pictures, Thaigit sends a SHA-256 hash of the committer's email to Gravatar; for repositories with a github.com remote, it sends the committer's email to the GitHub API. Turn this off to send nothing.";
 "Địa chỉ" = "Address";
 "Địa chỉ Jira phải là https://…, ví dụ https://cong-ty.atlassian.net" = "The Jira address must be https://…, e.g. https://your-company.atlassian.net";
+"Địa chỉ máy chủ GitLab không hợp lệ (vd. gitlab.com hoặc gitlab.cong-ty.vn)." = "Invalid GitLab server address (e.g. gitlab.com or gitlab.example.com).";
 "Địa chỉ repository" = "Repository address";
 "Đồng bộ" = "Sync";
 "Đồng bộ (pull rồi push)" = "Sync (Pull, Then Push)";

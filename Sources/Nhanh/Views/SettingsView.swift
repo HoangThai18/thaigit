@@ -196,6 +196,7 @@ private struct AccountSettings: View {
                 accountsSection
                 if !github.accounts.isEmpty { ownersSection }
             }
+            GitLabAccountsSection()
         }
         .formStyle(.grouped)
         .sheet(isPresented: $github.settingsLoginRequested) {

@@ -4,8 +4,16 @@ import SwiftUI
 
 /// Thẻ SSH trong Cài đặt: khoá SSH riêng của Thaigit, cất trong Keychain (như 1Password).
 struct SSHSettings: View {
+    /// github.com, gitlab.com và host của các tài khoản GitLab tự host.
+    private var testHosts: [String] {
+        var hosts = ["github.com", "gitlab.com"]
+        for host in gitlab.accounts.map(\.host) where !hosts.contains(host) { hosts.append(host) }
+        return hosts
+    }
+
     @Bindable private var manager = SSHKeyManager.shared
     @Bindable private var github = GitHubAccountManager.shared
+    @Bindable private var gitlab = GitLabAccountManager.shared
     @State private var newKeyName = ""
     @State private var creating = false
     @State private var removing: SSHKeyInfo?
@@ -23,12 +31,14 @@ struct SSHSettings: View {
                     SSHKeyRow(
                         key: key,
                         githubLogins: github.accounts.map(\.login),
+                        gitlabAccounts: gitlab.accounts,
                         onCopy: { manager.copyPublicKey(key) },
                         onGitHub: { manager.addToGitHub(key, login: $0) },
                         onOpenGitHub: {
                             manager.copyPublicKey(key)
                             NSWorkspace.shared.open(SSHKeyManager.githubKeysPage)
                         },
+                        onGitLab: { manager.addToGitLab(key, account: $0) },
                         onOpenGitLab: {
                             manager.copyPublicKey(key)
                             NSWorkspace.shared.open(URL(string: "https://gitlab.com/-/user_settings/ssh_keys")!)
@@ -75,7 +85,7 @@ struct SSHSettings: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    ForEach(["github.com", "gitlab.com"], id: \.self) { host in
+                    ForEach(testHosts, id: \.self) { host in
                         ConnectionRow(host: host, result: manager.connection[host], busy: manager.busy) {
                             manager.testConnection(host: host)
                         }
@@ -107,9 +117,11 @@ struct SSHSettings: View {
 private struct SSHKeyRow: View {
     let key: SSHKeyInfo
     let githubLogins: [String]
+    let gitlabAccounts: [GitLabAccount]
     var onCopy: () -> Void
     var onGitHub: (String) -> Void
     var onOpenGitHub: () -> Void
+    var onGitLab: (GitLabAccount) -> Void
     var onOpenGitLab: () -> Void
     var onRename: (String) -> Void
     var onRemove: () -> Void
@@ -159,6 +171,9 @@ private struct SSHKeyRow: View {
                         Button("Thêm lên GitHub @\(login)") { onGitHub(login) }
                     }
                     Button("Mở trang khoá SSH của GitHub…", action: onOpenGitHub)
+                }
+                ForEach(gitlabAccounts) { account in
+                    Button("Thêm lên GitLab @\(account.user.username) (\(account.host))") { onGitLab(account) }
                 }
                 Button("Thêm lên GitLab (mở trang, dán khoá)…", action: onOpenGitLab)
                 Divider()

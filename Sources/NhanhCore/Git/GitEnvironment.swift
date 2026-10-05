@@ -109,6 +109,7 @@ public final class GitEnvironmentStore: @unchecked Sendable {
     private var current: GitEnvironment
     private var github: GitHubCredentialSet?
     private var ssh: SSHKeyring?
+    private var gitlab: GitLabGitAccess?
 
     public init(_ environment: GitEnvironment) {
         current = environment
@@ -155,11 +156,36 @@ public final class GitEnvironmentStore: @unchecked Sendable {
         }
     }
 
-    /// Môi trường + tài khoản GitHub + khoá SSH đọc trong cùng một lần khoá, cho một lệnh git.
-    func snapshot() -> (environment: GitEnvironment, github: GitHubCredentialSet?, ssh: SSHKeyring?) {
+    /// Tài khoản GitLab + đường dẫn helper: lệnh chạm remote HTTPS của một host GitLab đã đăng nhập nhận token.
+    public var gitlabAccess: GitLabGitAccess? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return gitlab
+        }
+        set {
+            lock.lock()
+            gitlab = newValue
+            lock.unlock()
+        }
+    }
+
+    /// Môi trường + tài khoản GitHub / GitLab + khoá SSH đọc trong cùng một lần khoá, cho một lệnh git.
+    func snapshot() -> (environment: GitEnvironment, github: GitHubCredentialSet?, ssh: SSHKeyring?, gitlab: GitLabGitAccess?) {
         lock.lock()
         defer { lock.unlock() }
-        return (current, github, ssh)
+        return (current, github, ssh, gitlab)
+    }
+}
+
+/// Tài khoản GitLab cho lệnh git: danh sách tài khoản + đường dẫn script `gitlab-credential.sh`.
+public struct GitLabGitAccess: Sendable {
+    public let accounts: GitLabAccounts
+    public let helperPath: String
+
+    public init(accounts: GitLabAccounts, helperPath: String) {
+        self.accounts = accounts
+        self.helperPath = helperPath
     }
 }
 
