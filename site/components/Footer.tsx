@@ -1,27 +1,27 @@
 import Link from 'next/link';
+import { PATHS, type Lang } from '@/lib/i18n';
 import { SITE } from '@/lib/site';
+import { UI } from '@/lib/ui';
 
-export function Footer() {
+export function Footer({ lang }: { lang: Lang }) {
+  const text = UI[lang].footer;
   return (
     <footer className="site-footer">
       <div className="container">
         <div className="footer-brand">
           <img src="/logo-96.png" width={28} height={28} alt="" />
           <div>
-            <strong>Thaigit</strong> — Git client trực quan, miễn phí.
+            <strong>Thaigit</strong> — {text.tagline}
             <br />© {new Date().getFullYear()} {SITE.author}
-            <small>
-              Thaigit là dự án độc lập. Git và tên các sản phẩm khác được nhắc tới là nhãn hiệu của chủ sở hữu
-              tương ứng.
-            </small>
+            <small>{text.disclaimer}</small>
           </div>
         </div>
-        <nav className="footer-links" aria-label="Liên kết cuối trang">
-          <Link href="/mac/">Thaigit cho macOS</Link>
-          <Link href="/windows/">Thaigit cho Windows</Link>
-          <Link href="/huong-dan/">Hướng dẫn Git</Link>
-          <Link href="/nhat-ky/">Nhật ký thay đổi</Link>
-          <Link href="/quyen-rieng-tu/">Quyền riêng tư</Link>
+        <nav className="footer-links" aria-label={text.aria}>
+          <Link href={PATHS.mac[lang]}>{text.mac}</Link>
+          <Link href={PATHS.windows[lang]}>{text.windows}</Link>
+          <Link href={PATHS.guides[lang]}>{text.guides}</Link>
+          <Link href={PATHS.changelog[lang]}>{text.changelog}</Link>
+          <Link href={PATHS.privacy[lang]}>{text.privacy}</Link>
         </nav>
       </div>
     </footer>

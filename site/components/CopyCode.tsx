@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { UI } from '@/lib/ui';
+import { useLang } from './LangProvider';
 
 type CopyState = 'idle' | 'done' | 'failed';
-const LABELS: Record<CopyState, string> = { idle: 'Chép', done: 'Đã chép', failed: 'Hãy chép tay' };
 
-/** Khối lệnh kiểu cửa sổ Terminal, mỗi dòng có dấu `$`, nút "Chép" chép đúng lệnh (không kèm `$`). */
 export function CopyCode({ code, className }: { code: string; className?: string }) {
+  const labels = UI[useLang()].copy;
   const [state, setState] = useState<CopyState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -32,7 +33,7 @@ export function CopyCode({ code, className }: { code: string; className?: string
           <i />
         </span>
         <button type="button" className="copy" onClick={() => void copy()} aria-live="polite">
-          {LABELS[state]}
+          {labels[state]}
         </button>
       </div>
       <pre>

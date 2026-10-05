@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { fetchMacRelease, formatDate, formatSize, type MacRelease } from '@/lib/release';
 import { LINKS } from '@/lib/site';
+import { UI } from '@/lib/ui';
 import { AppleIcon } from './Icons';
+import { useLang } from './LangProvider';
 
-// Một lần hỏi GitHub cho cả trang (nhiều nút tải dùng chung).
 let pending: Promise<MacRelease | null> | null = null;
 
 function useMacRelease(initial: MacRelease | null): MacRelease | null {
@@ -23,7 +24,6 @@ function useMacRelease(initial: MacRelease | null): MacRelease | null {
   return release;
 }
 
-/** Nút tải bản macOS: số phiên bản + dung lượng lấy từ GitHub Releases (dựng sẵn lúc build, làm mới khi mở trang). */
 export function DownloadButton({
   initial,
   className = 'btn btn-primary',
@@ -31,31 +31,32 @@ export function DownloadButton({
   initial: MacRelease | null;
   className?: string;
 }) {
+  const lang = useLang();
+  const text = UI[lang].download;
   const release = useMacRelease(initial);
   return (
     <a className={className} href={LINKS.downloadMac} data-download="mac">
       <AppleIcon />
       <span className="btn-stack">
-        Tải cho macOS
+        {text.mac}
         <span className="sub">
-          {release
-            ? `Phiên bản ${release.version} · ${formatSize(release.size)}`
-            : 'macOS 14 trở lên · miễn phí'}
+          {release ? text.version(release.version, formatSize(release.size, lang)) : text.macFallback}
         </span>
       </span>
     </a>
   );
 }
 
-/** Ngày phát hành + SHA-256 để tự kiểm file tải về (`shasum -a 256 Thaigit-macOS.zip`). */
 export function ReleaseDetails({ initial }: { initial: MacRelease | null }) {
+  const lang = useLang();
+  const text = UI[lang].download;
   const release = useMacRelease(initial);
   if (!release) {
-    return <p className="note">Bản phát hành đầu tiên đang được chuẩn bị.</p>;
+    return <p className="note">{text.noRelease}</p>;
   }
   return (
     <p className="note">
-      Phát hành {formatDate(release.publishedAt)}
+      {text.released} {formatDate(release.publishedAt, lang)}
       {release.sha256 && (
         <>
           <br />

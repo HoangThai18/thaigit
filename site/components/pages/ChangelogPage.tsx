@@ -1,26 +1,20 @@
-import type { Metadata } from 'next';
-import { DownloadCta } from '@/components/DownloadCta';
 import { AppleIcon, WindowsIcon } from '@/components/Icons';
+import { DownloadCta } from '@/components/DownloadCta';
 import { Breadcrumbs } from '@/components/Seo';
 import { formatDate, readChangelog } from '@/lib/changelog';
-import { pageMetadata } from '@/lib/seo';
+import { PATHS, type Lang } from '@/lib/i18n';
+import { PAGE_TEXT } from '@/lib/page-text';
 
-const TITLE = 'Nhật ký thay đổi — Thaigit có gì mới';
-const DESCRIPTION =
-  'Toàn bộ tính năng mới và sửa lỗi của Thaigit qua từng phiên bản, cho cả macOS và Windows.';
-
-export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: '/nhat-ky/' });
-
-export default async function ChangelogPage() {
+export async function ChangelogPage({ lang }: { lang: Lang }) {
+  const text = PAGE_TEXT[lang].changelog;
   const lanes = await readChangelog(Number.POSITIVE_INFINITY);
   return (
     <article className="prose container">
-      <Breadcrumbs items={[{ name: 'Nhật ký thay đổi', path: '/nhat-ky/' }]} />
-      <h1>Nhật ký thay đổi</h1>
-      <p className="lead">
-        Những gì mới trong từng phiên bản Thaigit. App tự cập nhật, bạn không cần tải lại.
-      </p>
-      <nav className="changelog-jump" aria-label="Chọn nền tảng">
+      <Breadcrumbs lang={lang} items={[{ name: text.h1, path: PATHS.changelog[lang] }]} />
+      <h1>{text.h1}</h1>
+      <p className="lead">{text.lead}</p>
+      {text.note && <p className="updated">{text.note}</p>}
+      <nav className="changelog-jump" aria-label="macOS / Windows">
         {lanes.map((lane) => (
           <a key={lane.platform} href={`#${lane.platform === 'Windows' ? 'windows' : 'macos'}`}>
             {lane.platform === 'Windows' ? <WindowsIcon size={16} /> : <AppleIcon size={16} />}{' '}
@@ -35,7 +29,7 @@ export default async function ChangelogPage() {
             <div key={entry.version} className="changelog-entry">
               <h3>
                 {entry.version}
-                {entry.date && <time dateTime={entry.date}>{formatDate(entry.date)}</time>}
+                {entry.date && <time dateTime={entry.date}>{formatDate(entry.date, lang)}</time>}
               </h3>
               {entry.summary && <p>{entry.summary}</p>}
               <ul>
@@ -50,7 +44,7 @@ export default async function ChangelogPage() {
           ))}
         </section>
       ))}
-      <DownloadCta />
+      <DownloadCta lang={lang} />
     </article>
   );
 }

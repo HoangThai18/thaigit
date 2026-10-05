@@ -1,12 +1,13 @@
 import Link from 'next/link';
+import { PATHS, type Lang } from '@/lib/i18n';
 import { SITE } from '@/lib/site';
+import { UI } from '@/lib/ui';
 
 export interface Crumb {
   name: string;
   path: string;
 }
 
-/** Dữ liệu có cấu trúc (schema.org) cho công cụ tìm kiếm. */
 export function JsonLd({ data }: { data: object | object[] }) {
   return (
     <script
@@ -16,12 +17,12 @@ export function JsonLd({ data }: { data: object | object[] }) {
   );
 }
 
-/** Đường dẫn "Trang chủ / … / trang này" — hiện trên trang và gửi kèm BreadcrumbList cho Google. */
-export function Breadcrumbs({ items }: { items: Crumb[] }) {
-  const all = [{ name: 'Trang chủ', path: '/' }, ...items];
+export function Breadcrumbs({ lang, items }: { lang: Lang; items: Crumb[] }) {
+  const text = UI[lang].crumbs;
+  const all = [{ name: text.home, path: PATHS.home[lang] }, ...items];
   return (
     <>
-      <nav className="crumbs" aria-label="Vị trí trang">
+      <nav className="crumbs" aria-label={text.aria}>
         <ol>
           {all.map((item, index) => (
             <li key={item.path}>

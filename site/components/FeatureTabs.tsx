@@ -3,13 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Feature } from '@/lib/content';
 import { SHOTS } from '@/lib/shots';
+import { useLang } from './LangProvider';
 import { Shot } from './Shot';
 
-/**
- * Tính năng chính dạng tab mở rộng + khung ảnh dính bên cạnh. Tự chuyển tab mỗi `seconds` giây khi mục đang hiện trên
- * màn hình; dừng khi rê chuột / đặt focus vào; tắt hẳn khi người dùng chọn giảm chuyển động.
- */
 export function FeatureTabs({ features, seconds = 6 }: { features: Feature[]; seconds?: number }) {
+  const lang = useLang();
   const [active, setActive] = useState(0);
   const [run, setRun] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -81,7 +79,7 @@ export function FeatureTabs({ features, seconds = 6 }: { features: Feature[]; se
                   type="button"
                   className="feature-tab-button"
                   aria-expanded={on}
-                  aria-controls={`${feature.id}-noi-dung`}
+                  aria-controls={`${feature.id}-panel`}
                   onClick={(event) => {
                     event.stopPropagation();
                     select(index);
@@ -90,7 +88,7 @@ export function FeatureTabs({ features, seconds = 6 }: { features: Feature[]; se
                   {feature.title}
                 </button>
               </h3>
-              <div id={`${feature.id}-noi-dung`} className={`collapse${on ? ' open' : ''}`} inert={!on}>
+              <div id={`${feature.id}-panel`} className={`collapse${on ? ' open' : ''}`} inert={!on}>
                 <div>
                   <p>{feature.text}</p>
                   <ul className="check-list">
@@ -118,13 +116,14 @@ export function FeatureTabs({ features, seconds = 6 }: { features: Feature[]; se
               <i />
               <i />
             </span>
-            <span className="window-title">{current ? SHOTS[current.shot].alt : ''}</span>
+            <span className="window-title">{current ? SHOTS[current.shot].alt[lang] : ''}</span>
           </div>
           <div className="preview-stack">
             {features.map((feature, index) => (
               <Shot
                 key={feature.id}
                 name={feature.shot}
+                lang={lang}
                 className={index === active ? 'on' : undefined}
                 alt={index === active ? undefined : ''}
                 sizes="(max-width: 1000px) 100vw, 680px"

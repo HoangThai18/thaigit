@@ -108,8 +108,8 @@
   <div class="badge">
     <div class="ic">✓</div>
     <div>
-      <div class="t1">Giải conflict vài cú bấm</div>
-      <div class="t2">Không cần nhớ lệnh git</div>
+      <div class="t1" data-t="t1">Giải conflict vài cú bấm</div>
+      <div class="t2" data-t="t2">Không cần nhớ lệnh git</div>
     </div>
   </div>
 
@@ -118,12 +118,12 @@
       <img src="../public/logo-256.png" alt="">
       <div class="name">Thaigit</div>
     </div>
-    <div class="eyebrow"><span class="dot"></span>Miễn phí · Giao diện tiếng Việt</div>
-    <h1>Git client <span class="hl">trực quan</span><br>đẹp &amp; dễ dùng</h1>
+    <div class="eyebrow"><span class="dot"></span><span data-t="eyebrow">Miễn phí · Giao diện tiếng Việt</span></div>
+    <h1 data-t="h1">Git client <span class="hl">trực quan</span><br>đẹp &amp; dễ dùng</h1>
     <div class="feats">
-      <span class="chip" style="--c:#f05032"><i></i>Kéo &amp; thả để merge</span>
-      <span class="chip" style="--c:#4b9bf0"><i></i>Stage từng dòng</span>
-      <span class="chip" style="--c:#9b7bf0"><i></i>Graph nhiều màu</span>
+      <span class="chip" style="--c:#f05032"><i></i><span data-t="c1">Kéo &amp; thả để merge</span></span>
+      <span class="chip" style="--c:#4b9bf0"><i></i><span data-t="c2">Stage từng dòng</span></span>
+      <span class="chip" style="--c:#9b7bf0"><i></i><span data-t="c3">Graph nhiều màu</span></span>
     </div>
   </div>
 
@@ -132,5 +132,20 @@
     <span class="pf"><svg viewBox="0 0 24 24"><path d="M3 5.5l7.4-1v7.1H3zm0 13l7.4 1v-7H3zm8.2 1.1L21 21v-8.4h-9.8zm0-15.2v7.2H21V3z"/></svg>Windows</span>
     <span class="url"><b>git.thaipro.store</b></span>
   </div>
+<script>
+const EN = {
+  t1: 'Resolve conflicts in a few clicks',
+  t2: 'No git commands to memorize',
+  eyebrow: 'Free · Vietnamese &amp; English UI',
+  h1: 'A <span class="hl">visual</span> Git client,<br>free &amp; simple',
+  c1: 'Drag &amp; drop to merge',
+  c2: 'Stage line by line',
+  c3: 'Colorful graph'
+};
+if (location.hash === '#en') {
+  document.documentElement.lang = 'en';
+  document.querySelectorAll('[data-t]').forEach((el) => { el.innerHTML = EN[el.dataset.t]; });
+}
+</script>
 </body>
 </html>

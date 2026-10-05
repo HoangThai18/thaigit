@@ -1,9 +1,10 @@
+import Link from 'next/link';
 import { Compare } from '@/components/Compare';
 import { CopyCode } from '@/components/CopyCode';
 import { Effects } from '@/components/Effects';
 import { Faq } from '@/components/Faq';
-import Link from 'next/link';
 import { FeatureTabs } from '@/components/FeatureTabs';
+import { GuideCard } from '@/components/GuideCard';
 import {
   AppleIcon,
   KeyboardIcon,
@@ -15,12 +16,16 @@ import {
   WindowsIcon,
 } from '@/components/Icons';
 import { DownloadButton, ReleaseDetails } from '@/components/ReleaseInfo';
-import { Shot } from '@/components/Shot';
+import { JsonLd } from '@/components/Seo';
+import { Shot, ThemedShot } from '@/components/Shot';
 import { formatDate, readChangelog } from '@/lib/changelog';
 import { FAQ, FEATURES, SMALL_FEATURES, type SmallFeature } from '@/lib/content';
 import { GUIDES } from '@/lib/guides';
+import { HOME } from '@/lib/home-text';
+import { PATHS, type Lang } from '@/lib/i18n';
 import { fetchMacRelease } from '@/lib/release';
-import { LINKS, SITE } from '@/lib/site';
+import { LINKS, SITE, SITE_TEXT } from '@/lib/site';
+import { UI } from '@/lib/ui';
 
 const ICONS: Record<SmallFeature['icon'], () => React.ReactElement> = {
   split: () => <SplitIcon />,
@@ -31,20 +36,17 @@ const ICONS: Record<SmallFeature['icon'], () => React.ReactElement> = {
   keyboard: () => <KeyboardIcon />,
 };
 
-const GALLERY = [
-  { shot: 'diff-split', caption: 'Diff tách đôi: trước | sau' },
-  { shot: 'image-diff', caption: 'Diff ảnh' },
-  { shot: 'welcome', caption: 'Mở, clone hoặc tạo repository' },
-] as const;
-
-/** Số thay đổi hiện sẵn cho mỗi bản; phần còn lại gập trong "Xem thêm". */
 const RELEASE_ITEMS = 4;
+const HOME_GUIDES = 6;
 
-export default async function HomePage() {
-  // Lúc build: số phiên bản mới nhất có sẵn trong HTML (tốt cho SEO); trong trình duyệt nút tải tự làm mới.
+export async function HomePage({ lang }: { lang: Lang }) {
+  const text = HOME[lang];
+  const ui = UI[lang];
+  const faq = FAQ[lang];
+  const showChangelog = lang === 'vi';
   const [release, changelog] = await Promise.all([
     fetchMacRelease({ cache: 'force-cache' }),
-    readChangelog(3),
+    showChangelog ? readChangelog(3) : Promise.resolve([]),
   ]);
 
   const structuredData = [
@@ -52,22 +54,22 @@ export default async function HomePage() {
       '@context': 'https://schema.org',
       '@type': 'SoftwareApplication',
       name: SITE.name,
-      description: SITE.description,
-      url: SITE.url,
+      description: SITE_TEXT[lang].description,
+      url: `${SITE.url}${PATHS.home[lang]}`,
       applicationCategory: 'DeveloperApplication',
       operatingSystem: 'macOS 14+, Windows 10/11',
       downloadUrl: LINKS.downloadMac,
       ...(release ? { softwareVersion: release.version } : {}),
       image: `${SITE.url}/logo-256.png`,
       screenshot: `${SITE.url}/screenshots/overview-1600.webp`,
-      inLanguage: 'vi',
-      offers: { '@type': 'Offer', price: '0', priceCurrency: 'VND' },
+      inLanguage: lang,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: lang === 'vi' ? 'VND' : 'USD' },
       author: { '@type': 'Person', name: SITE.author },
     },
     {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
-      mainEntity: FAQ.map((item) => ({
+      mainEntity: faq.map((item) => ({
         '@type': 'Question',
         name: item.q,
         acceptedAnswer: { '@type': 'Answer', text: item.a.join(' ') },
@@ -77,13 +79,9 @@ export default async function HomePage() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
+      <JsonLd data={structuredData} />
       <Effects />
 
-      {/* Hero */}
       <section className="hero">
         <div className="hero-bg" aria-hidden="true">
           <div className="orb orb-orange" />
@@ -94,32 +92,28 @@ export default async function HomePage() {
         <div className="hero-inner container">
           <span className="eyebrow">
             <span className="pulse-dot" aria-hidden="true" />
-            Miễn phí · Không cần tài khoản
+            {text.hero.eyebrow}
           </span>
           <h1>
-            Git trực quan, làm bằng chuột.
+            {text.hero.titleLine}
             <br />
-            <span className="gradient-text">Miễn phí, nhẹ, dễ dùng.</span>
+            <span className="gradient-text">{text.hero.titleGradient}</span>
           </h1>
-          <p className="lead">
-            Thaigit giúp bạn làm việc với Git bằng chuột: graph lịch sử nhiều màu, kéo nhánh thả lên nhánh để
-            merge, stage từng dòng, giải conflict trong vài cú bấm — không cần nhớ lệnh.
-          </p>
+          <p className="lead">{text.hero.lead}</p>
           <div className="cta">
             <DownloadButton initial={release} />
-            <a className="btn btn-glass" href={LINKS.downloadWindows} title="Thaigit cho Windows 10 / 11">
+            <a className="btn btn-glass" href={LINKS.downloadWindows} title={ui.download.winTitle}>
               <WindowsIcon />
               <span className="btn-stack">
-                Tải cho Windows
-                <span className="sub">Windows 10 / 11 · miễn phí</span>
+                {ui.download.win}
+                <span className="sub">{ui.download.winSub}</span>
               </span>
             </a>
           </div>
           <div className="checks-row">
-            <span>macOS 14 · Windows 10 / 11</span>
-            <span>Tự cập nhật</span>
-            <span>Giao diện tiếng Việt</span>
-            <span>Sáng / tối</span>
+            {text.hero.checks.map((check) => (
+              <span key={check}>{check}</span>
+            ))}
           </div>
 
           <div className="hero-stage">
@@ -127,9 +121,10 @@ export default async function HomePage() {
             <div className="hero-frame" data-tilt>
               <div className="beam" aria-hidden="true" />
               <div className="hero-frame-inner">
-                <Shot
-                  name="overview-dark"
-                  alt="Thaigit: graph commit nhiều màu, sidebar nhánh và panel commit"
+                <ThemedShot
+                  light="overview"
+                  dark="overview-dark"
+                  lang={lang}
                   priority
                   sizes="(max-width: 1140px) 100vw, 1100px"
                 />
@@ -137,55 +132,41 @@ export default async function HomePage() {
             </div>
             <div className="float-badge b1" aria-hidden="true">
               <span className="dot" />
-              Kéo &amp; thả để merge
+              {text.hero.badges.drag}
             </div>
             <div className="float-badge b2" aria-hidden="true">
               <span className="dot" />
-              Tìm &amp; chuyển nhánh
+              {text.hero.badges.switch}
               <kbd>⌘B</kbd>
             </div>
             <div className="float-badge b3" aria-hidden="true">
               <span className="dot" />
-              Stage từng dòng
+              {text.hero.badges.stage}
             </div>
           </div>
 
           <div className="stats">
-            <div className="stat" data-spot data-reveal>
-              <strong>≈ 1 giây</strong>
-              <span>mở repo 30.000 commit</span>
-            </div>
-            <div className="stat" data-spot data-reveal>
-              <strong>Từng dòng</strong>
-              <span>stage, bỏ stage, huỷ</span>
-            </div>
-            <div className="stat" data-spot data-reveal>
-              <strong>1 cú kéo</strong>
-              <span>merge, rebase, push</span>
-            </div>
-            <div className="stat warm" data-spot data-reveal>
-              <strong>0 đồng</strong>
-              <span>miễn phí, không quảng cáo</span>
-            </div>
+            {text.hero.stats.map((stat) => (
+              <div key={stat.value} className={`stat${stat.warm ? ' warm' : ''}`} data-spot data-reveal>
+                <strong>{stat.value}</strong>
+                <span>{stat.label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Tính năng */}
       <section id="tinh-nang" className="section container">
         <div className="section-head" data-reveal>
-          <span className="kicker">Tính năng</span>
-          <h2>Mọi việc với Git, gọn trong một cửa sổ</h2>
-          <p>
-            Thaigit gọi thẳng git trên máy bạn nên kết quả giống hệt dùng terminal — chỉ dễ nhìn và dễ bấm
-            hơn.
-          </p>
+          <span className="kicker">{text.features.kicker}</span>
+          <h2>{text.features.title}</h2>
+          <p>{text.features.text}</p>
         </div>
 
-        <FeatureTabs features={FEATURES} />
+        <FeatureTabs features={FEATURES[lang]} />
 
         <div className="cards">
-          {SMALL_FEATURES.map((feature) => (
+          {SMALL_FEATURES[lang].map((feature) => (
             <div
               key={feature.title}
               className="card"
@@ -201,20 +182,19 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Giao diện */}
       <section className="section container" aria-labelledby="giao-dien-tieu-de">
         <div className="section-head" data-reveal>
-          <span className="kicker">Giao diện</span>
-          <h2 id="giao-dien-tieu-de">Đẹp ở cả giao diện sáng lẫn tối</h2>
+          <span className="kicker">{text.look.kicker}</span>
+          <h2 id="giao-dien-tieu-de">{text.look.title}</h2>
         </div>
         <div className="window" data-reveal>
           <Compare />
         </div>
         <div className="gallery">
-          {GALLERY.map((item) => (
+          {text.gallery.map((item) => (
             <figure key={item.shot} data-reveal>
               <div className="frame">
-                <Shot name={item.shot} sizes="(max-width: 700px) 100vw, 380px" />
+                <Shot name={item.shot} lang={lang} sizes="(max-width: 700px) 100vw, 380px" />
                 <figcaption>{item.caption}</figcaption>
               </div>
             </figure>
@@ -222,12 +202,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Tải về */}
       <section id="tai-ve" className="section container">
         <div className="section-head" data-reveal>
-          <span className="kicker">Tải về</span>
-          <h2>Tải Thaigit</h2>
-          <p>Miễn phí, không cần tài khoản. Các bản sau tự cập nhật.</p>
+          <span className="kicker">{text.download.kicker}</span>
+          <h2>{text.download.title}</h2>
+          <p>{text.download.text}</p>
         </div>
         <div className="downloads">
           <div className="dl-ring" data-os="mac" data-reveal>
@@ -236,17 +215,16 @@ export default async function HomePage() {
                 <h3>
                   <AppleIcon size={24} /> macOS
                 </h3>
-                <span className="fit-badge">Phù hợp với máy bạn</span>
+                <span className="fit-badge">{text.download.fit}</span>
               </div>
-              <p className="meta">macOS 14 Sonoma trở lên · Mac chip Apple (M1 trở lên)</p>
+              <p className="meta">{text.download.macMeta}</p>
               <DownloadButton initial={release} className="btn btn-primary btn-block" />
               <ol className="steps">
-                <li>Mở file Thaigit-macOS.zip để giải nén.</li>
-                <li>Kéo Thaigit.app vào thư mục Applications.</li>
+                <li>{text.download.macSteps.first}</li>
+                <li>{text.download.macSteps.second}</li>
                 <li>
                   <span>
-                    Lần đầu mở, nếu macOS chặn: Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật →{' '}
-                    <strong>Vẫn mở</strong>. Hoặc chạy:
+                    {text.download.macSteps.third} <strong>{text.download.openAnyway}</strong>.
                   </span>
                 </li>
               </ol>
@@ -261,23 +239,24 @@ export default async function HomePage() {
                 <h3>
                   <WindowsIcon size={24} /> Windows
                 </h3>
-                <span className="fit-badge">Phù hợp với máy bạn</span>
+                <span className="fit-badge">{text.download.fit}</span>
               </div>
-              <p className="meta">Windows 10 / 11 · 64-bit</p>
+              <p className="meta">{text.download.winMeta}</p>
               <a className="btn btn-primary btn-block" href={LINKS.downloadWindows}>
-                <WindowsIcon /> Tải cho Windows
+                <WindowsIcon /> {text.download.winButton}
               </a>
               <ol className="steps">
                 <li>
                   <span>
-                    Cần có Git: cài <a href={LINKS.gitForWindows}>Git for Windows</a> nếu máy chưa có.
+                    {text.download.winSteps.git}{' '}
+                    <a href={LINKS.gitForWindows}>{text.download.gitForWindows}</a>.
                   </span>
                 </li>
-                <li>Mở file Thaigit-Windows-setup.exe để cài (không cần quyền quản trị).</li>
+                <li>{text.download.winSteps.install}</li>
                 <li>
                   <span>
-                    Bản cài chưa ký số nên lần đầu Windows SmartScreen có thể cảnh báo: bấm{' '}
-                    <strong>More info</strong> → <strong>Run anyway</strong>.
+                    {text.download.winSteps.smartScreen} <strong>{text.download.moreInfo}</strong> →{' '}
+                    <strong>{text.download.runAnyway}</strong>.
                   </span>
                 </li>
               </ol>
@@ -286,12 +265,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Có gì mới */}
       {changelog.length > 0 && (
         <section id="co-gi-moi" className="section container">
           <div className="section-head" data-reveal>
-            <span className="kicker">Có gì mới</span>
-            <h2>Nhật ký thay đổi</h2>
+            <span className="kicker">{text.changelog.kicker}</span>
+            <h2>{text.changelog.title}</h2>
           </div>
           <div className="lanes">
             {changelog.map((lane) => {
@@ -303,8 +281,10 @@ export default async function HomePage() {
                       {lane.platform === 'Windows' ? <WindowsIcon size={18} /> : <AppleIcon size={18} />}
                     </span>
                     <div>
-                      <h3>{lane.platform === 'Windows' ? 'Windows' : 'macOS'}</h3>
-                      <span>Bản mới nhất {lane.entries[0].version}</span>
+                      <h3>{lane.platform === 'Windows' ? text.platforms.windows : text.platforms.mac}</h3>
+                      <span>
+                        {text.changelog.latest} {lane.entries[0].version}
+                      </span>
                     </div>
                   </header>
                   <div className="timeline">
@@ -316,7 +296,9 @@ export default async function HomePage() {
                           <div className="release-body">
                             <header>
                               <h4>{entry.version}</h4>
-                              {entry.date && <time dateTime={entry.date}>{formatDate(entry.date)}</time>}
+                              {entry.date && (
+                                <time dateTime={entry.date}>{formatDate(entry.date, lang)}</time>
+                              )}
                             </header>
                             {entry.summary && <p className="release-summary">{entry.summary}</p>}
                             <ul className="release-items">
@@ -329,7 +311,7 @@ export default async function HomePage() {
                             </ul>
                             {more.length > 0 && (
                               <details className="release-more">
-                                <summary>Xem thêm {more.length} thay đổi</summary>
+                                <summary>{text.changelog.more(more.length)}</summary>
                                 <ul className="release-items">
                                   {more.map((item, index) => (
                                     <li key={index}>
@@ -350,70 +332,58 @@ export default async function HomePage() {
             })}
           </div>
           <p className="section-more">
-            <Link href="/nhat-ky/">Xem toàn bộ nhật ký thay đổi →</Link>
+            <Link href={PATHS.changelog[lang]}>{text.changelog.all}</Link>
           </p>
         </section>
       )}
 
-      {/* Hướng dẫn */}
       <section id="huong-dan" className="section container">
         <div className="section-head" data-reveal>
-          <span className="kicker">Hướng dẫn</span>
-          <h2>Học Git không còn khó</h2>
-          <p>Giải thích ngắn gọn bằng tiếng Việt, có lệnh git và cách làm bằng vài cú bấm.</p>
+          <span className="kicker">{text.guides.kicker}</span>
+          <h2>{text.guides.title}</h2>
+          <p>{text.guides.text}</p>
         </div>
-        <ul className="guide-grid" data-reveal>
-          {GUIDES.map((guide) => (
-            <li key={guide.slug}>
-              <Link className="guide-card" href={`/huong-dan/${guide.slug}/`}>
-                <strong>{guide.short}</strong>
-                <span>{guide.description}</span>
-                <small>{guide.minutes} phút đọc</small>
-              </Link>
+        <ul className="gcards" data-reveal>
+          {GUIDES.slice(0, HOME_GUIDES).map((guide) => (
+            <li key={guide.id}>
+              <GuideCard guide={guide} lang={lang} />
             </li>
           ))}
         </ul>
+        <p className="section-more">
+          <Link href={PATHS.guides[lang]}>{ui.allGuides(GUIDES.length)}</Link>
+        </p>
       </section>
 
-      {/* Hỏi đáp */}
       <section id="hoi-dap" className="section narrow container">
         <div className="section-head" data-reveal>
-          <span className="kicker">Hỏi đáp</span>
-          <h2>Câu hỏi thường gặp</h2>
+          <span className="kicker">{text.faq.kicker}</span>
+          <h2>{text.faq.title}</h2>
         </div>
-        <Faq items={FAQ} />
+        <Faq items={faq} />
       </section>
 
-      {/* English */}
-      <section className="section tight narrow container" lang="en" aria-labelledby="in-english">
-        <div className="english" data-reveal>
-          <h2 id="in-english">In English</h2>
-          <p>
-            Thaigit is a free, visual Git GUI with a Liquid Glass look: a colorful commit graph, drag-and-drop
-            to merge, rebase or push, line-by-line staging and a friendly conflict resolver. The native macOS
-            app updates itself from GitHub Releases. The Windows app (Tauri 2, Windows 10/11) also updates
-            itself. The UI is Vietnamese for now.
-          </p>
-        </div>
-      </section>
+      {text.english && (
+        <section className="section tight narrow container" lang="en" aria-labelledby="in-english">
+          <div className="english" data-reveal>
+            <h2 id="in-english">{text.english.title}</h2>
+            <p>{text.english.text}</p>
+          </div>
+        </section>
+      )}
 
-      {/* Kêu gọi cuối */}
       <section className="section tight container">
         <div className="final-cta" data-reveal>
           <img src="/logo-256.png" width={88} height={88} alt="" />
-          <h2>Làm việc với Git nhẹ nhàng hơn từ hôm nay</h2>
-          <p>Tải Thaigit miễn phí cho macOS và Windows.</p>
+          <h2>{text.finalCta.title}</h2>
+          <p>{text.finalCta.text}</p>
           <div className="cta">
             <DownloadButton initial={release} className="btn btn-white" />
-            <a
-              className="btn btn-outline-light"
-              href={LINKS.downloadWindows}
-              title="Thaigit cho Windows 10 / 11"
-            >
+            <a className="btn btn-outline-light" href={LINKS.downloadWindows} title={ui.download.winTitle}>
               <WindowsIcon />
               <span className="btn-stack">
-                Tải cho Windows
-                <span className="sub">Windows 10 / 11 · miễn phí</span>
+                {ui.download.win}
+                <span className="sub">{ui.download.winSub}</span>
               </span>
             </a>
           </div>

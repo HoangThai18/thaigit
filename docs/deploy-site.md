@@ -65,9 +65,13 @@ Firebase Hosting, Cloudflare Pages, Vercel, Netlify…: lệnh build là `pnpm -
 
 - **Google Search Console**: thêm `https://git.thaipro.store`, xác minh bằng bản ghi TXT, rồi gửi `https://git.thaipro.store/sitemap.xml`.
 - **Phát hành bản mới không cần build lại trang.** Nút tải luôn trỏ tới `releases/latest/download/Thaigit-macOS.zip`. Phiên bản, dung lượng và SHA-256 hiện trên trang được trình duyệt lấy thẳng từ GitHub API.
-- **Sửa nội dung**:
+- **Hai ngôn ngữ, hai giao diện**: tiếng Việt ở gốc (`/`), English dưới `/en/`. Nút trên thanh đầu trang đổi ngôn ngữ (sang đúng trang tương ứng) và đổi sáng / tối; mặc định theo hệ điều hành, lựa chọn nhớ trong trình duyệt. Mỗi ngôn ngữ là một layout gốc riêng (`site/app/(vi)`, `site/app/en`) nên thẻ `<html lang>` và `hreflang` đúng ngay trong HTML dựng sẵn.
+- **Sửa nội dung** (mỗi file có đủ hai ngôn ngữ):
   - `site/lib/content.ts`: tính năng, câu hỏi thường gặp.
+  - `site/lib/home-text.ts`: chữ trang chủ; `site/lib/page-text.ts`: danh sách bài, nhật ký, quyền riêng tư; `site/lib/platform-text.ts`: trang macOS / Windows.
+  - `site/lib/ui.ts`: chữ dùng chung (thanh trên, chân trang, nút).
+  - `site/lib/guides.ts` (thông tin bài), `guides.vi.ts` và `guides.en.ts` (nội dung): thêm bài hướng dẫn mới thì thêm một mục ở cả ba file và một dòng trong `GUIDE_SLUGS` ở `site/lib/i18n.ts`.
   - `site/lib/site.ts`: tên miền, các link.
-  - `CHANGELOG.md`: mục "Có gì mới", đọc lúc build.
+  - `CHANGELOG.md`: mục "Có gì mới", đọc lúc build (chỉ có tiếng Việt).
 - **Ảnh giao diện**: chụp lại vào `docs/screenshots/`, rồi chạy `python3 site/scripts/make-shots.py` (cần Pillow).
-- **Ảnh khi chia sẻ link (Open Graph)**: `site/app/opengraph-image.png`, cỡ 1200×630.
+- **Ảnh khi chia sẻ link (Open Graph)**: `site/public/og/vi.png` và `site/public/og/en.png`, cỡ 1200×630, dựng từ `site/scripts/og-image.html` (thêm `#en` vào địa chỉ để ra bản English).

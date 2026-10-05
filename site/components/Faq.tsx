@@ -3,14 +3,13 @@
 import { useState } from 'react';
 import type { FaqItem } from '@/lib/content';
 
-/** Hỏi đáp: mở một câu mỗi lần. Câu trả lời luôn có trong HTML (tìm kiếm đọc được), câu đang đóng thì `inert`. */
 export function Faq({ items }: { items: FaqItem[] }) {
   const [open, setOpen] = useState(0);
   return (
     <div>
       {items.map((item, index) => {
         const isOpen = index === open;
-        const id = `hoi-dap-${index + 1}`;
+        const id = `faq-${index + 1}`;
         return (
           <div key={item.q} className="faq-item">
             <h3 className="faq-q">

@@ -1,54 +1,49 @@
 import Link from 'next/link';
 import { CopyCode } from './CopyCode';
 import { DownloadCta } from './DownloadCta';
+import { GuideCard } from './GuideCard';
 import { AppleIcon, WindowsIcon } from './Icons';
 import { Breadcrumbs, JsonLd } from './Seo';
 import { Shot } from './Shot';
-import type { FaqItem } from '@/lib/content';
+import { FAQ, FEATURES } from '@/lib/content';
 import { GUIDES } from '@/lib/guides';
-import type { ShotName } from '@/lib/shots';
-import { SITE } from '@/lib/site';
+import { PATHS, type Lang } from '@/lib/i18n';
+import { PLATFORM_LABELS, PLATFORM_TEXT } from '@/lib/platform-text';
+import { LINKS, SITE } from '@/lib/site';
+import { UI } from '@/lib/ui';
 
-export interface PlatformFeature {
-  title: string;
-  text: string;
-  /** Ảnh hiện có đều chụp bản macOS — trang Windows không gắn ảnh. */
-  shot?: ShotName;
-}
+const PLATFORM_GUIDES = 6;
 
-export interface PlatformContent {
-  os: 'mac' | 'win';
-  path: string;
-  crumb: string;
-  h1: string;
-  lead: string;
-  requirements: string;
-  operatingSystem: string;
-  downloadUrl: string;
-  features: PlatformFeature[];
-  install: string[];
-  installCode?: string;
-  faq: FaqItem[];
-}
+export function PlatformPage({ lang, os }: { lang: Lang; os: 'mac' | 'win' }) {
+  const content = PLATFORM_TEXT[os][lang];
+  const labels = PLATFORM_LABELS[lang];
+  const ui = UI[lang];
+  const Icon = os === 'mac' ? AppleIcon : WindowsIcon;
+  const pageKey = os === 'mac' ? 'mac' : 'windows';
+  const path = PATHS[pageKey][lang];
+  const downloadUrl = os === 'mac' ? LINKS.downloadMac : LINKS.downloadWindows;
+  const crumb = os === 'mac' ? 'macOS' : 'Windows';
+  const features =
+    content.features === 'home'
+      ? FEATURES[lang].map((feature) => ({ title: feature.title, text: feature.text, shot: feature.shot }))
+      : content.features;
+  const faq = FAQ[lang].filter((item) => content.faqIds.includes(item.id));
 
-/** Trang riêng cho từng hệ điều hành: yêu cầu, cách cài, tính năng, hỏi đáp. */
-export function PlatformPage({ content }: { content: PlatformContent }) {
-  const Icon = content.os === 'mac' ? AppleIcon : WindowsIcon;
   return (
     <article className="prose wide container">
-      <Breadcrumbs items={[{ name: content.crumb, path: content.path }]} />
+      <Breadcrumbs lang={lang} items={[{ name: crumb, path }]} />
       <p className="os-chip">
         <Icon size={18} /> {content.requirements}
       </p>
       <h1>{content.h1}</h1>
       <p className="lead">{content.lead}</p>
       <p>
-        <a className="btn btn-primary" href={content.downloadUrl}>
-          <Icon /> Tải miễn phí
+        <a className="btn btn-primary" href={downloadUrl}>
+          <Icon /> {ui.download.free}
         </a>
       </p>
 
-      <h2>Cài đặt</h2>
+      <h2>{labels.install}</h2>
       <ol className="guide-steps">
         {content.install.map((step) => (
           <li key={step}>{step}</li>
@@ -56,22 +51,22 @@ export function PlatformPage({ content }: { content: PlatformContent }) {
       </ol>
       {content.installCode && <CopyCode code={content.installCode} />}
 
-      <h2>Tính năng chính</h2>
-      {content.features.map((feature) => (
+      <h2>{labels.features}</h2>
+      {features.map((feature) => (
         <section key={feature.title} className="platform-feature">
           <h3>{feature.title}</h3>
           <p>{feature.text}</p>
           {feature.shot && (
             <figure className="guide-shot">
-              <Shot name={feature.shot} sizes="(max-width: 1000px) 100vw, 960px" />
+              <Shot name={feature.shot} lang={lang} sizes="(max-width: 1000px) 100vw, 960px" />
             </figure>
           )}
         </section>
       ))}
 
-      <h2>Câu hỏi thường gặp</h2>
-      {content.faq.map((item) => (
-        <div key={item.q} className="guide-faq">
+      <h2>{labels.faq}</h2>
+      {faq.map((item) => (
+        <div key={item.id} className="guide-faq">
           <h3>{item.q}</h3>
           {item.a.map((paragraph) => (
             <p key={paragraph}>{paragraph}</p>
@@ -79,19 +74,19 @@ export function PlatformPage({ content }: { content: PlatformContent }) {
         </div>
       ))}
 
-      <h2>Học Git nhanh hơn</h2>
-      <ul className="guide-grid">
-        {GUIDES.map((guide) => (
-          <li key={guide.slug}>
-            <Link className="guide-card" href={`/huong-dan/${guide.slug}/`}>
-              <strong>{guide.short}</strong>
-              <small>{guide.minutes} phút đọc</small>
-            </Link>
+      <h2>{labels.learn}</h2>
+      <ul className="gcards">
+        {GUIDES.slice(0, PLATFORM_GUIDES).map((guide) => (
+          <li key={guide.id}>
+            <GuideCard guide={guide} lang={lang} compact />
           </li>
         ))}
       </ul>
+      <p className="section-more">
+        <Link href={PATHS.guides[lang]}>{ui.allGuides(GUIDES.length)}</Link>
+      </p>
 
-      <DownloadCta />
+      <DownloadCta lang={lang} />
 
       <JsonLd
         data={{
@@ -99,13 +94,13 @@ export function PlatformPage({ content }: { content: PlatformContent }) {
           '@type': 'SoftwareApplication',
           name: SITE.name,
           description: content.lead,
-          url: `${SITE.url}${content.path}`,
+          url: `${SITE.url}${path}`,
           applicationCategory: 'DeveloperApplication',
           operatingSystem: content.operatingSystem,
-          downloadUrl: content.downloadUrl,
+          downloadUrl,
           screenshot: `${SITE.url}/screenshots/overview-1600.webp`,
-          inLanguage: 'vi',
-          offers: { '@type': 'Offer', price: '0', priceCurrency: 'VND' },
+          inLanguage: lang,
+          offers: { '@type': 'Offer', price: '0', priceCurrency: lang === 'vi' ? 'VND' : 'USD' },
           author: { '@type': 'Person', name: SITE.author },
         }}
       />

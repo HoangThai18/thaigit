@@ -1,6 +1,6 @@
+import type { Lang } from './i18n';
 import { LINKS } from './site';
 
-/** Bản phát hành macOS mới nhất trên GitHub (null khi chưa có bản nào hoặc không hỏi được). */
 export interface MacRelease {
   version: string;
   publishedAt: string;
@@ -36,7 +36,6 @@ export function parseRelease(json: unknown): MacRelease | null {
   };
 }
 
-/** Gọi lúc build (HTML dựng sẵn có số phiên bản) và trong trình duyệt (luôn mới). */
 export async function fetchMacRelease(init?: RequestInit): Promise<MacRelease | null> {
   try {
     const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
@@ -50,13 +49,16 @@ export async function fetchMacRelease(init?: RequestInit): Promise<MacRelease | 
   }
 }
 
-export function formatSize(bytes: number): string {
-  return `${(bytes / 1024 / 1024).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} MB`;
+const LOCALE: Record<Lang, string> = { vi: 'vi-VN', en: 'en-US' };
+
+export function formatSize(bytes: number, lang: Lang = 'vi'): string {
+  return `${(bytes / 1024 / 1024).toLocaleString(LOCALE[lang], { maximumFractionDigits: 1 })} MB`;
 }
 
-export function formatDate(iso: string): string {
+export function formatDate(iso: string, lang: Lang = 'vi'): string {
   const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? ''
-    : date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' });
+  if (Number.isNaN(date.getTime())) return '';
+  return lang === 'vi'
+    ? date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' })
+    : date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
