@@ -2,7 +2,7 @@
 
 Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
-## Chưa phát hành
+## 1.3.0 — 2026-10-05
 
 - Khoá SSH riêng của Thaigit (Cài đặt → SSH): tạo khoá Ed25519 hoặc nhập khoá có sẵn, khoá bí mật chỉ nằm trong Keychain của máy (như 1Password) — lệnh git tới remote SSH tự dùng khoá qua một ssh-agent tạm, không cần cấu hình ~/.ssh; thêm khoá lên GitHub một bước, mở trang GitLab để dán, nút kiểm tra kết nối
 - Kết nối GitLab (Cài đặt → Tài khoản): đăng nhập gitlab.com hoặc dán personal access token cho cả GitLab tự host của công ty — fetch / pull / push repo HTTPS không phải nhập mật khẩu, token chỉ nằm trong Keychain và tự làm mới khi hết hạn; thêm khoá SSH lên GitLab một bước
