@@ -24,7 +24,8 @@
 "%@ thất bại — thử thao tác trên cả hunk hoặc cả file" = "%@ failed — try the whole hunk or the whole file";
 "%@ và %@" = "%@ and %@";
 "%@ và %@ không có commit chung" = "%@ and %@ have no common commit";
-"%@ xong — thay đổi của bạn đã được stash" = "%@ done — your changes were saved to a stash";
+"%@ xong — đã mang theo thay đổi chưa commit" = "%@ done — your uncommitted changes came along";
+"%@ xong, nhưng thay đổi chưa commit bị xung đột với nhánh mới" = "%@ done, but your uncommitted changes conflict with the new branch";
 "%@ đã có mọi commit của %@" = "%@ already has every commit of %@";
 "%@ đã mới nhất" = "%@ is up to date";
 "%@ — hãy dùng nút “Huỷ” trên thanh trạng thái thao tác" = "%@ — use the “Abort” button on the operation bar";
@@ -388,7 +389,6 @@
 "Khôi phục tất cả về mốc này" = "Restore Everything to This Snapshot";
 "Khôi phục từ dòng thời gian" = "Restore from Timeline";
 "Không" = "No";
-"Không checkout được vì có thay đổi chưa commit" = "Can't check out because of uncommitted changes";
 "Không chạy được %@: %@" = "Couldn't run %@: %@";
 "Không chạy được công cụ cần thiết (git / git-lfs…) — kiểm tra đã cài đặt." = "Couldn't run a required tool (git / git-lfs…) — check that it's installed.";
 "Không cài được bản cập nhật" = "Couldn't install the update";
@@ -694,7 +694,6 @@
 "Stash không còn tồn tại" = "This stash no longer exists";
 "Stash không còn tồn tại." = "This stash no longer exists.";
 "Stash kèm message…" = "Stash with Message…";
-"Stash rồi checkout" = "Stash and Check Out";
 "Stash thay đổi" = "Stash Changes";
 "Stash thay đổi…" = "Stash Changes…";
 "Stash tất cả thay đổi" = "Stash All Changes";
@@ -728,6 +727,7 @@
 "Thay đổi chưa commit — bấm để stage & commit" = "Uncommitted changes — click to stage & commit";
 "Thay đổi chưa stage sẽ bị bỏ, file chưa track được chuyển vào Thùng rác. Bạn có thể bấm “Hoàn tác” ngay sau đó." = "Unstaged changes will be dropped and untracked files moved to the Trash. You can click “Undo” right after.";
 "Thay đổi của bạn vẫn còn trong stash. Giải xung đột ở panel bên phải, hoặc Hoàn tác." = "Your changes are still in the stash. Resolve the conflicts in the right panel, or Undo.";
+"Thay đổi gốc vẫn được giữ trong stash mới nhất — giải quyết xung đột hoặc pop lại sau." = "The original changes are still kept in the latest stash — resolve the conflicts or pop it later.";
 "Thay đổi quá lớn để AI trên máy đọc hết — hãy commit thành nhiều phần nhỏ." = "The changes are too large for the on-device AI — commit them in smaller parts.";
 "Thay đổi đảo ngược đã được stage — xem lại, rồi commit ở panel bên phải hoặc bấm “Tiếp tục”." = "The reversed changes are staged — review them, then commit in the right panel or click “Continue”.";
 "Theo dõi" = "Track";
@@ -887,6 +887,7 @@
 "Worktree đang bị khoá" = "The worktree is locked";
 "Xem nhánh" = "Show Branches";
 "Xem quyền của Thaigit" = "Review Thaigit's Permissions";
+"Xem thay đổi" = "Show Changes";
 "Xem thay đổi chưa commit (⌘0)" = "Show uncommitted changes (⌘0)";
 "Xem thay đổi so với %@" = "View Changes Compared with %@";
 "Xem toàn bộ mô tả" = "Show Full Description";

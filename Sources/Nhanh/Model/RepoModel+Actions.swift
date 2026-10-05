@@ -330,26 +330,44 @@ extension RepoModel {
         }
     }
 
+    /// Thay đổi chưa commit chặn checkout: như GitKraken, tự cất (stash), checkout, rồi mang thay đổi sang — không hiện lỗi.
     func handleCheckoutError(_ error: any Error, stashAndRetry: @escaping () -> Void) -> Bool {
         guard let gitError = error as? GitError,
               gitError.contains("would be overwritten") || gitError.contains("Please commit your changes or stash them") else {
             return false
         }
-        showError(String(localized: "Không checkout được vì có thay đổi chưa commit"), error, actions: [
-            ToastAction(title: String(localized: "Stash rồi checkout"), handler: stashAndRetry),
-        ])
+        stashAndRetry()
         return true
     }
 
-    /// Cất thay đổi vào stash rồi chạy thao tác (GitKraken gọi là auto-stash).
+    /// Auto-stash: cất thay đổi vào stash, chạy thao tác, rồi áp lại thay đổi lên chỗ mới. Thao tác lỗi thì trả thay đổi
+    /// về như cũ; áp lại bị xung đột thì giữ nguyên stash (không mất gì) và báo để người dùng giải quyết.
     func stashThen(_ title: String, _ work: @escaping (GitRepository) async throws -> Void) {
+        var reapplied = false
         perform(title) { repo in
             try await repo.stashPush(message: String(localized: "Thaigit: tự stash trước khi \(title.lowercased())"), includeUntracked: true)
-            try await work(repo)
+            do {
+                try await work(repo)
+            } catch {
+                try? await repo.stashPop("stash@{0}")
+                throw error
+            }
+            do {
+                try await repo.stashApply("stash@{0}")
+                try await repo.stashDrop("stash@{0}")
+                reapplied = true
+            } catch {
+                // Xung đột khi áp lại: stash vẫn còn, file xung đột hiện ở panel thay đổi.
+            }
         } onSuccess: { [weak self] in
-            self?.toast(.success, String(localized: "\(title) xong — thay đổi của bạn đã được stash"), actions: [
-                ToastAction(title: "Pop stash") { [weak self] in self?.popLatestStash() },
-            ])
+            guard let self else { return }
+            if reapplied {
+                toast(.success, String(localized: "\(title) xong — đã mang theo thay đổi chưa commit"))
+            } else {
+                toast(.warning, String(localized: "\(title) xong, nhưng thay đổi chưa commit bị xung đột với nhánh mới"),
+                      message: String(localized: "Thay đổi gốc vẫn được giữ trong stash mới nhất — giải quyết xung đột hoặc pop lại sau."),
+                      actions: [ToastAction(title: String(localized: "Xem thay đổi")) { [weak self] in self?.selectWorkingTree() }])
+            }
         }
     }
 
