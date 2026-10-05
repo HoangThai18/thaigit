@@ -892,6 +892,7 @@
 "Worktree là một thư mục làm việc thứ hai của cùng repo — làm song song trên nhánh khác mà không phải stash hay checkout qua lại." = "A worktree is a second working folder of the same repository — work on another branch in parallel without stashing or switching back and forth.";
 "Worktree đang bị khoá" = "The worktree is locked";
 "Xem & commit" = "Review & Commit";
+"Xem dạng cây thư mục" = "Show as Folder Tree";
 "Xem nhánh" = "Show Branches";
 "Xem quyền của Thaigit" = "Review Thaigit's Permissions";
 "Xem thay đổi" = "Show Changes";
@@ -1005,6 +1006,7 @@
 "Đang tắt tự lưu cho repo này." = "Automatic snapshots are off for this repo.";
 "Đang tự xuống dòng — bấm để giữ dòng dài trên một hàng (cuộn ngang)" = "Wrapping lines — click to keep long lines on one row (scroll horizontally)";
 "Đang apply patch (git am)" = "Applying patches (git am)";
+"Đang xem dạng cây — bấm để xem danh sách đường dẫn" = "Showing a folder tree — click to show a path list";
 "Đang đọc dòng thời gian…" = "Reading the timeline…";
 "Đang đọc…" = "Reading…";
 "Đang ở %@ (detached HEAD)" = "On %@ (detached HEAD)";

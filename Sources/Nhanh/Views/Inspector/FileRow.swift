@@ -59,6 +59,8 @@ struct FileRow: View {
     var quickActionSymbol: String?
     var quickActionTint: Color = .accentColor
     var quickAction: (() -> Void)?
+    /// Dạng cây: thư mục đã có ở hàng cha nên không lặp lại.
+    var showDirectory = true
     @State private var hovering = false
 
     var body: some View {
@@ -67,7 +69,7 @@ struct FileRow: View {
             Text(change.fileName)
                 .lineLimit(1)
                 .layoutPriority(1)
-            if !change.directory.isEmpty {
+            if showDirectory, !change.directory.isEmpty {
                 Text(change.directory)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

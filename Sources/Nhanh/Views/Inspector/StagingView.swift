@@ -105,6 +105,9 @@ private struct FileSection: View {
     let rowAction: ([FileChange]) -> Void
     let emptyText: String
     @State private var isDropTargeted = false
+    /// Path / Tree như GitKraken: danh sách phẳng hay cây thư mục (dùng chung mọi danh sách file).
+    @AppStorage("fileListTree") private var treeMode = false
+    @State private var collapsed: Set<String> = []
 
     private static let dragPrefix = "nhanh-file:"
     private var sourceKey: String { source == .unstaged ? "unstaged" : "staged" }
@@ -129,6 +132,52 @@ private struct FileSection: View {
         return true
     }
 
+    private func fileRow(_ change: FileChange, showDirectory: Bool) -> some View {
+        FileRow(change: change, quickActionTitle: rowTitle, quickActionSymbol: rowSymbol,
+                quickActionTint: rowTint, quickAction: { rowAction([change]) }, showDirectory: showDirectory)
+            .tag(change.path)
+            .draggable(dragPayload(for: change)) {
+                let count = selection.contains(change.path) ? max(selection.count, 1) : 1
+                Label(count > 1 ? "\(count) file" : change.fileName, systemImage: "doc.on.doc")
+                    .padding(6)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+            }
+    }
+
+    /// Hàng thư mục của dạng cây: bấm để gập / mở, nút nhanh Stage / Bỏ stage cả thư mục.
+    private func folderRow(path: String, name: String, depth: Int, count: Int) -> some View {
+        let isCollapsed = collapsed.contains(path)
+        return HStack(spacing: 5) {
+            Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 10)
+            Image(systemName: "folder.fill")
+                .foregroundStyle(.secondary)
+            Text(name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Text("\(count)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.tertiary)
+            Spacer(minLength: 2)
+            Button {
+                rowAction(files.filter { $0.path.hasPrefix(path + "/") })
+            } label: {
+                Image(systemName: rowSymbol)
+                    .foregroundStyle(rowTint)
+            }
+            .buttonStyle(.plain)
+            .help("\(rowTitle) \(name)/")
+        }
+        .font(.callout)
+        .padding(.leading, CGFloat(depth) * 14)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isCollapsed { collapsed.remove(path) } else { collapsed.insert(path) }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
@@ -140,6 +189,11 @@ private struct FileSection: View {
                     .padding(.vertical, 1)
                     .background(Capsule().fill(Color.primary.opacity(0.08)))
                 Spacer()
+                Button { treeMode.toggle() } label: {
+                    Image(systemName: treeMode ? "list.bullet.indent" : "list.bullet")
+                }
+                .buttonStyle(.borderless)
+                .help(treeMode ? String(localized: "Đang xem dạng cây — bấm để xem danh sách đường dẫn") : String(localized: "Xem dạng cây thư mục"))
                 Button(action: bulkAction) {
                     Label(bulkTitle, systemImage: bulkSymbol)
                         .font(.caption.weight(.medium))
@@ -159,17 +213,19 @@ private struct FileSection: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(selection: $selection) {
-                    ForEach(files) { change in
-                        FileRow(change: change, quickActionTitle: rowTitle, quickActionSymbol: rowSymbol,
-                                quickActionTint: rowTint) {
-                            rowAction([change])
+                    if treeMode {
+                        ForEach(FileTree.rows(files, collapsed: collapsed)) { row in
+                            switch row {
+                            case .folder(let path, let name, let depth, let count):
+                                folderRow(path: path, name: name, depth: depth, count: count)
+                            case .file(let change, let depth):
+                                fileRow(change, showDirectory: false)
+                                    .padding(.leading, CGFloat(depth) * 14)
+                            }
                         }
-                        .tag(change.path)
-                        .draggable(dragPayload(for: change)) {
-                            let count = selection.contains(change.path) ? max(selection.count, 1) : 1
-                            Label(count > 1 ? "\(count) file" : change.fileName, systemImage: "doc.on.doc")
-                                .padding(6)
-                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    } else {
+                        ForEach(files) { change in
+                            fileRow(change, showDirectory: true)
                         }
                     }
                 }

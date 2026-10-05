@@ -193,3 +193,26 @@ struct SyntaxHighlighterTests {
         #expect(kinds("x.return y", "a.js").isEmpty)
     }
 }
+
+@Suite("Danh sách file dạng cây")
+struct FileTreeTests {
+    private func describe(_ rows: [FileTreeRow]) -> [String] {
+        rows.map { row in
+            switch row {
+            case .folder(_, let name, let depth, let count): return String(repeating: "  ", count: depth) + name + "/ (\(count))"
+            case .file(let change, let depth): return String(repeating: "  ", count: depth) + change.fileName
+            }
+        }
+    }
+
+    @Test func buildsNestedFoldersAndCompactsSingleChains() {
+        let files = ["src/app/views/a.js", "src/app/views/b.js", "src/lib/c.js", "README.md", "docs/guide/x.md"]
+            .map { FileChange(path: $0, kind: .modified) }
+        #expect(describe(FileTree.rows(files)) == [
+            "docs/guide/ (1)", "  x.md",
+            "src/ (3)", "  app/views/ (2)", "    a.js", "    b.js", "  lib/ (1)", "    c.js",
+            "README.md",
+        ])
+        #expect(describe(FileTree.rows(files, collapsed: ["src"])) == ["docs/guide/ (1)", "  x.md", "src/ (3)", "README.md"])
+    }
+}
