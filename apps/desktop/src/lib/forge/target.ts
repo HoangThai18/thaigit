@@ -93,3 +93,19 @@ export function repoForgeTarget(
   const target = remote ? forgeTarget(remote.fetchUrl) : null;
   return remote && target ? { ...target, remote: remote.name } : null;
 }
+
+/** Trang commit trên web (GitHub / GitLab / Bitbucket, kể cả tự host); `null` nếu không nhận ra máy chủ. */
+export function commitWebUrl(target: ForgeTarget, sha: string): string | null {
+  if (!/^[0-9a-f]{4,64}$/i.test(sha)) return null;
+  const base = `https://${target.host}/${target.owner}/${target.repo}`;
+  switch (target.provider) {
+    case 'github':
+      return `${base}/commit/${sha}`;
+    case 'gitlab':
+      return `${base}/-/commit/${sha}`;
+    case 'bitbucket':
+      return `${base}/commits/${sha}`;
+    default:
+      return null;
+  }
+}

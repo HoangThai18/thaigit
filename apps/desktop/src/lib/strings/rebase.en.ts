@@ -43,4 +43,23 @@ export const rebase: Translation<typeof source> = {
   done: (branch: string) => `Rebased ${branch}`,
   autostashConflict:
     'Rebased, but bringing back your uncommitted changes caused conflicts — your changes are still in the stash.',
+  menuReword: 'Edit commit message…',
+  menuDrop: 'Drop this commit…',
+  menuMove: 'Reorder',
+  menuMoveUp: 'Move up (after the newer commit)',
+  menuMoveDown: 'Move down (before the older commit)',
+  rewordTitle: 'Edit commit message',
+  rewordMessage: (sha: string) =>
+    `Commit ${sha} and every commit after it on the branch will be rewritten (new SHAs). Ctrl + Enter to save.`,
+  rewordField: 'Message',
+  rewordConfirm: 'Save message',
+  rewordDone: 'Commit message updated',
+  dropTitle: (sha: string) => `Drop commit ${sha}?`,
+  dropMessage: (subject: string, branch: string) =>
+    `“${subject}” will be removed from ${branch} and the commits after it rewritten. You can undo right after.`,
+  dropConfirm: 'Drop commit',
+  dropDone: 'Commit dropped from the branch',
+  moveDone: 'Commits reordered',
+  alreadyNewest: 'This commit is already the newest on the branch.',
+  alreadyOldest: 'There is no regular commit below to swap with.',
 };

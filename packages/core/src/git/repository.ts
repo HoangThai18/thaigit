@@ -314,6 +314,20 @@ export class GitRepository {
     return this.runner.text('show', ['-s', '--format=%B', sha, '--']);
   }
 
+  /** Commit dạng patch email (như `git format-patch -1 --stdout`) — áp lại được bằng `git am`. */
+  async commitPatch(sha: string): Promise<string> {
+    assertArgument(sha);
+    return this.runner.text('show', [
+      '--format=email',
+      '--patch',
+      '--stat',
+      '--binary',
+      '--no-color',
+      sha,
+      '--',
+    ]);
+  }
+
   /** File thay đổi trong commit (so với cha đầu tiên; commit gốc so với cây rỗng). */
   async changedFiles(sha: string, parent: string | null): Promise<FileChange[]> {
     assertArgument(sha);

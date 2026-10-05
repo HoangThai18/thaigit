@@ -2,7 +2,14 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { commitMenu } from '../src/lib/actions/menus.ts';
-import { beginInteractiveRebase, runInteractiveRebase } from '../src/lib/rebase/actions.ts';
+import {
+  beginInteractiveRebase,
+  dropCommit,
+  moveCommit,
+  rewordCommit,
+  runInteractiveRebase,
+} from '../src/lib/rebase/actions.ts';
+import { dialogs } from '../src/lib/stores/dialogs.svelte.ts';
 import { RebaseSession, rebaseEditor } from '../src/lib/rebase/rebaseEditor.svelte.ts';
 import { isMenuAction } from '../src/lib/stores/menus.svelte.ts';
 import { PrefsStore } from '../src/lib/stores/prefs.svelte.ts';
@@ -164,5 +171,47 @@ describe('rebase tương tác trên repo thật', () => {
     expect(toasts.items.some((item) => item.title === strings.rebase.notOnBranch(other.slice(0, 7)))).toBe(
       true,
     );
+  });
+
+  it('thao tác nhanh trên commit: sửa message, đổi chỗ lên / xuống, xoá (có hỏi lại)', async () => {
+    const { test, store } = await openStore();
+    const titles = commitMenu(store, entryOf(store, 'hai'))
+      .filter(isMenuAction)
+      .map((entry) => entry.title);
+    expect(titles).toEqual(
+      expect.arrayContaining([
+        strings.rebase.menuReword,
+        strings.rebase.menuDrop,
+        strings.branches.menuCopyPatch,
+      ]),
+    );
+
+    const reworded = rewordCommit(store, entryOf(store, 'hai').commit);
+    await until(() => dialogs.current?.kind === 'form', 'hộp sửa message');
+    dialogs.submit({ message: 'Hai đã sửa\n\nThân mới' });
+    await reworded;
+    await until(() => subjects(test.root, 1)[0] === 'ba', 'làm mới');
+    expect(subjects(test.root, 4)).toEqual(['ba', 'Hai đã sửa', 'một', 'gốc']);
+    expect(rawGit(test.root, ['show', '-s', '--format=%B', 'HEAD~1']).trim()).toBe('Hai đã sửa\n\nThân mới');
+    await store.refreshAndWait(7);
+
+    await moveCommit(store, entryOf(store, 'một').commit, 'up');
+    expect(subjects(test.root, 4)).toEqual(['ba', 'một', 'Hai đã sửa', 'gốc']);
+    await store.refreshAndWait(7);
+    await moveCommit(store, entryOf(store, 'ba').commit, 'down');
+    expect(subjects(test.root, 4)).toEqual(['một', 'ba', 'Hai đã sửa', 'gốc']);
+    await store.refreshAndWait(7);
+
+    const cancelled = dropCommit(store, entryOf(store, 'ba').commit);
+    await until(() => dialogs.current?.kind === 'confirm', 'hỏi lại trước khi xoá');
+    dialogs.answer('cancel');
+    await cancelled;
+    expect(subjects(test.root, 4)).toEqual(['một', 'ba', 'Hai đã sửa', 'gốc']);
+    const dropped = dropCommit(store, entryOf(store, 'ba').commit);
+    await until(() => dialogs.current?.kind === 'confirm', 'hỏi lại trước khi xoá');
+    dialogs.answer('confirm');
+    await dropped;
+    expect(subjects(test.root, 3)).toEqual(['một', 'Hai đã sửa', 'gốc']);
+    expect(rawGit(test.root, ['ls-files']).includes('ba.txt')).toBe(false);
   });
 });

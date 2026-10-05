@@ -90,6 +90,10 @@ describe('Repository (git thật trong thư mục tạm)', () => {
       expect(log[0]?.subject).toBe('Commit đầu tiên');
       expect(log[0]?.authorName).toBe('Nhánh Test');
       expect(await t.repo.commitMessage(head)).toContain('Mô tả chi tiết');
+      const patch = await t.repo.commitPatch(head);
+      expect(patch).toMatch(/^From [0-9a-f]{40} /);
+      expect(patch).toContain('Subject: [PATCH] '); // tiêu đề có dấu được mã hoá kiểu email (git am tự giải)
+      expect(patch).toContain('+xin chào');
       const files = await t.repo.changedFiles(head, null);
       expect(files.map((file) => file.path).sort()).toEqual(['a.txt', 'thư mục/b c.txt']);
       const diff = text(await t.repo.commitDiffBytes(head, null, { path: 'a.txt', kind: 'added' }));

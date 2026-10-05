@@ -41,4 +41,23 @@ export const rebase = {
   done: (branch: string) => `Đã rebase tương tác ${branch}`,
   autostashConflict:
     'Đã rebase xong, nhưng khi trả lại các thay đổi chưa commit thì bị xung đột — thay đổi của bạn vẫn còn nguyên trong stash.',
+  menuReword: 'Sửa message commit…',
+  menuDrop: 'Xoá commit này…',
+  menuMove: 'Đổi thứ tự',
+  menuMoveUp: 'Đưa lên (sau commit mới hơn)',
+  menuMoveDown: 'Đưa xuống (trước commit cũ hơn)',
+  rewordTitle: 'Sửa message commit',
+  rewordMessage: (sha: string) =>
+    `Commit ${sha} và các commit sau nó trên nhánh sẽ được viết lại (đổi SHA). Ctrl + Enter để lưu.`,
+  rewordField: 'Message',
+  rewordConfirm: 'Lưu message',
+  rewordDone: 'Đã sửa message commit',
+  dropTitle: (sha: string) => `Xoá commit ${sha}?`,
+  dropMessage: (subject: string, branch: string) =>
+    `“${subject}” sẽ bị bỏ khỏi ${branch}, các commit sau nó được viết lại. Có thể hoàn tác ngay sau khi xong.`,
+  dropConfirm: 'Xoá commit',
+  dropDone: 'Đã xoá commit khỏi nhánh',
+  moveDone: 'Đã đổi thứ tự commit',
+  alreadyNewest: 'Commit này đã mới nhất trên nhánh.',
+  alreadyOldest: 'Không có commit thường nào bên dưới để đổi chỗ.',
 } as const;

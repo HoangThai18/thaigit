@@ -7,6 +7,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Giải xung đột nhanh hơn: tick chọn từng dòng của mỗi bên, xem trước cả file kết quả và sửa tay trước khi lưu, nhảy giữa các đoạn xung đột bằng nút hoặc Alt + ↑ / ↓, chọn nhanh cho mọi đoạn còn lại
 - Danh sách file xung đột hiện số đoạn của từng file; chọn nhiều file (Ctrl-click) hoặc bấm “Giải quyết tất cả” để dùng bản Current / Incoming cho nhiều file một lần
 - Terminal ngay trong cửa sổ repo (nút Terminal hoặc Ctrl+`): mở sẵn ở thư mục repo, nhiều tab, ẩn đi các lệnh vẫn chạy tiếp
+- Menu chuột phải của commit đầy đủ hơn: sửa message, xoá commit, đưa commit lên / xuống, sao chép patch, mở commit trên GitHub / GitLab / Bitbucket và sao chép link — đều có Hoàn tác
 
 ## 2.3.0 — 2026-10-05
 

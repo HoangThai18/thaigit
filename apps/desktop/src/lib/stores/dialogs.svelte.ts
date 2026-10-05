@@ -26,6 +26,14 @@ export type FormField =
       readonly monospace?: boolean;
     }
   | {
+      /** Ô nhiều dòng (message commit…): Enter xuống dòng, Ctrl / ⌘ + Enter để xác nhận. */
+      readonly kind: 'multiline';
+      readonly id: string;
+      readonly label: string;
+      readonly value: string;
+      readonly placeholder?: string;
+    }
+  | {
       /** Ô ẩn ký tự (mật khẩu, passphrase): không tự điền, không kiểm chính tả. */
       readonly kind: 'password';
       readonly id: string;

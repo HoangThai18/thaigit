@@ -4,7 +4,7 @@ import type { AccountsView, ForgeAccount, ForgeMergeRequest } from '@thaigit/con
 import { describe, expect, it, vi as spy } from 'vitest';
 import { branchesOnRemote, defaultBase, pushedName } from '../src/lib/forge/createPullRequest.svelte.ts';
 import { pullRequestCheckout } from '../src/lib/forge/pullRequests.ts';
-import { forgeTarget, providerOfHost, repoForgeTarget } from '../src/lib/forge/target.ts';
+import { commitWebUrl, forgeTarget, providerOfHost, repoForgeTarget } from '../src/lib/forge/target.ts';
 import {
   AccountsStore,
   forgeErrorText,
@@ -341,5 +341,24 @@ describe('nhánh khi tạo Pull Request', () => {
     expect(pushedName(repo(), 'origin', 'fx')).toBe('feature-x');
     expect(pushedName(repo(), 'origin', 'main')).toBe('main');
     expect(pushedName(repo(), 'origin', 'wip')).toBeNull();
+  });
+});
+
+describe('commitWebUrl', () => {
+  it('dựng trang commit theo máy chủ, máy chủ lạ / sha lạ thì không', () => {
+    const sha = 'a'.repeat(40);
+    const url = (remote: string) => {
+      const target = forgeTarget(remote);
+      return target === null ? null : commitWebUrl(target, sha);
+    };
+    expect(url('git@github.com:HoangThai18/thaigit.git')).toBe(
+      `https://github.com/HoangThai18/thaigit/commit/${sha}`,
+    );
+    expect(url('https://gitlab.example.com/nhom/con/app.git')).toBe(
+      `https://gitlab.example.com/nhom/con/app/-/commit/${sha}`,
+    );
+    expect(url('https://bitbucket.org/team/app')).toBe(`https://bitbucket.org/team/app/commits/${sha}`);
+    expect(url('https://git.example.com/a/b.git')).toBeNull();
+    expect(commitWebUrl(forgeTarget('https://github.com/a/b')!, 'HEAD; rm')).toBeNull();
   });
 });

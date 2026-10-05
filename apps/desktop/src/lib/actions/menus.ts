@@ -6,6 +6,7 @@ import {
   refName,
   refShortBranchName,
   shortSha,
+  type Commit,
   type FileChange,
   type GitRef,
   type Stash,
@@ -19,10 +20,18 @@ import { vi } from '../strings.vi.ts';
 import { describePullRequest, explainCommit } from '../ai/actions.ts';
 import { AI_ENABLED } from '../ai/enabled.ts';
 import { openBlame, openFileHistory } from '../history/actions.ts';
-import { beginInteractiveRebase } from '../rebase/actions.ts';
+import {
+  beginInteractiveRebase,
+  canRewriteCommit,
+  dropCommit,
+  moveCommit,
+  rewordCommit,
+} from '../rebase/actions.ts';
 import { assignAccountForRepo } from '../forge/assignOwner.ts';
 import { createPullRequest } from '../forge/createPullRequest.svelte.ts';
 import { targetOf } from '../forge/pullRequests.ts';
+import { commitWebUrl } from '../forge/target.ts';
+import { openUrl } from '../ipc/os.ts';
 import {
   beginCreateBranch,
   beginRenameBranch,
@@ -73,6 +82,9 @@ export function commitMenu(store: RepoStore, entry: GraphEntry): MenuItem[] {
   const isHead = commit.id === store.headOid;
   const branch = store.currentBranch ?? 'HEAD';
   const sha = shortSha(commit);
+  const rewritable = canRewriteCommit(store, commit);
+  const target = targetOf(store);
+  const webUrl = target === null ? null : commitWebUrl(target, commit.id);
   return tidyMenu([
     ...refItems,
     { kind: 'separator' },
@@ -125,13 +137,71 @@ export function commitMenu(store: RepoStore, entry: GraphEntry): MenuItem[] {
       ],
     },
     { kind: 'separator' },
+    {
+      title: vi.rebase.menuReword,
+      icon: 'pencil',
+      disabled: !rewritable,
+      run: () => void rewordCommit(store, commit),
+    },
+    {
+      kind: 'submenu',
+      title: vi.rebase.menuMove,
+      icon: 'list',
+      disabled: !rewritable,
+      items: [
+        {
+          title: vi.rebase.menuMoveUp,
+          icon: 'chevron-up',
+          disabled: isHead,
+          run: () => void moveCommit(store, commit, 'up'),
+        },
+        {
+          title: vi.rebase.menuMoveDown,
+          icon: 'chevron-down',
+          run: () => void moveCommit(store, commit, 'down'),
+        },
+      ],
+    },
+    {
+      title: vi.rebase.menuDrop,
+      icon: 'trash',
+      destructive: true,
+      disabled: !rewritable,
+      run: () => void dropCommit(store, commit),
+    },
+    { kind: 'separator' },
     { title: vi.branches.menuCopySha, icon: 'hash', run: () => void store.copy(commit.id, 'SHA') },
     {
       title: vi.branches.menuCopyMessage,
       icon: 'copy',
       run: () => void store.copy(commit.subject, vi.branches.copyMessageLabel),
     },
+    { title: vi.branches.menuCopyPatch, icon: 'copy', run: () => void copyPatch(store, commit) },
+    webUrl !== null && { kind: 'separator' },
+    webUrl !== null &&
+      target !== null && {
+        title: vi.branches.menuOpenCommitWeb(target.host),
+        icon: 'globe',
+        run: () => void osAction(store, () => openUrl(webUrl)),
+      },
+    webUrl !== null && {
+      title: vi.branches.menuCopyCommitLink,
+      icon: 'globe',
+      run: () => void store.copy(webUrl, vi.branches.copyLinkLabel),
+    },
   ]);
+}
+
+/** Commit dạng patch (áp lại được bằng `git am`) vào clipboard. */
+async function copyPatch(store: RepoStore, commit: Commit): Promise<void> {
+  let patch: string;
+  try {
+    patch = await store.git.commitPatch(commit.id);
+  } catch (error) {
+    store.showError(vi.inspector.copyFailed, error);
+    return;
+  }
+  await store.copy(patch, vi.branches.copyPatchLabel);
 }
 
 export function workingTreeMenu(store: RepoStore): MenuItem[] {

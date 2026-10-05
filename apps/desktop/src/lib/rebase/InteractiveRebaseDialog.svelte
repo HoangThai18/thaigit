@@ -4,12 +4,12 @@
   Phím tắt trên hàng: P / R / S / F / D. Esc = Huỷ (không bấm nền để huỷ — tránh mất kế hoạch đang soạn).
 -->
 <script lang="ts">
-  import { REBASE_ACTIONS, shortSha, type RebaseAction, type RebasePlanProblem } from '@thaigit/core';
+  import { REBASE_ACTIONS, shortSha, type RebaseAction } from '@thaigit/core';
   import { showBidi } from '../format/bidi.ts';
   import { vi } from '../strings.vi.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
-  import { runInteractiveRebase } from './actions.ts';
+  import { rebaseProblemText, runInteractiveRebase } from './actions.ts';
   import { rebaseEditor, type RebaseSession } from './rebaseEditor.svelte.ts';
 
   interface Props {
@@ -48,23 +48,6 @@
         return vi.rebase.actionFixup;
       case 'drop':
         return vi.rebase.actionDrop;
-    }
-  }
-
-  function problemText(value: RebasePlanProblem): string {
-    switch (value) {
-      case 'empty':
-        return vi.rebase.problemEmpty;
-      case 'merge':
-        return vi.rebase.problemMerge;
-      case 'leadingSquash':
-        return vi.rebase.problemLeadingSquash;
-      case 'emptyMessage':
-        return vi.rebase.problemEmptyMessage;
-      case 'allDropped':
-        return vi.rebase.problemAllDropped;
-      case 'unchanged':
-        return vi.rebase.problemUnchanged;
     }
   }
 
@@ -263,7 +246,7 @@
 
     <p class="keys">{vi.rebase.keysHint}</p>
     {#if problem !== null}
-      <p class="problem" class:quiet={problem === 'unchanged'} role="status">{problemText(problem)}</p>
+      <p class="problem" class:quiet={problem === 'unchanged'} role="status">{rebaseProblemText(problem)}</p>
     {/if}
 
     <div class="buttons">

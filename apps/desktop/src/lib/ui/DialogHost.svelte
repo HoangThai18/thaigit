@@ -70,6 +70,13 @@
     ) {
       event.preventDefault();
       primary();
+    } else if (
+      event.key === 'Enter' &&
+      (event.ctrlKey || event.metaKey) &&
+      event.target instanceof HTMLTextAreaElement
+    ) {
+      event.preventDefault();
+      primary();
     }
   }
 </script>
@@ -124,6 +131,24 @@
                     autocomplete="off"
                     oninput={(event) => (values[field.id] = event.currentTarget.value)}
                   />
+                {/if}
+              </label>
+            {:else if field.kind === 'multiline'}
+              <label class="field">
+                <span class="label">{field.label}</span>
+                {#if index === 0}
+                  <textarea
+                    bind:this={firstField}
+                    rows="7"
+                    value={values[field.id] as string}
+                    placeholder={field.placeholder}
+                    oninput={(event) => (values[field.id] = event.currentTarget.value)}></textarea>
+                {:else}
+                  <textarea
+                    rows="7"
+                    value={values[field.id] as string}
+                    placeholder={field.placeholder}
+                    oninput={(event) => (values[field.id] = event.currentTarget.value)}></textarea>
                 {/if}
               </label>
             {:else if field.kind === 'select'}
@@ -258,6 +283,7 @@
 
   input[type='text'],
   input[type='password'],
+  textarea,
   select {
     box-sizing: border-box;
     width: 100%;
@@ -275,8 +301,15 @@
     font-size: 12.5px;
   }
 
+  textarea {
+    min-width: 440px;
+    resize: vertical;
+    line-height: 1.45;
+  }
+
   input[type='text']:focus,
   input[type='password']:focus,
+  textarea:focus,
   select:focus {
     outline: 2px solid var(--accent);
     outline-offset: -1px;
