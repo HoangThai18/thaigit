@@ -54,7 +54,7 @@ export const remote: Translation<typeof source> = {
   later: 'Later',
 
   needBranchToPull: 'You need to be on a branch to pull',
-  noUpstream: (branch: string) => `Branch ${branch} has no matching branch on the remote yet`,
+  noUpstream: (branch: string) => `Branch ${branch} has no upstream on the remote yet`,
   pushToRemote: 'Push to remote',
   pulled: (branch: string) => `Pulled into ${branch}`,
   upToDate: (branch: string) => `${branch} is up to date`,
@@ -78,7 +78,7 @@ export const remote: Translation<typeof source> = {
   forcePushConfirm: 'Force push',
   publishTitle: (branch: string) => `Push branch ${branch} to the remote`,
   publishMessage:
-    'This branch has no matching branch on the remote yet. Thaigit will create it on the remote and set it as the upstream.',
+    'This branch has no upstream yet. Thaigit will create it on the remote and set it as the upstream.',
   publishRemote: 'Remote',
   publishBranch: 'Branch name on the remote',
   publishConfirm: 'Push',

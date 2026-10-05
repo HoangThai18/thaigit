@@ -51,7 +51,7 @@ export const staging: Translation<typeof source> = {
   discardHunkConfirmMessage:
     'The selected lines go back to how they are in the index. You can click “Undo” right after.',
   partialUnsupported:
-    'This file can only be staged / unstaged as a whole (binary file, permission-only change, or rename).',
+    'This file can only be staged / unstaged as a whole (binary file, file mode change, or rename).',
 
   diffLabel: 'File diff',
   back: 'Graph',
@@ -96,7 +96,7 @@ export const staging: Translation<typeof source> = {
   bodyPlaceholder: 'Description (optional)',
   summaryTip: 'Keep the summary line under 72 characters',
   amend: 'Amend previous commit',
-  amendTip: 'Fold the staged changes into the last commit and/or edit its message',
+  amendTip: 'Amend the last commit with the staged changes and/or edit its message',
   commitButton: (count: number, branch: string) =>
     count > 0 ? `Commit ${files(count)} to ${branch}` : 'Commit',
   amendButton: 'Amend previous commit',

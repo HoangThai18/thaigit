@@ -143,6 +143,15 @@ export const branches: Translation<typeof source> = {
   ignoreTitle: 'Add to .gitignore',
   ignored: (pattern: string) => `Added “${pattern}” to .gitignore`,
 
+  running: {
+    merging: 'Merging',
+    rebasing: 'Rebasing',
+    cherryPicking: 'Cherry-picking',
+    reverting: 'Reverting',
+    applyingPatches: 'Applying patches (git am)',
+    bisecting: 'Bisecting',
+  },
+  runningRebaseStep: (step: number, total: number) => `Rebasing (${step}/${total})`,
   continueOperation: 'Continue',
   skipOperation: 'Skip this commit',
   abortOperation: 'Abort',

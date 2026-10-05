@@ -7,7 +7,7 @@ export const related = {
   submodules: 'SUBMODULES',
   worktreeCurrent: 'Worktree đang mở',
   worktreeMain: 'Worktree chính',
-  worktreeDetached: (sha: string) => `detached @ ${sha}`,
+  worktreeDetached: (sha: string) => `detached HEAD @ ${sha}`,
   worktreeMissing: 'Thư mục không còn — dùng “Dọn worktree đã mất”',
   worktreeLocked: 'Đang bị khoá (git worktree lock)',
   noWorktrees: 'Chỉ có worktree chính',

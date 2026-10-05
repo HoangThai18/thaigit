@@ -4,7 +4,6 @@ import {
   classifyGitPath,
   commitBody,
   commitSummary,
-  conflictDescription,
   conflictHasMarkers,
   defaultCloneDirectoryName,
   fileChangeAllPaths,
@@ -22,7 +21,6 @@ import {
   operationCanContinue,
   operationCanSkip,
   operationShortName,
-  operationTitle,
   parseBlame,
   parseFileHistory,
   parseLog,
@@ -331,7 +329,6 @@ describe('Parsers: ca biên', () => {
     ]);
     expect(conflictHasMarkers('bothModified')).toBe(true);
     expect(conflictHasMarkers('deletedByUs')).toBe(false);
-    expect(conflictDescription('unknown')).toBe('Xung đột');
     const typed = parseStatus(enc.encode('1 T. N... 120000 100644 100644 a b link\0'));
     expect(typed.staged[0]?.kind).toBe('typeChanged');
   });
@@ -422,9 +419,8 @@ describe('Parsers: ca biên', () => {
     expect(isWorkingTreeCommit(wip)).toBe(true);
     expect(wip.parents).toEqual(['abc']);
     expect(workingTreeCommit(null).parents).toEqual([]);
-    expect(operationTitle({ kind: 'rebasing', step: 2, total: 5, headName: null })).toBe('Đang rebase (2/5)');
-    expect(operationTitle({ kind: 'rebasing', step: null, total: null, headName: null })).toBe('Đang rebase');
     expect(operationShortName({ kind: 'cherryPicking' })).toBe('cherry-pick');
+    expect(operationShortName({ kind: 'applyingPatches' })).toBe('apply patch');
     expect(operationCanContinue({ kind: 'bisecting' })).toBe(false);
     expect(operationCanContinue({ kind: 'merging' })).toBe(true);
     expect(operationCanSkip({ kind: 'merging' })).toBe(false);

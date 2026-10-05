@@ -4,7 +4,8 @@
   Thanh công cụ ở 4a chỉ có tên repo/nhánh và hai nút (ẩn/hiện panel, đóng); Fetch/Pull/Push/Branch… thuộc 4b.
 -->
 <script lang="ts">
-  import { operationCanContinue, operationCanSkip, operationTitle } from '@thaigit/core';
+  import { operationCanContinue, operationCanSkip } from '@thaigit/core';
+  import { operationTitle } from '../operationLabel.ts';
   import { abortOperation, continueOperation, skipOperation } from '../actions/history.ts';
   import { beginCreateBranch } from '../actions/branches.ts';
   import { graphFilterSummary, showAllBranches } from '../actions/graphFilter.ts';

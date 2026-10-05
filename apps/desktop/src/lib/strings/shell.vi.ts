@@ -100,7 +100,7 @@ export const shell = {
     columns: {
       refs: 'Nhánh / Tag',
       graph: 'Graph',
-      message: 'Commit',
+      message: 'Message',
       author: 'Tác giả',
       date: 'Thời gian',
       sha: 'SHA',

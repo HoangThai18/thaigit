@@ -7,6 +7,8 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Khoá SSH riêng của Thaigit (Cài đặt → Khoá SSH): tạo khoá Ed25519 hoặc nhập khoá có sẵn, khoá bí mật chỉ nằm trong Credential Manager của máy (như 1Password) — fetch / pull / push / clone repo SSH tự dùng khoá qua một ssh-agent tạm, không cần cấu hình thư mục .ssh; thêm khoá lên GitHub / GitLab một bước, nút kiểm tra kết nối
 - Tài khoản GitLab đăng nhập bằng mã không còn bị đăng xuất sau 2 giờ: Thaigit tự làm mới token trước khi fetch / pull / push hay gọi API
 - Đăng nhập GitLab.com bằng mã dùng được ngay: bản cài có sẵn OAuth App Thaigit trên GitLab, không phải tự nhập Client ID
+- Lỗi rò tiếng Việt khi giao diện là tiếng Anh: banner thao tác dở dang và dòng phụ dưới tên repo vẫn hiện "Đang merge", "Đang rebase (2/5)"…; giờ hiện "Merging", "Rebasing (2/5)" theo ngôn ngữ đang chọn (tiếng Việt giữ nguyên)
+- Nhãn thao tác dở dang, loại xung đột lấy từ bảng chuỗi thay vì hardcode trong lõi dùng chung — trước đây lõi trả về tiếng Việt nên lọt vào giao diện tiếng Anh
 
 ## 2.2.0 — 2026-10-05
 

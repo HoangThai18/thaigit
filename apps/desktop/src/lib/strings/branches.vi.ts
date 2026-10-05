@@ -149,6 +149,15 @@ export const branches = {
   ignored: (pattern: string) => `Đã thêm “${pattern}” vào .gitignore`,
 
   // Thao tác dở dang (banner)
+  running: {
+    merging: 'Đang merge',
+    rebasing: 'Đang rebase',
+    cherryPicking: 'Đang cherry-pick',
+    reverting: 'Đang revert',
+    applyingPatches: 'Đang áp dụng patch (git am)',
+    bisecting: 'Đang bisect',
+  },
+  runningRebaseStep: (step: number, total: number) => `Đang rebase (${step}/${total})`,
   continueOperation: 'Tiếp tục',
   skipOperation: 'Bỏ qua commit này',
   abortOperation: 'Huỷ',

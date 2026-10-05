@@ -18,7 +18,6 @@ import {
   isWorkingTreeCommit,
   keepingRefs,
   NO_REF_FILTER,
-  operationTitle,
   progressFraction,
   refFilterActive,
   refName,
@@ -50,6 +49,7 @@ import { RiskStore } from '../risk/risks.svelte.ts';
 import { commitDrafts, type CommitDrafts } from '../staging/commitDrafts.ts';
 import { loadGraphFilter, saveGraphFilter } from '../graph/filterStorage.ts';
 import type { RepoPort } from '../platform/host.ts';
+import { operationTitle } from '../operationLabel.ts';
 import { vi } from '../strings.vi.ts';
 import { jsonEqual } from './equality.ts';
 import { COMMIT_LIMIT_MAX, prefs as globalPrefs, type PrefsData, type PrefsStore } from './prefs.svelte.ts';

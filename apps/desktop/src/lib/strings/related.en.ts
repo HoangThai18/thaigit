@@ -7,7 +7,7 @@ export const related: Translation<typeof source> = {
   submodules: 'SUBMODULES',
   worktreeCurrent: 'Open worktree',
   worktreeMain: 'Main worktree',
-  worktreeDetached: (sha: string) => `detached @ ${sha}`,
+  worktreeDetached: (sha: string) => `detached HEAD @ ${sha}`,
   worktreeMissing: 'The folder is gone — use “Prune missing worktrees”',
   worktreeLocked: 'Locked (git worktree lock)',
   noWorktrees: 'Only the main worktree',

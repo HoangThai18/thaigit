@@ -300,22 +300,13 @@ export function conflictKindFromCode(code: string): ConflictKind {
   return Object.hasOwn(CONFLICT_KIND_BY_CODE, code) ? (CONFLICT_KIND_BY_CODE[code] ?? 'unknown') : 'unknown';
 }
 
-const CONFLICT_DESCRIPTIONS: Readonly<Record<ConflictKind, string>> = {
-  bothModified: 'Cả hai bên đều sửa',
-  bothAdded: 'Cả hai bên đều thêm',
-  deletedByUs: 'Bên hiện tại đã xoá',
-  deletedByThem: 'Bên kia đã xoá',
-  addedByUs: 'Bên hiện tại thêm',
-  addedByThem: 'Bên kia thêm',
-  bothDeleted: 'Cả hai bên đều xoá',
-  unknown: 'Xung đột',
-};
-
-export function conflictDescription(kind: ConflictKind): string {
-  return CONFLICT_DESCRIPTIONS[kind];
-}
-
-/** Có tồn tại file kèm dấu xung đột trong working tree không. */
+/**
+ * Có tồn tại file kèm dấu xung đột trong working tree không.
+ *
+ * Lõi không dịch `ConflictKind` thành câu: app dùng bản dịch của mình (`vi.branches.conflictKinds`), giống bản Swift
+ * dùng `String(localized:)`. Nhờ vậy lõi không hardcode tiếng Việt — trước đây `conflictDescription()` trả về chuỗi
+ * tiếng Việt và lọt vào giao diện tiếng Anh.
+ */
 export function conflictHasMarkers(kind: ConflictKind): boolean {
   return kind === 'bothModified' || kind === 'bothAdded';
 }
@@ -383,26 +374,10 @@ export type RepoOperation =
   | { readonly kind: 'applyingPatches' }
   | { readonly kind: 'bisecting' };
 
-export function operationTitle(operation: RepoOperation): string {
-  switch (operation.kind) {
-    case 'merging':
-      return 'Đang merge';
-    case 'rebasing':
-      return operation.step !== null && operation.total !== null
-        ? `Đang rebase (${operation.step}/${operation.total})`
-        : 'Đang rebase';
-    case 'cherryPicking':
-      return 'Đang cherry-pick';
-    case 'reverting':
-      return 'Đang revert';
-    case 'applyingPatches':
-      return 'Đang áp dụng patch (git am)';
-    case 'bisecting':
-      return 'Đang bisect';
-  }
-}
-
-/** Tên ngắn để ghép câu: "Huỷ merge", "Tiếp tục rebase"… */
+/**
+ * Tên ngắn để ghép câu: "Huỷ merge", "Tiếp tục rebase"… Mọi tên đều là thuật ngữ git (tiếng Anh) để app ghép vào
+ * bất kỳ câu nào, kể cả bản dịch tiếng Việt — xem `vi.branches.running` cho nhãn tiến trình theo ngôn ngữ.
+ */
 export function operationShortName(operation: RepoOperation): string {
   switch (operation.kind) {
     case 'merging':
@@ -414,7 +389,7 @@ export function operationShortName(operation: RepoOperation): string {
     case 'reverting':
       return 'revert';
     case 'applyingPatches':
-      return 'áp dụng patch';
+      return 'apply patch';
     case 'bisecting':
       return 'bisect';
   }

@@ -52,7 +52,7 @@ export const staging = {
   discardHunkConfirmMessage:
     'Những dòng đã chọn sẽ trở về như trong index. Có thể bấm “Hoàn tác” ngay sau đó.',
   partialUnsupported:
-    'File này chỉ stage / bỏ stage được cả file (file nhị phân, chỉ đổi quyền, hoặc đổi tên).',
+    'File này chỉ stage / bỏ stage được cả file (file nhị phân, chỉ đổi file mode, hoặc đổi tên).',
 
   // Diff
   diffLabel: 'Diff của file',
@@ -65,8 +65,8 @@ export const staging = {
   loading: 'Đang tải diff…',
   binary: 'File nhị phân — không hiển thị được nội dung.',
   layoutLabel: 'Bố cục diff',
-  layoutUnified: 'Một cột',
-  layoutSplit: 'Hai cột',
+  layoutUnified: 'Một cột (unified)',
+  layoutSplit: 'Hai cột (trước | sau)',
   listAsTree: 'Xem dạng cây thư mục',
   listAsPaths: 'Đang xem dạng cây — bấm để xem danh sách đường dẫn',
   stageFolder: 'Stage cả thư mục',
@@ -84,7 +84,7 @@ export const staging = {
   imageTooLarge: 'Ảnh quá lớn để xem trước.',
   imageFailed: 'Không đọc được ảnh.',
   imageSize: (width: number, height: number, bytes: string) => `${width} × ${height} px · ${bytes}`,
-  empty: 'Không có thay đổi nội dung (có thể chỉ đổi quyền file hoặc đổi tên).',
+  empty: 'Không có thay đổi nội dung (có thể chỉ đổi file mode hoặc đổi tên).',
   emptyWhitespace: 'Chỉ có thay đổi về khoảng trắng — tắt “Bỏ qua khoảng trắng” để xem.',
   tooLargeTitle: 'Diff rất lớn',
   tooLargeMessage: (lines: number, additions: number, deletions: number) =>
@@ -99,7 +99,7 @@ export const staging = {
   bodyPlaceholder: 'Mô tả chi tiết (tuỳ chọn)',
   summaryTip: 'Nên giữ dòng tóm tắt dưới 72 ký tự',
   amend: 'Sửa commit trước (amend)',
-  amendTip: 'Đưa thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó',
+  amendTip: 'Amend thay đổi đã stage vào commit gần nhất và/hoặc sửa message của nó',
   commitButton: (count: number, branch: string) =>
     count > 0 ? `Commit ${count} file vào ${branch}` : 'Commit',
   amendButton: 'Sửa commit trước',

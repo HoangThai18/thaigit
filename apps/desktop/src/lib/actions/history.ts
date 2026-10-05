@@ -8,11 +8,11 @@ import {
   operationCanContinue,
   operationCanSkip,
   operationShortName,
-  operationTitle,
   shortSha,
   type Commit,
   type ResetMode,
 } from '@thaigit/core';
+import { operationTitle } from '../operationLabel.ts';
 import { vi } from '../strings.vi.ts';
 import { splitMessage } from './commit.ts';
 import { dialogs as globalDialogs, type DialogStore } from '../stores/dialogs.svelte.ts';
