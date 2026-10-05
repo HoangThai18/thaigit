@@ -262,6 +262,7 @@ impl Core {
         }
         let args = vec!["--progress".to_string(), "--".to_string(), url.to_string(), dest.to_string_lossy().into_owned()];
         let askpass = self.askpass.get().map(|server| server.session(window, op_id, "git clone"));
+        self.refresh_tokens_for(std::slice::from_ref(&url.to_string())).await;
         let credential = self.credential_session(std::slice::from_ref(&url.to_string()));
         let mut spec = self.build_spec_with(
             &git,

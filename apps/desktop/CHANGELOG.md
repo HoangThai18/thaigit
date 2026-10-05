@@ -5,6 +5,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 ## Chưa phát hành
 
 - Khoá SSH riêng của Thaigit (Cài đặt → Khoá SSH): tạo khoá Ed25519 hoặc nhập khoá có sẵn, khoá bí mật chỉ nằm trong Credential Manager của máy (như 1Password) — fetch / pull / push / clone repo SSH tự dùng khoá qua một ssh-agent tạm, không cần cấu hình thư mục .ssh; thêm khoá lên GitHub / GitLab một bước, nút kiểm tra kết nối
+- Tài khoản GitLab đăng nhập bằng mã không còn bị đăng xuất sau 2 giờ: Thaigit tự làm mới token trước khi fetch / pull / push hay gọi API
 
 ## 2.2.0 — 2026-10-05
 

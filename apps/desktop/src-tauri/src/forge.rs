@@ -242,6 +242,31 @@ pub async fn request_device_code(host: &str, provider: Provider, client_id: &str
     })
 }
 
+/// Token OAuth máy chủ cấp. GitLab: token sống ~2 giờ, kèm refresh token để làm mới (GitHub OAuth App: không hết hạn).
+#[derive(PartialEq, Eq)]
+pub struct TokenGrant {
+    pub access: String,
+    pub refresh: Option<String>,
+    pub expires_in: Option<u64>,
+}
+
+impl std::fmt::Debug for TokenGrant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenGrant").field("refresh", &self.refresh.is_some()).field("expires_in", &self.expires_in).finish()
+    }
+}
+
+impl TokenGrant {
+    fn from_json(value: &serde_json::Value) -> Option<TokenGrant> {
+        let access = value["access_token"].as_str().filter(|token| !token.is_empty())?.to_string();
+        Some(TokenGrant {
+            access,
+            refresh: value["refresh_token"].as_str().filter(|token| !token.is_empty()).map(str::to_string),
+            expires_in: value["expires_in"].as_u64(),
+        })
+    }
+}
+
 /// Kết quả một lần hỏi token của device flow.
 #[derive(Debug, PartialEq, Eq)]
 pub enum PollOutcome {
@@ -249,7 +274,19 @@ pub enum PollOutcome {
     Pending,
     /// Máy chủ bảo hỏi chậm lại (RFC 8628): cộng thêm 5 giây vào `interval`.
     SlowDown,
-    Token(String),
+    Token(TokenGrant),
+}
+
+/// Làm mới token OAuth bằng refresh token (public client: chỉ cần Client ID). Refresh token cũ hết hiệu lực sau lần này.
+pub async fn refresh_token(host: &str, provider: Provider, client_id: &str, refresh: &str) -> Result<TokenGrant> {
+    let client = http()?;
+    let (_, url) = device_flow_urls(host, provider);
+    let body = serde_json::json!({ "client_id": client_id, "refresh_token": refresh, "grant_type": "refresh_token" });
+    let (status, value) = request(&client, reqwest::Method::POST, &url, "", Some(&body)).await?;
+    if let Some(grant) = TokenGrant::from_json(&value).filter(|_| (200..300).contains(&status)) {
+        return Ok(grant);
+    }
+    Err(AppError::Auth(format!("Phiên đăng nhập {host} đã hết hạn — đăng nhập lại tài khoản đó")))
 }
 
 /// Bước 2: hỏi token một lần (UI hỏi lại theo `interval` cho tới khi người dùng xác nhận).
@@ -262,8 +299,8 @@ pub async fn poll_for_token(host: &str, provider: Provider, client_id: &str, dev
         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
     });
     let (status, value) = request(&client, reqwest::Method::POST, &url, "", Some(&body)).await?;
-    if let Some(token) = value["access_token"].as_str().filter(|token| !token.is_empty()) {
-        return Ok(PollOutcome::Token(token.to_string()));
+    if let Some(grant) = TokenGrant::from_json(&value) {
+        return Ok(PollOutcome::Token(grant));
     }
     let error = value["error"].as_str().unwrap_or_default();
     match error {
@@ -663,6 +700,7 @@ fn check_repo_path(owner: &str, repo: &str) -> Result<(String, String)> {
 
 /// Token của tài khoản mặc định (hoặc đã gán) cho `owner` trên host — PR/MR đọc bằng tài khoản có quyền thật.
 fn owner_token(accounts: &crate::accounts::Accounts, host: &str, owner: &str) -> Result<(Provider, String)> {
+    // Token OAuth sắp hết hạn đã được làm mới bởi người gọi (`refresh_due`).
     let provider = accounts.provider_of(host)?;
     let resolved = accounts
         .resolve(host, Some(owner))
@@ -681,6 +719,7 @@ pub async fn list_for(
 ) -> Result<Vec<ForgeMergeRequest>> {
     let (host, _) = check_host(host, provider)?;
     let (owner, repo) = check_repo_path(owner, repo)?;
+    accounts.refresh_due(&host).await;
     let (provider, token) = owner_token(accounts, &host, &owner)?;
     list_merge_requests(&host, provider, &token, &owner, &repo).await
 }
@@ -703,6 +742,7 @@ pub async fn create(
     let (owner, repo) = check_repo_path(owner, repo)?;
     check_branch(source_branch)?;
     check_branch(target_branch)?;
+    accounts.refresh_due(&host).await;
     let (provider, token) = owner_token(accounts, &host, &owner)?;
     create_merge_request(&host, provider, &token, &owner, &repo, title, body, source_branch, target_branch, draft).await
 }

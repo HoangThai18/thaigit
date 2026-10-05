@@ -371,6 +371,13 @@ impl Core {
         }
     }
 
+    /// Làm mới token OAuth sắp hết hạn (GitLab) của các host mà lệnh mạng sắp chạm — trước khi git hỏi credential.
+    pub async fn refresh_tokens_for(&self, urls: &[String]) {
+        for host in crate::credential::helper_hosts(urls, &self.accounts) {
+            self.accounts.refresh_due(&host).await;
+        }
+    }
+
     /// Phiên credential cho một lệnh mạng chạm các URL `urls`: chỉ tạo khi URL đó có remote HTTPS của host đã đăng nhập.
     pub fn credential_session(&self, urls: &[String]) -> Option<crate::credential::CredentialSession> {
         let server = self.credential.get()?;
@@ -670,6 +677,9 @@ impl Core {
         // Lệnh mạng chạm remote HTTPS của host đã đăng nhập: git hỏi credential thì app trả token của tài khoản đúng owner.
         // Cả hồ sơ background (tự fetch) cũng dùng được — không bao giờ mở hộp thoại, chỉ trả token đã lưu.
         let urls = if kind == ExecKind::Network { self.remote_urls(&entry.id).await.unwrap_or_default() } else { Vec::new() };
+        if kind == ExecKind::Network {
+            self.refresh_tokens_for(&urls).await;
+        }
         let credential = if kind == ExecKind::Network { self.credential_session(&urls) } else { None };
         let mut spec = self.build_spec_with(
             &git,

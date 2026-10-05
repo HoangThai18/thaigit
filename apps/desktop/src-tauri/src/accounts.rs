@@ -171,6 +171,10 @@ pub struct Account {
     pub organizations: Vec<String>,
     #[serde(default)]
     pub organizations_updated_at: Option<String>,
+    /// Token OAuth hết hạn lúc này (giây Unix) — GitLab cấp token ~2 giờ kèm refresh token (trong kho bí mật). `None`: không
+    /// hết hạn (GitHub OAuth App, token dán tay).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_expires_at: Option<u64>,
 }
 
 impl Account {
@@ -297,9 +301,10 @@ impl Accounts {
                 }
                 Ok(None)
             }
-            Ok(crate::forge::PollOutcome::Token(token)) => {
+            Ok(crate::forge::PollOutcome::Token(grant)) => {
                 self.cancel_login(device_code);
-                let account = self.add_token_from_api(&login.host, login.provider, &token).await?;
+                let account = self.add_token_from_api(&login.host, login.provider, &grant.access).await?;
+                self.store_grant_extras(&account.host, &account.login, &grant)?;
                 Ok(Some(account.login))
             }
             Err(error) => {
@@ -593,14 +598,54 @@ impl Accounts {
                         .unwrap_or_else(|| format!("{login_owned}@users.noreply.thaigit")),
                     organizations: Vec::new(),
                     organizations_updated_at: None,
+                    token_expires_at: None,
                 };
                 file.accounts.push(account.clone());
                 account
             }
         };
         self.secrets.set(&account_key(&host, login), token)?;
+        // Token mới (dán tay hoặc vừa đăng nhập): bỏ refresh token / hạn cũ — device flow đặt lại ngay sau đó nếu có.
+        self.secrets.delete(&refresh_key(&host, login))?;
+        if let Some(index) = Self::index_of(&file, &host, login) {
+            file.accounts[index].token_expires_at = None;
+        }
         self.commit(&file)?;
-        Ok(account)
+        Ok(Self::find(&file, &host, login).cloned().unwrap_or(account))
+    }
+
+    /// Lưu refresh token + hạn của token OAuth vừa cấp.
+    fn store_grant_extras(&self, host: &str, login: &str, grant: &crate::forge::TokenGrant) -> Result<()> {
+        let Some(refresh) = grant.refresh.as_deref().filter(|token| safe_secret(token, 512)) else { return Ok(()) };
+        self.secrets.set(&refresh_key(host, login), refresh)?;
+        let mut file = self.lock().clone();
+        if let Some(index) = Self::index_of(&file, host, login) {
+            file.accounts[index].token_expires_at = grant.expires_in.map(|seconds| unix_now() + seconds);
+            self.commit(&file)?;
+        }
+        Ok(())
+    }
+
+    /// Làm mới token OAuth của các tài khoản trên `host` sắp hết hạn (còn dưới 2 phút). Lỗi thì giữ nguyên — lệnh git / API
+    /// sẽ báo đăng nhập lại như cũ.
+    pub async fn refresh_due(&self, host: &str) {
+        let due: Vec<Account> = {
+            let file = self.lock();
+            file.accounts
+                .iter()
+                .filter(|a| a.host.eq_ignore_ascii_case(host) && a.token_expires_at.is_some_and(|at| at <= unix_now() + 120))
+                .cloned()
+                .collect()
+        };
+        for account in due {
+            let Some(refresh) = self.secrets.get(&refresh_key(&account.host, &account.login)).ok().flatten() else { continue };
+            let Some(client_id) = self.oauth_client_id(&account.host) else { continue };
+            let Ok(grant) = crate::forge::refresh_token(&account.host, account.provider, &client_id, &refresh).await else { continue };
+            if !safe_secret(&grant.access, 512) || self.secrets.set(&account.key(), &grant.access).is_err() {
+                continue;
+            }
+            let _ = self.store_grant_extras(&account.host, &account.login, &grant);
+        }
     }
 
     /// Cập nhật danh sách tổ chức (chọn token theo owner tổ chức).
@@ -639,6 +684,7 @@ impl Accounts {
         let Some(index) = Self::index_of(&file, host, login) else { return Ok(()) };
         let account = file.accounts.remove(index);
         self.secrets.delete(&account.key())?;
+        self.secrets.delete(&refresh_key(&account.host, &account.login))?;
         file.owner_assignments.retain(|_, assigned| !assigned.eq_ignore_ascii_case(&account.login));
         let host_key = account.host.to_ascii_lowercase();
         if file.defaults.get(&host_key).is_some_and(|value| value.eq_ignore_ascii_case(&account.login)) {
@@ -813,6 +859,15 @@ fn effective_client_ids(saved: &BTreeMap<String, String>) -> BTreeMap<String, St
     ids
 }
 
+fn unix_now() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+/// Khoá của refresh token trong kho bí mật (cạnh token của tài khoản).
+fn refresh_key(host: &str, login: &str) -> String {
+    format!("{}#refresh", account_key(host, login))
+}
+
 pub(crate) fn now_rfc3339() -> String {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
@@ -893,6 +948,31 @@ mod tests {
 
     fn add(accounts: &Accounts, host: &str, provider: Provider, login: &str) {
         accounts.upsert(host, provider, "42", login, login, &format!("token-{login}")).unwrap();
+    }
+
+    #[test]
+    fn oauth_refresh_token_is_kept_secret_and_cleared_with_the_account() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Arc::new(MemoryStore::default());
+        let accounts = Accounts::load(dir.path(), store.clone());
+        add(&accounts, "gitlab.com", Provider::Gitlab, "carol");
+        let grant = crate::forge::TokenGrant { access: "at".into(), refresh: Some("rt-bi-mat".into()), expires_in: Some(7200) };
+        accounts.store_grant_extras("gitlab.com", "carol", &grant).unwrap();
+        let text = std::fs::read_to_string(dir.path().join("accounts.json")).unwrap();
+        assert!(!text.contains("rt-bi-mat"), "refresh token không được ghi ra đĩa: {text}");
+        assert_eq!(store.get(&refresh_key("gitlab.com", "carol")).unwrap().as_deref(), Some("rt-bi-mat"));
+        let expires = accounts.lock().accounts[0].token_expires_at.unwrap();
+        assert!(expires > unix_now() + 7000 && expires <= unix_now() + 7200);
+        assert!(!format!("{grant:?}").contains("rt-bi-mat"));
+
+        // Dán token mới thay cho token OAuth: không còn hạn / refresh token cũ.
+        add(&accounts, "gitlab.com", Provider::Gitlab, "carol");
+        assert_eq!(accounts.lock().accounts[0].token_expires_at, None);
+        assert!(store.get(&refresh_key("gitlab.com", "carol")).unwrap().is_none());
+
+        accounts.store_grant_extras("gitlab.com", "carol", &grant).unwrap();
+        accounts.remove("gitlab.com", "carol").unwrap();
+        assert!(store.get(&refresh_key("gitlab.com", "carol")).unwrap().is_none());
     }
 
     #[test]

@@ -458,6 +458,7 @@ pub async fn ssh_keys_upload(core: CoreState<'_>, id: String, host: String, logi
     let key = core.ssh_keys.public_key(&id).ok_or_else(|| AppError::NotFound("Không tìm thấy khoá SSH này".into()))?;
     let provider = core.accounts.provider_of(&host)?;
     let page = forge::ssh_keys_page(&host, provider);
+    core.accounts.refresh_due(&host).await;
     let Some(token) = core.accounts.token(&host, &login) else {
         return Ok(SshUploadResult { outcome: forge::SshKeyUpload::MissingScope, page });
     };
@@ -522,6 +523,7 @@ fn hostname_label() -> String {
 /// Repo mà tài khoản này truy cập được (dùng cho hộp Clone).
 #[tauri::command]
 pub async fn accounts_repositories(core: CoreState<'_>, host: String, login: String) -> Result<Vec<ForgeRepository>> {
+    core.accounts.refresh_due(&host).await;
     let token = core
         .accounts
         .token(&host, &login)
