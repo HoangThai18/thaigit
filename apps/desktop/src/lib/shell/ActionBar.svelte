@@ -115,6 +115,17 @@
   <button
     type="button"
     class="action"
+    title={store.canUndoLast && store.lastUndo ? vi.remote.undoLast(store.lastUndo.title) : vi.remote.undoTip}
+    disabled={busy || !store.canUndoLast}
+    onclick={() => store.undoLast()}
+  >
+    <Icon name="undo" size={16} />
+    <span class="label">{vi.remote.undo}</span>
+  </button>
+
+  <button
+    type="button"
+    class="action"
     title={vi.remote.fetchTip}
     disabled={busy}
     onclick={() => void fetch(store)}

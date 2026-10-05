@@ -1,6 +1,6 @@
 // Fetch / pull / push / tạo nhánh / đổi nhánh / stash — chạy trên repo git thật với "remote" là repo bare cục bộ.
 import { mkdtemp, realpath, rm } from 'node:fs/promises';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -15,7 +15,7 @@ import {
 } from '../src/lib/actions/manageRemotes.ts';
 import { backgroundFetch, completeHistory, fetch, pull, push, sync } from '../src/lib/actions/remote.ts';
 import { commit } from '../src/lib/actions/commit.ts';
-import { popLatestStash, quickStash } from '../src/lib/actions/stash.ts';
+import { quickStash } from '../src/lib/actions/stash.ts';
 import { DialogStore } from '../src/lib/stores/dialogs.svelte.ts';
 import { PrefsStore } from '../src/lib/stores/prefs.svelte.ts';
 import { RepoStore } from '../src/lib/stores/repo.svelte.ts';
@@ -282,25 +282,36 @@ describe('nhánh / stash từ thanh công cụ', () => {
     expect(store.currentBranchRef?.upstream).toBe('origin/tu-remote');
   });
 
-  it('thay đổi chặn đổi nhánh: "Stash rồi checkout" rồi Pop stash', async () => {
+  it('thay đổi chặn đổi nhánh: tự stash, checkout rồi mang thay đổi theo; xung đột thì giữ stash', async () => {
     const { test, store, toasts } = await openWithRemote();
+    await test.write('a.txt', '1\n2\n3\n4\n5\n6\n7\n8\n');
+    test.git('commit', '-q', '-am', 'Tám dòng');
     test.git('switch', '-q', '-c', 'khac');
-    await test.write('a.txt', 'trên nhánh khác\n');
-    test.git('commit', '-q', '-am', 'Sửa a trên nhánh khác');
+    await test.write('a.txt', 'MỘT\n2\n3\n4\n5\n6\n7\n8\n');
+    test.git('commit', '-q', '-am', 'Sửa dòng đầu trên nhánh khác');
     test.git('switch', '-q', 'main');
-    await test.write('a.txt', 'đang sửa dở\n');
+    // Sửa dòng cuối: chặn checkout nhưng áp lại sạch.
+    await test.write('a.txt', '1\n2\n3\n4\n5\n6\n7\nTÁM\n');
     await store.refreshAndWait(7);
 
     await switchToBranch(store, 'khac');
-    expect(lastToast(toasts)).toBe('Không checkout được vì có thay đổi chưa commit');
-    action(toasts, 'Stash rồi checkout')();
-    await until(() => store.currentBranch === 'khac' && store.stashes.length === 1, 'stash rồi checkout');
-
-    test.git('switch', '-q', 'main');
-    await store.refreshAndWait(7);
-    await popLatestStash(store);
+    await until(() => store.currentBranch === 'khac' && !store.isPerforming, 'tự stash rồi checkout');
+    expect(lastToast(toasts)).toBe('Checkout khac xong — đã mang theo thay đổi chưa commit');
     expect(store.stashes).toHaveLength(0);
-    expect(store.status.unstaged.map((change) => change.path)).toEqual(['a.txt']);
+    expect(readFileSync(join(test.root, 'a.txt'), 'utf8')).toBe('MỘT\n2\n3\n4\n5\n6\n7\nTÁM\n');
+
+    // Sửa cùng dòng với nhánh kia: áp lại xung đột, stash vẫn còn.
+    test.git('checkout', '-q', '--', 'a.txt');
+    test.git('switch', '-q', 'main');
+    await test.write('a.txt', 'one\n2\n3\n4\n5\n6\n7\n8\n');
+    await store.refreshAndWait(7);
+    await switchToBranch(store, 'khac');
+    await until(() => store.currentBranch === 'khac' && !store.isPerforming, 'checkout có xung đột');
+    expect(lastToast(toasts)).toBe(
+      'Checkout khac xong, nhưng thay đổi chưa commit bị xung đột với nhánh mới',
+    );
+    expect(store.stashes).toHaveLength(1);
+    expect(store.status.conflicts.map((entry) => entry.path)).toEqual(['a.txt']);
   });
 
   it('stash nhanh và hoàn tác', async () => {

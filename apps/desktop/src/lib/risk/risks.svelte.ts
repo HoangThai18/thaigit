@@ -21,6 +21,20 @@ export const RISK_DEBOUNCE_MS = 1500;
 
 export class RiskStore {
   flags = $state.raw<readonly RiskFlag[]>([]);
+  /** Dấu của bộ cờ người dùng đã bấm ẩn: dải cảnh báo chỉ hiện lại khi có cờ mới. */
+  dismissedKey = $state('');
+
+  get key(): string {
+    return JSON.stringify(this.flags);
+  }
+
+  get visible(): readonly RiskFlag[] {
+    return this.flags.length > 0 && this.key !== this.dismissedKey ? this.flags : [];
+  }
+
+  dismiss(): void {
+    this.dismissedKey = this.key;
+  }
   private timer: ReturnType<typeof setTimeout> | undefined;
   private token = 0;
   private disposed = false;

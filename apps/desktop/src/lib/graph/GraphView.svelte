@@ -8,7 +8,8 @@
   import { drag as dragDrop, dropAttr, parseDropTarget } from '../dnd/drag.svelte.ts';
   import { isMergeCommit, isWorkingTreeCommit, shortSha } from '@thaigit/core';
   import { untrack } from 'svelte';
-  import { commitMenu } from '../actions/menus.ts';
+  import { checkout } from '../actions/branches.ts';
+  import { commitMenu, labelsMenu } from '../actions/menus.ts';
   import { showBidi } from '../format/bidi.ts';
   import { formatAbsolute, formatCommitTime } from '../format/time.ts';
   import { vi } from '../strings.vi.ts';
@@ -30,7 +31,7 @@
   import { autoLoadMore } from './autoLoadMore.svelte.ts';
   import GraphCanvasLayer from './GraphCanvasLayer.svelte';
   import { measurePillText } from './measure.ts';
-  import { layoutPills, pillAppearance, pillIcons, pillTooltip, PILL } from './pills.ts';
+  import { layoutPills, pillAppearance, pillIcons, pillTooltip, PILL, type RefLabel } from './pills.ts';
   import { GraphStyle, laneColor, readLaneColors } from './style.ts';
   import { workingTreeSummary } from './wip.ts';
 
@@ -104,6 +105,31 @@
     const ref = label?.refs.find((item) => item.fullName === fullName);
     if (!label || !ref) return;
     dragDrop.begin(event, () => ({ kind: 'ref', ref, label: label.text }));
+  }
+
+  /** Khung nổi khi rê chuột vào "+N": các nhánh / tag bị gom (như GitKraken). */
+  let moreHover = $state<{ x: number; y: number; labels: readonly RefLabel[] } | null>(null);
+
+  function showMore(event: PointerEvent, labels: readonly RefLabel[]): void {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    moreHover = { x: rect.left, y: rect.bottom + 4, labels };
+  }
+
+  function openMore(event: MouseEvent, index: number, labels: readonly RefLabel[]): void {
+    event.stopPropagation();
+    moreHover = null;
+    selectRow(index);
+    menus.openBelow(event.currentTarget as HTMLElement, labelsMenu(store, labels));
+  }
+
+  /** Nhấp đúp lên một nhãn: checkout đúng nhánh đó (không phải nhánh đầu dòng). */
+  function activatePill(event: MouseEvent, label: RefLabel): void {
+    const ref =
+      label.refs.find((item) => item.kind === 'localBranch') ??
+      label.refs.find((item) => item.kind === 'remoteBranch');
+    if (!ref || label.isDetachedHead) return;
+    event.stopPropagation();
+    void checkout(store, ref);
   }
 
   function selectRow(index: number): void {
@@ -261,7 +287,13 @@
       selectRow(index);
       graphElement?.focus({ preventScroll: true });
     }}
-    ondblclick={() => onactivate?.(entry)}
+    ondblclick={(event) => {
+      // Nhấp đúp lên một nhãn: checkout đúng nhánh đó; chỗ khác của hàng: như cũ (onactivate).
+      const pill = (event.target as HTMLElement | null)?.closest('[data-pill]')?.getAttribute('data-pill');
+      const label = pill == null ? undefined : entry.labels[Number(pill)];
+      if (label) activatePill(event, label);
+      else onactivate?.(entry);
+    }}
     onpointerdown={(event) => beginPillDrag(event, entry)}
     oncontextmenu={(event) => {
       selectRow(index);
@@ -293,6 +325,7 @@
               style:--pill-rim-width="{look.rimWidth}px"
               style:--pill-edge={look.edge}
               title={showBidi(pillTooltip(label))}
+              data-pill={pill.index}
             >
               {#each pillIcons(label) as icon (icon)}
                 <Icon name={icon} size={PILL.iconSize} strokeWidth={2.6} />
@@ -302,23 +335,30 @@
           {/if}
         {/each}
         {#if placement.more}
-          <span
+          {@const hidden = entry.labels.slice(entry.labels.length - placement.more.count)}
+          <button
+            type="button"
             class="more"
             style:left="{placement.more.x}px"
-            title={showBidi(
-              entry.labels
-                .slice(entry.labels.length - placement.more.count)
-                .map((label) => label.text)
-                .join('\n'),
-            )}
+            aria-label={vi.graph.moreTitle(placement.more.count)}
+            aria-haspopup="menu"
+            onpointerenter={(event) => showMore(event, hidden)}
+            onpointerleave={() => (moreHover = null)}
+            onclick={(event) => openMore(event, index, hidden)}
+            ondblclick={(event) => event.stopPropagation()}
           >
             {vi.graph.pillMore(placement.more.count)}
-          </span>
+          </button>
         {/if}
         <span class="connector" style:left="{placement.end}px" style:--lane={lane}></span>
       {/if}
     </div>
-    <div class="cell graph-cell"></div>
+    <div
+      class="cell graph-cell"
+      title={isWip
+        ? undefined
+        : vi.graph.pillAuthor(commit.authorName, commit.authorEmail, formatAbsolute(commit.authorDate))}
+    ></div>
     <div class="cell message" title={isWip ? vi.graph.wipTooltip : showBidi(commit.subject)}>
       {#if isWip}
         <span class="wip-label">{vi.graph.wip}</span>
@@ -414,6 +454,18 @@
     {/if}
   </div>
 </div>
+
+{#if moreHover}
+  <div class="more-card" style:left="{moreHover.x}px" style:top="{moreHover.y}px" role="tooltip">
+    {#each moreHover.labels as label, index (index)}
+      <div class="more-row" class:current={label.isCurrentBranch}>
+        <Icon name={label.isTag ? 'tag' : label.hasLocal ? 'branch' : 'cloud'} size={12} />
+        <span><bdi>{showBidi(label.text)}</bdi></span>
+      </div>
+    {/each}
+    <div class="more-hint">{vi.graph.moreHint}</div>
+  </div>
+{/if}
 
 <style>
   .graph-table {
@@ -636,13 +688,60 @@
     width: 26px;
     height: 18px;
     margin-top: -9px;
+    padding: 0;
+    border: none;
     border-radius: 9px;
     background: var(--chip-fill);
     color: var(--text);
+    font: inherit;
     font-size: 10px;
     font-weight: 700;
     line-height: 18px;
     text-align: center;
+    cursor: pointer;
+  }
+
+  .more:hover {
+    background: var(--row-hover);
+  }
+
+  .more-card {
+    position: fixed;
+    z-index: 800;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+    padding: 8px 10px;
+    border: 1px solid var(--glass-rim);
+    border-radius: var(--radius-m);
+    background: var(--surface);
+    box-shadow: var(--glass-shadow);
+    font-size: 12.5px;
+    pointer-events: none;
+  }
+
+  .more-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .more-row :global(svg) {
+    color: var(--text-secondary);
+  }
+
+  .more-row.current {
+    font-weight: 600;
+  }
+
+  .more-hint {
+    margin-top: 2px;
+    padding-top: 5px;
+    border-top: 1px solid var(--separator);
+    color: var(--text-tertiary);
+    font-size: 11.5px;
   }
 
   /* Đường nối từ nhãn sang node (phần trong cột Nhánh/Tag; phần trong cột Graph do canvas vẽ). */

@@ -15,6 +15,7 @@
   import { explainCommit } from '../ai/actions.ts';
   import { AI_ENABLED } from '../ai/enabled.ts';
   import { menus } from '../stores/menus.svelte.ts';
+  import { stageAll } from '../actions/staging.ts';
 
   interface Props {
     store: RepoStore;
@@ -38,10 +39,46 @@
   );
 
   let showFullBody = $state(false);
+  /** Đang xem commit mà vẫn còn file chưa commit: nhắc ở đầu panel (như dòng WIP của GitKraken). */
+  const uncommitted = $derived(
+    new Set([
+      ...store.status.staged.map((change) => change.path),
+      ...store.status.unstaged.map((change) => change.path),
+      ...store.status.conflicts.map((entry) => entry.path),
+    ]).size,
+  );
 </script>
 
 {#if details && commit}
   <div class="detail">
+    {#if uncommitted > 0}
+      <div class="uncommitted" role="status">
+        <div class="line">
+          <Icon name={store.status.conflicts.length > 0 ? 'warning' : 'pencil'} size={14} />
+          <strong>{vi.inspector.uncommittedBanner(uncommitted)}</strong>
+          {#if store.currentBranch}
+            <span class="on"><bdi>{showBidi(vi.inspector.uncommittedOn(store.currentBranch))}</bdi></span>
+          {/if}
+        </div>
+        <div class="buttons">
+          {#if store.status.unstaged.length > 0}
+            <button type="button" class="btn" onclick={() => void stageAll(store)}>
+              <Icon name="stage" size={13} />
+              <span>{vi.inspector.uncommittedStageAll}</span>
+            </button>
+          {/if}
+          <button
+            type="button"
+            class="btn primary"
+            title={vi.inspector.uncommittedReviewTip}
+            onclick={() => store.select({ kind: 'workingTree' }, true)}
+          >
+            <Icon name="commit" size={13} />
+            <span>{vi.inspector.uncommittedReview}</span>
+          </button>
+        </div>
+      </div>
+    {/if}
     <div class="top">
       <h2 class="summary selectable"><bdi>{showBidi(summary)}</bdi></h2>
       {#if body}
@@ -138,6 +175,62 @@
 {/if}
 
 <style>
+  .uncommitted {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 10px 12px 0;
+    padding: 10px;
+    border-radius: var(--radius-m);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    font-size: 12.5px;
+  }
+
+  .uncommitted .line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .uncommitted .line :global(svg) {
+    flex: none;
+    color: var(--warning);
+  }
+
+  .uncommitted .on {
+    overflow: hidden;
+    color: var(--text-secondary);
+    text-overflow: ellipsis;
+  }
+
+  .uncommitted .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .uncommitted .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+    color: var(--text);
+    font: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+
+  .uncommitted .btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: #fff;
+  }
+
   .ai-explain {
     display: inline-flex;
     align-items: center;

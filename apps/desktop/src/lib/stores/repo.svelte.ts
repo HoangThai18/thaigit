@@ -206,6 +206,10 @@ export class RepoStore {
   lastFetch = $state<number | null>(null);
   /** File đang mở ở vùng giữa (thay graph) và các dòng đang chọn để stage từng dòng. */
   readonly diff: DiffStore;
+  /** Thao tác git gần nhất hoàn tác được (nút Undo trên thanh công cụ, như GitKraken) — lấy từ nút "Hoàn tác" của thông báo. */
+  lastUndo = $state.raw<{ title: string; fingerprint: string; run: () => void } | null>(null);
+  /** Thông báo có "Hoàn tác" vừa hiện, chưa làm mới xong: chốt dấu vân tay sau lần làm mới của thao tác. */
+  pendingUndoFingerprint = $state(false);
   /** Ô soạn commit (giữ khi chuyển qua lại giữa WIP và commit khác). */
   commitDraft = $state({ summary: '', body: '', amend: false });
   /** Dòng thời gian (snapshot tự động) — panel bên phải thay cho chi tiết khi mở. */
@@ -915,6 +919,34 @@ export class RepoStore {
   ): void {
     if (this.disposed) return;
     this.toasts[style](title, { ...options, owner: this.ownerId });
+    const undo = options.actions?.find((action) => action.title === vi.staging.undo);
+    if (undo) {
+      this.lastUndo = { title, fingerprint: '', run: undo.run };
+      this.pendingUndoFingerprint = true;
+    }
+  }
+
+  /** Dấu vân tay trạng thái cho nút Undo: HEAD + nhánh + danh sách file thay đổi. */
+  get undoFingerprint(): string {
+    const files = [
+      ...this.status.staged.map((change) => `s:${change.path}`),
+      ...this.status.unstaged.map((change) => `u:${change.path}`),
+      ...this.status.conflicts.map((entry) => `c:${entry.path}`),
+    ].sort();
+    return [this.headOid ?? '-', this.currentBranch ?? '-', ...files].join('\n');
+  }
+
+  /** Nút Undo bấm được: có thao tác hoàn tác được và repo chưa đổi gì kể từ đó (tránh đè lên việc mới). */
+  get canUndoLast(): boolean {
+    const undo = this.lastUndo;
+    return undo !== null && !this.pendingUndoFingerprint && undo.fingerprint === this.undoFingerprint;
+  }
+
+  undoLast(): void {
+    const undo = this.lastUndo;
+    if (!undo || !this.canUndoLast) return;
+    this.lastUndo = null;
+    undo.run();
   }
 
   /** Toast thường của store này: có chủ sở hữu (gỡ khi đóng repo) và không hiện sau `dispose`. */
@@ -1014,6 +1046,10 @@ export class RepoStore {
         const scope = (options.refresh ?? Scope.status | Scope.refs) | this.fileSystemPending;
         this.fileSystemPending = 0;
         await this.refreshAndWait(scope);
+        if (this.pendingUndoFingerprint && this.lastUndo) {
+          this.lastUndo = { ...this.lastUndo, fingerprint: this.undoFingerprint };
+          this.pendingUndoFingerprint = false;
+        }
       }
     };
     const task = run();

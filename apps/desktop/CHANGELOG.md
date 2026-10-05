@@ -2,6 +2,14 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## Chưa phát hành
+
+- Nhiều nhánh / tag cùng một commit: nhãn ưu tiên nhánh đang đứng rồi main / master / develop; rê chuột vào "+N" hiện danh sách nhánh bị gom, bấm để chọn nhánh (Checkout, Merge, Push…); nhấp đúp lên nhãn checkout đúng nhánh đó
+- Checkout khi còn thay đổi chưa commit: Thaigit tự stash, chuyển nhánh rồi mang thay đổi sang (như GitKraken) — không còn báo lỗi; xung đột thì bản gốc vẫn giữ trong stash
+- Cạnh tên nhánh trên thanh công cụ có số file chưa commit (bấm để về WIP); xem một commit mà còn file chưa commit thì đầu panel chi tiết nhắc kèm nút Stage tất cả / Xem & commit
+- Nút Undo trên thanh công cụ: hoàn tác thao tác git gần nhất (commit, checkout, pull, huỷ thay đổi…), tự tắt khi repo đã đổi khác
+- Rê chuột vào cột graph để xem tên người commit và thời gian; dải "Nên xem lại trước khi commit" có nút ẩn; danh sách đang trống trong panel thay đổi thu nhỏ để danh sách kia hiện nhiều file hơn; cùng một thông báo không hiện lặp
+
 ## 2.1.0 — 2026-10-04
 
 Tab nhiều repo, rebase tương tác, lịch sử file và blame, worktree / submodule, Git LFS, command palette và diff tô màu cú pháp.

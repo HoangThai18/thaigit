@@ -19,34 +19,55 @@ import {
 } from '../stores/dialogs.svelte.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { gitErrorContains, handleNetworkError } from './errors.ts';
-import { popLatestStash } from './stash.ts';
 
 type Work = (git: GitRepository) => Promise<void>;
 
-/** Thay đổi chưa commit chặn checkout: hiện lỗi kèm "Stash rồi checkout". */
+/**
+ * Thay đổi chưa commit chặn checkout: như GitKraken, tự cất (stash), checkout rồi mang thay đổi sang — không hiện lỗi.
+ */
 export function handleCheckoutError(store: RepoStore, error: unknown, stashAndRetry: () => void): boolean {
   if (!gitErrorContains(error, 'would be overwritten', 'Please commit your changes or stash them'))
     return false;
-  store.showError(vi.branches.checkoutBlocked, error, [
-    { title: vi.branches.stashAndCheckout, run: stashAndRetry },
-  ]);
+  stashAndRetry();
   return true;
 }
 
-/** Cất thay đổi vào stash rồi chạy `work` (GitKraken gọi là auto-stash). */
+/**
+ * Auto-stash: cất thay đổi vào stash, chạy `work`, rồi áp lại thay đổi lên chỗ mới. `work` lỗi thì trả thay đổi về như cũ;
+ * áp lại bị xung đột thì giữ nguyên stash (không mất gì) và báo để người dùng giải quyết.
+ */
 export function stashThen(store: RepoStore, title: string, work: Work): Promise<void> {
+  let reapplied = false;
   return store.perform(
     title,
     async (git) => {
       await git.stashPush(vi.branches.autoStashMessage(title), true);
-      await work(git);
+      try {
+        await work(git);
+      } catch (error) {
+        await git.stashPop('stash@{0}').catch(() => undefined);
+        throw error;
+      }
+      try {
+        await git.stashApply('stash@{0}');
+        await git.stashDrop('stash@{0}');
+        reapplied = true;
+      } catch {
+        // Xung đột khi áp lại: stash vẫn còn, file xung đột hiện ở panel thay đổi.
+      }
     },
     {
       refresh: Scope.all,
-      onSuccess: () =>
-        store.notify('success', vi.branches.doneWithStash(title), {
-          actions: [{ title: vi.branches.popStash, run: () => void popLatestStash(store) }],
-        }),
+      onSuccess: () => {
+        if (reapplied) {
+          store.notify('success', vi.branches.carriedChanges(title));
+          return;
+        }
+        store.notify('warning', vi.branches.carryConflict(title), {
+          message: vi.branches.carryConflictMessage,
+          actions: [{ title: vi.branches.showChanges, run: () => store.select({ kind: 'workingTree' }) }],
+        });
+      },
     },
   );
 }

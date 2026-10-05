@@ -4,6 +4,7 @@
 export const risk = {
   title: 'Nên xem lại trước khi commit',
   hint: 'Chỉ là cảnh báo — Thaigit không chặn commit.',
+  dismiss: 'Ẩn cảnh báo này (hiện lại khi có cảnh báo mới)',
   testsRemoved: (count: number) => `Xoá ${count} file test`,
   testsSkipped: (count: number) => `Tắt bớt test (skip / only) trong ${count} file`,
   depsChanged: (count: number) => `Đổi dependency (${count} file)`,

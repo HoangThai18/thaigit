@@ -10,6 +10,7 @@ import {
   type GitRef,
   type Stash,
 } from '@thaigit/core';
+import type { RefLabel } from '../graph/pills.ts';
 import type { GraphEntry } from '../stores/repo.svelte.ts';
 import type { RepoStore } from '../stores/repo.svelte.ts';
 import type { DiffSource } from '../stores/diff.svelte.ts';
@@ -44,6 +45,20 @@ function refIcon(ref: GitRef): IconName {
 }
 
 /** Menu của một hàng trên graph: các nhánh / tag trỏ vào commit (menu con), rồi thao tác trên commit. */
+/** Menu của viên "+N" trên graph: mọi nhánh / tag bị gom, mỗi cái một menu con (Checkout, Merge, Push…). */
+export function labelsMenu(store: RepoStore, labels: readonly RefLabel[]): MenuItem[] {
+  const refs = labels.filter((label) => !label.isDetachedHead).flatMap((label) => label.refs);
+  return [
+    { kind: 'header', title: vi.graph.moreTitle(refs.length) },
+    ...refs.map((ref): MenuItem => ({
+      kind: 'submenu',
+      title: refName(ref),
+      icon: refIcon(ref),
+      items: refMenu(store, ref),
+    })),
+  ];
+}
+
 export function commitMenu(store: RepoStore, entry: GraphEntry): MenuItem[] {
   const commit = entry.commit;
   if (isWorkingTreeCommit(commit)) return workingTreeMenu(store);

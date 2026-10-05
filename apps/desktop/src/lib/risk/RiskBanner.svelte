@@ -10,9 +10,11 @@
 
   interface Props {
     flags: readonly RiskFlag[];
+    /** Nút ✕: ẩn dải cho tới khi có cờ mới. */
+    ondismiss?: () => void;
   }
 
-  let { flags }: Props = $props();
+  let { flags, ondismiss }: Props = $props();
 
   const SHOWN = 3;
 
@@ -45,6 +47,17 @@
     <div class="title">
       <Icon name="warning" size={14} />
       <span>{vi.risk.title}</span>
+      {#if ondismiss}
+        <button
+          type="button"
+          class="close"
+          title={vi.risk.dismiss}
+          aria-label={vi.risk.dismiss}
+          onclick={ondismiss}
+        >
+          <Icon name="x" size={12} />
+        </button>
+      {/if}
     </div>
     <ul>
       {#each flags as flag (flag.code)}
@@ -58,6 +71,25 @@
 {/if}
 
 <style>
+  .close {
+    display: inline-grid;
+    place-items: center;
+    margin-left: auto;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .close:hover {
+    background: var(--row-hover);
+    color: var(--text);
+  }
+
   .risks {
     flex: none;
     margin: 0 10px 8px;

@@ -59,6 +59,14 @@
   const centerCovered = $derived(store.diff.file !== null || store.blame.target !== null);
   let showLog = $state(false);
   let showBranchPicker = $state(false);
+  /** Số file chưa commit (một file vừa stage vừa sửa tiếp chỉ tính một lần) — chip cạnh tên nhánh. */
+  const uncommittedCount = $derived(
+    new Set([
+      ...store.status.staged.map((change) => change.path),
+      ...store.status.unstaged.map((change) => change.path),
+      ...store.status.conflicts.map((entry) => entry.path),
+    ]).size,
+  );
   let showPalette = $state(false);
   const search = untrack(() => new GraphSearch(store));
 
@@ -159,6 +167,18 @@
         {@render sidebarToggle()}
       {/if}
       <BranchSwitcher {store} onfind={() => (showBranchPicker = true)} />
+      {#if uncommittedCount > 0}
+        <button
+          type="button"
+          class="uncommitted"
+          class:conflicts={store.status.conflicts.length > 0}
+          title={vi.window.uncommittedTip}
+          onclick={() => store.select({ kind: 'workingTree' }, true)}
+        >
+          <Icon name={store.status.conflicts.length > 0 ? 'warning' : 'pencil'} size={13} />
+          <span>{vi.window.uncommitted(uncommittedCount)}</span>
+        </button>
+      {/if}
       <div class="titles" data-tauri-drag-region>
         <strong class="repo-name" data-tauri-drag-region><bdi>{showBidi(store.name)}</bdi></strong>
         <span class="subtitle" data-tauri-drag-region><bdi>{showBidi(store.branchSubtitle)}</bdi></span>
@@ -354,6 +374,35 @@
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border-bottom: 1px solid var(--separator);
+  }
+
+  .uncommitted {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    gap: 5px;
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--glass-rim);
+    border-radius: 15px;
+    background: var(--glass-fill);
+    color: var(--text);
+    font: inherit;
+    font-size: 12.5px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .uncommitted :global(svg) {
+    color: var(--warning);
+  }
+
+  .uncommitted.conflicts :global(svg) {
+    color: var(--danger);
+  }
+
+  .uncommitted:hover {
+    background: var(--row-hover);
   }
 
   .tool {

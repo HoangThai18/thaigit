@@ -26,11 +26,12 @@ export const branches = {
     'Bạn sẽ ở trạng thái detached HEAD (không thuộc nhánh nào). Muốn commit tiếp thì hãy tạo nhánh mới tại đó.',
   detached: (label: string) => `Đang ở ${label} (detached HEAD)`,
   undoCheckout: 'Hoàn tác checkout',
-  checkoutBlocked: 'Không checkout được vì có thay đổi chưa commit',
-  stashAndCheckout: 'Stash rồi checkout',
   autoStashMessage: (title: string) => `Thaigit: tự stash trước khi ${title.toLowerCase()}`,
-  doneWithStash: (title: string) => `${title} xong — thay đổi của bạn đã được stash`,
-  popStash: 'Pop stash',
+  carriedChanges: (title: string) => `${title} xong — đã mang theo thay đổi chưa commit`,
+  carryConflict: (title: string) => `${title} xong, nhưng thay đổi chưa commit bị xung đột với nhánh mới`,
+  carryConflictMessage:
+    'Thay đổi gốc vẫn được giữ trong stash mới nhất — giải quyết xung đột hoặc pop lại sau.',
+  showChanges: 'Xem thay đổi',
 
   // Tạo nhánh
   createTitle: 'Tạo nhánh mới',

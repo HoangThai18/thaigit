@@ -57,6 +57,8 @@ export const shell: Translation<typeof source> = {
   },
 
   window: {
+    uncommitted: (count: number) => `${count} uncommitted ${count === 1 ? 'file' : 'files'}`,
+    uncommittedTip: 'Show uncommitted changes to stage and commit',
     resizeSidebar: 'Drag to resize the sidebar',
     resizeInspector: 'Drag to resize the details panel',
     operationConflicts: (count: number) => `${count} ${count === 1 ? 'file' : 'files'} still in conflict`,
@@ -95,6 +97,10 @@ export const shell: Translation<typeof source> = {
     wipTooltip: 'Uncommitted changes — click to view',
     ariaLabel: 'Commit history',
     pillMore: (count: number) => `+${count}`,
+    moreTitle: (count: number) =>
+      `${count} ${count === 1 ? 'branch / tag' : 'branches / tags'} on this commit`,
+    moreHint: 'Click to check out / merge…',
+    pillAuthor: (name: string, email: string, time: string) => `${name} <${email}>\n${time}`,
     detachedHeadPill: 'HEAD (detached)',
     localBranchTip: (name: string, upstream: string | null) =>
       `Local branch: ${name}${upstream === null ? '' : ` → ${upstream}`}`,
@@ -141,6 +147,11 @@ export const shell: Translation<typeof source> = {
   },
 
   inspector: {
+    uncommittedBanner: (count: number) => `${count} uncommitted ${count === 1 ? 'file' : 'files'}`,
+    uncommittedOn: (branch: string) => `on ${branch}`,
+    uncommittedStageAll: 'Stage All',
+    uncommittedReview: 'Review & Commit',
+    uncommittedReviewTip: 'Open the uncommitted files to stage, unstage, discard and commit',
     ariaLabel: 'Details',
     emptyTitle: 'Select a commit',
     emptyHint: 'Click a commit in the graph to see its details, or the “WIP” row to see uncommitted changes.',

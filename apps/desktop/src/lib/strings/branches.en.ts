@@ -24,11 +24,13 @@ export const branches: Translation<typeof source> = {
     'You will be in “detached HEAD” mode (not on any branch). To keep committing, create a new branch there.',
   detached: (label: string) => `On ${label} (detached HEAD)`,
   undoCheckout: 'Undo checkout',
-  checkoutBlocked: "Can't checkout because of uncommitted changes",
-  stashAndCheckout: 'Stash and checkout',
   autoStashMessage: (title: string) => `Thaigit: auto-stash before ${title.toLowerCase()}`,
-  doneWithStash: (title: string) => `${title} done — your changes were saved to a stash`,
-  popStash: 'Pop stash',
+  carriedChanges: (title: string) => `${title} done — your uncommitted changes came along`,
+  carryConflict: (title: string) =>
+    `${title} done, but your uncommitted changes conflict with the new branch`,
+  carryConflictMessage:
+    'The original changes are still kept in the latest stash — resolve the conflicts or pop it later.',
+  showChanges: 'Show Changes',
 
   createTitle: 'New branch',
   createTitleNamed: (name: string) => `Create branch ${name}`,

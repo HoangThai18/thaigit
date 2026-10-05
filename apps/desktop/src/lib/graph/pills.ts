@@ -40,12 +40,18 @@ function byName(a: GitRef, b: GitRef): number {
   return x < y ? -1 : x > y ? 1 : 0;
 }
 
-/** Thứ tự hiển thị: HEAD/nhánh hiện tại, rồi nhánh local, rồi remote, cuối cùng tag. */
+const MAIN_BRANCHES = new Set(['main', 'master', 'develop', 'dev']);
+
+/**
+ * Thứ tự hiển thị — nhãn đầu là nhãn còn thấy khi ô hẹp (còn lại gom vào "+N"): HEAD / nhánh hiện tại, rồi nhánh chính
+ * (main / master / develop), rồi nhánh local khác, remote, cuối cùng tag.
+ */
 function rank(label: RefLabel): number {
   if (label.isDetachedHead || label.isCurrentBranch) return 0;
-  if (label.hasLocal) return 1;
-  if (label.isTag) return 3;
-  return 2;
+  if (label.hasLocal && MAIN_BRANCHES.has(label.text)) return 1;
+  if (label.hasLocal) return 2;
+  if (label.isTag) return 4;
+  return 3;
 }
 
 /** Nhãn theo commit đích. Commit không có nhãn thì không có khoá trong kết quả. */

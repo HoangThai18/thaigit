@@ -57,7 +57,7 @@
     </button>
   </header>
 
-  <RiskBanner flags={store.risks.flags} />
+  <RiskBanner flags={store.risks.visible} ondismiss={() => store.risks.dismiss()} />
 
   {#if conflicts.length > 0}
     <div class="section conflicts">
@@ -74,7 +74,8 @@
     </div>
   {/if}
 
-  <div class="section">
+  <!-- Danh sách đang trống thu nhỏ để danh sách kia hiện được nhiều file hơn (như GitKraken). -->
+  <div class="section" class:compact={status.unstaged.length === 0 && status.staged.length > 0}>
     <ChangeList
       files={status.unstaged}
       title={vi.staging.unstagedTitle}
@@ -98,7 +99,7 @@
     />
   </div>
 
-  <div class="section">
+  <div class="section" class:compact={status.staged.length === 0}>
     <ChangeList
       files={status.staged}
       title={vi.staging.stagedTitle}
@@ -190,6 +191,12 @@
     display: flex;
     flex: 1 1 0;
     min-height: 90px;
+  }
+
+  .section.compact {
+    flex: 0 0 auto;
+    min-height: 0;
+    max-height: 110px;
   }
 
   .section.conflicts {

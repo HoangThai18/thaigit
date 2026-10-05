@@ -66,7 +66,17 @@ export class ToastStore {
       tag: options.tag ?? null,
       owner: options.owner ?? null,
     };
-    let next = toast.tag === null ? [...this.items] : this.items.filter((item) => item.tag !== toast.tag);
+    // Cùng tag, hoặc y hệt một thông báo đang hiện (vd. bấm checkout hai lần liền): thay cái cũ thay vì xếp chồng.
+    let next = this.items.filter(
+      (item) =>
+        !(toast.tag !== null && item.tag === toast.tag) &&
+        !(
+          item.style === toast.style &&
+          item.title === toast.title &&
+          item.message === toast.message &&
+          item.owner === toast.owner
+        ),
+    );
     next.push(toast);
     if (next.length > MAX_TOASTS) next = next.slice(next.length - MAX_TOASTS);
     this.replace(next);

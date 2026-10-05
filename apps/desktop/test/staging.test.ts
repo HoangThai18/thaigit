@@ -255,6 +255,28 @@ describe('commit', () => {
     expect(store.commitDraft.body).toBe('Chi tiết');
   });
 
+  it('nút Undo: hoàn tác commit vừa xong; repo đổi khác thì tự tắt', async () => {
+    const { test, store } = await openStore(setupTenLines);
+    const before = store.headOid;
+    await test.write('a.txt', 'sửa\n');
+    await store.refreshAndWait(1);
+    store.commitDraft.summary = 'Sửa a';
+    await commit(store, { stageAllFirst: true });
+    expect(store.canUndoLast).toBe(true);
+    store.undoLast();
+    await until(() => store.headOid === before && !store.isPerforming, 'undo commit');
+    expect(store.status.staged.map((change) => change.path)).toEqual(['a.txt']);
+    expect(store.canUndoLast).toBe(false);
+
+    // Commit lại rồi sửa thêm file khác: Undo tắt, không đè việc mới.
+    store.commitDraft.summary = 'Sửa a lần nữa';
+    await commit(store);
+    expect(store.canUndoLast).toBe(true);
+    await test.write('moi.txt', 'mới\n');
+    await store.refreshAndWait(1);
+    expect(store.canUndoLast).toBe(false);
+  });
+
   it('"Stage tất cả & commit" và hoàn tác commit đầu tiên', async () => {
     const { test, store, toasts } = await openStore(() => {});
     await test.write('a.txt', 'đầu tiên\n');

@@ -58,6 +58,8 @@ export const shell = {
   },
 
   window: {
+    uncommitted: (count: number) => `${count} file chưa commit`,
+    uncommittedTip: 'Xem thay đổi chưa commit để stage và commit',
     resizeSidebar: 'Kéo để đổi độ rộng thanh bên',
     resizeInspector: 'Kéo để đổi độ rộng panel chi tiết',
     operationConflicts: (count: number) => `Còn ${count} file xung đột`,
@@ -95,6 +97,9 @@ export const shell = {
     wipTooltip: 'Thay đổi chưa commit — bấm để xem',
     ariaLabel: 'Lịch sử commit',
     pillMore: (count: number) => `+${count}`,
+    moreTitle: (count: number) => `${count} nhánh / tag trên commit này`,
+    moreHint: 'Bấm để checkout / merge…',
+    pillAuthor: (name: string, email: string, time: string) => `${name} <${email}>\n${time}`,
     detachedHeadPill: 'HEAD (detached)',
     localBranchTip: (name: string, upstream: string | null) =>
       `Nhánh local: ${name}${upstream === null ? '' : ` → ${upstream}`}`,
@@ -140,6 +145,11 @@ export const shell = {
   },
 
   inspector: {
+    uncommittedBanner: (count: number) => `${count} file chưa commit`,
+    uncommittedOn: (branch: string) => `trên ${branch}`,
+    uncommittedStageAll: 'Stage tất cả',
+    uncommittedReview: 'Xem & commit',
+    uncommittedReviewTip: 'Mở danh sách file chưa commit để stage, bỏ stage, huỷ và commit',
     ariaLabel: 'Chi tiết',
     emptyTitle: 'Chọn một commit',
     emptyHint:
