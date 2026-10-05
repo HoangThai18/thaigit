@@ -232,6 +232,10 @@ enum AutomationHarness {
             case "fetch": model.fetch()
             case "push": model.push()
             case "pull": model.pull()
+            case "undolast":
+                // Như bấm nút Undo trên thanh công cụ (chỉ chạy khi nút đang bật).
+                log("canUndoLast=\(model.canUndoLast) \(model.lastUndo?.title ?? "-")")
+                model.undoLast()
             case "undo":
                 // Bấm nút đầu tiên của thông báo mới nhất (thường là "Hoàn tác").
                 if let toast = model.toasts.last(where: { !$0.actions.isEmpty }), let action = toast.actions.first {

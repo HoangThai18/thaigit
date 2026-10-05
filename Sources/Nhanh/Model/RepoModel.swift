@@ -104,6 +104,9 @@ final class RepoModel {
     var riskFlags: [RiskFlag] = []
     /// Cờ rủi ro người dùng đã bấm ẩn: dải cảnh báo chỉ hiện lại khi danh sách cờ đổi.
     var dismissedRiskFlags: [RiskFlag]?
+    /// Thao tác git gần nhất hoàn tác được (nút Undo trên thanh công cụ, như GitKraken) — lấy từ nút "Hoàn tác" của thông báo.
+    /// `fingerprint`: HEAD + nhánh + danh sách file thay đổi lúc đó; repo đổi khác thì không cho hoàn tác (tránh đè việc mới).
+    var lastUndo: (title: String, fingerprint: String, run: () -> Void)?
     @ObservationIgnored var riskTask: Task<Void, Never>?
     var searchText = "" {
         didSet { if searchText != oldValue { updateSearch() } }
@@ -128,6 +131,8 @@ final class RepoModel {
     @ObservationIgnored private var isActive = false
     @ObservationIgnored private var didChooseInitialSelection = false
     @ObservationIgnored var savedSummaryBeforeAmend: (String, String)?
+    /// Thông báo có "Hoàn tác" vừa hiện trước lần làm mới sau thao tác: chốt dấu vân tay ở lần làm mới kế tiếp.
+    var pendingUndoFingerprint = false
     /// Message app tự điền từ MERGE_MSG khi đang merge/revert — để dọn đi khi thao tác kết thúc ngoài ô commit
     /// (nút "Tiếp tục", terminal) mà người dùng chưa sửa gì.
     @ObservationIgnored var prefilledCommitMessage: (summary: String, body: String)?
@@ -731,6 +736,10 @@ final class RepoModel {
                 (tag != nil && old.tag == tag) || (old.style == style && old.title == title && old.message == message)
             }
             toasts.append(toast)
+            if let undo = actions.first(where: { $0.title == String(localized: "Hoàn tác") }) {
+                lastUndo = (title, "", undo.handler)
+                pendingUndoFingerprint = true
+            }
             if toasts.count > 4 { toasts.removeFirst(toasts.count - 4) }
         }
         if !toast.isPersistent {
@@ -739,6 +748,25 @@ final class RepoModel {
                 dismissToast(toast.id)
             }
         }
+    }
+
+    /// Dấu vân tay trạng thái repo cho nút Undo.
+    var undoFingerprint: String {
+        let files = (status.staged.map { "s:" + $0.path } + status.unstaged.map { "u:" + $0.path }
+            + status.conflicts.map { "c:" + $0.path }).sorted()
+        return ([headOID ?? "-", currentBranch ?? "-"] + files).joined(separator: "\n")
+    }
+
+    /// Nút Undo bấm được: có thao tác hoàn tác được và repo chưa đổi gì kể từ đó.
+    var canUndoLast: Bool {
+        guard let lastUndo, !pendingUndoFingerprint else { return false }
+        return lastUndo.fingerprint == undoFingerprint
+    }
+
+    func undoLast() {
+        guard canUndoLast, let undo = lastUndo else { return }
+        lastUndo = nil
+        undo.run()
     }
 
     func dismissToast(_ id: UUID) {
@@ -793,6 +821,10 @@ final class RepoModel {
             let scope = refresh.union(fileSystemPending)
             fileSystemPending = []
             await refreshAndWait(scope)
+            if pendingUndoFingerprint {
+                lastUndo?.fingerprint = undoFingerprint
+                pendingUndoFingerprint = false
+            }
         }
         currentOperationTask = task
         operationChain = task

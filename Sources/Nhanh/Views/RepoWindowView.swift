@@ -194,6 +194,14 @@ struct RepoActionBar: View {
 
             Spacer(minLength: 8)
 
+            Button { model.undoLast() } label: {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+            }
+            .disabled(!model.canUndoLast)
+            .help(model.canUndoLast
+                ? String(localized: "Hoàn tác: \(model.lastUndo?.title ?? "")")
+                : String(localized: "Hoàn tác thao tác git gần nhất (commit, checkout, pull, huỷ thay đổi…)"))
+
             Button { model.fetch() } label: {
                 Label("Fetch", systemImage: "arrow.triangle.2.circlepath")
             }

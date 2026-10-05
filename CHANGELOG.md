@@ -26,6 +26,7 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Diff tô màu cú pháp (từ khoá, chuỗi, comment, số) cho JS / TS, PHP, Swift, Python, Go, Rust, Java / Kotlin, C / C++, C#, CSS, JSON, YAML, shell, SQL, HTML…
 - Nút "Bỏ qua khoảng trắng" ở đầu diff (git diff -w) — khi bật chỉ stage / bỏ stage được cả file
 - Đầu diff gọn hơn: nút Sửa / Huỷ chỉ còn biểu tượng để tên file hiện đủ
+- Nút Undo trên thanh công cụ (như GitKraken): hoàn tác thao tác git gần nhất — commit, checkout, pull, huỷ thay đổi… Nút tự tắt khi repo đã đổi khác sau thao tác đó để không đè lên việc mới
 
 ## 1.1.1 — 2026-10-03
 

@@ -351,6 +351,8 @@
 "Hoàn tác rebase" = "Undo Rebase";
 "Hoàn tác reset" = "Undo Reset";
 "Hoàn tác revert" = "Undo Revert";
+"Hoàn tác thao tác git gần nhất (commit, checkout, pull, huỷ thay đổi…)" = "Undo the last git action (commit, checkout, pull, discard…)";
+"Hoàn tác: %@" = "Undo: %@";
 "Hoàn tất merge" = "Complete Merge";
 "Hoàn tất revert" = "Complete Revert";
 "Hunk sau" = "Next Hunk";
@@ -881,6 +883,7 @@
 "Tự động kiểm tra và tải bản mới" = "Automatically check for and download new versions";
 "URL, ví dụ git@github.com:ten/du-an.git" = "URL, e.g. git@github.com:name/project.git";
 "UTF-8 có BOM" = "UTF-8 with BOM";
+"Undo" = "Undo";
 "Thao tác" = "Action";
 "Vẫn hiển thị" = "Show Anyway";
 "Vẫn merge" = "Merge Anyway";
