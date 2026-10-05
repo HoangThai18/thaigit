@@ -1,7 +1,4 @@
 <!doctype html>
-<!-- Nguồn ảnh chia sẻ app/opengraph-image.png (1200×630). Dựng lại:
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars --window-size=1200,630 --virtual-time-budget=8000 --screenshot="$PWD/app/opengraph-image.png" "file://$PWD/scripts/og-image.html"
-  (chạy trong thư mục site/) -->
 <html lang="vi">
 <head>
 <meta charset="utf-8">
@@ -22,7 +19,6 @@
   html, body { width: 1200px; height: 630px; overflow: hidden; background: var(--bg); }
   body { font-family: 'Be Vietnam Pro', sans-serif; color: var(--text); position: relative; -webkit-font-smoothing: antialiased; }
 
-  /* Nền: quầng màu + lưới mờ */
   .orb { position: absolute; border-radius: 50%; filter: blur(90px); }
   .orb.o1 { width: 520px; height: 520px; left: -220px; top: -260px; background: rgb(240 80 50 / 0.26); }
   .orb.o2 { width: 680px; height: 680px; right: -220px; bottom: -300px; background: rgb(47 134 232 / 0.45); }
@@ -38,10 +34,8 @@
   .noise { position: absolute; inset: 0; opacity: .5;
     background: radial-gradient(ellipse at 50% 120%, rgb(0 0 0 / .55), transparent 60%); }
 
-  /* Graph trang trí chạy dọc mép trái */
   .graph { position: absolute; left: 0; top: 0; }
 
-  /* Cột chữ */
   .copy { position: absolute; left: 92px; top: 74px; width: 560px; }
   .brand { display: flex; align-items: center; gap: 20px; }
   .brand img { width: 92px; height: 92px; border-radius: 22px;
@@ -68,7 +62,6 @@
   .url { font-size: 22px; font-weight: 700; color: var(--text-2); margin-left: 6px; }
   .url b { color: #fff; }
 
-  /* Ảnh app nghiêng */
   .stage { position: absolute; left: 660px; top: 96px; width: 760px; perspective: 1600px; }
   .win { width: 760px; border-radius: 16px; overflow: hidden; transform: rotateY(-16deg) rotateX(5deg) rotateZ(-1deg);
     transform-origin: left center;
