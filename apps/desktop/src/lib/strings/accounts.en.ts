@@ -116,6 +116,20 @@ export const pullRequests: Translation<typeof pullRequestsSource> = {
   buttonLabel: 'PR',
   buttonTip: (branch: string) => `Create a Pull Request from branch ${branch}`,
   buttonNoBranch: 'Check out a branch to create a Pull Request',
+  reviewHeading: (number: string) => `Pull Request #${number}`,
+  reviewRef: (number: string) => `#${number}`,
+  reviewMenu: 'View changes',
+  reviewing: 'Fetching changes for review',
+  reviewClose: 'Close review',
+  reviewLoading: 'Fetching changes against the target branch…',
+  reviewFailed: "Couldn't fetch the changes — check your connection and account, then try again.",
+  reviewRetry: 'Try again',
+  reviewFiles: (count: number) =>
+    `${count} ${count === 1 ? 'file' : 'files'} changed against the target branch`,
+  reviewNoFiles: 'No changes against the target branch.',
+  reviewCommits: (count: number) => `${count} ${count === 1 ? 'commit' : 'commits'}`,
+  reviewNoDescription: 'No description.',
+  reviewUpdated: (when: string) => `updated ${when}`,
   merge: {
     create: 'Create Merge Request',
     createFrom: (branch: string) => `Create Merge Request from ${branch}`,
@@ -128,5 +142,7 @@ export const pullRequests: Translation<typeof pullRequestsSource> = {
     buttonLabel: 'MR',
     buttonTip: (branch: string) => `Create a Merge Request from branch ${branch}`,
     buttonNoBranch: 'Check out a branch to create a Merge Request',
+    reviewHeading: (number: string) => `Merge Request !${number}`,
+    reviewRef: (number: string) => `!${number}`,
   },
 };

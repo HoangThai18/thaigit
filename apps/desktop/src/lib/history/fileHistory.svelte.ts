@@ -15,6 +15,8 @@ export interface FileHistoryHost {
   readonly diff: DiffStore;
   /** Hai panel cùng chỗ bên phải: mở lịch sử file thì đóng Dòng thời gian. */
   closeTimeline(): void;
+  /** Mở lịch sử file thì đóng Review PR (cùng chỗ bên phải). */
+  closeReview?(): void;
   showError(title: string, error: unknown): void;
 }
 
@@ -40,6 +42,7 @@ export class FileHistoryStore {
 
   open(path: string): void {
     this.host.closeTimeline();
+    this.host.closeReview?.();
     this.path = path;
     this.entries = [];
     this.selected = null;

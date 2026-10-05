@@ -10,6 +10,8 @@ describe('requestWording', () => {
     expect(text.createdToast('12')).toBe('Đã tạo Merge Request !12.');
     expect(text.notPushed('feature/x')).toContain('Merge Request');
     expect(text.buttonTip('feature/x')).toBe('Tạo Merge Request từ nhánh feature/x');
+    expect(text.reviewHeading('12')).toBe('Merge Request !12');
+    expect(text.reviewRef('12')).toBe('!12');
   });
 
   it('GitHub, Bitbucket và máy chủ chưa rõ gọi là Pull Request', () => {
@@ -19,6 +21,8 @@ describe('requestWording', () => {
       expect(text.createFrom('main')).toBe('Tạo Pull Request từ main');
       expect(text.createdToast('7')).toBe('Đã tạo Pull Request #7.');
       expect(text.buttonNoBranch).toContain('Pull Request');
+      expect(text.reviewHeading('7')).toBe('Pull Request #7');
+      expect(text.reviewRef('7')).toBe('#7');
     }
   });
 });

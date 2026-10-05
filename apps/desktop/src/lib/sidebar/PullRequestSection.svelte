@@ -6,12 +6,13 @@
   import { untrack } from 'svelte';
   import type { ForgeMergeRequest } from '@thaigit/contracts';
   import { refName } from '@thaigit/core';
-  import { handleNetworkError } from '../actions/errors.ts';
-  import { checkout } from '../actions/branches.ts';
+  import { checkoutPullRequest } from '../forge/checkoutPullRequest.ts';
   import { createPullRequest } from '../forge/createPullRequest.svelte.ts';
+  import { openReview } from '../forge/openReview.ts';
   import {
     loadMergeRequests,
     pullRequestCheckout,
+    requestStateLabel,
     targetOf,
     type MergeRequestState,
   } from '../forge/pullRequests.ts';
@@ -19,7 +20,7 @@
   import { openUrl } from '../ipc/os.ts';
   import { menus } from '../stores/menus.svelte.ts';
   import { prefs } from '../stores/prefs.svelte.ts';
-  import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
+  import type { RepoStore } from '../stores/repo.svelte.ts';
   import { vi } from '../strings.vi.ts';
   import Icon from '../ui/Icon.svelte';
   import { requestWording } from '../forge/wording.ts';
@@ -81,56 +82,20 @@
     const plan =
       target === null ? null : pullRequestCheckout(item, target.provider, target.owner, target.remote);
     return [
+      { title: text.reviewMenu, icon: 'compare' as const, run: () => void openReview(store, item) },
       { title: text.openOnWeb, icon: 'globe' as const, run: () => openWeb(item) },
       {
         title: text.checkout,
         icon: 'checkout' as const,
         disabled: plan === null,
-        run: () => void checkoutPullRequest(item),
+        run: () => void checkoutPullRequest(store, item),
       },
     ];
-  }
-
-  /** Lấy nhánh của PR về máy rồi checkout (nhánh local đã có thì chỉ checkout). */
-  async function checkoutPullRequest(item: ForgeMergeRequest): Promise<void> {
-    const current = target;
-    if (current === null) return;
-    const plan = pullRequestCheckout(item, current.provider, current.owner, current.remote);
-    if (plan === null) return;
-    const existing = store.localBranches.find((branch) => refName(branch) === plan.localName);
-    const progress = store.progressReporter();
-    await store.perform(
-      text.checkout,
-      async (git, signal) => {
-        await git.fetchRefspec(current.remote, plan.refspec, { onProgress: progress, signal });
-        if (existing) return;
-        if (plan.sameRepo) {
-          await git.checkoutTracking(plan.remoteRef, plan.localName);
-        } else {
-          // Nhánh của fork: không đặt upstream (remote không có nhánh `pr/<số>` để pull / push).
-          await git.createBranch(plan.localName, plan.remoteRef, true);
-          await git.unsetUpstream(plan.localName).catch(() => undefined);
-        }
-      },
-      {
-        showsProgress: true,
-        cancellable: true,
-        refresh: Scope.all,
-        onError: (error) => handleNetworkError(store, error, text.checkout),
-      },
-    );
-    if (existing) await checkout(store, existing);
   }
 
   function create(): void {
     if (head === null) return;
     void createPullRequest.open(store, head);
-  }
-
-  function stateLabel(item: ForgeMergeRequest): string {
-    if (item.state === 'merged') return text.merged;
-    if (item.state === 'closed') return text.closed;
-    return item.draft ? text.draft : '';
   }
 </script>
 
@@ -184,22 +149,23 @@
         <p class="placeholder">{text.empty}</p>
       {:else}
         {#each items as item (item.host + '/' + item.number)}
-          {@const label = stateLabel(item)}
+          {@const label = requestStateLabel(item)}
+          {@const reference = requestWording(target?.provider).reviewRef(item.number)}
           <button
             type="button"
             class="sb-row"
+            class:selected={store.review.request?.host === item.host &&
+              store.review.request?.number === item.number}
             title={showBidi(
-              [
-                `#${item.number} ${item.title}`,
-                `${item.sourceBranch} → ${item.targetBranch}`,
-                item.author,
-              ].join('\n'),
+              [`${reference} ${item.title}`, `${item.sourceBranch} → ${item.targetBranch}`, item.author].join(
+                '\n',
+              ),
             )}
-            onclick={() => openWeb(item)}
+            onclick={() => void openReview(store, item)}
             oncontextmenu={(event) => menus.openAt(event, menuFor(item))}
           >
             <span class="sb-icon"><Icon name="globe" size={14} /></span>
-            <span class="sb-title"><bdi>#{item.number} {showBidi(item.title)}</bdi></span>
+            <span class="sb-title"><bdi>{reference} {showBidi(item.title)}</bdi></span>
             {#if label}
               <span class="tag">{label}</span>
             {/if}
