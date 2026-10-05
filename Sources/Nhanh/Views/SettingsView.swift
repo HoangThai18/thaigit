@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Các thẻ trong Cài đặt (lưu thẻ đang chọn để menu "Tài khoản GitHub…" mở đúng thẻ).
 enum SettingsTab: String {
-    case general, git, account
+    case general, git, account, ssh
 }
 
 struct SettingsView: View {
@@ -21,6 +21,9 @@ struct SettingsView: View {
             AccountSettings()
                 .tabItem { Label("Tài khoản", systemImage: "person.crop.circle") }
                 .tag(SettingsTab.account.rawValue)
+            SSHSettings()
+                .tabItem { Label("SSH", systemImage: "key") }
+                .tag(SettingsTab.ssh.rawValue)
         }
         .frame(width: 560)
         .padding(.vertical, 8)

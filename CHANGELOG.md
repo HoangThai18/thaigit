@@ -2,6 +2,10 @@
 
 Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/).
 
+## Chưa phát hành
+
+- Khoá SSH riêng của Thaigit (Cài đặt → SSH): tạo khoá Ed25519 hoặc nhập khoá có sẵn, khoá bí mật chỉ nằm trong Keychain của máy (như 1Password) — lệnh git tới remote SSH tự dùng khoá qua một ssh-agent tạm, không cần cấu hình ~/.ssh; thêm khoá lên GitHub một bước, mở trang GitLab để dán, nút kiểm tra kết nối
+
 ## 1.2.0 — 2026-10-05
 
 - Dòng thời gian: Thaigit tự lưu thư mục làm việc mỗi khi file thay đổi (kể cả file chưa commit) để bạn quay lại được khi code bị hỏng — rất hợp khi code cùng AI (Cursor, Claude Code…). Mở bằng nút "Dòng thời gian" ở panel thay đổi hoặc ⌘P; chọn một mốc để xem khác gì so với bây giờ, khôi phục một file hoặc tất cả, luôn hỏi trước và có Hoàn tác
@@ -16,6 +20,7 @@ Các thay đổi đáng chú ý của Thaigit. Phiên bản theo [SemVer](https:
 - Chữ chú giải trên thanh công cụ và thông báo gọi đúng tên lệnh: "Fetch từ mọi remote", "Pull commit mới…", "Push commit của nhánh hiện tại…", "Stash mọi thay đổi chưa commit", "Pop stash mới nhất", "Fetch đầy đủ từ remote", "Chỉ đổi file mode", "Amend thay đổi đã stage…" thay cho "lấy thông tin mới", "đẩy commit", "cất tạm", "lấy lại stash", "gộp thay đổi…"
 - Bản tiếng Anh dùng đúng thuật ngữ git (fetch / pull / push / stash / pop / amend / working tree / Git executable) thay cho các cụm diễn giải như "Get the latest information…", "Bring new commits…", "Put all uncommitted changes aside", "Fold the staged changes…"
 - Kiểu tài liệu mà app khai báo và dòng bản quyền trong cửa sổ Giới thiệu / Finder đổi sang tiếng Anh ("Folder", "Thaigit — Git client for macOS and Windows") thay vì tiếng Việt
+- Câu "chưa có upstream trên remote" dịch thành "no upstream" (trước là "no matching branch on the remote") đúng thuật ngữ git
 - Nhiều nhánh / tag cùng một commit: nhãn ưu tiên nhánh đang đứng rồi main / master / develop; bấm viên "+N" để chọn nhánh bị gom lại (Checkout, Merge, Push…)
 - Cạnh tên nhánh trên thanh công cụ luôn có số file chưa commit (bấm để về WIP), rê chuột vào tên nhánh để biết nhánh đang theo dõi trên remote
 - Rê chuột vào chấm avatar hoặc message trên graph để xem tên người commit và thời gian

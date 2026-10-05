@@ -101,13 +101,24 @@ public struct GitRunner: Sendable {
         credentialURLs: [String] = [],
         onProgress: (@Sendable (String) -> Void)? = nil
     ) async throws -> ProcessOutput {
-        let (environment, github) = environmentStore.snapshot()
+        let (environment, github, ssh) = environmentStore.snapshot()
         // Lệnh chạm remote HTTPS trên github.com: thêm credential helper chọn token theo owner, đọc token từ biến môi
         // trường của riêng tiến trình này. Nhật ký lệnh và GitError chỉ giữ `arguments` của người gọi — không chứa token.
         let credentials = GitCredentialInjection.additions(forURLs: credentialURLs, credentials: github)
         var variables = environment.variables
         for (key, value) in credentials.environment { variables[key] = value }
         for (key, value) in extra { variables[key] = value }
+        // Lệnh chạm remote SSH và có khoá SSH của Thaigit: ssh-agent tạm chỉ cho lệnh này (khoá đi từ Keychain vào agent,
+        // không ghi file). Agent lỗi thì chạy như thường với agent / khoá ~/.ssh của người dùng.
+        var agent: SSHAgentSession?
+        if let ssh, credentialURLs.contains(where: SSHRemoteURL.isSSH) {
+            let keys = ssh.privateKeys()
+            if !keys.isEmpty, let session = try? await SSHAgentSession.start(keys: keys, environment: variables) {
+                agent = session
+                variables["SSH_AUTH_SOCK"] = session.socketPath
+            }
+        }
+        defer { agent?.stop() }
         let start = Date()
         let output = try await ProcessRunner.run(
             executable: environment.executable,

@@ -122,6 +122,13 @@ enum AutomationHarness {
         switch command {
         case "wait":
             try? await Task.sleep(for: .seconds(Double(argument) ?? 1))
+        case "settings":
+            // Mở Cài đặt ở thẻ chỉ định (general / git / account / ssh) — cửa sổ Cài đặt được lưu riêng khi "snap".
+            UserDefaults.standard.set(argument.isEmpty ? SettingsTab.general.rawValue : argument, forKey: Prefs.settingsTab)
+            if let menu = NSApp.mainMenu?.items.first?.submenu,
+               let index = menu.items.firstIndex(where: { $0.keyEquivalent == "," }) {
+                menu.performActionForItem(at: index)
+            }
         case "snap":
             try? await Task.sleep(for: .milliseconds(400))
             snapshot(to: (directory as NSString).appendingPathComponent((argument.isEmpty ? "snap" : argument) + ".png"))

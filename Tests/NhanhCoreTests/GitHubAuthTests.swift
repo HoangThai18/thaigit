@@ -38,7 +38,7 @@ struct GitHubAuthTests {
         #expect(requests[0].url == GitHubAuth.deviceCodeURL)
         #expect(requests[0].httpMethod == "POST")
         #expect(requests[0].value(forHTTPHeaderField: "Accept") == "application/json")
-        #expect(formFields(requests[0]) == ["client_id": "Iv1.thu", "scope": "repo workflow read:org"])
+        #expect(formFields(requests[0]) == ["client_id": "Iv1.thu", "scope": "repo workflow read:org write:public_key"])
         for poll in requests.dropFirst() {
             #expect(poll.url == GitHubAuth.accessTokenURL)
             #expect(poll.httpMethod == "POST")

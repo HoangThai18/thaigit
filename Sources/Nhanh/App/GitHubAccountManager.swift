@@ -80,6 +80,12 @@ final class GitHubAccountManager {
         tokens.token(forOwner: owner)
     }
 
+    /// Thêm khoá SSH công khai vào tài khoản `login` trên GitHub. Chưa có token thì coi như thiếu quyền (tự dán).
+    nonisolated func addSSHKey(login: String, title: String, publicKey: String) async throws -> GitHubAuth.SSHKeyUpload {
+        guard let token = tokens.token(forOwner: login) else { return .missingScope }
+        return try await auth.addSSHKey(token: token, title: title, publicKey: publicKey)
+    }
+
     /// Tài khoản sẽ dùng cho owner (và lý do) — để hiển thị.
     func resolution(forOwner owner: String?) -> GitHubAccountsState.Resolution? {
         state.resolve(owner: owner)

@@ -96,6 +96,7 @@ final class AppState {
         pendingOpenPaths = Self.launchArgumentPaths()
         // Nạp tài khoản GitHub trước khi repo nào kịp chạy lệnh mạng (token đi qua `environment`).
         GitHubAccountManager.shared.bind(to: self.environment)
+        SSHKeyManager.shared.bind(to: self.environment)
         Task { await self.loadShellEnvironment() }
     }
 

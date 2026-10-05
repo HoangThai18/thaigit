@@ -14,10 +14,11 @@ public typealias GitHubSleep = @Sendable (Duration) async throws -> Void
 public struct GitHubAuth: Sendable {
     /// `workflow` cần để push thay đổi trong `.github/workflows`; `read:org` để biết tài khoản thuộc tổ chức nào
     /// (chọn token theo owner khi có nhiều tài khoản).
-    public static let scopes = ["repo", "workflow", "read:org"]
+    public static let scopes = ["repo", "workflow", "read:org", "write:public_key"]
     public static let deviceCodeURL = URL(string: "https://github.com/login/device/code")!
     public static let accessTokenURL = URL(string: "https://github.com/login/oauth/access_token")!
     public static let userURL = URL(string: "https://api.github.com/user")!
+    public static let sshKeysURL = URL(string: "https://api.github.com/user/keys")!
     public static let repositoriesURL =
         URL(string: "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member")!
     public static let organizationsURL = URL(string: "https://api.github.com/user/orgs?per_page=100")!
@@ -148,6 +149,35 @@ public struct GitHubAuth: Sendable {
             return try JSONDecoder().decode(GitHubAccount.self, from: data)
         } catch {
             throw GitHubError.invalidResponse
+        }
+    }
+
+    /// Kết quả thêm khoá SSH lên tài khoản.
+    public enum SSHKeyUpload: Sendable, Equatable {
+        case added
+        /// Khoá đã có trên GitHub (của tài khoản này hoặc tài khoản khác).
+        case alreadyExists
+        /// Token thiếu quyền `write:public_key` (đăng nhập trước khi Thaigit xin quyền này): cần đăng nhập lại hoặc tự dán.
+        case missingScope
+    }
+
+    /// Thêm khoá SSH công khai vào tài khoản (`POST /user/keys`).
+    public func addSSHKey(token: String, title: String, publicKey: String) async throws -> SSHKeyUpload {
+        var request = Self.apiRequest(Self.sshKeysURL, token: token)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["title": title, "key": publicKey])
+        let (data, response) = try await send(request)
+        switch response.statusCode {
+        case 200..<300: return .added
+        case 403, 404: return .missingScope
+        case 422:
+            let text = String(decoding: data, as: UTF8.self).lowercased()
+            if text.contains("already") { return .alreadyExists }
+            throw GitHubError.badResponse(422)
+        default:
+            try Self.checkAPIStatus(response)
+            throw GitHubError.badResponse(response.statusCode)
         }
     }
 

@@ -16,6 +16,7 @@
 "%@ (đang checkout)" = "%@ (checked out)";
 "%@ bị GitHub từ chối — chưa đăng nhập GitHub" = "%@ was rejected by GitHub — not signed in to GitHub";
 "%@ bị chặn vì có thay đổi chưa commit" = "%@ is blocked by uncommitted changes";
+"%@ chưa nhận khoá nào của Thaigit — hãy thêm khoá công khai lên tài khoản trước." = "%@ doesn't accept any of Thaigit's keys yet — add the public key to your account first.";
 "%@ còn thay đổi chưa lưu" = "%@ has unsaved changes";
 "%@ có gì mới" = "What's new in %@";
 "%@ của %@" = "%@ of %@";
@@ -115,6 +116,7 @@
 "Chưa cài Git LFS — cài bằng brew install git-lfs rồi chạy git lfs install." = "Git LFS isn't installed — install it with brew install git-lfs, then run git lfs install.";
 "Chưa có commit nào" = "No commits yet";
 "Chưa có commit nào chạm tới file này" = "No commits have touched this file yet";
+"Chưa có khoá SSH nào đang bật." = "No SSH key is enabled.";
 "Chưa có mốc nào. Thaigit sẽ tự lưu khi file trong repo thay đổi." = "No snapshots yet. Thaigit saves one when files in this repo change.";
 "Chưa có nhánh %@ (cần ít nhất một commit)." = "Branch %@ doesn't exist yet (needs at least one commit).";
 "Chưa có nhánh %@/%@ trên máy — hãy fetch trước" = "Branch %@/%@ isn't on your Mac yet — fetch first";
@@ -157,7 +159,9 @@
 "Chỉ đổi file mode: %@ → %@" = "Only the file mode changed: %@ → %@";
 "Chọn" = "Choose";
 "Chọn bản muốn giữ." = "Choose the version to keep.";
+"Chọn file khoá bí mật (vd. id_ed25519), không phải file .pub. Khoá được chép vào Keychain; file gốc giữ nguyên." = "Choose the private key file (e.g. id_ed25519), not the .pub file. The key is copied into the Keychain; the original file stays as is.";
 "Chọn hoặc tạo thư mục cho repository mới" = "Choose or create a folder for the new repository";
+"Chọn khoá SSH bí mật" = "Choose a Private SSH Key";
 "Chọn khoá…" = "Choose Key…";
 "Chọn lại" = "Start Over";
 "Chọn một commit" = "Select a commit";
@@ -202,6 +206,7 @@
 "Cả hai bên đều thêm" = "Both sides added";
 "Cả hai bên đều xoá" = "Both sides deleted";
 "Cả hai bên đều xoá file này. Chọn bất kỳ để xác nhận xoá." = "Both sides deleted this file. Choose either to confirm the deletion.";
+"Sao chép khoá công khai" = "Copy Public Key";
 "Stash mọi thay đổi chưa commit" = "Stash all uncommitted changes";
 "Cấu hình ký commit" = "Configure Commit Signing";
 "Cần cài GnuPG (brew install gnupg) và thêm khoá công khai GPG vào GitHub để hiện “Verified”." = "Install GnuPG (brew install gnupg) and add your GPG public key to GitHub to show “Verified”.";
@@ -229,6 +234,8 @@
 "Dùng bản Current" = "Use Current Version";
 "Dùng bản Incoming" = "Use Incoming Version";
 "Dùng của @%@…" = "Use @%@'s Identity…";
+"Dùng khoá" = "Usage";
+"Dùng khoá của Thaigit cho remote SSH" = "Use Thaigit keys for SSH remotes";
 "Dùng toàn bộ Current" = "Use All Current";
 "Dùng toàn bộ Incoming" = "Use All Incoming";
 "Dùng toàn bộ bản Current" = "Use All of Current";
@@ -266,6 +273,7 @@
 "File mới, rỗng." = "New, empty file.";
 "File nhị phân" = "Binary file";
 "File nhị phân — không sửa được trong app." = "Binary file — can't be edited in the app.";
+"File này không phải khoá SSH bí mật mà Thaigit đọc được. Hãy chọn file khoá bí mật (vd. ~/.ssh/id_ed25519), không phải file .pub." = "This file isn't a private SSH key Thaigit can read. Choose the private key file (e.g. ~/.ssh/id_ed25519), not the .pub file.";
 "File nằm ngoài repository." = "The file is outside the repository.";
 "File sau (⇧⌥⌘↓)" = "Next file (⇧⌥⌘↓)";
 "File trước (⇧⌥⌘↑)" = "Previous file (⇧⌥⌘↑)";
@@ -387,7 +395,16 @@
 "Jira đang gặp sự cố — thử lại sau." = "Jira is having problems — try again later.";
 "Khi bấm Pull" = "When clicking Pull";
 "Khoá" = "Key";
+"Khoá Ed25519 (loại GitHub và GitLab khuyên dùng). Đặt tên theo máy để dễ nhận ra trên GitHub / GitLab." = "An Ed25519 key (the type GitHub and GitLab recommend). Name it after this Mac so it's easy to recognize on GitHub / GitLab.";
+"Khoá SSH của Thaigit" = "Thaigit SSH Keys";
+"Khoá SSH này đã có trong Thaigit." = "This SSH key is already in Thaigit.";
+"Khoá bí mật bị xoá vĩnh viễn khỏi Keychain và không khôi phục được. Repo SSH đang dùng khoá này sẽ không fetch / push được nữa." = "The private key is permanently deleted from the Keychain and can't be recovered. SSH repositories using this key will no longer be able to fetch / push.";
+"Khoá bí mật chỉ nằm trong Keychain của máy này (không đồng bộ iCloud, không ghi ra file). Khi lệnh git cần, Thaigit nạp khoá vào một ssh-agent tạm riêng cho lệnh đó rồi tắt ngay." = "Private keys live only in this Mac's Keychain (never synced to iCloud or written to files). When a git command needs one, Thaigit loads it into a temporary ssh-agent just for that command, then shuts it down.";
+"Khoá có passphrase — Thaigit hỏi passphrase mỗi lần dùng" = "Passphrase-protected key — Thaigit asks for the passphrase each time it's used";
+"Khoá của máy chủ %@ không khớp với lần trước (known_hosts). Kiểm tra lại mạng trước khi tiếp tục." = "The host key of %@ doesn't match the one seen before (known_hosts). Check your network before continuing.";
+"Khoá phần cứng" = "Hardware key";
 "Khoá đã bị thu hồi" = "Key revoked";
+"Khoá “%@” đã có trên GitHub." = "Key “%@” is already on GitHub.";
 "Khác" = "Other";
 "Khác với bây giờ" = "Differences from now";
 "Khôi phục" = "Restore";
@@ -402,6 +419,7 @@
 "Không" = "No";
 "Không chạy được %@: %@" = "Couldn't run %@: %@";
 "Không chạy được công cụ cần thiết (git / git-lfs…) — kiểm tra đã cài đặt." = "Couldn't run a required tool (git / git-lfs…) — check that it's installed.";
+"Không chạy được ssh-agent trên máy này nên chưa dùng được khoá SSH của Thaigit." = "Couldn't start ssh-agent on this Mac, so Thaigit's SSH keys can't be used yet.";
 "Không cài được bản cập nhật" = "Couldn't install the update";
 "Không cài được bản cập nhật — thử thoát Thaigit rồi mở lại." = "Couldn't install the update — try quitting and reopening Thaigit.";
 "Không cài được bản cập nhật: %@." = "Couldn't install the update: %@.";
@@ -436,6 +454,7 @@
 "Không kiểm tra được bản cập nhật" = "Couldn't check for updates";
 "Không kiểm được" = "Couldn't verify";
 "Không ký được commit — kiểm tra cấu hình khoá GPG / SSH." = "Couldn't sign the commit — check your GPG / SSH key settings.";
+"Không kết nối được tới %@ qua SSH. Kiểm tra mạng hoặc tường lửa (cổng 22)." = "Couldn't connect to %@ over SSH. Check your network or firewall (port 22).";
 "Không kết nối được tới GitHub — kiểm tra mạng rồi thử lại." = "Couldn't connect to GitHub — check your network and try again.";
 "Không kết nối được tới GitHub: %@" = "Couldn't connect to GitHub: %@";
 "Không kết nối được tới Jira — kiểm tra mạng rồi thử lại." = "Couldn't connect to Jira — check your network and try again.";
@@ -472,6 +491,7 @@
 "Không được chứa .. // @{ hoặc /." = "Can't contain .. // @{ or /.";
 "Không được chứa khoảng trắng hoặc ký tự ~ ^ : ? * [ \\" = "Can't contain spaces or the characters ~ ^ : ? * [ \\";
 "Không được kết thúc bằng / . hoặc .lock" = "Can't end with / . or .lock";
+"Không đọc / ghi được Keychain của macOS. Hãy mở khoá Keychain rồi thử lại." = "Couldn't read or write the macOS Keychain. Unlock the Keychain and try again.";
 "Không đọc / ghi được file trên máy — kiểm tra quyền truy cập và dung lượng ổ đĩa." = "Couldn't read / write files on this Mac — check permissions and free disk space.";
 "Không đọc được dòng thời gian" = "Couldn’t read the timeline";
 "Không đọc được token của " = "Couldn't read the token of ";
@@ -487,6 +507,7 @@
 "Khởi động lại để dùng bản mới." = "Restart to use the new version.";
 "Kiểm tra cập nhật" = "Check for Updates";
 "Kiểm tra cập nhật…" = "Check for Updates…";
+"Kiểm tra kết nối" = "Test Connection";
 "Kiểm tra ngay" = "Check Now";
 "Kiểm tra nhánh %@" = "Check branch %@";
 "Kiểu khoá" = "Key type";
@@ -574,6 +595,7 @@
 "Mở repository bằng ứng dụng khác" = "Open the repository in another app";
 "Mở repository…" = "Open Repository…";
 "Mở submodule trong tab mới" = "Open Submodule in New Tab";
+"Mở trang khoá SSH của GitHub…" = "Open GitHub SSH Keys Page…";
 "Mở trong Finder" = "Open in Finder";
 "Mở trong Terminal" = "Open in Terminal";
 "Mở trong tab mới" = "Open in New Tab";
@@ -615,6 +637,8 @@
 "Nhánh sẽ nhận thay đổi" = "Branch that receives the changes";
 "Nhánh trên remote đã bị xoá" = "The remote branch was deleted";
 "Nhánh: %@" = "Branch: %@";
+"Nhập khoá" = "Import Key";
+"Nhập khoá có sẵn…" = "Import Existing Key…";
 "Nhập mã này trên GitHub rồi bấm Authorize để cho phép Thaigit fetch, pull, push và clone repo của bạn." = "Enter this code on GitHub, then click Authorize to let Thaigit fetch, pull, push and clone your repositories.";
 "Nhập tóm tắt để commit" = "Enter a summary to commit";
 "Nhật ký lệnh git" = "Git Command Log";
@@ -752,6 +776,9 @@
 "Thu hồi trên GitHub (github.com/settings/applications)" = "Revoke on GitHub (github.com/settings/applications)";
 "Thêm" = "Add";
 "Thêm file vào thư mục repository, sau đó stage và tạo commit đầu tiên ở panel bên phải." = "Add files to the repository folder, then stage them and create the first commit in the right panel.";
+"Thêm lên GitHub (mở trang, dán khoá)…" = "Add to GitHub (open page, paste key)…";
+"Thêm lên GitHub @%@" = "Add to GitHub @%@";
+"Thêm lên GitLab (mở trang, dán khoá)…" = "Add to GitLab (open page, paste key)…";
 "Thêm mã giảm giá vào giỏ hàng" = "Add a discount code to the cart";
 "Thêm mới" = "Added";
 "Thêm remote" = "Add Remote";
@@ -801,6 +828,7 @@
 "Trước" = "Before";
 "Trước khi khôi phục" = "Before restore";
 "Tài khoản" = "Accounts";
+"Tài khoản @%@ chưa cấp quyền thêm khoá SSH cho Thaigit (đăng nhập lại để cấp). Đã sao chép khoá và mở trang GitHub — dán vào ô Key rồi bấm Add SSH key." = "Account @%@ hasn't allowed Thaigit to add SSH keys (sign in again to grant it). The key was copied and the GitHub page opened — paste it into the Key field and click Add SSH key.";
 "Tài khoản GitHub" = "GitHub Accounts";
 "Tài khoản GitHub / GitLab" = "GitHub / GitLab Accounts";
 "Tài khoản GitHub / GitLab cho repo này…" = "GitHub / GitLab Account for This Repo…";
@@ -817,6 +845,7 @@
 "Tên (thường là origin)" = "Name (usually origin)";
 "Tên commit" = "Commit name";
 "Tên hiện tại: %@" = "Current name: %@";
+"Tên khoá" = "Key name";
 "Tên mới" = "New name";
 "Tên nhánh mới (từ %@)" = "New branch name (from %@)";
 "Tên nhánh trên remote" = "Branch name on the remote";
@@ -834,6 +863,7 @@
 "Tìm theo số, mã hoặc tiêu đề" = "Search by number, key or title";
 "Tóm tắt (bắt buộc)" = "Summary (required)";
 "Tại commit %@" = "At commit %@";
+"Tạo %@" = "Created %@";
 "Tạo & checkout" = "Create & Check Out";
 "Tạo API token…" = "Create API Token…";
 "Tạo Pull Request" = "Create Pull Request";
@@ -841,7 +871,11 @@
 "Tạo Pull Request…" = "Create Pull Request…";
 "Tạo branch mới…" = "New Branch…";
 "Tạo dạng nháp (Draft) — chưa nhờ review" = "Create as Draft — not ready for review";
+"Tạo khoá" = "Create Key";
+"Tạo khoá SSH mới" = "New SSH Key";
+"Tạo khoá mới…" = "New Key…";
 "Tạo một commit mới trên %@ đảo ngược thay đổi của %@. Lịch sử cũ giữ nguyên." = "Creates a new commit on %@ that reverses the changes of %@. Existing history stays the same.";
+"Tạo một khoá SSH ngay trong Thaigit (hoặc nhập khoá có sẵn) để clone / fetch / push repo SSH (git@github.com:…, git@gitlab.com:…) mà không cần cấu hình ssh-agent hay ~/.ssh." = "Create an SSH key right in Thaigit (or import an existing one) to clone / fetch / push SSH repositories (git@github.com:…, git@gitlab.com:…) without setting up ssh-agent or ~/.ssh.";
 "Tạo nhánh" = "Create Branch";
 "Tạo nhánh %@" = "Create Branch %@";
 "Tạo nhánh %@%@ từ %@ rồi checkout." = "Create branch %@%@ from %@ and check it out.";
@@ -872,6 +906,7 @@
 "Tải về (init & update)" = "Download (init & update)";
 "Tải về từ GitHub, GitLab, Bitbucket…" = "Download from GitHub, GitLab, Bitbucket…";
 "Tắt" = "Off";
+"Tắt thì git dùng ssh-agent và khoá trong ~/.ssh như khi chạy ở Terminal." = "When off, git uses your ssh-agent and the keys in ~/.ssh, just like in Terminal.";
 "Tắt thì graph chỉ hiện chữ viết tắt và app không gửi gì ra mạng để tìm ảnh." = "When off, the graph shows initials only and the app sends nothing over the network to find pictures.";
 "Tắt tự lưu cho repo này" = "Turn Off for This Repo";
 "Tới" = "To";
@@ -912,6 +947,9 @@
 "Xong" = "Done";
 "Xoá" = "Delete";
 "Xoá %@" = "Delete %@";
+"Xoá khoá" = "Delete Key";
+"Xoá khoá “%@”?" = "Delete key “%@”?";
+"Xoá khoá…" = "Delete Key…";
 "Xoá khỏi danh sách" = "Remove from List";
 "Xoá màn hình (hoặc gõ clear)" = "Clear the screen (or type clear)";
 "Xoá nhánh" = "Delete Branch";
@@ -1041,6 +1079,10 @@
 "Đã có nhánh tên này" = "A branch with this name already exists";
 "Đã có remote tên này" = "A remote with this name already exists";
 "Đã có tag tên này" = "A tag with this name already exists";
+"Đã kết nối %@ với tài khoản @%@." = "Connected to %@ as @%@.";
+"Đã kết nối %@." = "Connected to %@.";
+"Đã nhập khoá “%@” vào Keychain." = "Imported key “%@” into the Keychain.";
+"Đã sao chép khoá công khai “%@”." = "Copied the public key of “%@”.";
 "Đã stash thay đổi" = "Changes stashed";
 "Đã cập nhật %@" = "Updated %@";
 "Đã cập nhật lên Thaigit %@" = "Updated to Thaigit %@";
@@ -1080,12 +1122,14 @@
 "Đã stage" = "Staged";
 "Đã sửa" = "Modified";
 "Đã sửa commit trước" = "Previous commit amended";
+"Đã thêm khoá “%@” lên GitHub @%@." = "Added key “%@” to GitHub @%@.";
 "Đã thêm remote %@" = "Added remote %@";
 "Đã thêm “%@” vào .gitignore" = "Added “%@” to .gitignore";
 "Đã tiếp tục" = "Continued";
 "Đã tạo %@%@ từ %@" = "Created %@%@ from %@";
 "Đã tạo Pull Request #%lld" = "Created Pull Request #%lld";
 "Đã tạo commit revert “%@”" = "Created revert commit “%@”";
+"Đã tạo khoá SSH “%@”. Thêm khoá công khai lên GitHub / GitLab để dùng." = "Created SSH key “%@”. Add its public key to GitHub / GitLab to use it.";
 "Đã tạo nhánh %@" = "Created branch %@";
 "Đã tạo nhánh %@ theo dõi %@" = "Created branch %@ tracking %@";
 "Đã tạo tag %@" = "Created tag %@";
@@ -1097,6 +1141,7 @@
 "Đã xoá %@" = "Deleted %@";
 "Đã xoá @%@ và token của nó khỏi máy. Token vẫn còn hiệu lực trên GitHub cho tới khi bạn thu hồi quyền của Thaigit." = "Removed @%@ and its token from this Mac. The token stays valid on GitHub until you revoke Thaigit's access.";
 "Đã xoá file rỗng." = "Deleted an empty file.";
+"Đã xoá khoá “%@” khỏi Keychain. Nhớ gỡ khoá công khai trên GitHub / GitLab nếu không dùng nữa." = "Deleted key “%@” from the Keychain. Remember to remove its public key on GitHub / GitLab if you no longer use it.";
 "Đã xoá nhánh %@" = "Deleted branch %@";
 "Đã xoá remote %@" = "Removed remote %@";
 "Đã xoá stash" = "Stash dropped";
@@ -1147,6 +1192,7 @@
 "Đổi thư mục…" = "Change Folder…";
 "Đổi tên" = "Renamed";
 "Đổi tên & email Git…" = "Change Git Name & Email…";
+"Đổi tên khoá" = "Rename Key";
 "Đổi tên nhánh" = "Rename Branch";
 "Đổi tên “%@” → “%@”, nội dung không đổi." = "Renamed “%@” → “%@”, content unchanged.";
 "Đổi tên…" = "Rename…";

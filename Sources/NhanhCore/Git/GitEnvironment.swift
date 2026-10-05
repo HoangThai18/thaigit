@@ -108,6 +108,7 @@ public final class GitEnvironmentStore: @unchecked Sendable {
     private let lock = NSLock()
     private var current: GitEnvironment
     private var github: GitHubCredentialSet?
+    private var ssh: SSHKeyring?
 
     public init(_ environment: GitEnvironment) {
         current = environment
@@ -140,11 +141,25 @@ public final class GitEnvironmentStore: @unchecked Sendable {
         }
     }
 
-    /// Môi trường + tài khoản GitHub đọc trong cùng một lần khoá, cho một lệnh git.
-    func snapshot() -> (environment: GitEnvironment, github: GitHubCredentialSet?) {
+    /// Khoá SSH của Thaigit: lệnh chạm remote SSH được nạp các khoá này vào một ssh-agent tạm (nil: không dùng).
+    public var sshKeyring: SSHKeyring? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return ssh
+        }
+        set {
+            lock.lock()
+            ssh = newValue
+            lock.unlock()
+        }
+    }
+
+    /// Môi trường + tài khoản GitHub + khoá SSH đọc trong cùng một lần khoá, cho một lệnh git.
+    func snapshot() -> (environment: GitEnvironment, github: GitHubCredentialSet?, ssh: SSHKeyring?) {
         lock.lock()
         defer { lock.unlock() }
-        return (current, github)
+        return (current, github, ssh)
     }
 }
 
