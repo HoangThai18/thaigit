@@ -1,1 +1,1 @@
-Thaigit — Git client trực quan, miễn phí cho macOS và Windows
+Thaigit — Git client trực quan, miễn phí cho macOS và Windows: kéo thả để merge, stage từng dòng, giải conflict vài cú bấm

@@ -1,0 +1,143 @@
+<!doctype html>
+<!-- Nguồn ảnh chia sẻ app/opengraph-image.png (1200×630). Dựng lại:
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars --window-size=1200,630 --virtual-time-budget=8000 --screenshot="$PWD/app/opengraph-image.png" "file://$PWD/scripts/og-image.html"
+  (chạy trong thư mục site/) -->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600;700;800;900&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1b;
+    --text: #eef1f7;
+    --text-2: #aab3c5;
+    --blue: #4b9bf0;
+    --orange: #f05032;
+    --orange-2: #f7764f;
+    --green: #2fc37a;
+    --violet: #9b7bf0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; background: var(--bg); }
+  body { font-family: 'Be Vietnam Pro', sans-serif; color: var(--text); position: relative; -webkit-font-smoothing: antialiased; }
+
+  /* Nền: quầng màu + lưới mờ */
+  .orb { position: absolute; border-radius: 50%; filter: blur(90px); }
+  .orb.o1 { width: 520px; height: 520px; left: -220px; top: -260px; background: rgb(240 80 50 / 0.26); }
+  .orb.o2 { width: 680px; height: 680px; right: -220px; bottom: -300px; background: rgb(47 134 232 / 0.45); }
+  .orb.o3 { width: 360px; height: 360px; left: 420px; top: 380px; background: rgb(155 123 240 / 0.22); }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse 75% 85% at 35% 45%, #000 30%, transparent 85%);
+  }
+  .noise { position: absolute; inset: 0; opacity: .5;
+    background: radial-gradient(ellipse at 50% 120%, rgb(0 0 0 / .55), transparent 60%); }
+
+  /* Graph trang trí chạy dọc mép trái */
+  .graph { position: absolute; left: 0; top: 0; }
+
+  /* Cột chữ */
+  .copy { position: absolute; left: 92px; top: 74px; width: 560px; }
+  .brand { display: flex; align-items: center; gap: 20px; }
+  .brand img { width: 92px; height: 92px; border-radius: 22px;
+    box-shadow: 0 18px 40px -10px rgb(0 0 0 / .7), 0 0 0 1px rgb(255 255 255 / .12); }
+  .name { font-size: 76px; font-weight: 900; letter-spacing: -2.5px; line-height: 1;
+    background: linear-gradient(180deg, #ffffff 30%, #c9d3e6); -webkit-background-clip: text; color: transparent; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 10px; margin-top: 34px;
+    padding: 8px 16px 8px 12px; border-radius: 999px; font-size: 19px; font-weight: 600; color: #d6deec;
+    background: rgb(255 255 255 / .06); border: 1px solid rgb(255 255 255 / .12); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgb(47 195 122 / .22); }
+  h1 { margin-top: 20px; font-size: 54px; line-height: 1.12; font-weight: 800; letter-spacing: -1.4px; }
+  h1 .hl { background: linear-gradient(90deg, var(--orange-2), var(--orange) 40%, #ff9a5a);
+    -webkit-background-clip: text; color: transparent; }
+  .feats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 30px; width: 600px; flex-wrap: nowrap; }
+  .chip { display: inline-flex; white-space: nowrap; flex-shrink: 0; align-items: center; gap: 9px; padding: 8px 13px; border-radius: 11px;
+    font-size: 17px; font-weight: 600; color: #dfe5f0;
+    background: rgb(20 27 43 / .75); border: 1px solid rgb(255 255 255 / .1); }
+  .chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+
+  .foot { position: absolute; left: 92px; bottom: 56px; display: flex; align-items: center; gap: 18px; }
+  .pf { display: inline-flex; align-items: center; gap: 9px; padding: 11px 18px; border-radius: 14px;
+    font-size: 20px; font-weight: 700; color: #fff; background: rgb(255 255 255 / .09); border: 1px solid rgb(255 255 255 / .14); }
+  .pf svg { width: 22px; height: 22px; fill: #fff; }
+  .url { font-size: 22px; font-weight: 700; color: var(--text-2); margin-left: 6px; }
+  .url b { color: #fff; }
+
+  /* Ảnh app nghiêng */
+  .stage { position: absolute; left: 660px; top: 96px; width: 760px; perspective: 1600px; }
+  .win { width: 760px; border-radius: 16px; overflow: hidden; transform: rotateY(-16deg) rotateX(5deg) rotateZ(-1deg);
+    transform-origin: left center;
+    box-shadow: 0 50px 100px -20px rgb(0 0 0 / .85), 0 0 0 1px rgb(255 255 255 / .14), 0 0 80px -10px rgb(75 155 240 / .45); }
+  .win img { display: block; width: 100%; filter: brightness(1.12) saturate(1.1); }
+  .glare { position: absolute; inset: 0; border-radius: 16px; transform: inherit;
+    background: linear-gradient(115deg, rgb(255 255 255 / .12), transparent 35%); pointer-events: none; }
+
+  .badge { position: absolute; left: 700px; top: 462px; padding: 14px 18px; border-radius: 16px;
+    background: rgb(18 25 41 / .92); border: 1px solid rgb(255 255 255 / .14);
+    box-shadow: 0 24px 50px -12px rgb(0 0 0 / .8); display: flex; align-items: center; gap: 14px; }
+  .badge .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--green), #1fa565); font-size: 24px; font-weight: 900; color: #fff; }
+  .badge .t1 { font-size: 18px; font-weight: 700; }
+  .badge .t2 { font-size: 15px; font-weight: 500; color: var(--text-2); margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+  <div class="grid"></div>
+
+  <svg class="graph" width="80" height="630" viewBox="0 0 80 630" fill="none">
+    <g stroke-width="3" stroke-linecap="round" opacity=".55">
+      <path d="M40 -10 V640" stroke="#4b9bf0"/>
+      <path d="M40 150 C40 180 62 180 62 210 V300 C62 330 40 330 40 360" stroke="#f05032"/>
+      <path d="M40 420 C40 450 18 450 18 480 V560 C18 590 40 590 40 620" stroke="#9b7bf0"/>
+    </g>
+    <g stroke="#0a0f1b" stroke-width="3">
+      <circle cx="40" cy="80" r="7" fill="#4b9bf0"/>
+      <circle cx="62" cy="230" r="7" fill="#f05032"/>
+      <circle cx="62" cy="285" r="7" fill="#f05032"/>
+      <circle cx="40" cy="360" r="8" fill="#4b9bf0"/>
+      <circle cx="18" cy="500" r="7" fill="#9b7bf0"/>
+      <circle cx="40" cy="620" r="7" fill="#4b9bf0"/>
+    </g>
+  </svg>
+
+  <div class="stage">
+    <div class="win"><img src="../public/screenshots/overview-dark-1600.webp" alt=""></div>
+  </div>
+
+  <div class="badge">
+    <div class="ic">✓</div>
+    <div>
+      <div class="t1">Giải conflict vài cú bấm</div>
+      <div class="t2">Không cần nhớ lệnh git</div>
+    </div>
+  </div>
+
+  <div class="copy">
+    <div class="brand">
+      <img src="../public/logo-256.png" alt="">
+      <div class="name">Thaigit</div>
+    </div>
+    <div class="eyebrow"><span class="dot"></span>Miễn phí · Giao diện tiếng Việt</div>
+    <h1>Git client <span class="hl">trực quan</span><br>đẹp &amp; dễ dùng</h1>
+    <div class="feats">
+      <span class="chip" style="--c:#f05032"><i></i>Kéo &amp; thả để merge</span>
+      <span class="chip" style="--c:#4b9bf0"><i></i>Stage từng dòng</span>
+      <span class="chip" style="--c:#9b7bf0"><i></i>Graph nhiều màu</span>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span class="pf"><svg viewBox="0 0 24 24"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.7-1-2.7-4.1zM13.9 5c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></svg>macOS</span>
+    <span class="pf"><svg viewBox="0 0 24 24"><path d="M3 5.5l7.4-1v7.1H3zm0 13l7.4 1v-7H3zm8.2 1.1L21 21v-8.4h-9.8zm0-15.2v7.2H21V3z"/></svg>Windows</span>
+    <span class="url"><b>git.thaipro.store</b></span>
+  </div>
+</body>
+</html>
