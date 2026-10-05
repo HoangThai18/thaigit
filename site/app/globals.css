@@ -1424,7 +1424,63 @@ html[data-os='win'] [data-os='win'] .fit-badge {
   user-select: none;
 }
 
-/* ---------- Nhật ký thay đổi ---------- */
+/* ---------- Nhật ký thay đổi: hai làn macOS / Windows ---------- */
+.lanes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  align-items: start;
+}
+
+.lane-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 22px;
+}
+
+.lane-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--text);
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid var(--line);
+}
+
+.lane[data-os='mac'] .lane-icon {
+  color: var(--orange);
+}
+
+.lane[data-os='win'] .lane-icon {
+  color: var(--blue-2);
+}
+
+.lane-head h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.lane-head span {
+  font-size: 13px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.lane[data-os='mac'] .timeline::before {
+  background: linear-gradient(180deg, var(--orange), rgb(255 255 255 / 0.06));
+}
+
+.lane[data-os='win'] .timeline::before {
+  background: linear-gradient(180deg, var(--blue-2), rgb(255 255 255 / 0.06));
+}
+
+.lane .release-items {
+  grid-template-columns: 1fr;
+}
+
 .timeline {
   position: relative;
   padding-left: 40px;
@@ -1494,7 +1550,8 @@ html[data-os='win'] [data-os='win'] .fit-badge {
   border: 1px solid var(--line);
 }
 
-.release h3 {
+.release h3,
+.release h4 {
   margin: 0;
   font-size: 20px;
   font-variant-numeric: tabular-nums;
@@ -1875,6 +1932,11 @@ html[data-os='win'] [data-os='win'] .fit-badge {
 
 /* ---------- Màn hình hẹp ---------- */
 @media (max-width: 1000px) {
+  .lanes {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+
   .nav,
   .float-badge {
     display: none;

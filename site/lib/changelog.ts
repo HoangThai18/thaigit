@@ -110,22 +110,34 @@ function parse(text: string, platform: Platform): ChangelogEntry[] {
   return entries;
 }
 
+/** Một làn của trang "Có gì mới": các bản phát hành của một nền tảng, mới nhất trước. */
+export interface ChangelogLane {
+  platform: Platform;
+  entries: ChangelogEntry[];
+}
+
 /**
  * Đọc nhật ký của cả hai bản lúc build (`CHANGELOG.md` của macOS, `apps/desktop/CHANGELOG.md` của Windows), bỏ bản thử
- * `-beta`, xếp mới nhất lên trước.
+ * `-beta`. Mỗi nền tảng một làn (macOS trước, Windows sau), mỗi làn tối đa `limit` bản mới nhất; làn trống thì bỏ.
  */
-export async function readChangelog(limit = 3): Promise<ChangelogEntry[]> {
-  const all: ChangelogEntry[] = [];
-  for (const source of SOURCES) {
+export async function readChangelog(limit = 3): Promise<ChangelogLane[]> {
+  const lanes: ChangelogLane[] = [];
+  for (const platform of ['macOS', 'Windows'] as const) {
+    const source = SOURCES.find((item) => item.platform === platform);
+    if (!source) continue;
     try {
       const text = await readFile(path.join(process.cwd(), source.file), 'utf8');
-      all.push(...parse(text, source.platform).filter((entry) => !entry.version.includes('-')));
+      // `sort` của JS ổn định: cùng ngày thì giữ thứ tự trong file (mới tới cũ).
+      const entries = parse(text, platform)
+        .filter((entry) => !entry.version.includes('-'))
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, limit);
+      if (entries.length > 0) lanes.push({ platform, entries });
     } catch {
       // Thiếu file thì bỏ qua bản đó.
     }
   }
-  // Cùng ngày: giữ thứ tự trong file (Windows trước, rồi macOS từ mới tới cũ). `sort` của JS ổn định.
-  return all.sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
+  return lanes;
 }
 
 /** `2026-10-03` → `03/10/2026`. */

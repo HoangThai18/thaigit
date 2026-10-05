@@ -286,55 +286,64 @@ export default async function HomePage() {
 
       {/* Có gì mới */}
       {changelog.length > 0 && (
-        <section id="co-gi-moi" className="section narrow container">
+        <section id="co-gi-moi" className="section container">
           <div className="section-head" data-reveal>
             <span className="kicker">Có gì mới</span>
             <h2>Nhật ký thay đổi</h2>
           </div>
-          <div className="timeline">
-            {changelog.map((entry) => {
-              const shown = entry.items.slice(0, RELEASE_ITEMS);
-              const more = entry.items.slice(RELEASE_ITEMS);
+          <div className="lanes">
+            {changelog.map((lane) => {
+              const os = lane.platform === 'Windows' ? 'win' : 'mac';
               return (
-                <article
-                  key={`${entry.platform}-${entry.version}`}
-                  className="release"
-                  data-os={entry.platform === 'Windows' ? 'win' : 'mac'}
-                  data-reveal
-                >
-                  <div className="release-body">
-                    <header>
-                      <span className="release-os">
-                        {entry.platform === 'Windows' ? <WindowsIcon size={14} /> : <AppleIcon size={14} />}
-                        {entry.platform}
-                      </span>
-                      <h3>{entry.version}</h3>
-                      {entry.date && <time dateTime={entry.date}>{formatDate(entry.date)}</time>}
-                    </header>
-                    {entry.summary && <p className="release-summary">{entry.summary}</p>}
-                    <ul className="release-items">
-                      {shown.map((item, index) => (
-                        <li key={index}>
-                          <strong>{item.title}</strong>
-                          {item.detail && <span>{item.detail}</span>}
-                        </li>
-                      ))}
-                    </ul>
-                    {more.length > 0 && (
-                      <details className="release-more">
-                        <summary>Xem thêm {more.length} thay đổi</summary>
-                        <ul className="release-items">
-                          {more.map((item, index) => (
-                            <li key={index}>
-                              <strong>{item.title}</strong>
-                              {item.detail && <span>{item.detail}</span>}
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
+                <div key={lane.platform} className="lane" data-os={os}>
+                  <header className="lane-head" data-reveal>
+                    <span className="lane-icon">
+                      {lane.platform === 'Windows' ? <WindowsIcon size={18} /> : <AppleIcon size={18} />}
+                    </span>
+                    <div>
+                      <h3>{lane.platform === 'Windows' ? 'Windows' : 'macOS'}</h3>
+                      <span>Bản mới nhất {lane.entries[0].version}</span>
+                    </div>
+                  </header>
+                  <div className="timeline">
+                    {lane.entries.map((entry) => {
+                      const shown = entry.items.slice(0, RELEASE_ITEMS);
+                      const more = entry.items.slice(RELEASE_ITEMS);
+                      return (
+                        <article key={entry.version} className="release" data-os={os} data-reveal>
+                          <div className="release-body">
+                            <header>
+                              <h4>{entry.version}</h4>
+                              {entry.date && <time dateTime={entry.date}>{formatDate(entry.date)}</time>}
+                            </header>
+                            {entry.summary && <p className="release-summary">{entry.summary}</p>}
+                            <ul className="release-items">
+                              {shown.map((item, index) => (
+                                <li key={index}>
+                                  <strong>{item.title}</strong>
+                                  {item.detail && <span>{item.detail}</span>}
+                                </li>
+                              ))}
+                            </ul>
+                            {more.length > 0 && (
+                              <details className="release-more">
+                                <summary>Xem thêm {more.length} thay đổi</summary>
+                                <ul className="release-items">
+                                  {more.map((item, index) => (
+                                    <li key={index}>
+                                      <strong>{item.title}</strong>
+                                      {item.detail && <span>{item.detail}</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </details>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
-                </article>
+                </div>
               );
             })}
           </div>
