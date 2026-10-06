@@ -19,6 +19,7 @@
   import { pullRequestCheckout, requestStateLabel, targetOf } from './pullRequests.ts';
   import ReviewPeople from './ReviewPeople.svelte';
   import { requestWording } from './wording.ts';
+  import { dialogs } from '../stores/dialogs.svelte.ts';
   import { forgeAddComment, forgeApprove, forgeMerge, type ForgeMergeMethod } from '../ipc/accounts.ts';
   import { toasts } from '../stores/toasts.svelte.ts';
 
@@ -61,6 +62,21 @@
   let actionError = $state<{ approve: string; merge: string }>({ approve: '', merge: '' });
   let mergeMethod = $state<ForgeMergeMethod>('merge');
   const canReviewAction = $derived(targetOf(store) !== null && request !== null);
+  /** Strategies the forge actually supports; GitLab has no API rebase, Bitbucket has no per-merge strategy. */
+  const mergeMethodChoices = $derived.by(() => {
+    const provider = targetOf(store)?.provider ?? review.provider;
+    const available: ForgeMergeMethod[] =
+      provider === 'github'
+        ? ['merge', 'squash', 'rebase']
+        : provider === 'gitlab'
+          ? ['merge', 'squash']
+          : ['merge'];
+    return available.map((value) => [value, text.mergeMethods[value]] as const);
+  });
+  $effect(() => {
+    const choices = mergeMethodChoices;
+    if (!choices.some(([value]) => value === mergeMethod)) mergeMethod = choices[0]![0];
+  });
 
   async function sendComment(): Promise<void> {
     if (!request) return;
@@ -120,7 +136,13 @@
     if (!request) return;
     const target = targetOf(store);
     if (target === null || actionBusy !== '') return;
-    if (!window.confirm(text.mergeConfirm(request.number))) return;
+    const ok = await dialogs.confirm({
+      title: text.mergeButton,
+      message: text.mergeConfirm(request.number),
+      confirmTitle: text.mergeButton,
+      destructive: true,
+    });
+    if (!ok) return;
     actionBusy = 'merge';
     actionError = { ...actionError, merge: '' };
     try {
@@ -233,7 +255,7 @@
           disabled={!canReviewAction || actionBusy !== ''}
           aria-label={text.mergeMethod}
         >
-          {#each Object.entries(text.mergeMethods) as [value, label] (value)}
+          {#each mergeMethodChoices as [value, label] (value)}
             <option {value}>{label}</option>
           {/each}
         </select>

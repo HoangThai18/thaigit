@@ -9,6 +9,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Fetch nền (auto-fetch): khi mạng lỗi lặp thì Thaigit chờ lâu dần (tối đa 1 tiếng) rồi mới thử lại, thay vì cứ thử mỗi chu kỳ; sidebar nhánh dựng lại nhanh hơn trên repo nhiều nhánh
 - Mục “An toàn” trong Cài đặt: hiện tóm tắt những lớp bảo vệ đang bật — chỉ chạy đúng các lệnh git Thaigit biết, luôn tắt `core.fsmonitor` / `--no-textconv` / URL scheme nguy hiểm, và lược bỏ biến môi trường git có thể trỏ sang repo khác
 - Trong panel PR / MR: gửi bình luận chung, duyệt (approve) và gộp (merge, chọn cách merge / squash / rebase) ngay trong app — không cần mở web; chỉ gửi tiêu đề/mô tả/nhánh bạn nhìn thấy trong hộp thoại
+- Gộp PR/MR: chỉ hiện chiến lược mà dịch vụ hỗ trợ (GitLab không còn tuỳ chọn Rebase, Bitbucket còn đúng Merge), không còn lặng lẽ gộp theo kiểu khác; nút Gộp xác nhận bằng hộp thoại trong app (trên GitLab/Bitbucket/Windows trước đó hay bị chặn)
 
 ## 2.4.0 — 2026-10-05
 

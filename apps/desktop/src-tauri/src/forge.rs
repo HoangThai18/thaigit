@@ -1094,19 +1094,32 @@ pub async fn merge_for(
                 Some(serde_json::json!({ "merge_method": merge_method })),
             )
         }
-        Provider::Gitlab => (
-            reqwest::Method::PUT,
-            format!("{base}/projects/{}/merge_requests/{number}/merge", urlencode(&format!("{owner}/{repo}"))),
-            Some(match method {
-                MergeMethod::Merge | MergeMethod::Rebase => serde_json::json!({}),
-                MergeMethod::Squash => serde_json::json!({ "squash": true }),
-            }),
-        ),
-        Provider::Bitbucket => (
-            reqwest::Method::POST,
-            format!("{base}/repositories/{owner}/{repo}/pullrequests/{number}/merge"),
-            Some(serde_json::json!({})),
-        ),
+        Provider::Gitlab => {
+            // GitLab's API has no per-merge rebase: silently mapping Rebase to a plain merge would lie to the user.
+            if method == MergeMethod::Rebase {
+                return Err(AppError::policy("GitLab không hỗ trợ gộp theo kiểu rebase"));
+            }
+            (
+                reqwest::Method::PUT,
+                format!("{base}/projects/{}/merge_requests/{number}/merge", urlencode(&format!("{owner}/{repo}"))),
+                Some(match method {
+                    MergeMethod::Merge => serde_json::json!({}),
+                    MergeMethod::Squash => serde_json::json!({ "squash": true }),
+                    MergeMethod::Rebase => unreachable!(),
+                }),
+            )
+        }
+        Provider::Bitbucket => {
+            // Bitbucket Cloud offers no strategy choice on merge: reject instead of pretending the choice applied.
+            if method != MergeMethod::Merge {
+                return Err(AppError::policy("Bitbucket không hỗ trợ chọn kiểu gộp"));
+            }
+            (
+                reqwest::Method::POST,
+                format!("{base}/repositories/{owner}/{repo}/pullrequests/{number}/merge"),
+                Some(serde_json::json!({})),
+            )
+        }
     };
     let (status, value) = request(&client, method_, &url, &token, payload.as_ref()).await?;
     check_status(provider, &host, status, &value)?;
