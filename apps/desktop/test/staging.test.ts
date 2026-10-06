@@ -194,7 +194,15 @@ describe('stage / huỷ theo file', () => {
 
     lastAction(toasts, 'Hoàn tác')();
     await until(() => existsSync(join(test.root, 'moi.txt')), 'trả file mới');
-    await until(() => readFileSync(join(test.root, 'a.txt'), 'utf8') === 'đổi hết\n', 'trả file đã track');
+    // `git restore` deletes then recreates the file: a read at that moment hits ENOENT — treat that as "not finished", not an error.
+    const currentTracked = (): string | null => {
+      try {
+        return readFileSync(join(test.root, 'a.txt'), 'utf8');
+      } catch {
+        return null;
+      }
+    };
+    await until(() => currentTracked() === 'đổi hết\n', 'trả file đã track');
     expect(readFileSync(join(test.root, 'moi.txt'), 'utf8')).toBe('file mới\n');
   });
 });

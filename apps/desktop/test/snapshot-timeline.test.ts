@@ -93,10 +93,15 @@ describe('TimelineStore', () => {
     expect(timeline.comparison?.files).toEqual([]);
 
     lastAction(toasts, strings.snapshots.undo)();
-    await until(
-      () => readFileSync(join(test.root, 'a.txt'), 'utf8') === 'agent làm hỏng\n',
-      'hoàn tác khôi phục',
-    );
+    // `git restore` deletes then recreates the file: reading it at that moment hits ENOENT — treat that as "not finished", not an error.
+    const current = (): string | null => {
+      try {
+        return readFileSync(join(test.root, 'a.txt'), 'utf8');
+      } catch {
+        return null;
+      }
+    };
+    await until(() => current() === 'agent làm hỏng\n', 'hoàn tác khôi phục');
     await until(() => existsSync(join(test.root, 'rac.txt')), 'file agent tạo quay lại');
   });
 
