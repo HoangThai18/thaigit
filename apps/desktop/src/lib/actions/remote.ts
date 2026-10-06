@@ -82,27 +82,28 @@ export function completeHistory(store: RepoStore): Promise<void> {
 /**
  * Background autofetch (per the preferences): no busy bar, no sign-in dialog (the `background` profile), and an error shows only
  * ONE warning (a fixed tag, so the next one replaces the previous) so a long outage does not pile up notifications.
+ * Returns `'ok'` when the fetch succeeded, `'error'` when it failed, and `'skipped'` when it didn't run
+ * (no remotes, or another operation was already in flight — backoff must not count that as a failure).
  */
-export function backgroundFetch(store: RepoStore): Promise<void> {
-  if (store.remotes.length === 0 || store.busy !== null) return Promise.resolve();
+export async function backgroundFetch(store: RepoStore): Promise<'ok' | 'error' | 'skipped'> {
+  if (store.remotes.length === 0 || store.busy !== null) return 'skipped';
   const prune = store.preferences.fetchPrune;
-  return store.perform(
-    vi.remote.fetch,
-    (git, signal) => git.fetch({ prune, signal, profile: 'background' }),
-    {
-      refresh: Scope.refs | Scope.status,
-      onSuccess: () => {
-        store.lastFetch = Date.now();
-      },
-      onError: (error) => {
-        store.notify('warning', vi.remote.autoFetchFailed, {
-          message: friendlyError(error),
-          tag: 'auto-fetch',
-        });
-        return true;
-      },
+  let ok = false;
+  await store.perform(vi.remote.fetch, (git, signal) => git.fetch({ prune, signal, profile: 'background' }), {
+    refresh: Scope.refs | Scope.status,
+    onSuccess: () => {
+      ok = true;
+      store.lastFetch = Date.now();
     },
-  );
+    onError: (error) => {
+      store.notify('warning', vi.remote.autoFetchFailed, {
+        message: friendlyError(error),
+        tag: 'auto-fetch',
+      });
+      return true;
+    },
+  });
+  return ok ? 'ok' : 'error';
 }
 
 /** Pull the current branch. `true` when the pull finished without error (so "Pull then push" knows whether pushing makes sense). */
