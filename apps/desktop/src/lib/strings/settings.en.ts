@@ -61,6 +61,20 @@ export const settings: Translation<typeof source> = {
   channelStable: 'Stable',
   channelFailed: "Couldn't change the update channel",
 
+  safety: 'Safety',
+  safetyHelp:
+    "Thaigit doesn't trust unusual repos: every git command passes through a checkpoint before running.",
+  safetyAllowedCommands: (n: number) =>
+    `Only the ${n} git commands Thaigit knows run (no aliases, no unusual paths).`,
+  safetyForceSafeConfig:
+    'Force `core.fsmonitor=false`, empty `core.hooksPath`, and `protocol.file.allow=user`, `protocol.ext.allow=never` on every command.',
+  safetyDiffNeverRunsRepoCode:
+    'Viewing-diff commands (`diff`, `show`, `blame`, `log`…) always add `--no-ext-diff --no-textconv`: the repo cannot run any program from its config.',
+  safetyUrlSchemesBlocked: (schemes: string) =>
+    `Block the URL schemes ${schemes} — no clone / pull / push through arbitrary programs.`,
+  safetyEnvStripped:
+    "Strip env vars that can point at another repo (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`…) and block the caller's `-c` flags.",
+
   invalidNumber: (min: number, max: number) => `Enter a number from ${min} to ${max}`,
 
   askTitle: 'Help make Thaigit better?',

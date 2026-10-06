@@ -29,8 +29,13 @@ public final class InMemoryGitHubTokenStore: GitHubTokenStore, @unchecked Sendab
     }
 }
 
-/// Tokens in the macOS Keychain: a generic password with service `com.phanthai.thaigit.github` and account = login,
+/// Tokens in the macOS Keychain: a generic password with service `com.phanthai.thaigit.github.v2` and account = login,
 /// readable only after the first unlock, no iCloud sync.
+///
+/// Items written by older builds sit under the plain `service`. Their access list still names the ad-hoc-signed build that
+/// created them, so macOS asks for the keychain password on every launch and "Always Allow" does not stick. A token found
+/// there is copied into a fresh `.v2` item — owned by the current signing identity, which every later build shares — and the
+/// old item is deleted when macOS lets us.
 public struct KeychainTokenStore: GitHubTokenStore {
     public static let defaultService = "com.phanthai.thaigit.github"
     public let service: String
@@ -39,8 +44,34 @@ public struct KeychainTokenStore: GitHubTokenStore {
         self.service = service
     }
 
+    private var currentService: String { service + ".v2" }
+
     public func readToken(account login: String) throws -> String? {
-        var query = baseQuery(login)
+        if let token = try read(service: currentService, login: login) { return token }
+        guard let token = try read(service: service, login: login) else { return nil }
+        // The old item keeps working if the copy fails, and one that can't be deleted is never read again once `.v2` exists.
+        if (try? write(token, service: currentService, login: login)) != nil {
+            _ = SecItemDelete(baseQuery(service: service, login: login) as CFDictionary)
+        }
+        return token
+    }
+
+    public func saveToken(_ token: String, account login: String) throws {
+        try write(token, service: currentService, login: login)
+        _ = SecItemDelete(baseQuery(service: service, login: login) as CFDictionary)
+    }
+
+    public func deleteToken(account login: String) throws {
+        var failure: OSStatus?
+        for name in [currentService, service] {
+            let status = SecItemDelete(baseQuery(service: name, login: login) as CFDictionary)
+            if status != errSecSuccess && status != errSecItemNotFound { failure = failure ?? status }
+        }
+        if let failure { throw GitHubError.keychain(failure) }
+    }
+
+    private func read(service: String, login: String) throws -> String? {
+        var query = baseQuery(service: service, login: login)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
@@ -56,9 +87,9 @@ public struct KeychainTokenStore: GitHubTokenStore {
         }
     }
 
-    public func saveToken(_ token: String, account login: String) throws {
+    private func write(_ token: String, service: String, login: String) throws {
         let data = Data(token.utf8)
-        let query = baseQuery(login)
+        let query = baseQuery(service: service, login: login)
         var status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if status == errSecItemNotFound {
             var item = query
@@ -70,12 +101,7 @@ public struct KeychainTokenStore: GitHubTokenStore {
         guard status == errSecSuccess else { throw GitHubError.keychain(status) }
     }
 
-    public func deleteToken(account login: String) throws {
-        let status = SecItemDelete(baseQuery(login) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw GitHubError.keychain(status) }
-    }
-
-    private func baseQuery(_ login: String) -> [String: Any] {
+    private func baseQuery(service: String, login: String) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

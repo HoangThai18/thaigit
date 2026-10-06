@@ -59,6 +59,19 @@ export const settings = {
   channelStable: 'Ổn định',
   channelFailed: 'Không đổi được kênh cập nhật',
 
+  safety: 'An toàn',
+  safetyHelp: 'Thaigit không tin repo lạ: mỗi lệnh git đều qua lớp kiểm tra trước khi chạy.',
+  safetyAllowedCommands: (n: number) =>
+    `Chỉ chạy đúng ${n} lệnh git Thaigit biết (không alias, không đường dẫn lạ).`,
+  safetyForceSafeConfig:
+    'Ép thêm `core.fsmonitor=false`, `core.hooksPath` trống và `protocol.file.allow=user`, `protocol.ext.allow=never` cho mọi lệnh.',
+  safetyDiffNeverRunsRepoCode:
+    'Lệnh xem diff (`diff`, `show`, `blame`, `log`…) luôn thêm `--no-ext-diff --no-textconv`: repo không chạy được chương trình nào từ cấu hình.',
+  safetyUrlSchemesBlocked: (schemes: string) =>
+    `Chặn các URL scheme ${schemes} — không clone / pull / push qua chương trình tuỳ ý.`,
+  safetyEnvStripped:
+    'Bỏ các biến môi trường git có thể trỏ sang repo (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`…) và chặn `-c` phía người gọi.',
+
   invalidNumber: (min: number, max: number) => `Nhập số từ ${min} đến ${max}`,
 
   askTitle: 'Giúp Thaigit tốt hơn?',

@@ -7,6 +7,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Chuyển nhánh khi còn code chưa commit: không xung đột thì cứ chuyển và mang file theo; xung đột thì Thaigit trả mọi thứ về như cũ và hỏi bạn commit hoặc cất vào stash (lưu nháp) rồi mới chuyển, không còn tự mang file xung đột sang nhánh khác
 - Nhánh đang đứng nổi bật hơn trong sidebar: nền màu, vạch bên trái, chữ đậm màu nhấn
 - Fetch nền (auto-fetch): khi mạng lỗi lặp thì Thaigit chờ lâu dần (tối đa 1 tiếng) rồi mới thử lại, thay vì cứ thử mỗi chu kỳ; sidebar nhánh dựng lại nhanh hơn trên repo nhiều nhánh
+- Mục “An toàn” trong Cài đặt: hiện tóm tắt những lớp bảo vệ đang bật — chỉ chạy đúng các lệnh git Thaigit biết, luôn tắt `core.fsmonitor` / `--no-textconv` / URL scheme nguy hiểm, và lược bỏ biến môi trường git có thể trỏ sang repo khác
 
 ## 2.4.0 — 2026-10-05
 
