@@ -33,7 +33,7 @@ struct BlameTests {
         let sha = String(repeating: "a", count: 40)
         var data = Data("\(sha) 1 1 2\nauthor A\nauthor-mail <a@x>\nauthor-time 100\nsummary s\nfilename f\n\tdòng 1\r\n".utf8)
         data.append(Data("\(sha) 2 2\n\t".utf8))
-        data.append(contentsOf: [0x63, 0x61, 0x66, 0xE9])  // "café" bằng Latin-1
+        data.append(contentsOf: [0x63, 0x61, 0x66, 0xE9])  // "café" in Latin-1
         data.append(Data("\n".utf8))
         let blame = Blame.parse(data)
         #expect(blame.lines.count == 2)

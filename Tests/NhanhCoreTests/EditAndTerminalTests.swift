@@ -77,7 +77,7 @@ struct EditAndTerminalTests {
         let failed = try await TerminalShell.run("exit 3", in: root, environment: environment, loginShell: false) { _, _ in }
         #expect(failed.exitCode == 3)
         #expect(failed.directory == root)
-        // Lệnh không chờ bàn phím: đọc stdin thì nhận EOF ngay.
+        // The command doesn't wait for keyboard input: reading stdin gets EOF right away.
         let reading = try await TerminalShell.run("read x; echo \"đọc: [$x]\"", in: root, environment: environment, loginShell: false) { line, _ in
             lines.withValue { $0.append((line, false)) }
         }
