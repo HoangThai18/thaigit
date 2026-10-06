@@ -965,6 +965,154 @@ pub async fn set_people_for(
     set_people(&host, provider, &token, &owner, &repo, number, role, people).await
 }
 
+/// Post one general (non-diff-level) comment on a PR / MR. Returns the comment URL when the host provides one.
+pub async fn add_comment_for(
+    accounts: &crate::accounts::Accounts,
+    host: &str,
+    provider: Option<Provider>,
+    owner: &str,
+    repo: &str,
+    number: &str,
+    body: &str,
+) -> Result<String> {
+    if body.trim().is_empty() {
+        return Err(AppError::policy("Nội dung bình luận không được để trống"));
+    }
+    let (host, _provider) = check_host(host, provider)?;
+    let (owner, repo) = check_repo_path(owner, repo)?;
+    if number.is_empty() || number.len() > 12 || !number.chars().all(|c| c.is_ascii_digit()) {
+        return Err(AppError::policy("Số PR / MR không hợp lệ"));
+    }
+    accounts.refresh_due(&host).await;
+    let (provider, token) = owner_token(accounts, &host, &owner)?;
+    let client = http()?;
+    let base = provider.api_base(&host);
+    let (url, payload) = match provider {
+        Provider::Github => (
+            format!("{base}/repos/{owner}/{repo}/issues/{number}/comments"),
+            serde_json::json!({ "body": body }),
+        ),
+        Provider::Gitlab => (
+            format!("{base}/projects/{}/merge_requests/{number}/notes", urlencode(&format!("{owner}/{repo}"))),
+            serde_json::json!({ "body": body }),
+        ),
+        Provider::Bitbucket => (
+            format!("{base}/repositories/{owner}/{repo}/pullrequests/{number}/comments"),
+            serde_json::json!({ "content": { "raw": body } }),
+        ),
+    };
+    let (status, value) = request(&client, reqwest::Method::POST, &url, &token, Some(&payload)).await?;
+    check_status(provider, &host, status, &value)?;
+    let link = match provider {
+        Provider::Github => value["html_url"].as_str(),
+        Provider::Gitlab => value["url"].as_str().or_else(|| value["web_url"].as_str()),
+        Provider::Bitbucket => value["links"]["html"]["href"].as_str(),
+    }
+    .unwrap_or_default()
+    .to_string();
+    Ok(link)
+}
+
+/// Approve a PR / MR. `true` when the host accepted the approval.
+pub async fn approve_for(
+    accounts: &crate::accounts::Accounts,
+    host: &str,
+    provider: Option<Provider>,
+    owner: &str,
+    repo: &str,
+    number: &str,
+) -> Result<()> {
+    let (host, _provider) = check_host(host, provider)?;
+    let (owner, repo) = check_repo_path(owner, repo)?;
+    if number.is_empty() || number.len() > 12 || !number.chars().all(|c| c.is_ascii_digit()) {
+        return Err(AppError::policy("Số PR / MR không hợp lệ"));
+    }
+    accounts.refresh_due(&host).await;
+    let (provider, token) = owner_token(accounts, &host, &owner)?;
+    let client = http()?;
+    let base = provider.api_base(&host);
+    let (method, url, payload) = match provider {
+        Provider::Github => (
+            reqwest::Method::POST,
+            format!("{base}/repos/{owner}/{repo}/pulls/{number}/reviews"),
+            Some(serde_json::json!({ "event": "APPROVE" })),
+        ),
+        Provider::Gitlab => (
+            reqwest::Method::POST,
+            format!("{base}/projects/{}/merge_requests/{number}/approve", urlencode(&format!("{owner}/{repo}"))),
+            Some(serde_json::json!({})),
+        ),
+        Provider::Bitbucket => (
+            reqwest::Method::POST,
+            format!("{base}/repositories/{owner}/{repo}/pullrequests/{number}/approve"),
+            Some(serde_json::json!({})),
+        ),
+    };
+    let (status, value) = request(&client, method, &url, &token, payload.as_ref()).await?;
+    check_status(provider, &host, status, &value)?;
+    Ok(())
+}
+
+/// The merge strategy for a PR / MR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum MergeMethod {
+    Merge,
+    Squash,
+    Rebase,
+}
+
+/// Merge a PR / MR. `true` when the host accepted it.
+pub async fn merge_for(
+    accounts: &crate::accounts::Accounts,
+    host: &str,
+    provider: Option<Provider>,
+    owner: &str,
+    repo: &str,
+    number: &str,
+    method: MergeMethod,
+) -> Result<()> {
+    let (host, _provider) = check_host(host, provider)?;
+    let (owner, repo) = check_repo_path(owner, repo)?;
+    if number.is_empty() || number.len() > 12 || !number.chars().all(|c| c.is_ascii_digit()) {
+        return Err(AppError::policy("Số PR / MR không hợp lệ"));
+    }
+    accounts.refresh_due(&host).await;
+    let (provider, token) = owner_token(accounts, &host, &owner)?;
+    let client = http()?;
+    let base = provider.api_base(&host);
+    let (method_, url, payload) = match provider {
+        Provider::Github => {
+            let merge_method = match method {
+                MergeMethod::Merge => "merge",
+                MergeMethod::Squash => "squash",
+                MergeMethod::Rebase => "rebase",
+            };
+            (
+                reqwest::Method::PUT,
+                format!("{base}/repos/{owner}/{repo}/pulls/{number}/merge"),
+                Some(serde_json::json!({ "merge_method": merge_method })),
+            )
+        }
+        Provider::Gitlab => (
+            reqwest::Method::PUT,
+            format!("{base}/projects/{}/merge_requests/{number}/merge", urlencode(&format!("{owner}/{repo}"))),
+            Some(match method {
+                MergeMethod::Merge | MergeMethod::Rebase => serde_json::json!({}),
+                MergeMethod::Squash => serde_json::json!({ "squash": true }),
+            }),
+        ),
+        Provider::Bitbucket => (
+            reqwest::Method::POST,
+            format!("{base}/repositories/{owner}/{repo}/pullrequests/{number}/merge"),
+            Some(serde_json::json!({})),
+        ),
+    };
+    let (status, value) = request(&client, method_, &url, &token, payload.as_ref()).await?;
+    check_status(provider, &host, status, &value)?;
+    Ok(())
+}
+
 /// A branch name valid for `git` (no odd characters, no whitespace) — control characters are blocked too.
 fn check_branch(branch: &str) -> Result<()> {
     let trimmed = branch.trim();

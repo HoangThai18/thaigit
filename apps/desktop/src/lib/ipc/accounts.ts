@@ -140,3 +140,26 @@ export interface SetPeopleRequest extends ForgeRepoRef {
 export function forgeSetPeople(request: SetPeopleRequest): Promise<ForgeMergeRequest> {
   return call<ForgeMergeRequest>(Commands.forgeSetPeople, { request });
 }
+
+export interface ForgePrRequest extends ForgeRepoRef {
+  /** PR number, or MR iid. */
+  number: string;
+}
+
+/** Add a general (non-diff-level) comment to a PR / MR; returns the comment link when the host provides one. */
+export function forgeAddComment(request: ForgePrRequest & { body: string }): Promise<string> {
+  return call<string>(Commands.forgeAddComment, { request });
+}
+
+/** Approve a PR / MR. */
+export function forgeApprove(request: ForgePrRequest): Promise<void> {
+  return call<void>(Commands.forgeApprove, { request });
+}
+
+/** Merge strategy for a PR / MR. */
+export type ForgeMergeMethod = 'merge' | 'squash' | 'rebase';
+
+/** Merge a PR / MR; GitHub maps 1:1 to merge_method, GitLab ignores `rebase`, Bitbucket merges. */
+export function forgeMerge(request: ForgePrRequest & { method: ForgeMergeMethod }): Promise<void> {
+  return call<void>(Commands.forgeMerge, { request });
+}

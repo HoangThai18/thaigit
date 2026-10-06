@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forge-merge"
+description = "Enables the forge_merge command without any pre-configured scope."
+commands.allow = ["forge_merge"]
+
+[[permission]]
+identifier = "deny-forge-merge"
+description = "Denies the forge_merge command without any pre-configured scope."
+commands.deny = ["forge_merge"]

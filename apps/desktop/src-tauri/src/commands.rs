@@ -669,6 +669,75 @@ pub async fn forge_set_people(core: CoreState<'_>, request: SetPeopleRequest) ->
     .await
 }
 
+/// Add a general (non-diff-level) comment to a PR / MR; returns the comment link when the host provides one.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddCommentRequest {
+    host: String,
+    provider: Option<Provider>,
+    owner: String,
+    repo: String,
+    number: String,
+    body: String,
+}
+
+#[tauri::command]
+pub async fn forge_add_comment(core: CoreState<'_>, request: AddCommentRequest) -> Result<String> {
+    forge::add_comment_for(
+        &core.accounts,
+        &request.host,
+        request.provider,
+        &request.owner,
+        &request.repo,
+        &request.number,
+        &request.body,
+    )
+    .await
+}
+
+/// Approve a PR / MR.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrActionRequest {
+    host: String,
+    provider: Option<Provider>,
+    owner: String,
+    repo: String,
+    number: String,
+}
+
+#[tauri::command]
+pub async fn forge_approve(core: CoreState<'_>, request: PrActionRequest) -> Result<()> {
+    forge::approve_for(&core.accounts, &request.host, request.provider, &request.owner, &request.repo, &request.number)
+        .await
+}
+
+/// Merge a PR / MR with the given strategy (`merge` | `squash` | `rebase`).
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MergeRequest {
+    host: String,
+    provider: Option<Provider>,
+    owner: String,
+    repo: String,
+    number: String,
+    method: forge::MergeMethod,
+}
+
+#[tauri::command]
+pub async fn forge_merge(core: CoreState<'_>, request: MergeRequest) -> Result<()> {
+    forge::merge_for(
+        &core.accounts,
+        &request.host,
+        request.provider,
+        &request.owner,
+        &request.repo,
+        &request.number,
+        request.method,
+    )
+    .await
+}
+
 // MARK: - Auto-update and safe mode (8a)
 
 /// Check for an update on the current channel: `null` = already up to date.

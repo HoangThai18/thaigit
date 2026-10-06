@@ -186,6 +186,10 @@ export const Commands = {
   // PR / MR reviewer and assignee. */
   forgeListAssignable: 'forge_list_assignable',
   forgeSetPeople: 'forge_set_people',
+  // PR / MR review actions (comment / approve / merge) run in the Rust core, never from the webview directly.
+  forgeAddComment: 'forge_add_comment',
+  forgeApprove: 'forge_approve',
+  forgeMerge: 'forge_merge',
 } as const;
 
 export const Events = {

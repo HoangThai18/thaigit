@@ -210,6 +210,9 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::forge_create_merge_request,
         commands::forge_list_assignable,
         commands::forge_set_people,
+        commands::forge_add_comment,
+        commands::forge_approve,
+        commands::forge_merge,
     ])
 }
 

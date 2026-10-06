@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forge-approve"
+description = "Enables the forge_approve command without any pre-configured scope."
+commands.allow = ["forge_approve"]
+
+[[permission]]
+identifier = "deny-forge-approve"
+description = "Denies the forge_approve command without any pre-configured scope."
+commands.deny = ["forge_approve"]

@@ -72,6 +72,9 @@ const APP_COMMANDS: &[&str] = &[
     "forge_create_merge_request",
     "forge_list_assignable",
     "forge_set_people",
+    "forge_add_comment",
+    "forge_approve",
+    "forge_merge",
 ];
 
 fn main() {

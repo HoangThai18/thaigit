@@ -19,6 +19,8 @@
   import { pullRequestCheckout, requestStateLabel, targetOf } from './pullRequests.ts';
   import ReviewPeople from './ReviewPeople.svelte';
   import { requestWording } from './wording.ts';
+  import { forgeAddComment, forgeApprove, forgeMerge, type ForgeMergeMethod } from '../ipc/accounts.ts';
+  import { toasts } from '../stores/toasts.svelte.ts';
 
   interface Props {
     store: RepoStore;
@@ -51,6 +53,93 @@
   const editablePeople = $derived(review.provider === 'github' || review.provider === 'gitlab');
 
   let showFullBody = $state(false);
+  let commentOpen = $state(false);
+  let commentText = $state('');
+  let commentBusy = $state(false);
+  let commentError = $state('');
+  let actionBusy = $state<'' | 'approve' | 'merge'>('');
+  let actionError = $state<{ approve: string; merge: string }>({ approve: '', merge: '' });
+  let mergeMethod = $state<ForgeMergeMethod>('merge');
+  const canReviewAction = $derived(targetOf(store) !== null && request !== null);
+
+  async function sendComment(): Promise<void> {
+    if (!request) return;
+    const target = targetOf(store);
+    if (target === null || commentBusy) return;
+    const body = commentText.trim();
+    if (body === '') {
+      commentError = text.commentEmpty;
+      return;
+    }
+    commentBusy = true;
+    commentError = '';
+    try {
+      await forgeAddComment({
+        host: request.host,
+        provider: target.provider ?? undefined,
+        owner: target.owner,
+        repo: target.repo,
+        number: request.number,
+        body,
+      });
+      commentText = '';
+      commentOpen = false;
+      toasts.success(text.commentSuccess);
+    } catch (error) {
+      commentError = text.commentFailed;
+      toasts.error(text.commentFailed, error);
+    } finally {
+      commentBusy = false;
+    }
+  }
+
+  async function approve(): Promise<void> {
+    if (!request) return;
+    const target = targetOf(store);
+    if (target === null || actionBusy !== '') return;
+    actionBusy = 'approve';
+    actionError = { ...actionError, approve: '' };
+    try {
+      await forgeApprove({
+        host: request.host,
+        provider: target.provider ?? undefined,
+        owner: target.owner,
+        repo: target.repo,
+        number: request.number,
+      });
+      toasts.success(text.approveSuccess);
+    } catch (error) {
+      actionError = { ...actionError, approve: text.approveFailed };
+      toasts.error(text.approveFailed, error);
+    } finally {
+      actionBusy = '';
+    }
+  }
+
+  async function merge(): Promise<void> {
+    if (!request) return;
+    const target = targetOf(store);
+    if (target === null || actionBusy !== '') return;
+    if (!window.confirm(text.mergeConfirm(request.number))) return;
+    actionBusy = 'merge';
+    actionError = { ...actionError, merge: '' };
+    try {
+      await forgeMerge({
+        host: request.host,
+        provider: target.provider ?? undefined,
+        owner: target.owner,
+        repo: target.repo,
+        number: request.number,
+        method: mergeMethod,
+      });
+      toasts.success(text.mergeSuccess);
+    } catch (error) {
+      actionError = { ...actionError, merge: text.mergeFailed };
+      toasts.error(text.mergeFailed, error);
+    } finally {
+      actionBusy = '';
+    }
+  }
 </script>
 
 {#if request}
@@ -123,7 +212,72 @@
           <Icon name="fetch" size={13} />
           <span>{text.refresh}</span>
         </button>
+        <button
+          type="button"
+          class="btn"
+          disabled={!canReviewAction || actionBusy !== ''}
+          onclick={() => (commentOpen = !commentOpen)}
+        >
+          <span>{text.commentButton}</span>
+        </button>
+        <button
+          type="button"
+          class="btn"
+          disabled={!canReviewAction || actionBusy !== ''}
+          onclick={() => void approve()}
+        >
+          <span>{actionBusy === 'approve' ? text.approving : text.approve}</span>
+        </button>
+        <select
+          bind:value={mergeMethod}
+          disabled={!canReviewAction || actionBusy !== ''}
+          aria-label={text.mergeMethod}
+        >
+          {#each Object.entries(text.mergeMethods) as [value, label] (value)}
+            <option {value}>{label}</option>
+          {/each}
+        </select>
+        <button
+          type="button"
+          class="btn"
+          disabled={!canReviewAction || actionBusy !== ''}
+          onclick={() => void merge()}
+        >
+          <span>{actionBusy === 'merge' ? text.merging : text.mergeButton}</span>
+        </button>
       </div>
+      {#if actionError.approve}
+        <p class="action-error" role="alert">{actionError.approve}</p>
+      {/if}
+      {#if actionError.merge}
+        <p class="action-error" role="alert">{actionError.merge}</p>
+      {/if}
+      {#if commentOpen}
+        <div class="comment-box">
+          <textarea
+            class="comment-input"
+            rows="3"
+            placeholder={text.commentPlaceholder}
+            bind:value={commentText}
+            disabled={commentBusy}></textarea>
+          {#if commentError}
+            <p class="action-error" role="alert">{commentError}</p>
+          {/if}
+          <div class="comment-actions">
+            <button
+              type="button"
+              class="btn primary"
+              disabled={commentBusy}
+              onclick={() => void sendComment()}
+            >
+              {commentBusy ? text.commentSending : text.commentSend}
+            </button>
+            <button type="button" class="btn" disabled={commentBusy} onclick={() => (commentOpen = false)}
+              >{text.cancel}</button
+            >
+          </div>
+        </div>
+      {/if}
     </div>
     {#if review.phase === 'loading'}
       <div class="placeholder" role="status">
@@ -338,6 +492,54 @@
   .link:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+
+  .btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .action-error {
+    margin: 0;
+    color: var(--danger);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .comment-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .comment-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.45;
+    resize: vertical;
+  }
+
+  .comment-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  select {
+    padding: 3px 6px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
   }
 
   .placeholder {

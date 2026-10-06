@@ -76,6 +76,9 @@
     "allow-forge-list-merge-requests",
     "allow-forge-create-merge-request",
     "allow-forge-list-assignable",
-    "allow-forge-set-people"
+    "allow-forge-set-people",
+    "allow-forge-add-comment",
+    "allow-forge-approve",
+    "allow-forge-merge"
   ]
 }

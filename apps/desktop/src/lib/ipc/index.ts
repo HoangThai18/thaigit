@@ -14,8 +14,17 @@ export {
   forgeListAssignable,
   forgeListMergeRequests,
   forgeSetPeople,
+  forgeAddComment,
+  forgeApprove,
+  forgeMerge,
 } from './accounts.ts';
-export type { ForgeRepoRef, NewMergeRequest, PeopleRole, SetPeopleRequest } from './accounts.ts';
+export type {
+  ForgeRepoRef,
+  NewMergeRequest,
+  PeopleRole,
+  SetPeopleRequest,
+  ForgeMergeMethod,
+} from './accounts.ts';
 export { Commands, Events } from './commands.ts';
 export type { CommandName } from './commands.ts';
 export { CommandFailure, isCommandFailure, toCommandFailure } from './errors.ts';
