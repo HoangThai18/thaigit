@@ -43,7 +43,7 @@ const vi: HomeText = {
     titleLine: 'Git trực quan, làm bằng chuột.',
     titleGradient: 'Miễn phí, nhẹ, dễ dùng.',
     lead: 'Thaigit giúp bạn làm việc với Git bằng chuột: graph lịch sử nhiều màu, kéo nhánh thả lên nhánh để merge, stage từng dòng, giải conflict trong vài cú bấm — không cần nhớ lệnh.',
-    checks: ['macOS 14 · Windows 10 / 11', 'Tự cập nhật', 'Giao diện tiếng Việt', 'Sáng / tối'],
+    checks: ['macOS 11+ · Windows 10 / 11', 'Tự cập nhật', 'Giao diện tiếng Việt', 'Sáng / tối'],
     badges: { drag: 'Kéo & thả để merge', switch: 'Tìm & chuyển nhánh', stage: 'Stage từng dòng' },
     stats: [
       { value: '≈ 1 giây', label: 'mở repo 30.000 commit' },
@@ -68,9 +68,9 @@ const vi: HomeText = {
     title: 'Tải Thaigit',
     text: 'Miễn phí, không cần tài khoản. Các bản sau tự cập nhật.',
     fit: 'Phù hợp với máy bạn',
-    macMeta: 'macOS 14 Sonoma trở lên · Mac chip Apple (M1 trở lên)',
+    macMeta: 'macOS 11 trở lên · Mac chip Apple (M1 trở lên)',
     macSteps: {
-      first: 'Mở file Thaigit-macOS.zip để giải nén.',
+      first: 'Tải và mở file Thaigit-macOS.dmg.',
       second: 'Kéo Thaigit.app vào thư mục Applications.',
       third: 'Lần đầu mở, nếu macOS chặn: Cài đặt hệ thống → Quyền riêng tư & Bảo mật →',
     },
@@ -116,7 +116,7 @@ const en: HomeText = {
     titleLine: 'Visual Git, driven by your mouse.',
     titleGradient: 'Free, light, easy to use.',
     lead: 'Thaigit lets you work with Git using the mouse: a colorful history graph, drag one branch onto another to merge, stage single lines, resolve conflicts in a few clicks — no commands to memorize.',
-    checks: ['macOS 14 · Windows 10 / 11', 'Self-updating', 'Vietnamese & English UI', 'Light / dark'],
+    checks: ['macOS 11+ · Windows 10 / 11', 'Self-updating', 'Vietnamese & English UI', 'Light / dark'],
     badges: { drag: 'Drag & drop to merge', switch: 'Find & switch branches', stage: 'Stage line by line' },
     stats: [
       { value: '≈ 1 second', label: 'to open a 30,000-commit repo' },
@@ -141,9 +141,9 @@ const en: HomeText = {
     title: 'Get Thaigit',
     text: 'Free, no account needed. Later versions update themselves.',
     fit: 'Matches your machine',
-    macMeta: 'macOS 14 Sonoma or later · Apple-silicon Mac (M1 or later)',
+    macMeta: 'macOS 11 or later · Apple-silicon Mac (M1 or later)',
     macSteps: {
-      first: 'Open Thaigit-macOS.zip to unzip it.',
+      first: 'Download and open the Thaigit-macOS.dmg file.',
       second: 'Drag Thaigit.app into the Applications folder.',
       third: 'If macOS blocks it the first time: System Settings → Privacy & Security →',
     },

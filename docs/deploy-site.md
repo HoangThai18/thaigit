@@ -64,7 +64,7 @@ Firebase Hosting, Cloudflare Pages, Vercel, Netlify…: lệnh build là `pnpm -
 ## Sau khi trang chạy
 
 - **Google Search Console**: thêm `https://git.thaipro.store`, xác minh bằng bản ghi TXT, rồi gửi `https://git.thaipro.store/sitemap.xml`.
-- **Phát hành bản mới không cần build lại trang.** Nút tải luôn trỏ tới `releases/latest/download/Thaigit-macOS.zip`. Phiên bản, dung lượng và SHA-256 hiện trên trang được trình duyệt lấy thẳng từ GitHub API.
+- **Phát hành bản mới không cần build lại trang.** Nút tải luôn trỏ tới `releases/download/desktop-stable/Thaigit-macOS.dmg` (Windows: `Thaigit-Windows-setup.exe`). Phiên bản, dung lượng và SHA-256 hiện trên trang được trình duyệt lấy thẳng từ GitHub API.
 - **Hai ngôn ngữ, hai giao diện**: tiếng Việt ở gốc (`/`), English dưới `/en/`. Nút trên thanh đầu trang đổi ngôn ngữ (sang đúng trang tương ứng) và đổi sáng / tối; mặc định theo hệ điều hành, lựa chọn nhớ trong trình duyệt. Mỗi ngôn ngữ là một layout gốc riêng (`site/app/(vi)`, `site/app/en`) nên thẻ `<html lang>` và `hreflang` đúng ngay trong HTML dựng sẵn.
 - **Sửa nội dung** (mỗi file có đủ hai ngôn ngữ):
   - `site/lib/content.ts`: tính năng, câu hỏi thường gặp.

@@ -21,7 +21,7 @@ const vi = {
   },
   download: {
     mac: 'Tải cho macOS',
-    macFallback: 'macOS 14 trở lên · miễn phí',
+    macFallback: 'macOS 11 trở lên · miễn phí',
     version: (version: string, size: string) => `Phiên bản ${version} · ${size}`,
     win: 'Tải cho Windows',
     winSub: 'Windows 10 / 11 · miễn phí',
@@ -80,7 +80,7 @@ const en: typeof vi = {
   },
   download: {
     mac: 'Download for macOS',
-    macFallback: 'macOS 14 or later · free',
+    macFallback: 'macOS 11 or later · free',
     version: (version: string, size: string) => `Version ${version} · ${size}`,
     win: 'Download for Windows',
     winSub: 'Windows 10 / 11 · free',

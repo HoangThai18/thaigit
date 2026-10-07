@@ -60,8 +60,8 @@ type Env = { Variables: { ip: string; idHash: string; appVersion: string | null 
 
 const DOWNLOAD_TARGETS: Record<DownloadAsset, (repo: string) => { url: string; manifest: string }> = {
   mac: (repo) => ({
-    url: `https://github.com/${repo}/releases/latest/download/Thaigit-macOS.zip`,
-    manifest: `https://github.com/${repo}/releases/latest/download/update.json`,
+    url: `https://github.com/${repo}/releases/download/desktop-stable/Thaigit-macOS.dmg`,
+    manifest: `https://github.com/${repo}/releases/download/desktop-stable/latest.json`,
   }),
   win: (repo) => ({
     url: `https://github.com/${repo}/releases/download/desktop-stable/Thaigit-Windows-setup.exe`,

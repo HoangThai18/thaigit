@@ -16,9 +16,10 @@ export interface ChangelogEntry {
   items: ChangelogItem[];
 }
 
+// Một mã nguồn duy nhất: bản đa nền tảng dùng chung nhật ký cho cả Windows lẫn macOS.
 const SOURCES: readonly { platform: Platform; file: string }[] = [
   { platform: 'Windows', file: path.join('..', 'apps', 'desktop', 'CHANGELOG.md') },
-  { platform: 'macOS', file: path.join('..', 'CHANGELOG.md') },
+  { platform: 'macOS', file: path.join('..', 'apps', 'desktop', 'CHANGELOG.md') },
 ];
 
 const AI_MENTION = /\bAI\b|Apple Intelligence|Hermes/;

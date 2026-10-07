@@ -6,7 +6,6 @@
 Kết quả:
   brand/thaigit-icon-macos.png    1024×1024, nền trong suốt, theo lưới icon macOS (khối 824 px + bóng đổ)
   brand/thaigit-icon-square.png   1024×1024, nền trong suốt, khối gần kín khung (cho Windows / `tauri icon`)
-  Resources/AppIcon.icns          icon cho app macOS (Swift)
 
 Cần Pillow (`pip3 install pillow`) và `iconutil` (có sẵn trên macOS).
 """
@@ -94,8 +93,8 @@ def main() -> None:
     square = place(slab, 984, shadow=False)
     macos.save(os.path.join(ROOT, "brand", "thaigit-icon-macos.png"))
     square.save(os.path.join(ROOT, "brand", "thaigit-icon-square.png"))
-    build_icns(macos, os.path.join(ROOT, "Resources", "AppIcon.icns"))
-    print("✓ brand/thaigit-icon-macos.png, brand/thaigit-icon-square.png, Resources/AppIcon.icns")
+    build_icns(macos, os.path.join(ROOT, "apps", "desktop", "src-tauri", "icons", "icon.icns"))
+    print("✓ brand/thaigit-icon-macos.png, brand/thaigit-icon-square.png, apps/desktop/src-tauri/icons/icon.icns")
 
 
 if __name__ == "__main__":

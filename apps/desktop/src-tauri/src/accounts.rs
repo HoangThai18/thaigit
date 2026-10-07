@@ -218,8 +218,7 @@ pub struct Login {
 /// OAuth App client ids baked in at build time (`THAIGIT_GITHUB_CLIENT_ID`, `THAIGIT_GITLAB_CLIENT_ID`): the client id
 /// of a public client is not a secret. Users can still override them in Settings (GitHub Enterprise, self-hosted
 /// GitLab…).
-/// GitHub already ships the client id of the "Thaigit" OAuth App (device flow on, non-expiring tokens) — same value as in
-/// `Resources/Info.plist`.
+/// GitHub already ships the client id of the "Thaigit" OAuth App (device flow on, non-expiring tokens).
 const GITHUB_CLIENT_ID: &str = "Ov23li9UeeQjJJwQqLqH";
 /// Application id of the "Thaigit" OAuth App on gitlab.com (non-confidential, device authorization grant on).
 const GITLAB_CLIENT_ID: &str = "506513c86541200954d6656725fab6cc78b0b458cae231f79a72e09c9b94f66d";

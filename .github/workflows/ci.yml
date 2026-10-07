@@ -16,22 +16,6 @@ env:
   NEXT_TELEMETRY_DISABLED: 1
 
 jobs:
-  swift:
-    name: App Swift (macOS)
-    # macos-26: Xcode 26 bản mới — Xcode 26.0 của macos-15 lỗi macro @Observable khi build với -emit-localized-strings
-    # (bước kiểm chuỗi), dù `swift test` vẫn qua.
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v7
-      - name: Chọn Xcode 26 mới nhất
-        run: |
-          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
-          swift --version
-      - name: Test
-        run: swift test
-      - name: Chuỗi tiếng Anh (mọi khoá trong code phải có bản dịch)
-        run: python3 scripts/check-mac-strings.py
-
   desktop:
     name: Desktop (${{ matrix.os }})
     strategy:

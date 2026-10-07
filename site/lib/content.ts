@@ -173,11 +173,7 @@ export const SMALL_FEATURES: Record<Lang, SmallFeature[]> = {
       'Commit, huỷ thay đổi, merge, reset, xoá nhánh, xoá stash… đều có nút Hoàn tác.',
     ),
     small('refresh', 'Tự cập nhật', 'Bản mới tải ngầm, kiểm chữ ký; khởi động lại là có tính năng mới.'),
-    small(
-      'moon',
-      'Giao diện kính sáng / tối',
-      'Liquid Glass trên macOS 26, màu lấy từ logo; tự theo chế độ của máy.',
-    ),
+    small('moon', 'Giao diện kính sáng / tối', 'Sáng / tối theo cài đặt của máy, màu lấy từ logo.'),
     small(
       'shield',
       'An toàn khi mở repo lạ',

@@ -2,8 +2,8 @@
 # - Build bản cài NSIS trên máy Windows của GitHub, ký file cập nhật bằng khoá minisign (secret TAURI_SIGNING_PRIVATE_KEY +
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD; khoá công khai nằm trong tauri.conf.json).
 # - Build bản macOS (.app/.dmg) trên máy macOS của GitHub, cùng khoá ký cập nhật.
-# - Tạo release của phiên bản với --latest=false: `releases/latest` vẫn là bản macOS (Swift) và bộ cập nhật của app macOS
-#   cũ không bị ảnh hưởng. Phiên bản có hậu tố (`-beta.N`) là bản thử: thêm --prerelease.
+# - Tạo release của phiên bản với --latest=false: `releases/latest` giờ dành cho trang chủ, bộ cập nhật của app không
+#   đọc nó. Phiên bản có hậu tố (`-beta.N`) là bản thử: thêm --prerelease.
 # - Cập nhật release cố định của kênh: `latest.json` (một manifest cho cả hai nền) và link tải cố định của nút
 #   "Tải cho Windows" / "Tải cho macOS". Bản thử → `desktop-beta`; bản chính thức → `desktop-stable` VÀ `desktop-beta`
 #   (người ở kênh beta cũng nhận bản chính thức mới hơn).

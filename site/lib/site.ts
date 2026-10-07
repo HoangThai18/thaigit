@@ -47,7 +47,7 @@ export const SITE_TEXT: Record<Lang, { title: string; description: string; keywo
 
 export const LINKS = {
   downloadMac: `${SITE.url}/download/mac`,
-  latestReleaseApi: `https://api.github.com/repos/${SITE.repo}/releases/latest`,
+  latestReleaseApi: `https://api.github.com/repos/${SITE.repo}/releases/tags/desktop-stable`,
   downloadWindows: `${SITE.url}/download/win`,
   gitForWindows: 'https://git-scm.com/download/win',
 } as const;

@@ -261,7 +261,7 @@ describe('thống kê và lượt tải', () => {
     });
     expect(mac.status).toBe(302);
     expect(mac.headers.get('location')).toBe(
-      'https://github.com/HoangThai18/thaigit/releases/latest/download/Thaigit-macOS.zip',
+      'https://github.com/HoangThai18/thaigit/releases/download/desktop-stable/Thaigit-macOS.dmg',
     );
     expect((await app.request('/download/linux')).status).toBe(404);
     expect(db.prepare('SELECT asset, ua_family FROM downloads').all()).toEqual([

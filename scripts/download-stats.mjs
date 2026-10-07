@@ -4,9 +4,9 @@
 //   node scripts/download-stats.mjs --json     raw data (keep it around to compare day over day)
 //
 // How the counting works (numbers accumulate since the asset was uploaded; GitHub offers no per-day breakdown):
-//  - macOS: Thaigit-macOS.zip = downloads from the homepage / release page; Thaigit-macOS-update.zip = self-updates (split
-//    out from 1.1.1, older releases are lumped into Thaigit-macOS.zip); update.json = update checks (~4 per machine per
-//    day) → an estimate of how many machines are in use.
+//  - macOS (bản đa nền tảng, tag desktop-v*): Thaigit-macOS.dmg (desktop-stable/beta release) = downloads from the
+//    homepage; Thaigit_<v>_aarch64.app.tar.gz = self-update or manual download; Thaigit_<v>_aarch64.dmg = manual download
+//    from the release page. Lịch sử bản macOS Swift (tag v*): Thaigit-macOS.zip.
 //  - Windows: Thaigit-Windows-setup.exe (desktop-beta release) = downloads from the homepage; Thaigit_<v>_x64-setup.exe =
 //    self-update or a manual download from the release page; latest.json = update checks.
 // Per-day counts and per-running-app-version counts belong to the admin server on the VPS (plans/…/phase-07, item 7b).
@@ -29,14 +29,20 @@ function count(release, name) {
 }
 
 const all = releases();
-const mac = all
+const macLegacy = all
   .filter((release) => /^v\d/.test(release.tag_name))
   .map((release) => ({
     version: release.tag_name.slice(1),
     published: release.published_at,
     downloads: count(release, /^Thaigit-macOS\.zip$/),
-    updates: count(release, /^Thaigit-macOS-update\.zip$/),
-    checks: count(release, /^update\.json$/),
+  }));
+const mac = all
+  .filter((release) => release.tag_name.startsWith('desktop-v'))
+  .map((release) => ({
+    version: release.tag_name.slice('desktop-v'.length),
+    published: release.published_at,
+    downloads: count(release, /^Thaigit_.*_aarch64\.dmg$/),
+    updates: count(release, /^Thaigit_.*_aarch64\.app\.tar\.gz$/),
   }));
 const win = all
   .filter((release) => release.tag_name.startsWith('desktop-v'))
@@ -58,10 +64,10 @@ const sum = (items, key) => items.reduce((total, item) => total + item[key], 0);
 const result = {
   generatedAt: new Date().toISOString(),
   macos: {
-    downloads: sum(mac, 'downloads'),
+    downloads: sum(mac, 'downloads') + channels.reduce((s2, r) => s2 + count(r, /^Thaigit-macOS\.dmg$/), 0),
     updates: sum(mac, 'updates'),
-    checks: sum(mac, 'checks'),
-    versions: mac,
+    checks: channels.reduce((s2, r) => s2 + count(r, /^latest\.json$/), 0),
+    versions: [...macLegacy.map((m) => ({ ...m, updates: 0 })), ...mac],
   },
   windows: { ...windows, installers: sum(win, 'installers') },
 };
@@ -76,11 +82,11 @@ const line = (label, value) => console.log(`  ${label.padEnd(50)}${pad(value, 8)
 console.log(`Thống kê lượt tải Thaigit — ${new Date().toLocaleString('vi-VN')}\n`);
 console.log('macOS');
 line('Tải mới (trang chủ / trang release)', result.macos.downloads);
-line('Tự cập nhật (từ 1.1.1)', result.macos.updates);
+line('Tự cập nhật (app.tar.gz)', result.macos.updates);
 line('Lượt kiểm cập nhật (≈ 4 lần/máy/ngày)', result.macos.checks);
-for (const item of mac) {
+for (const item of result.macos.versions) {
   console.log(
-    `    v${item.version.padEnd(14)} tải mới ${pad(item.downloads, 6)} · cập nhật ${pad(item.updates, 6)} · kiểm ${pad(item.checks, 7)}`,
+    `    v${item.version.padEnd(14)} tải mới ${pad(item.downloads, 6)} · cập nhật ${pad(item.updates, 6)}`,
   );
 }
 console.log('\nWindows');

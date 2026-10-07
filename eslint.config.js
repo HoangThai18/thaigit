@@ -1,5 +1,4 @@
-// ESLint cho mã TS / Svelte / JS của cả workspace (apps/desktop, packages, server, site, scripts). Rust dùng clippy, Swift
-// không lint. Chạy: `pnpm lint` (sửa tự động được thì `pnpm lint --fix`).
+// ESLint cho mã TS / Svelte / JS của cả workspace (apps/desktop, packages, server, site, scripts). Rust dùng clippy. Chạy: `pnpm lint` (sửa tự động được thì `pnpm lint --fix`).
 import js from '@eslint/js';
 import svelte from 'eslint-plugin-svelte';
 import { defineConfig, globalIgnores } from 'eslint/config';

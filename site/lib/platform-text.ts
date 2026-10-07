@@ -46,16 +46,16 @@ export const PLATFORM_LABELS: Record<Lang, PlatformLabels> = {
 export const PLATFORM_TEXT: Record<'mac' | 'win', Record<Lang, PlatformText>> = {
   mac: {
     vi: {
-      metaTitle: 'Thaigit cho macOS — Git client miễn phí, native cho Mac',
+      metaTitle: 'Thaigit cho macOS — Git client miễn phí cho Mac',
       metaDescription:
-        'Git GUI miễn phí cho Mac: app native, giao diện Liquid Glass, graph nhiều màu, kéo & thả để merge / rebase / push, stage từng dòng, giải conflict vài cú bấm. macOS 14 trở lên, chip Apple.',
-      h1: 'Thaigit cho macOS — Git client miễn phí, native cho Mac',
-      lead: 'App native cho Mac, nhẹ và nhanh, giao diện Liquid Glass sáng / tối theo máy. Graph lịch sử nhiều màu, kéo & thả để merge, rebase hay push, stage từng dòng và giải conflict bằng vài cú bấm — miễn phí, không cần tài khoản.',
-      requirements: 'macOS 14 Sonoma trở lên · Mac chip Apple (M1 trở lên)',
-      operatingSystem: 'macOS 14+',
+        'Git GUI miễn phí cho Mac: nhẹ và nhanh, sáng / tối theo máy, graph nhiều màu, kéo & thả để merge / rebase / push, stage từng dòng, giải conflict vài cú bấm. macOS 11 trở lên, chip Apple.',
+      h1: 'Thaigit cho macOS — Git client miễn phí cho Mac',
+      lead: 'Cho Mac, nhẹ và nhanh, sáng / tối theo máy. Graph lịch sử nhiều màu, kéo & thả để merge, rebase hay push, stage từng dòng và giải conflict bằng vài cú bấm — miễn phí, không cần tài khoản.',
+      requirements: 'macOS 11 trở lên · Mac chip Apple (M1 trở lên)',
+      operatingSystem: 'macOS 11+',
       install: [
-        'Tải file Thaigit-macOS.zip rồi mở để giải nén.',
-        'Kéo Thaigit.app vào thư mục Applications.',
+        'Tải file Thaigit-macOS.dmg.',
+        'Mở file dmg rồi kéo Thaigit vào thư mục Applications.',
         'Lần đầu mở, nếu macOS chặn: Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Vẫn mở. Hoặc chạy lệnh dưới đây trong Terminal.',
         'Từ đó app tự cập nhật, không cần tải lại.',
       ],
@@ -64,16 +64,16 @@ export const PLATFORM_TEXT: Record<'mac' | 'win', Record<Lang, PlatformText>> = 
       faqIds: ['free', 'mac-blocked', 'intel', 'update', 'requirements', 'privacy'],
     },
     en: {
-      metaTitle: 'Thaigit for macOS — a free, native Git client for Mac',
+      metaTitle: 'Thaigit for macOS — a free Git client for Mac',
       metaDescription:
-        'A free Git GUI for Mac: a native app with a Liquid Glass look, colorful graph, drag & drop to merge / rebase / push, line-by-line staging and conflict resolution in a few clicks. macOS 14 or later, Apple silicon.',
-      h1: 'Thaigit for macOS — a free, native Git client for Mac',
-      lead: 'A native Mac app that is light and fast, with a Liquid Glass look that follows your light / dark setting. A colorful history graph, drag & drop to merge, rebase or push, line-by-line staging and conflict resolution in a few clicks — free, no account needed.',
-      requirements: 'macOS 14 Sonoma or later · Apple-silicon Mac (M1 or later)',
-      operatingSystem: 'macOS 14+',
+        'A free Git GUI for Mac: light and fast, light / dark per system look, colorful graph, drag & drop to merge / rebase / push, line-by-line staging and conflict resolution in a few clicks. macOS 11 or later, Apple silicon.',
+      h1: 'Thaigit for macOS — a free Git client for Mac',
+      lead: 'For Mac, light and fast, following your light / dark setting. A colorful history graph, drag & drop to merge, rebase or push, line-by-line staging and conflict resolution in a few clicks — free, no account needed.',
+      requirements: 'macOS 11 or later · Apple-silicon Mac (M1 or later)',
+      operatingSystem: 'macOS 11+',
       install: [
-        'Download Thaigit-macOS.zip and open it to unzip.',
-        'Drag Thaigit.app into the Applications folder.',
+        'Download the Thaigit-macOS.dmg file.',
+        'Open the dmg and drag Thaigit into the Applications folder.',
         'If macOS blocks it the first time: System Settings → Privacy & Security → Open Anyway. Or run the command below in Terminal.',
         'From then on the app updates itself, no need to download again.',
       ],

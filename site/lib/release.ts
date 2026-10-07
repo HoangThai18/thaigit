@@ -25,10 +25,13 @@ interface GitHubRelease {
 export function parseRelease(json: unknown): MacRelease | null {
   const release = json as Partial<GitHubRelease> | null;
   if (!release?.tag_name || !Array.isArray(release.assets)) return null;
-  const asset = release.assets.find((item) => item.name === 'Thaigit-macOS.zip');
+  const asset = release.assets.find((item) => item.name === 'Thaigit-macOS.dmg');
   if (!asset) return null;
+  // Tag của kênh là `desktop-stable`; version nằm trong tên file bản versioned (Thaigit_2.4.0_aarch64.dmg).
+  const versioned = release.assets.find((item) => /^Thaigit_.+_.+\.dmg$/.test(item.name));
+  const version = versioned ? /^Thaigit_(.+)_.+\.dmg$/.exec(versioned.name)?.[1] : undefined;
   return {
-    version: release.tag_name.replace(/^v/, ''),
+    version: version ?? release.tag_name.replace(/^v/, ''),
     publishedAt: release.published_at ?? '',
     size: asset.size,
     url: asset.browser_download_url,

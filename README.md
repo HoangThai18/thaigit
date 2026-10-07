@@ -5,7 +5,7 @@
 <h1 align="center">Thaigit</h1>
 
 <p align="center">
-  <b>Git client miễn phí, trực quan — giao diện kính cho macOS, sắp có bản Windows.</b>
+  <b>Git client miễn phí, trực quan — một mã nguồn cho macOS và Windows.</b>
 </p>
 
 ![Thaigit: graph commit nhiều màu, sidebar nhánh và panel commit](docs/screenshots/overview.png)
@@ -14,7 +14,6 @@ Thaigit giúp làm việc với git bằng chuột: nhìn lịch sử dạng gra
 
 | Bản | Nền tảng | Trạng thái |
 | --- | --- | --- |
-| Thaigit cho macOS (Swift, native) | macOS 14 trở lên | **Dùng được** — build từ mã nguồn, tự cập nhật qua GitHub Releases |
 | Thaigit đa nền tảng (Tauri 2) | Windows 10/11, macOS | **Dùng được** — tải ở [trang chủ](https://git.thaipro.store), tự cập nhật (kênh Ổn định / Beta) trên cả hai |
 
 ## Tính năng nổi bật
@@ -85,7 +84,7 @@ Thaigit tự hỏi GitHub Releases mỗi 6 giờ, tải bản mới ngầm và *
 
 Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy từ logo: thân xanh, nhánh cam đỏ của git.
 
-## Tất cả tính năng (bản macOS)
+## Tất cả tính năng
 
 **Graph lịch sử**
 - Graph nhiều làn, mỗi làn một màu; nhãn nhánh / tag ở cột trái (💻 local, ☁️ remote).
@@ -128,22 +127,25 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - Mở repo trong Terminal / Finder / VS Code (hoặc Cursor, Zed, Sublime), lịch sử một file, nhật ký lệnh git đã chạy.
 - An toàn khi mở repo lạ: app không chạy lệnh `core.fsmonitor` hay `diff.*.textconv` do repo tự đặt.
 
-## Cài đặt (macOS)
+## Cài đặt (tự build)
 
-Yêu cầu: macOS 14 trở lên, `git`, và Xcode hoặc Command Line Tools (`xcode-select --install`).
+Yêu cầu: Node 24, pnpm 12, Rust (stable) và `git`.
 
 ```bash
-./scripts/build-app.sh --install  # build rồi chép vào /Applications/Thaigit.app
-./scripts/build-app.sh            # chỉ tạo build/Thaigit.app (bản release)
-./scripts/build-app.sh --debug    # bản debug, build nhanh hơn
+pnpm install
+pnpm build:desktop   # đóng gói app cho hệ điều hành đang dùng (NSIS trên Windows, dmg/app trên macOS)
+pnpm dev             # chạy bản phát triển (hot reload)
 ```
 
-Mở thử một repo: `open -a Thaigit /đường/dẫn/repo`, hoặc kéo thư mục repo thả lên icon app.
+Mở thử một repo từ trình duyệt thường (cầu nối DEV chỉ-đọc, không cần build):
+
+```bash
+THAIGIT_DEV_REPO=/đường/dẫn/repo THAIGIT_DEV_AUTOOPEN=1 pnpm --filter @thaigit/desktop exec vite --port 1431 --host 127.0.0.1
+```
 
 Ghi chú:
-- Máy chỉ có Command Line Tools thì script tự build bằng SDK macOS 26 (SDK macOS 27 cần plugin macro chỉ có trong Xcode). App vẫn chạy bình thường trên macOS 27.
-- App được ký ad-hoc. Bản tải từ trình duyệt sang máy khác bị Gatekeeper chặn lần đầu (chuột phải → Mở, hoặc Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Vẫn mở). Bản tự cập nhật không bị chặn. Phát hành rộng nên ký bằng Apple Developer ID.
-- Tự cập nhật chỉ thay app nằm trong thư mục Applications.
+- Bản macOS ký ad-hoc: tải về lần đầu Gatekeeper có thể chặn (Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Vẫn mở, hoặc `xattr -dr com.apple.quarantine /Applications/Thaigit.app`). Phát hành rộng nên ký bằng Apple Developer ID.
+- Tự cập nhật chỉ thay app nằm trong thư mục ứng dụng.
 
 ### Xác thực khi fetch / push
 
@@ -166,18 +168,20 @@ Người duy trì — bản build chưa có Client ID thì mục này hiện *Ch
 1. GitHub → Settings → Developer settings → OAuth Apps → **New OAuth App**.
 2. Homepage URL `https://git.thaipro.store`; Authorization callback URL `https://git.thaipro.store` (Device Flow không dùng tới).
 3. Tick **Enable Device Flow**.
-4. Chép **Client ID** vào `ThaigitGitHubClientID` trong `Resources/Info.plist`. Device Flow không cần client secret — đừng đưa secret vào app.
+4. Client ID mặc định nằm trong `apps/desktop/src-tauri/src/accounts.rs` (ghi đè bằng biến `THAIGIT_GITHUB_CLIENT_ID` / `THAIGIT_GITLAB_CLIENT_ID` lúc build). Device Flow không cần client secret — đừng đưa secret vào app.
 
 ## Phát hành bản mới (cho người duy trì)
 
 ```bash
-./scripts/release.sh 1.1.0 "Thêm blame, sửa lỗi diff ảnh" --publish
+# Sửa phiên bản trong cả ba chỗ (phải khớp nhau), ghi CHANGELOG, rồi:
+git tag desktop-v2.5.0 && git push origin desktop-v2.5.0
 ```
 
-Script tăng phiên bản trong `Resources/Info.plist`, build, nén `Thaigit-macOS.zip` (tên cố định để trang chủ luôn trỏ tới bản mới nhất), ký bằng khoá Ed25519 trong Keychain, viết `update.json` rồi đăng cả hai lên GitHub Releases (`gh`). Máy nào đang dùng Thaigit sẽ tự tải về trong vòng 6 giờ (hoặc ngay khi bấm *Kiểm tra cập nhật…*); người dùng chỉ cần khởi động lại. Bỏ `--publish` để chỉ tạo file trong `build/release/`. Nhớ commit `Resources/Info.plist` sau khi phát hành.
+Workflow `Phát hành bản desktop` build cả bản Windows (NSIS) lẫn macOS (dmg), ký file cập nhật bằng khoá minisign (secret `TAURI_SIGNING_PRIVATE_KEY`), tạo release `desktop-v<phiên bản>` (--latest=false — cập nhật của app đều đi theo kênh riêng) rồi cập nhật release cố định `desktop-stable` (và `desktop-beta`) với `latest.json` chung cho hai nền + link tải cố định.
 
-- Khoá bí mật nằm trong login Keychain, mục **"Thaigit update signing key"** (tạo bằng `swift scripts/release-tool.swift generate-key`). Hãy sao lưu nó — mất khoá thì các bản đã cài không nhận được bản mới. Phát hành từ máy khác / CI: đặt biến `THAIGIT_UPDATE_PRIVATE_KEY`.
-- Khoá công khai đi kèm app (`ThaigitUpdatePublicKey` trong Info.plist). App chỉ cài gói có chữ ký đúng, đúng mã ứng dụng và đúng số phiên bản ghi trong gói.
+- Khoá công khai nằm trong `apps/desktop/src-tauri/tauri.conf.json`; khoá bí mật là secret của repo, cần được sao lưu.
+- Bản thử (`-beta.N`) chỉ lên kênh `desktop-beta`.
+- Bản macOS ký ad-hoc, chưa notarized.
 
 ## Phím tắt
 
@@ -214,55 +218,49 @@ Bản Windows dùng Ctrl thay cho ⌘.
 
 - Chung một code cho Windows và macOS (Tauri 2 + Svelte 5 + TypeScript); cả hai đều đã có bản cài — Windows (NSIS) và macOS (dmg), tự cập nhật — kênh Ổn định mặc định, đổi sang Beta trong Cài đặt.
 - **AI viết commit message** bằng model Hermes (Nous Research) chạy trên máy chủ của Thaigit — bấm *✨ Viết bằng AI* là có, không cần API key. Thêm: *Giải thích bằng AI* trong chi tiết commit, *Viết mô tả PR với AI…* trong menu nhánh. Máy chủ: `server/`, cách dựng: [docs/deploy-server.md](docs/deploy-server.md).
-- Thống kê ẩn danh **chỉ khi bạn bật** (Cài đặt → Quyền riêng tư).
-- Sắp có: bản macOS từ cùng code, giao diện tiếng Anh.
+- Thống kê ẩn danh **chỉ khi bạn bật** (Cài đặt → Quyền riêng tư): mỗi ngày một lần một mã ngẫu nhiên, hệ điều hành, kiến trúc máy, phiên bản app. Không gửi tên repo, đường dẫn, code hay email.
+- Sắp có: giao diện tiếng Anh.
 
 ### Quyền riêng tư
 
-- **Tự cập nhật** chỉ tải `update.json` và file zip từ GitHub Releases — không gửi thông tin gì về máy hay repo của bạn (GitHub vẫn thấy địa chỉ IP như mọi lượt tải).
+- **Tự cập nhật** chỉ tải `latest.json` và gói cập nhật từ GitHub Releases (`desktop-stable` / `desktop-beta`) — không gửi thông tin gì về máy hay repo của bạn (GitHub vẫn thấy địa chỉ IP như mọi lượt tải).
 - **Đăng nhập GitHub** (nếu dùng): app nói chuyện thẳng với github.com / api.github.com; token chỉ nằm trong Keychain trên máy bạn, không gửi tới server Thaigit.
 - **Ảnh đại diện trên graph**: để tìm ảnh, app gửi mã băm SHA-256 của email người commit tới Gravatar, và với repo nằm trên GitHub thì hỏi API GitHub "tài khoản nào đã commit bằng email này" (GitHub vốn đã có các commit đó). Ảnh được cache trên máy 7 ngày. Tắt trong Cài đặt → Chung → *Ảnh đại diện thật*, hoặc chuột phải lên tiêu đề cột graph → bỏ chọn *Ảnh đại diện thật*: khi đó app dừng ngay hàng đợi và không gửi gì nữa.
-- **AI trên macOS** (app Swift) chạy bằng Apple Intelligence ngay trên máy — code không rời khỏi máy.
-- **AI trên Windows** (app Tauri) chỉ chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu (có nút *Xem dữ liệu sẽ gửi*). App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file sinh tự động, file nhị phân và mọi đoạn trông như mật khẩu / token) tới máy chủ Thaigit, nơi model Hermes chạy ngay trên máy chủ của dự án — không gửi cho bên thứ ba, không lưu nội dung code hay message.
+- **AI viết commit message**: chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu (có nút *Xem dữ liệu sẽ gửi*). App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file sinh tự động, file nhị phân và mọi đoạn trông như mật khẩu / token) tới máy chủ Thaigit, nơi model Hermes chạy ngay trên máy chủ của dự án — không gửi cho bên thứ ba, không lưu nội dung code hay message.
 - **Thống kê** (app Windows) mặc định tắt; chỉ gửi khi bạn bật: mỗi ngày một lần một mã ngẫu nhiên, hệ điều hành, kiến trúc máy, phiên bản app. Không gửi tên repo, đường dẫn, code hay email.
 
 ## Phát triển
 
 ```bash
-# Chạy test (khi chỉ có Command Line Tools cần chỉ đường dẫn plugin của Swift Testing)
-SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.sdk swift test \
-  -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
+pnpm install        # Node 24, pnpm 12
+pnpm check          # tsc / svelte-check ở mọi package
+pnpm lint           # ESLint
+pnpm test           # vitest mọi package (core/contracts chạy git thật)
+(cd apps/desktop/src-tauri && cargo clippy --all-targets -- -D warnings && cargo test)
 ```
 
-Cấu trúc (module Swift vẫn mang tên cũ `Nhanh` / `NhanhCore`):
+Cấu trúc:
 
 ```
-Sources/NhanhCore/       Lõi không phụ thuộc giao diện (có test)
-  Git/                   Chạy git, đọc output, thao tác repo
-  Diff/                  Parse diff, tạo patch để stage từng dòng, parse & giải conflict
-  Graph/                 Thuật toán xếp làn cho graph
-  Update/                Kiểm tra, tải, kiểm chữ ký và cài bản cập nhật
-  GitHub/                Đăng nhập GitHub (Device Flow), token trong Keychain, đưa token cho lệnh git mạng
-  Support/               Chạy tiến trình, theo dõi file (FSEvents), nhật ký lệnh
-Sources/Nhanh/           Ứng dụng macOS (SwiftUI + AppKit)
-Tests/NhanhCoreTests/    Test parser, diff/patch, graph, tự cập nhật, thao tác trên repo thật tạm thời
-brand/                   Logo gốc và icon
-scripts/                 build-app.sh, release.sh, release-tool.swift, make-icons.py
-site/                    Trang chủ git.thaipro.store (Next.js, xuất trang tĩnh)
-plans/                   Kế hoạch bản đa nền tảng
+apps/desktop/        App đa nền tảng (Tauri 2 + Svelte 5): giao diện ở src/, lõi Rust ở src-tauri/
+packages/core        Lõi TypeScript (chạy git, diff/patch, graph, v.v.)
+packages/contracts   Hợp đồng TS ↔ Rust: chính sách lệnh git, định dạng IPC
+server/              Proxy AI tới Hermes tự host + thống kê (Hono) — docs/deploy-server.md
+site/                Trang chủ git.thaipro.store (Next.js, xuất trang tĩnh) — docs/deploy-site.md
+brand/               Logo gốc và icon
+plans/               Kế hoạch bản đa nền tảng
 ```
-
-Bản đa nền tảng (Tauri) gồm `apps/desktop` (app), `packages/contracts` (chính sách lệnh git, định dạng IPC, hợp đồng API), `packages/core` (lõi TypeScript, port từ NhanhCore) và `server` (AI proxy tới Hermes, thống kê — [docs/deploy-server.md](docs/deploy-server.md)). Chi tiết trong [kế hoạch](plans/261002-1543-tauri-cross-platform-hermes-ai-stats/plan.md).
 
 Trang chủ (`site/`) cần Node 24 và pnpm: `pnpm install`, rồi `pnpm --filter @thaigit/site dev` để xem thử ở http://localhost:3000. Cách đưa lên git.thaipro.store: [docs/deploy-site.md](docs/deploy-site.md).
 
 ## Chưa có
 
-Pull Request của GitLab / Bitbucket.
+- Pull Request của Bitbucket.
+- Giao diện tiếng Anh.
 
 ## English
 
-Thaigit is a free, visual Git GUI. The native macOS app (Swift) is usable today and updates itself from GitHub Releases (Ed25519-signed; just restart to get the new version). The cross-platform app (Tauri 2, Rust core + Svelte UI) runs on both Windows 10/11 and macOS, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
+Thaigit is a free, visual Git GUI. The cross-platform app (Tauri 2, Rust core + Svelte UI) runs on both Windows 10/11 and macOS, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
 
 ---
 
