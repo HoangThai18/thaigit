@@ -64,7 +64,10 @@ const sum = (items, key) => items.reduce((total, item) => total + item[key], 0);
 const result = {
   generatedAt: new Date().toISOString(),
   macos: {
-    downloads: sum(mac, 'downloads') + channels.reduce((s2, r) => s2 + count(r, /^Thaigit-macOS\.dmg$/), 0),
+    downloads:
+      sum(macLegacy, 'downloads') +
+      sum(mac, 'downloads') +
+      channels.reduce((s2, r) => s2 + count(r, /^Thaigit-macOS\.dmg$/), 0),
     updates: sum(mac, 'updates'),
     checks: channels.reduce((s2, r) => s2 + count(r, /^latest\.json$/), 0),
     versions: [...macLegacy.map((m) => ({ ...m, updates: 0 })), ...mac],

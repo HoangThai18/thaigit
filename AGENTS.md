@@ -48,7 +48,7 @@ THAIGIT_DEV_REPO=/đường/dẫn/repo THAIGIT_DEV_AUTOOPEN=1 pnpm --filter @tha
   - `$effect` gọi action của store sẽ lặp vô tận nếu action lỗi mà vẫn để nguyên điều kiện kích hoạt.
   - Phím bấm trong phần tử con của listbox graph nổi bọt lên bộ điều hướng hàng.
 - Test không được đụng Keychain thật, cấu hình git của máy hay mạng thật: cô lập git bằng `GIT_CONFIG_NOSYSTEM=1` + `GIT_CONFIG_GLOBAL=/dev/null` (xem `apps/desktop/src-tauri/src/testutil.rs`), repo thử tạo trong thư mục tạm, kho token dùng bản trong bộ nhớ.
-- Định dạng: prettier (`printWidth` 110, nháy đơn); Swift / Rust thụt 4 dấu cách, còn lại 2 (`.editorconfig`). Prettier bỏ qua `plans/` và `*.md`.
+- Định dạng: prettier (`printWidth` 110, nháy đơn); Rust thụt 4 dấu cách, còn lại 2 (`.editorconfig`). Prettier bỏ qua `plans/` và `*.md`.
 
 ## Commit, nhật ký thay đổi, phát hành
 

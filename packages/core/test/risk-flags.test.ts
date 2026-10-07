@@ -10,7 +10,7 @@ interface Case {
   expected: { code: string; paths: string[] }[];
 }
 
-describe('detectRisks (ca dùng chung với Swift)', () => {
+describe('detectRisks (ca trong risk-rules.vectors.json)', () => {
   for (const vector of vectors.cases as Case[]) {
     it(vector.name, () => {
       expect(detectRisks(vector.files)).toEqual(vector.expected);

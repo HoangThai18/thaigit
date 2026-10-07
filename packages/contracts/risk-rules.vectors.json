@@ -1,5 +1,5 @@
 {
-  "$comment": "Ca kiểm thử dùng chung cho cờ rủi ro trước khi commit: TS (packages/core/src/risk/risk-flags.ts) và Swift (RiskFlags.swift) phải cho kết quả giống hệt. Đầu vào: mỗi file thay đổi chưa commit {path, status: added|modified|deleted, addedLines, size (byte, null = không rõ)}. Kết quả: các cờ theo thứ tự cố định tests-removed, tests-skipped, deps-changed, ci-changed, large-file, secret; mỗi cờ kèm đường dẫn đã sắp xếp. Không bao giờ trả nội dung bí mật — chỉ đường dẫn.",
+  "$comment": "Ca kiểm thử dùng chung cho cờ rủi ro trước khi commit: TS (packages/core/src/risk/risk-flags.ts) phải cho đúng kết quả ở đây. Đầu vào: mỗi file thay đổi chưa commit {path, status: added|modified|deleted, addedLines, size (byte, null = không rõ)}. Kết quả: các cờ theo thứ tự cố định tests-removed, tests-skipped, deps-changed, ci-changed, large-file, secret; mỗi cờ kèm đường dẫn đã sắp xếp. Không bao giờ trả nội dung bí mật — chỉ đường dẫn.",
   "cases": [
     {
       "name": "không có gì đáng ngại",

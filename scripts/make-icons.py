@@ -6,6 +6,7 @@
 Kết quả:
   brand/thaigit-icon-macos.png    1024×1024, nền trong suốt, theo lưới icon macOS (khối 824 px + bóng đổ)
   brand/thaigit-icon-square.png   1024×1024, nền trong suốt, khối gần kín khung (cho Windows / `tauri icon`)
+  apps/desktop/src-tauri/icons/icon.icns   icon của app macOS (từ bản theo lưới icon macOS)
 
 Cần Pillow (`pip3 install pillow`) và `iconutil` (có sẵn trên macOS).
 """

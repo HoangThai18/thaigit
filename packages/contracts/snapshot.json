@@ -1,5 +1,5 @@
 {
-  "$comment": "Đặc tả snapshot (dòng thời gian) dùng chung cho app Tauri (packages/contracts/src/snapshot.ts) và app Swift (GitRepository+Snapshots.swift ghi cứng cùng giá trị, test đối chiếu file này). Mỗi worktree một ref `ref`; mỗi mốc là một mục reflog của ref đó (kiểu refs/stash). Commit snapshot: tree = toàn bộ working tree (tôn trọng .gitignore) dựng qua index tạm `indexFile` (tương đối git dir của worktree), cha = HEAD (không cha khi repo chưa có commit), message = `messageHeader`, dòng trống, rồi các dòng `khoá: giá trị`. Ca kiểm thử: snapshot.vectors.json.",
+  "$comment": "Đặc tả snapshot (dòng thời gian) dùng cho app Tauri (packages/contracts/src/snapshot.ts). Mỗi worktree một ref `ref`; mỗi mốc là một mục reflog của ref đó (kiểu refs/stash). Commit snapshot: tree = toàn bộ working tree (tôn trọng .gitignore) dựng qua index tạm `indexFile` (tương đối git dir của worktree), cha = HEAD (không cha khi repo chưa có commit), message = `messageHeader`, dòng trống, rồi các dòng `khoá: giá trị`. Ca kiểm thử: snapshot.vectors.json.",
   "version": 1,
   "ref": "refs/worktree/thaigit/snapshots",
   "indexFile": "thaigit/snapshot.index",

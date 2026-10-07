@@ -1,5 +1,5 @@
 /**
- * Snapshot (working-tree timeline) spec shared with the Swift app: constants read from `snapshot.json`, the snapshot
+ * Snapshot (working-tree timeline) spec: constants read from `snapshot.json`, the snapshot
  * commit message format, and the pruning rules for old markers. Shared test cases: `snapshot.vectors.json`.
  */
 import spec from '../snapshot.json' with { type: 'json' };

@@ -1,6 +1,6 @@
 // Pre-commit risk flags (no AI): applies plain rules to uncommitted changes — deletions / skipped tests, dependency
 // changes, CI changes, large files, secrets (reusing the AI scanner). Advisory only, never blocks a commit; results
-// carry PATHS only, never secret content. Test cases are shared with the Swift app:
+// carry PATHS only, never secret content. Test cases:
 // packages/contracts/risk-rules.vectors.json.
 
 import { classifyPath, findSecret } from '../ai/secret-scan.ts';

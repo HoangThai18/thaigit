@@ -1,5 +1,5 @@
 {
-  "$comment": "Ca kiểm thử dùng chung cho TS (src/snapshot.ts) và Swift (SnapshotTests.swift). `parse`: message commit (%B) → metadata, null = không phải snapshot của Thaigit. `expired`: `times` là thời điểm (giây) của các mục reflog từ MỚI NHẤT (@{0}) tới cũ nhất; `expected` là chỉ số mục cần xoá, xếp GIẢM dần (xoá từ cũ nhất để chỉ số còn lại không đổi). Mục @{0} không bao giờ bị xoá; mục có thời điểm ở tương lai (lệch đồng hồ) chỉ bị xoá khi vượt `keepCount`.",
+  "$comment": "Ca kiểm thử cho TS (src/snapshot.ts). `parse`: message commit (%B) → metadata, null = không phải snapshot của Thaigit. `expired`: `times` là thời điểm (giây) của các mục reflog từ MỚI NHẤT (@{0}) tới cũ nhất; `expected` là chỉ số mục cần xoá, xếp GIẢM dần (xoá từ cũ nhất để chỉ số còn lại không đổi). Mục @{0} không bao giờ bị xoá; mục có thời điểm ở tương lai (lệch đồng hồ) chỉ bị xoá khi vượt `keepCount`.",
   "parse": [
     {
       "message": "thaigit-snapshot v1\n\nreason: auto\nfiles: 3\n",
