@@ -1,26 +1,19 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-export type Platform = 'macOS' | 'Windows';
-
 export interface ChangelogItem {
   title: string;
   detail: string;
 }
 
 export interface ChangelogEntry {
-  platform: Platform;
   version: string;
   date: string;
   summary: string;
   items: ChangelogItem[];
 }
 
-// Một mã nguồn duy nhất: bản đa nền tảng dùng chung nhật ký cho cả Windows lẫn macOS.
-const SOURCES: readonly { platform: Platform; file: string }[] = [
-  { platform: 'Windows', file: path.join('..', 'apps', 'desktop', 'CHANGELOG.md') },
-  { platform: 'macOS', file: path.join('..', 'apps', 'desktop', 'CHANGELOG.md') },
-];
+const SOURCE = path.join('..', 'apps', 'desktop', 'CHANGELOG.md');
 
 const AI_MENTION = /\bAI\b|Apple Intelligence|Hermes/;
 
@@ -74,7 +67,7 @@ export function condense(line: string): ChangelogItem {
   };
 }
 
-function parse(text: string, platform: Platform): ChangelogEntry[] {
+function parse(text: string): ChangelogEntry[] {
   const entries: ChangelogEntry[] = [];
   let current: ChangelogEntry | null = null;
   for (const raw of text.split('\n')) {
@@ -82,9 +75,7 @@ function parse(text: string, platform: Platform): ChangelogEntry[] {
     const heading = /^##\s+(\S+)(?:\s+[—–-]\s+(.*))?$/.exec(line);
     if (heading) {
       const version = heading[1] ?? '';
-      current = /^\d/.test(version)
-        ? { platform, version, date: heading[2] ?? '', summary: '', items: [] }
-        : null;
+      current = /^\d/.test(version) ? { version, date: heading[2] ?? '', summary: '', items: [] } : null;
       if (current) entries.push(current);
       continue;
     }
@@ -99,28 +90,16 @@ function parse(text: string, platform: Platform): ChangelogEntry[] {
   return entries;
 }
 
-export interface ChangelogLane {
-  platform: Platform;
-  entries: ChangelogEntry[];
-}
-
-export async function readChangelog(limit = 3): Promise<ChangelogLane[]> {
-  const lanes: ChangelogLane[] = [];
-  for (const platform of ['macOS', 'Windows'] as const) {
-    const source = SOURCES.find((item) => item.platform === platform);
-    if (!source) continue;
-    try {
-      const text = await readFile(path.join(process.cwd(), source.file), 'utf8');
-      const entries = parse(text, platform)
-        .filter((entry) => !entry.version.includes('-'))
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .slice(0, limit);
-      if (entries.length > 0) lanes.push({ platform, entries });
-    } catch {
-      // A missing file just skips that version.
-    }
+export async function readChangelog(limit = 3): Promise<ChangelogEntry[]> {
+  try {
+    const text = await readFile(path.join(process.cwd(), SOURCE), 'utf8');
+    return parse(text)
+      .filter((entry) => !entry.version.includes('-'))
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, limit);
+  } catch {
+    return [];
   }
-  return lanes;
 }
 
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

@@ -22,7 +22,6 @@ interface HomeText {
     macMeta: string;
     macSteps: { first: string; second: string; third: string };
     winMeta: string;
-    winButton: string;
     winSteps: { git: string; install: string; smartScreen: string };
     gitForWindows: string;
     moreInfo: string;
@@ -75,7 +74,6 @@ const vi: HomeText = {
       third: 'Lần đầu mở, nếu macOS chặn: Cài đặt hệ thống → Quyền riêng tư & Bảo mật →',
     },
     winMeta: 'Windows 10 / 11 · 64-bit',
-    winButton: 'Tải cho Windows',
     winSteps: {
       git: 'Cần có Git: cài',
       install: 'Mở file Thaigit-Windows-setup.exe để cài (không cần quyền quản trị).',
@@ -148,7 +146,6 @@ const en: HomeText = {
       third: 'If macOS blocks it the first time: System Settings → Privacy & Security →',
     },
     winMeta: 'Windows 10 / 11 · 64-bit',
-    winButton: 'Download for Windows',
     winSteps: {
       git: 'Git is required: install',
       install: 'Open Thaigit-Windows-setup.exe to install (no admin rights needed).',

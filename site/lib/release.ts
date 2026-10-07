@@ -1,45 +1,65 @@
 import type { Lang } from './i18n';
 import { LINKS } from './site';
 
-export interface MacRelease {
-  version: string;
-  publishedAt: string;
+export type ReleaseOs = 'mac' | 'win';
+
+export interface ReleaseAsset {
   size: number;
-  url: string;
   sha256: string | null;
+  updatedAt: string;
+}
+
+export interface Release {
+  version: string | null;
+  mac: ReleaseAsset | null;
+  win: ReleaseAsset | null;
 }
 
 interface GitHubAsset {
   name: string;
   size: number;
-  browser_download_url: string;
+  updated_at?: string;
   digest?: string | null;
 }
 
 interface GitHubRelease {
+  name?: string | null;
   tag_name: string;
-  published_at: string;
   assets: GitHubAsset[];
 }
 
-export function parseRelease(json: unknown): MacRelease | null {
-  const release = json as Partial<GitHubRelease> | null;
-  if (!release?.tag_name || !Array.isArray(release.assets)) return null;
-  const asset = release.assets.find((item) => item.name === 'Thaigit-macOS.dmg');
+const ASSET_NAMES: Record<ReleaseOs, string> = {
+  mac: 'Thaigit-macOS.dmg',
+  win: 'Thaigit-Windows-setup.exe',
+};
+
+const VERSION_PATTERN = /\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?/;
+
+function findAsset(assets: GitHubAsset[], os: ReleaseOs): ReleaseAsset | null {
+  const asset = assets.find((item) => item.name === ASSET_NAMES[os]);
   if (!asset) return null;
-  // Tag của kênh là `desktop-stable`; version nằm trong tên file bản versioned (Thaigit_2.4.0_aarch64.dmg).
-  const versioned = release.assets.find((item) => /^Thaigit_.+_.+\.dmg$/.test(item.name));
-  const version = versioned ? /^Thaigit_(.+)_.+\.dmg$/.exec(versioned.name)?.[1] : undefined;
   return {
-    version: version ?? release.tag_name.replace(/^v/, ''),
-    publishedAt: release.published_at ?? '',
     size: asset.size,
-    url: asset.browser_download_url,
     sha256: asset.digest?.startsWith('sha256:') ? asset.digest.slice(7) : null,
+    updatedAt: asset.updated_at ?? '',
   };
 }
 
-export async function fetchMacRelease(init?: RequestInit): Promise<MacRelease | null> {
+export function parseRelease(json: unknown): Release | null {
+  const release = json as Partial<GitHubRelease> | null;
+  if (!release?.tag_name || !Array.isArray(release.assets)) return null;
+  const mac = findAsset(release.assets, 'mac');
+  const win = findAsset(release.assets, 'win');
+  if (!mac && !win) return null;
+  return {
+    version:
+      VERSION_PATTERN.exec(release.name ?? '')?.[0] ?? VERSION_PATTERN.exec(release.tag_name)?.[0] ?? null,
+    mac,
+    win,
+  };
+}
+
+export async function fetchRelease(init?: RequestInit): Promise<Release | null> {
   try {
     const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
     const token = typeof process !== 'undefined' ? process.env.GITHUB_TOKEN : undefined;

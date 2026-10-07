@@ -24,7 +24,7 @@ import { FAQ, FEATURES, SMALL_FEATURES, type SmallFeature } from '@/lib/content'
 import { GUIDES } from '@/lib/guides';
 import { HOME } from '@/lib/home-text';
 import { PATHS, type Lang } from '@/lib/i18n';
-import { fetchMacRelease } from '@/lib/release';
+import { fetchRelease } from '@/lib/release';
 import { LINKS, SITE, SITE_TEXT } from '@/lib/site';
 import { UI } from '@/lib/ui';
 
@@ -46,7 +46,7 @@ export async function HomePage({ lang }: { lang: Lang }) {
   const faq = FAQ[lang];
   const showChangelog = lang === 'vi';
   const [release, changelog] = await Promise.all([
-    fetchMacRelease({ cache: 'force-cache' }),
+    fetchRelease({ cache: 'force-cache' }),
     showChangelog ? readChangelog(3) : Promise.resolve([]),
   ]);
 
@@ -58,9 +58,9 @@ export async function HomePage({ lang }: { lang: Lang }) {
       description: SITE_TEXT[lang].description,
       url: `${SITE.url}${PATHS.home[lang]}`,
       applicationCategory: 'DeveloperApplication',
-      operatingSystem: 'macOS 14+, Windows 10/11',
+      operatingSystem: 'macOS 11+, Windows 10/11',
       downloadUrl: LINKS.downloadMac,
-      ...(release ? { softwareVersion: release.version } : {}),
+      ...(release?.version ? { softwareVersion: release.version } : {}),
       image: `${SITE.url}/logo-256.png`,
       screenshot: `${SITE.url}/screenshots/overview-1600.webp`,
       inLanguage: lang,
@@ -102,14 +102,13 @@ export async function HomePage({ lang }: { lang: Lang }) {
           </h1>
           <p className="lead">{text.hero.lead}</p>
           <div className="cta">
-            <DownloadButton initial={release} />
-            <a className="btn btn-glass" href={LINKS.downloadWindows} title={ui.download.winTitle}>
-              <WindowsIcon />
-              <span className="btn-stack">
-                {ui.download.win}
-                <span className="sub">{ui.download.winSub}</span>
-              </span>
-            </a>
+            <DownloadButton os="mac" initial={release} />
+            <DownloadButton
+              os="win"
+              initial={release}
+              className="btn btn-glass"
+              title={ui.download.winTitle}
+            />
           </div>
           <div className="checks-row">
             {text.hero.checks.map((check) => (
@@ -220,7 +219,7 @@ export async function HomePage({ lang }: { lang: Lang }) {
                 <span className="fit-badge">{text.download.fit}</span>
               </div>
               <p className="meta">{text.download.macMeta}</p>
-              <DownloadButton initial={release} className="btn btn-primary btn-block" />
+              <DownloadButton os="mac" initial={release} className="btn btn-primary btn-block" />
               <ol className="steps">
                 <li>{text.download.macSteps.first}</li>
                 <li>{text.download.macSteps.second}</li>
@@ -231,7 +230,7 @@ export async function HomePage({ lang }: { lang: Lang }) {
                 </li>
               </ol>
               <CopyCode code="xattr -dr com.apple.quarantine /Applications/Thaigit.app" />
-              <ReleaseDetails initial={release} />
+              <ReleaseDetails os="mac" initial={release} />
             </div>
           </div>
 
@@ -244,9 +243,7 @@ export async function HomePage({ lang }: { lang: Lang }) {
                 <span className="fit-badge">{text.download.fit}</span>
               </div>
               <p className="meta">{text.download.winMeta}</p>
-              <a className="btn btn-primary btn-block" href={LINKS.downloadWindows}>
-                <WindowsIcon /> {text.download.winButton}
-              </a>
+              <DownloadButton os="win" initial={release} className="btn btn-primary btn-block" />
               <ol className="steps">
                 <li>
                   <span>
@@ -262,6 +259,7 @@ export async function HomePage({ lang }: { lang: Lang }) {
                   </span>
                 </li>
               </ol>
+              <ReleaseDetails os="win" initial={release} />
             </div>
           </div>
         </div>
@@ -273,65 +271,61 @@ export async function HomePage({ lang }: { lang: Lang }) {
             <span className="kicker">{text.changelog.kicker}</span>
             <h2>{text.changelog.title}</h2>
           </div>
-          <div className="lanes">
-            {changelog.map((lane) => {
-              const os = lane.platform === 'Windows' ? 'win' : 'mac';
-              return (
-                <div key={lane.platform} className="lane" data-os={os}>
-                  <header className="lane-head" data-reveal>
-                    <span className="lane-icon">
-                      {lane.platform === 'Windows' ? <WindowsIcon size={18} /> : <AppleIcon size={18} />}
-                    </span>
-                    <div>
-                      <h3>{lane.platform === 'Windows' ? text.platforms.windows : text.platforms.mac}</h3>
-                      <span>
-                        {text.changelog.latest} {lane.entries[0].version}
-                      </span>
+          <div className="lane">
+            <header className="lane-head" data-reveal>
+              <span className="lane-icon" data-os="win">
+                <WindowsIcon size={18} />
+              </span>
+              <span className="lane-icon" data-os="mac">
+                <AppleIcon size={18} />
+              </span>
+              <div>
+                <h3>
+                  {text.platforms.windows} &amp; {text.platforms.mac}
+                </h3>
+                <span>
+                  {text.changelog.latest} {changelog[0].version}
+                </span>
+              </div>
+            </header>
+            <div className="timeline">
+              {changelog.map((entry) => {
+                const shown = entry.items.slice(0, RELEASE_ITEMS);
+                const more = entry.items.slice(RELEASE_ITEMS);
+                return (
+                  <article key={entry.version} className="release" data-reveal>
+                    <div className="release-body">
+                      <header>
+                        <h4>{entry.version}</h4>
+                        {entry.date && <time dateTime={entry.date}>{formatDate(entry.date, lang)}</time>}
+                      </header>
+                      {entry.summary && <p className="release-summary">{entry.summary}</p>}
+                      <ul className="release-items">
+                        {shown.map((item, index) => (
+                          <li key={index}>
+                            <strong>{item.title}</strong>
+                            {item.detail && <span>{item.detail}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                      {more.length > 0 && (
+                        <details className="release-more">
+                          <summary>{text.changelog.more(more.length)}</summary>
+                          <ul className="release-items">
+                            {more.map((item, index) => (
+                              <li key={index}>
+                                <strong>{item.title}</strong>
+                                {item.detail && <span>{item.detail}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
                     </div>
-                  </header>
-                  <div className="timeline">
-                    {lane.entries.map((entry) => {
-                      const shown = entry.items.slice(0, RELEASE_ITEMS);
-                      const more = entry.items.slice(RELEASE_ITEMS);
-                      return (
-                        <article key={entry.version} className="release" data-os={os} data-reveal>
-                          <div className="release-body">
-                            <header>
-                              <h4>{entry.version}</h4>
-                              {entry.date && (
-                                <time dateTime={entry.date}>{formatDate(entry.date, lang)}</time>
-                              )}
-                            </header>
-                            {entry.summary && <p className="release-summary">{entry.summary}</p>}
-                            <ul className="release-items">
-                              {shown.map((item, index) => (
-                                <li key={index}>
-                                  <strong>{item.title}</strong>
-                                  {item.detail && <span>{item.detail}</span>}
-                                </li>
-                              ))}
-                            </ul>
-                            {more.length > 0 && (
-                              <details className="release-more">
-                                <summary>{text.changelog.more(more.length)}</summary>
-                                <ul className="release-items">
-                                  {more.map((item, index) => (
-                                    <li key={index}>
-                                      <strong>{item.title}</strong>
-                                      {item.detail && <span>{item.detail}</span>}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </details>
-                            )}
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+                  </article>
+                );
+              })}
+            </div>
           </div>
           <p className="section-more">
             <Link href={PATHS.changelog[lang]}>{text.changelog.all}</Link>
@@ -380,14 +374,13 @@ export async function HomePage({ lang }: { lang: Lang }) {
           <h2>{text.finalCta.title}</h2>
           <p>{text.finalCta.text}</p>
           <div className="cta">
-            <DownloadButton initial={release} className="btn btn-white" />
-            <a className="btn btn-outline-light" href={LINKS.downloadWindows} title={ui.download.winTitle}>
-              <WindowsIcon />
-              <span className="btn-stack">
-                {ui.download.win}
-                <span className="sub">{ui.download.winSub}</span>
-              </span>
-            </a>
+            <DownloadButton os="mac" initial={release} className="btn btn-white" />
+            <DownloadButton
+              os="win"
+              initial={release}
+              className="btn btn-outline-light"
+              title={ui.download.winTitle}
+            />
           </div>
         </div>
       </section>
