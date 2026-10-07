@@ -1,13 +1,15 @@
-# Phát hành bản Windows (Tauri) khi đẩy tag `desktop-v<phiên bản>` (vd. desktop-v2.0.0, desktop-v2.1.0-beta.1).
+# Phát hành bản desktop (Windows + macOS cùng mã nguồn Tauri) khi đẩy tag `desktop-v<phiên bản>` (vd. desktop-v2.0.0, desktop-v2.1.0-beta.1).
 # - Build bản cài NSIS trên máy Windows của GitHub, ký file cập nhật bằng khoá minisign (secret TAURI_SIGNING_PRIVATE_KEY +
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD; khoá công khai nằm trong tauri.conf.json).
-# - Tạo release của phiên bản với --latest=false: `releases/latest` vẫn là bản macOS, bộ cập nhật của app macOS không bị
-#   ảnh hưởng. Phiên bản có hậu tố (`-beta.N`) là bản thử: thêm --prerelease.
-# - Cập nhật release cố định của kênh: `latest.json` cho bộ cập nhật và `Thaigit-Windows-setup.exe` cho nút "Tải cho Windows"
-#   (link không đổi giữa các phiên bản). Bản thử → `desktop-beta`; bản chính thức → `desktop-stable` VÀ `desktop-beta`
+# - Build bản macOS (.app/.dmg) trên máy macOS của GitHub, cùng khoá ký cập nhật.
+# - Tạo release của phiên bản với --latest=false: `releases/latest` vẫn là bản macOS (Swift) và bộ cập nhật của app macOS
+#   cũ không bị ảnh hưởng. Phiên bản có hậu tố (`-beta.N`) là bản thử: thêm --prerelease.
+# - Cập nhật release cố định của kênh: `latest.json` (một manifest cho cả hai nền) và link tải cố định của nút
+#   "Tải cho Windows" / "Tải cho macOS". Bản thử → `desktop-beta`; bản chính thức → `desktop-stable` VÀ `desktop-beta`
 #   (người ở kênh beta cũng nhận bản chính thức mới hơn).
-# Bản cài chưa ký Authenticode nên Windows SmartScreen sẽ cảnh báo lần đầu ("More info" → "Run anyway").
-name: Phát hành bản Windows
+# Bản cài Windows chưa ký Authenticode nên SmartScreen sẽ cảnh báo lần đầu; bản macOS ký ad-hoc nên Gatekeeper cũng
+# chặn lần đầu (bỏ chặn trong Cài đặt hệ thống → Quyền riêng tư & Bảo mật).
+name: Phát hành bản desktop
 
 on:
   push:
@@ -65,7 +67,6 @@ jobs:
           mkdir -p out
           cp "$exe" "$exe.sig" out/
           cp "$exe" out/Thaigit-Windows-setup.exe
-          node scripts/desktop-latest-json.mjs "$version" "$GITHUB_REF_NAME" "$exe" "$exe.sig" apps/desktop/CHANGELOG.md > out/latest.json
           node -e "
             const fs = require('fs');
             const text = fs.readFileSync('apps/desktop/CHANGELOG.md', 'utf8').replace(/\r\n/g, '\n');
@@ -83,9 +84,62 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  build-macos:
+    name: Build bản macOS (dmg + updater) có chữ ký cập nhật
+    runs-on: macos-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: Phiên bản khớp tag
+        id: version
+        shell: bash
+        run: |
+          version=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
+          package=$(node -p "require('./apps/desktop/package.json').version")
+          if [ "desktop-v$version" != "$GITHUB_REF_NAME" ] || [ "$package" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME không khớp phiên bản (tauri.conf.json $version, package.json $package)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cài phụ thuộc (chỉ app desktop)
+        run: pnpm install --frozen-lockfile --filter @thaigit/desktop...
+      - name: Build bản cài
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm --filter @thaigit/desktop tauri build --bundles app,dmg
+      - name: Gom file phát hành
+        shell: bash
+        run: |
+          version='${{ steps.version.outputs.version }}'
+          bundle=apps/desktop/src-tauri/target/release/bundle
+          tgz=$(ls "$bundle"/macos/*.app.tar.gz)
+          dmg=$(ls "$bundle"/dmg/*.dmg)
+          test -f "$tgz" && test -f "$tgz.sig" && test -f "$dmg"
+          mkdir -p out
+          cp "$tgz" "$tgz.sig" out/
+          cp "$dmg" out/
+          cp "$dmg" out/Thaigit-macOS.dmg
+          ls -la out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: thaigit-macos-release
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
     name: Tạo release
-    needs: build
+    needs: [build, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -94,19 +148,46 @@ jobs:
       GH_REPO: ${{ github.repository }}
       VERSION: ${{ needs.build.outputs.version }}
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v7
         with:
           name: thaigit-windows-release
           path: out
+      - uses: actions/download-artifact@v7
+        with:
+          name: thaigit-macos-release
+          path: out-macos
+      - name: Manifest cập nhật cho cả hai nền
+        run: |
+          version='${{ needs.build.outputs.version }}'
+          tgz=$(ls out-macos/*.app.tar.gz)
+          node scripts/desktop-latest-json.mjs "$version" "$GITHUB_REF_NAME" apps/desktop/CHANGELOG.md \
+            --windows "out/Thaigit_${version}_x64-setup.exe" "out/Thaigit_${version}_x64-setup.exe.sig" \
+            --darwin-aarch64 "$tgz" "$tgz.sig" > out/latest.json
+          exe="out/Thaigit_${version}_x64-setup.exe"
+          node -e "
+            const fs = require('fs');
+            const text = fs.readFileSync('apps/desktop/CHANGELOG.md', 'utf8').replace(/\r\n/g, '\n');
+            const lines = text.split('\n');
+            const start = lines.findIndex((l) => l.startsWith('## $version '));
+            const body = [];
+            for (const l of lines.slice(start + 1)) { if (l.startsWith('## ')) break; body.push(l); }
+            fs.writeFileSync('out/notes.md', body.join('\n').trim() + '\n');
+          "
+          ls -la out out-macos
       - name: Release của phiên bản
         run: |
           prerelease=()
           case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
           gh release create "$GITHUB_REF_NAME" \
-            --title "Thaigit cho Windows $VERSION" \
+            --title "Thaigit cho Windows & macOS $VERSION" \
             --notes-file out/notes.md \
             "${prerelease[@]}" --latest=false --verify-tag \
-            "out/Thaigit_${VERSION}_x64-setup.exe" "out/Thaigit_${VERSION}_x64-setup.exe.sig" out/latest.json
+            "out/Thaigit_${VERSION}_x64-setup.exe" "out/Thaigit_${VERSION}_x64-setup.exe.sig" \
+            "out-macos/Thaigit_${VERSION}_aarch64.dmg" "out-macos/Thaigit_${VERSION}_aarch64.app.tar.gz" "out-macos/Thaigit_${VERSION}_aarch64.app.tar.gz.sig" \
+            out/Thaigit-Windows-setup.exe out-macos/Thaigit-macOS.dmg out/latest.json
+          cp out-macos/Thaigit-macOS.dmg out/
+          cp out-macos/*.app.tar.gz* out/ 2>/dev/null || true
       # Release cố định của kênh phải có sẵn (tạo một lần bằng tài khoản người: token của Actions không được tạo tag mới trỏ
       # vào commit có đổi file workflow — GitHub trả 403). Ở đây chỉ thay `latest.json` + file cài.
       - name: Kênh cập nhật (latest.json + link tải cố định)
@@ -118,5 +199,5 @@ jobs:
               echo "::error::Chưa có release $channel — tạo một lần bằng: gh release create $channel --latest=false --target main --title 'Thaigit cho Windows — kênh …' --notes '…'"
               exit 1
             fi
-            gh release upload "$channel" out/latest.json out/Thaigit-Windows-setup.exe --clobber
+            gh release upload "$channel" out/latest.json out/Thaigit-Windows-setup.exe out/Thaigit-macOS.dmg --clobber
           done
