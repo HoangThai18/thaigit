@@ -2,8 +2,9 @@
 # - Build bản cài NSIS trên máy Windows của GitHub, ký file cập nhật bằng khoá minisign (secret TAURI_SIGNING_PRIVATE_KEY +
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD; khoá công khai nằm trong tauri.conf.json).
 # - Build bản macOS (.app/.dmg) trên máy macOS của GitHub, cùng khoá ký cập nhật.
-# - Tạo release của phiên bản với --latest=false: `releases/latest` giờ dành cho trang chủ, bộ cập nhật của app không
-#   đọc nó. Phiên bản có hậu tố (`-beta.N`) là bản thử: thêm --prerelease.
+# - Tạo release của phiên bản với --latest=false: `releases/latest` vẫn là bản macOS Swift cuối cùng (1.x) để app macOS cũ
+#   tự cập nhật rồi nhắc người dùng chuyển sang bản này, nên release này không được chiếm "latest". Phiên bản có hậu tố
+#   (`-beta.N`) là bản thử: thêm --prerelease.
 # - Cập nhật release cố định của kênh: `latest.json` (một manifest cho cả hai nền) và link tải cố định của nút
 #   "Tải cho Windows" / "Tải cho macOS". Bản thử → `desktop-beta`; bản chính thức → `desktop-stable` VÀ `desktop-beta`
 #   (người ở kênh beta cũng nhận bản chính thức mới hơn).
@@ -196,8 +197,14 @@ jobs:
           case "$VERSION" in *-*) ;; *) channels+=(desktop-stable) ;; esac
           for channel in "${channels[@]}"; do
             if ! gh release view "$channel" > /dev/null 2>&1; then
-              echo "::error::Chưa có release $channel — tạo một lần bằng: gh release create $channel --latest=false --target main --title 'Thaigit cho Windows — kênh …' --notes '…'"
+              echo "::error::Chưa có release $channel — tạo một lần bằng: gh release create $channel --latest=false --target main --title 'Thaigit cho Windows & macOS — kênh …' --notes '…'"
               exit 1
             fi
             gh release upload "$channel" out/latest.json out/Thaigit-Windows-setup.exe out/Thaigit-macOS.dmg --clobber
+            # The site reads the version of the single merged download from this title.
+            label='ổn định'
+            [ "$channel" = desktop-beta ] && label='beta'
+            gh release edit "$channel" \
+              --title "Thaigit cho Windows & macOS — kênh $label $VERSION" \
+              --notes "Release cố định của kênh $label cho Thaigit trên Windows và macOS (file cài mới nhất để tải về và dữ liệu để app tự cập nhật). Ghi chú từng phiên bản nằm ở release desktop-v<phiên bản> tương ứng."
           done
