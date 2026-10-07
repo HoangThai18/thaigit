@@ -2,8 +2,8 @@
 # - Build bản cài NSIS trên máy Windows của GitHub, ký file cập nhật bằng khoá minisign (secret TAURI_SIGNING_PRIVATE_KEY +
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD; khoá công khai nằm trong tauri.conf.json).
 # - Build bản macOS (.app/.dmg) trên máy macOS của GitHub, cùng khoá ký cập nhật.
-# - Tạo release của phiên bản với --latest=false: `releases/latest` vẫn là bản macOS Swift cuối cùng (1.x) để app macOS cũ
-#   tự cập nhật rồi nhắc người dùng chuyển sang bản này, nên release này không được chiếm "latest". Phiên bản có hậu tố
+# - Tạo release của phiên bản với --latest=false: `releases/latest` vẫn là bản macOS Swift cuối cùng (1.4.0, app Swift đã
+#   ngừng phát triển nhưng bản cài cũ vẫn đọc nó), nên release này không được chiếm "latest". Phiên bản có hậu tố
 #   (`-beta.N`) là bản thử: thêm --prerelease.
 # - Cập nhật release cố định của kênh: `latest.json` (một manifest cho cả hai nền) và link tải cố định của nút
 #   "Tải cho Windows" / "Tải cho macOS". Bản thử → `desktop-beta`; bản chính thức → `desktop-stable` VÀ `desktop-beta`
