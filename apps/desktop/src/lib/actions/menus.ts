@@ -233,6 +233,36 @@ export function workingTreeMenu(store: RepoStore): MenuItem[] {
   ];
 }
 
+/** "Review changes against…" for a branch: the checked-out branch first, every other branch in a submenu. */
+function reviewItems(store: RepoStore, ref: GitRef): MenuItem[] {
+  const current = store.currentBranchRef;
+  const others = [...store.localBranches, ...store.remoteBranches].filter(
+    (other) => other.fullName !== ref.fullName && !refName(other).endsWith('/HEAD'),
+  );
+  const items: MenuItem[] = [];
+  if (current !== undefined && current.fullName !== ref.fullName) {
+    items.push({
+      title: vi.branches.menuReviewAgainst(refName(current)),
+      icon: 'eye',
+      run: () => store.branchReview.open(ref, current),
+    });
+  }
+  const rest = others.filter((other) => other.fullName !== current?.fullName);
+  if (rest.length > 0) {
+    items.push({
+      kind: 'submenu',
+      title: vi.branches.menuReviewAgainstOther,
+      icon: 'eye',
+      items: rest.map((other) => ({
+        title: refName(other),
+        icon: refIcon(other),
+        run: () => store.branchReview.open(ref, other),
+      })),
+    });
+  }
+  return items;
+}
+
 /** The menu of a local branch / remote branch / tag (sidebar, label pill on the graph). */
 export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
   const current = store.currentBranch;
@@ -275,6 +305,7 @@ export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
           run: () => void fastForward(store, ref),
         });
       }
+      items.push({ kind: 'separator' }, ...reviewItems(store, ref));
       items.push({ kind: 'separator' });
       if (AI_ENABLED) {
         items.push({
@@ -324,6 +355,7 @@ export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
           run: () => void rebaseCurrent(store, name, name),
         });
       }
+      items.push({ kind: 'separator' }, ...reviewItems(store, ref));
       items.push({ kind: 'separator' });
       items.push({
         title: vi.branches.menuCreateBranchFrom(name),

@@ -48,6 +48,7 @@ import { TimelineStore } from '../snapshots/timeline.svelte.ts';
 import { BlameStore } from '../history/blame.svelte.ts';
 import { FileHistoryStore } from '../history/fileHistory.svelte.ts';
 import { ReviewStore } from '../forge/review.svelte.ts';
+import { BranchReviewStore } from '../review/branchReview.svelte.ts';
 import { RiskStore } from '../risk/risks.svelte.ts';
 import { commitDrafts, type CommitDrafts } from '../staging/commitDrafts.ts';
 import { loadGraphFilter, saveGraphFilter } from '../graph/filterStorage.ts';
@@ -230,6 +231,7 @@ export class RepoStore {
   readonly fileHistory: FileHistoryStore;
   /** Reviewing a Pull Request / Merge Request — replaces the right-hand details panel when open. */
   readonly review: ReviewStore;
+  readonly branchReview: BranchReviewStore;
   /** Blame of a file — the centre pane (replacing the graph) when open, below the diff when a diff is open. */
   readonly blame: BlameStore;
   /** Risk flags of the uncommitted changes (the warning strip on the WIP panel). */
@@ -324,7 +326,10 @@ export class RepoStore {
       notify: (style, title, options) => store.notify(style, title, options),
       showError: (title, error) => store.showError(title, error),
       closeFileHistory: () => store.fileHistory.close(),
-      closeReview: () => store.review.close(),
+      closeReview: () => {
+        store.review.close();
+        store.branchReview.close();
+      },
     });
     this.fileHistory = new FileHistoryStore({
       get git() {
@@ -334,7 +339,10 @@ export class RepoStore {
         return store.diff;
       },
       closeTimeline: () => store.timeline.close(),
-      closeReview: () => store.review.close(),
+      closeReview: () => {
+        store.review.close();
+        store.branchReview.close();
+      },
       showError: (title, error) => store.showError(title, error),
     });
     this.review = new ReviewStore({
@@ -343,6 +351,22 @@ export class RepoStore {
       },
       closeTimeline: () => store.timeline.close(),
       closeFileHistory: () => store.fileHistory.close(),
+      closeBranchReview: () => store.branchReview.close(),
+    });
+    this.branchReview = new BranchReviewStore({
+      get git() {
+        return store.git;
+      },
+      get diff() {
+        return store.diff;
+      },
+      get refs() {
+        return store.refs;
+      },
+      closeTimeline: () => store.timeline.close(),
+      closeFileHistory: () => store.fileHistory.close(),
+      closeReview: () => store.review.close(),
+      showError: (title, error) => store.showError(title, error),
     });
     this.blame = new BlameStore({
       get git() {
@@ -840,6 +864,7 @@ export class RepoStore {
     this.timeline.close();
     this.fileHistory.close();
     this.review.close();
+    this.branchReview.close();
     this.applySelection(next, reveal);
   }
 

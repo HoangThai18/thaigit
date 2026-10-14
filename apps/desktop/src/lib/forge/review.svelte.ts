@@ -13,9 +13,10 @@ import type { DiffSource, DiffStore } from '../stores/diff.svelte.ts';
 /** The slice of `RepoStore` that review needs (avoids a circular import). */
 export interface ReviewHost {
   readonly diff: DiffStore;
-  /** Panels that share the right-hand slot: opening review closes Timeline / File history. */
+  /** Panels that share the right-hand slot: opening review closes Timeline / File history / branch review. */
   closeTimeline(): void;
   closeFileHistory(): void;
+  closeBranchReview(): void;
 }
 
 /** The PR's changes: from the merge base (`from`) to the tip of the PR branch (`head`). */
@@ -58,6 +59,7 @@ export class ReviewStore {
   begin(request: ForgeMergeRequest, provider: ForgeProvider | null): number {
     this.host.closeTimeline();
     this.host.closeFileHistory();
+    this.host.closeBranchReview();
     const same =
       this.request !== null && this.request.host === request.host && this.request.number === request.number;
     if (!same) {

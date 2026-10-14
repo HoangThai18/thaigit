@@ -1,9 +1,10 @@
 <!--
-  Panel chi tiết bên phải: Review PR / Lịch sử file / Dòng thời gian khi đang mở (chỉ một trong ba), không thì theo `store.selection`
+  Panel chi tiết bên phải: Review PR / Review nhánh / Lịch sử file / Dòng thời gian khi đang mở (chỉ một trong bốn), không thì theo `store.selection`
   (commit / stash / WIP / chưa chọn).
 -->
 <script lang="ts">
   import ReviewPanel from '../forge/ReviewPanel.svelte';
+  import BranchReviewPanel from '../review/BranchReviewPanel.svelte';
   import FileHistoryPanel from '../history/FileHistoryPanel.svelte';
   import { vi } from '../strings.vi.ts';
   import TimelinePanel from '../snapshots/TimelinePanel.svelte';
@@ -24,6 +25,8 @@
 <div class="inspector" role="region" aria-label={vi.inspector.ariaLabel}>
   {#if store.review.isOpen}
     <ReviewPanel {store} />
+  {:else if store.branchReview.isOpen}
+    <BranchReviewPanel {store} />
   {:else if store.fileHistory.isOpen}
     <FileHistoryPanel {store} />
   {:else if store.timeline.isOpen}

@@ -2,6 +2,10 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## Chưa phát hành
+
+- Review nhanh thay đổi của một nhánh so với nhánh khác: chuột phải vào nhánh (sidebar hoặc nhãn trên graph) → “Review thay đổi so với …” (nhánh đang đứng hoặc chọn nhánh khác); panel bên phải liệt kê các file nhánh đó đã đổi kể từ điểm tách, bấm file để xem diff như tab “Files changed” của PR
+
 ## 2.5.1 — 2026-10-07
 
 - Bản đa nền tảng nay chạy được cả trên macOS: build cùng mã nguồn Rust + Svelte, cài từ file `Thaigit-macOS.dmg`, tự cập nhật qua cùng kênh Ổn định / Beta như Windows
