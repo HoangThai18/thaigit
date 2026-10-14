@@ -2,7 +2,7 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
-## Chưa phát hành
+## 2.6.0 — 2026-10-14
 
 - Review nhanh thay đổi của một nhánh so với nhánh khác: chuột phải vào nhánh (sidebar hoặc nhãn trên graph) → “Review thay đổi so với …” (nhánh đang đứng hoặc chọn nhánh khác); panel bên phải liệt kê các file nhánh đó đã đổi kể từ điểm tách, bấm file để xem diff như tab “Files changed” của PR
 
