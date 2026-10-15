@@ -41,6 +41,43 @@ export function filterBranches(
     .map((item) => item.ref);
 }
 
+const MAIN_NAMES = ['main', 'master', 'develop', 'dev'];
+
+/**
+ * Candidates for "compare `head` with…": with nothing typed, the checked-out branch and the main branches
+ * (local, then on the remotes) come first, then recent branches; `head` itself is never offered.
+ */
+export function compareCandidates(
+  head: GitRef,
+  query: string,
+  options: {
+    current: GitRef | undefined;
+    recent: readonly GitRef[];
+    local: readonly GitRef[];
+    remote: readonly GitRef[];
+    remotes: readonly string[];
+  },
+): GitRef[] {
+  const offered = (ref: GitRef) => ref.fullName !== head.fullName && !refName(ref).endsWith('/HEAD');
+  if (query.trim() !== '') return filterBranches(query, options).filter(offered);
+  const preferred: GitRef[] = options.current === undefined ? [] : [options.current];
+  for (const name of MAIN_NAMES) {
+    const local = options.local.find((ref) => refName(ref) === name);
+    if (local !== undefined) preferred.push(local);
+  }
+  for (const name of MAIN_NAMES) {
+    for (const ref of options.remote) if (shortName(ref, options.remotes) === name) preferred.push(ref);
+  }
+  const seen = new Set<string>();
+  return [...preferred, ...options.recent, ...options.local]
+    .filter((ref) => {
+      if (!offered(ref) || seen.has(ref.fullName)) return false;
+      seen.add(ref.fullName);
+      return true;
+    })
+    .slice(0, RECENT_LIMIT);
+}
+
 /** Default selection is a branch other than the current one (Enter switches to it right away, like `git checkout -`). */
 export function defaultChoice(items: readonly GitRef[]): number {
   if (items.length === 0) return -1;

@@ -10,28 +10,34 @@
   import { vi } from '../strings.vi.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
   import Icon from '../ui/Icon.svelte';
-  import { RECENT_LIMIT, defaultChoice, filterBranches } from './branchPicker.ts';
+  import { RECENT_LIMIT, compareCandidates, defaultChoice, filterBranches } from './branchPicker.ts';
 
   interface Props {
     store: RepoStore;
     onclose: () => void;
+    /** Pick the branch to compare `compare` with (branch review) instead of checking one out. */
+    compare?: GitRef;
+    onpick?: (ref: GitRef) => void;
   }
 
-  let { store, onclose }: Props = $props();
+  let { store, onclose, compare, onpick }: Props = $props();
 
   let query = $state('');
   let input = $state<HTMLInputElement | null>(null);
   let listElement = $state<HTMLElement | null>(null);
+  const sources = $derived({
+    recent: store.recentLocalBranches(RECENT_LIMIT),
+    local: store.localBranches,
+    remote: store.remoteBranches,
+    remotes: store.remotes.map((remote) => remote.name),
+  });
   const items = $derived(
-    filterBranches(query, {
-      recent: store.recentLocalBranches(RECENT_LIMIT),
-      local: store.localBranches,
-      remote: store.remoteBranches,
-      remotes: store.remotes.map((remote) => remote.name),
-    }),
+    compare
+      ? compareCandidates(compare, query, { ...sources, current: store.currentBranchRef })
+      : filterBranches(query, sources),
   );
   // When the list changes (typing more characters, opening the box) re-select the default entry; ↑↓ / hover override it temporarily.
-  let highlighted = $derived(defaultChoice(items));
+  let highlighted = $derived(compare ? (items.length > 0 ? 0 : -1) : defaultChoice(items));
   const current = $derived(items[highlighted]);
 
   $effect(() => {
@@ -45,7 +51,12 @@
   }
 
   function choose(ref: GitRef | undefined): void {
-    if (!ref || ref.isHead) return;
+    if (!ref) return;
+    if (compare) {
+      onpick?.(ref);
+      return;
+    }
+    if (ref.isHead) return;
     onclose();
     void checkout(store, ref);
   }
@@ -76,7 +87,10 @@
     onclick={(event) => event.stopPropagation()}
     {onkeydown}
   >
-    <h2 id="branch-picker-title"><Icon name="branch" size={16} /> {vi.branches.pickerTitle}</h2>
+    <h2 id="branch-picker-title">
+      <Icon name={compare ? 'eye' : 'branch'} size={16} />
+      <bdi>{compare ? showBidi(vi.branches.compareTitle(refName(compare))) : vi.branches.pickerTitle}</bdi>
+    </h2>
     <input
       type="text"
       bind:this={input}
@@ -116,15 +130,19 @@
         {#if items.length === 0}
           {vi.branches.pickerEmpty}
         {:else}
-          {query.trim() === '' ? `${vi.branches.pickerRecent} · ` : ''}{vi.branches.pickerHint}
+          {#if compare}
+            {query.trim() === '' ? `${vi.branches.compareSuggested} · ` : ''}{vi.branches.compareHint}
+          {:else}
+            {query.trim() === '' ? `${vi.branches.pickerRecent} · ` : ''}{vi.branches.pickerHint}
+          {/if}
         {/if}
       </span>
       <button type="button" class="button" onclick={onclose}>{vi.dialog.cancel}</button>
       <button
         type="button"
         class="button primary"
-        disabled={!current || current.isHead}
-        onclick={() => choose(current)}>{vi.branches.checkout}</button
+        disabled={!current || (!compare && current.isHead)}
+        onclick={() => choose(current)}>{compare ? vi.branches.compareButton : vi.branches.checkout}</button
       >
     </div>
   </div>

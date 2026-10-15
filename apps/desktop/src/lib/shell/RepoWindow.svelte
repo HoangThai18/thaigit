@@ -106,6 +106,7 @@
       rebaseEditor.current !== null ||
       showLog ||
       showBranchPicker ||
+      store.branchReview.picking !== null ||
       showPalette
     )
       return;
@@ -340,6 +341,14 @@
 
 {#if showBranchPicker}
   <BranchPicker {store} onclose={() => (showBranchPicker = false)} />
+{/if}
+{#if store.branchReview.picking}
+  <BranchPicker
+    {store}
+    compare={store.branchReview.picking}
+    onclose={() => store.branchReview.cancelPick()}
+    onpick={(ref) => store.branchReview.choose(ref)}
+  />
 {/if}
 
 {#if showPalette}

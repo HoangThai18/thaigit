@@ -35,6 +35,8 @@ export class BranchReviewStore {
   base = $state.raw<GitRef | null>(null);
   phase = $state<BranchReviewPhase>('loading');
   changes = $state.raw<BranchChanges | null>(null);
+  /** Branch whose comparison base is being picked in the branch box; `null` = the box is closed. */
+  picking = $state.raw<GitRef | null>(null);
   /** Bumped on every open / close / reload: a late result from an earlier run is discarded. */
   private token = 0;
 
@@ -58,6 +60,20 @@ export class BranchReviewStore {
     this.base = base;
     this.changes = null;
     void this.load();
+  }
+
+  pickBase(head: GitRef): void {
+    this.picking = head;
+  }
+
+  cancelPick(): void {
+    this.picking = null;
+  }
+
+  choose(base: GitRef): void {
+    const head = this.picking;
+    this.picking = null;
+    if (head !== null && head.fullName !== base.fullName) this.open(head, base);
   }
 
   /** Reload against the refs as they are now (after a fetch / commit the tips have moved). */

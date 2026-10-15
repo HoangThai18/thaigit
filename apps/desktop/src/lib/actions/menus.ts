@@ -233,33 +233,26 @@ export function workingTreeMenu(store: RepoStore): MenuItem[] {
   ];
 }
 
-/** "Review changes against…" for a branch: the checked-out branch first, every other branch in a submenu. */
+/**
+ * "Review changes against…" for a branch: a shortcut against the checked-out branch (only when that compares
+ * two different tips — not the branch itself or its own upstream), then a box to pick any other branch.
+ */
 function reviewItems(store: RepoStore, ref: GitRef): MenuItem[] {
   const current = store.currentBranchRef;
-  const others = [...store.localBranches, ...store.remoteBranches].filter(
-    (other) => other.fullName !== ref.fullName && !refName(other).endsWith('/HEAD'),
-  );
   const items: MenuItem[] = [];
-  if (current !== undefined && current.fullName !== ref.fullName) {
+  if (
+    current !== undefined &&
+    current.fullName !== ref.fullName &&
+    current.target !== ref.target &&
+    current.upstream !== refName(ref)
+  ) {
     items.push({
       title: vi.branches.menuReviewAgainst(refName(current)),
       icon: 'eye',
       run: () => store.branchReview.open(ref, current),
     });
   }
-  const rest = others.filter((other) => other.fullName !== current?.fullName);
-  if (rest.length > 0) {
-    items.push({
-      kind: 'submenu',
-      title: vi.branches.menuReviewAgainstOther,
-      icon: 'eye',
-      items: rest.map((other) => ({
-        title: refName(other),
-        icon: refIcon(other),
-        run: () => store.branchReview.open(ref, other),
-      })),
-    });
-  }
+  items.push({ title: vi.branches.menuReviewPick, icon: 'eye', run: () => store.branchReview.pickBase(ref) });
   return items;
 }
 

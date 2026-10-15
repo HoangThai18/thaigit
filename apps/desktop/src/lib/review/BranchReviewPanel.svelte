@@ -52,7 +52,16 @@
       <p class="branches selectable">
         <code><bdi>{showBidi(refName(head))}</bdi></code>
         <span class="vs">{text.reviewVersus}</span>
-        <code><bdi>{showBidi(refName(base))}</bdi></code>
+        <button
+          type="button"
+          class="base"
+          title={text.reviewChangeBase}
+          aria-label={`${text.reviewChangeBase}: ${refName(base)}`}
+          onclick={() => review.pickBase(head)}
+        >
+          <code><bdi>{showBidi(refName(base))}</bdi></code>
+          <Icon name="chevron-down" size={11} />
+        </button>
       </p>
     </div>
     {#if review.phase === 'loading'}
@@ -147,6 +156,23 @@
     margin: 0;
     color: var(--text-secondary);
     font-size: 12px;
+  }
+
+  .base {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 0 4px 0 0;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-s);
+    background: var(--field-fill);
+    color: var(--text-secondary);
+    font: inherit;
+  }
+
+  .base:hover {
+    border-color: var(--accent);
+    color: var(--text);
   }
 
   code {

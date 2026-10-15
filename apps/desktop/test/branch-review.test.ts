@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { refMenu } from '../src/lib/actions/menus.ts';
+import { compareCandidates } from '../src/lib/shell/branchPicker.ts';
 import { PrefsStore } from '../src/lib/stores/prefs.svelte.ts';
 import { RepoStore } from '../src/lib/stores/repo.svelte.ts';
 import { ToastStore } from '../src/lib/stores/toasts.svelte.ts';
@@ -119,5 +120,37 @@ describe('review thay đổi của nhánh so với nhánh khác', () => {
     expect(own.some((item) => 'title' in item && item.title === vi.branches.menuReviewAgainst('main'))).toBe(
       false,
     );
+  });
+
+  it('trên nhánh đang đứng, mục review mở hộp chọn nhánh để so sánh thay vì so với chính nó', async () => {
+    const { store, shas } = await openStore();
+    const items = refMenu(store, ref(store, 'refs/heads/main'));
+    const pick = items.find((item) => 'title' in item && item.title === vi.branches.menuReviewPick);
+    expect(pick).toBeDefined();
+    (pick as { run: () => void }).run();
+    expect(store.branchReview.picking?.fullName).toBe('refs/heads/main');
+    expect(store.branchReview.isOpen).toBe(false);
+    store.branchReview.choose(ref(store, 'refs/heads/feat'));
+    expect(store.branchReview.picking).toBeNull();
+    expect(store.branchReview.head?.fullName).toBe('refs/heads/main');
+    expect(store.branchReview.base?.fullName).toBe('refs/heads/feat');
+    await until(() => store.branchReview.phase === 'ready', 'so sánh xong');
+    expect(store.branchReview.changes?.from).toBe(shas.base);
+  });
+
+  it('hộp chọn nhánh so sánh không có chính nhánh đó, nhánh đang đứng đứng đầu', async () => {
+    const { store } = await openStore();
+    const feat = ref(store, 'refs/heads/feat');
+    const options = {
+      current: store.currentBranchRef,
+      recent: store.recentLocalBranches(40),
+      local: store.localBranches,
+      remote: store.remoteBranches,
+      remotes: [],
+    };
+    expect(compareCandidates(feat, '', options).map((item) => item.fullName)).toEqual(['refs/heads/main']);
+    const main = ref(store, 'refs/heads/main');
+    expect(compareCandidates(main, '', options).map((item) => item.fullName)).toEqual(['refs/heads/feat']);
+    expect(compareCandidates(main, 'ma', options)).toEqual([]);
   });
 });
