@@ -2,6 +2,10 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## Chưa phát hành
+
+- Sửa lỗi tên nhánh đang đứng trên graph bị cắt cụt (“m…” thay vì “main”)
+
 ## 2.6.8 — 2026-10-15
 
 - Xem diff không phải cuộn ngang: dòng dài tự xuống dòng, bật / tắt bằng nút “Xuống dòng”

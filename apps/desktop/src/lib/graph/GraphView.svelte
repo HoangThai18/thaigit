@@ -356,7 +356,7 @@
         {@const placement = layoutPills(
           entry.labels,
           refsWidth,
-          (text) => measurePillText(showBidi(text), fontFamily),
+          (text, bold) => measurePillText(showBidi(text), fontFamily, bold),
           pendingOnCurrent,
         )}
         {@const lane = rowLane}

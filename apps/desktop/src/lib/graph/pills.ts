@@ -232,7 +232,7 @@ export interface PillLayout {
 export function layoutPills(
   labels: readonly RefLabel[],
   width: number,
-  measure: (text: string) => number,
+  measure: (text: string, bold?: boolean) => number,
   pendingCount = 0,
 ): PillLayout {
   const layout: PillLayout = { pills: [], more: null, end: PILL.startX };
@@ -244,7 +244,8 @@ export function layoutPills(
     const remaining = labels.length - index - 1;
     const reserve = remaining > 0 ? PILL.moreReserve : 0;
     const iconsWidth = pillIcons(label).length * (PILL.iconSize + PILL.iconGap);
-    const textWidth = Math.ceil(measure(label.text));
+    // +1: sub-pixel rounding of the rendered text must never tip a name that fits into an ellipsis.
+    const textWidth = Math.ceil(measure(label.text, label.isCurrentBranch)) + 1;
     const badgeWidth = badgeExtra(label, pendingCount, measure);
     const available = maxX - x - reserve;
     if (available - badgeWidth < PILL.minAvailable) {

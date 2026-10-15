@@ -125,9 +125,9 @@ describe('layoutPills', () => {
   it('đủ chỗ: xếp lần lượt, cách nhau 4px, không có +N', () => {
     const layout = layoutPills([label('main'), label('dev')], 400, measure);
     expect(layout.more).toBeNull();
-    // 7 + icon laptop (13) + 24 + 7
-    expect(layout.pills[0]).toEqual({ index: 0, x: 6, width: 7 + 13 + 24 + 7 });
-    expect(layout.pills[1]?.x).toBe(6 + 51 + PILL.gap);
+    // 7 + icon laptop (13) + 24 (+1 rounding slack) + 7
+    expect(layout.pills[0]).toEqual({ index: 0, x: 6, width: 7 + 13 + 25 + 7 });
+    expect(layout.pills[1]?.x).toBe(6 + 52 + PILL.gap);
     expect(layout.end).toBe((layout.pills[1]?.x ?? 0) + (layout.pills[1]?.width ?? 0));
   });
 
@@ -140,6 +140,17 @@ describe('layoutPills', () => {
     const last = layout.pills[layout.pills.length - 1];
     expect((last?.x ?? 0) + (last?.width ?? 0) + PILL.gap).toBeLessThanOrEqual(layout.more?.x ?? 0);
     expect(layout.end).toBe((layout.more?.x ?? 0) + PILL.moreWidth);
+  });
+
+  it('nhánh đang đứng đo bằng nét đậm hơn: "main" không bị cắt thành "m…"', () => {
+    const widths: [string, boolean | undefined][] = [];
+    const current = { ...label('main'), isCurrentBranch: true };
+    layoutPills([current, label('dev')], 400, (text, bold) => {
+      widths.push([text, bold]);
+      return measure(text);
+    });
+    expect(widths).toContainEqual(['main', true]);
+    expect(widths).toContainEqual(['dev', false]);
   });
 
   it('ô quá hẹp: không viên nào, chỉ "+N" ở đầu ô', () => {

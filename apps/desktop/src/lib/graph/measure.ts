@@ -9,6 +9,8 @@ let fontKey = '';
 
 export const PILL_FONT_SIZE = 11;
 export const PILL_FONT_WEIGHT = 600;
+/** `.pill.current` draws the checked-out branch bolder — measured with the same weight or "main" gets cut to "m…". */
+export const PILL_CURRENT_FONT_WEIGHT = 700;
 
 function ensureContext(fontFamily: string): CanvasRenderingContext2D | null {
   if (context === undefined) {
@@ -23,12 +25,17 @@ function ensureContext(fontFamily: string): CanvasRenderingContext2D | null {
 }
 
 /** Width (px) of `text`; without a canvas (exotic environment) fall back to 6.3px per character. */
-export function measurePillText(text: string, fontFamily: string): number {
-  const cached = cache.get(text);
+export function measurePillText(text: string, fontFamily: string, bold = false): number {
+  const key = bold ? `b\u0000${text}` : text;
+  const cached = cache.get(key);
   if (cached !== undefined && fontKey === fontFamily) return cached;
   const ctx = ensureContext(fontFamily);
-  const width = ctx ? ctx.measureText(text).width : text.length * 6.3;
+  let width = text.length * (bold ? 6.6 : 6.3);
+  if (ctx) {
+    ctx.font = `${bold ? PILL_CURRENT_FONT_WEIGHT : PILL_FONT_WEIGHT} ${PILL_FONT_SIZE}px ${fontFamily}`;
+    width = ctx.measureText(text).width;
+  }
   if (cache.size > 5000) cache.clear();
-  cache.set(text, width);
+  cache.set(key, width);
   return width;
 }
