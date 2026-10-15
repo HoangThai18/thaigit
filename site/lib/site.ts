@@ -10,13 +10,17 @@ export const SITE = {
 
 export const SITE_TEXT: Record<Lang, { title: string; description: string; keywords: string[] }> = {
   vi: {
-    title: 'Thaigit — Git client trực quan, miễn phí cho macOS & Windows',
+    title: 'Thaigit — Phần mềm Git GUI miễn phí, trực quan cho Windows & macOS',
     description:
-      'Thaigit là Git GUI miễn phí, trực quan: graph lịch sử nhiều màu, kéo & thả để merge, rebase, push, stage từng dòng, giải conflict vài cú bấm. Tải cho macOS và Windows.',
+      'Thaigit là phần mềm Git GUI miễn phí, giao diện tiếng Việt: graph lịch sử nhiều màu, kéo & thả để merge, rebase, push, stage từng dòng, giải conflict vài cú bấm. Tải cho Windows và macOS.',
     keywords: [
       'Thaigit',
+      'phần mềm git gui',
+      'phần mềm quản lý git',
       'git client',
       'git gui',
+      'git gui windows',
+      'git client tiếng việt',
       'phần mềm git',
       'git miễn phí',
       'git gui miễn phí',
@@ -36,6 +40,9 @@ export const SITE_TEXT: Record<Lang, { title: string; description: string; keywo
       'git client',
       'git gui',
       'free git client',
+      'best git gui',
+      'sourcetree alternative',
+      'gitkraken alternative',
       'git gui for mac',
       'git gui for windows',
       'visual git',

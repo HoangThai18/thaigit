@@ -317,26 +317,48 @@ export const GUIDES_VI: Record<string, GuideText> = {
     ],
   },
   install: {
-    title: 'Cài đặt Git trên macOS và Windows cho người mới bắt đầu',
+    title: 'Cách cài Git trên Windows 10 / 11 và macOS cho người mới (kèm Git Bash)',
     short: 'Cài đặt Git',
     description:
-      'Hướng dẫn cài Git trên macOS (xcode-select) và Windows (Git for Windows), cấu hình tên và email, rồi mở hoặc clone repository đầu tiên bằng Thaigit.',
-    intro: ['Muốn dùng bất kỳ Git client nào, máy cần có Git trước. Cài mất vài phút và chỉ làm một lần.'],
+      'Hướng dẫn tải và cài Git cho Windows 10 / 11 (Git for Windows, Git Bash) và macOS (xcode-select hoặc Homebrew), kiểm tra git --version, cấu hình tên, email rồi mở repository đầu tiên.',
+    intro: [
+      'Muốn dùng bất kỳ phần mềm Git nào — dòng lệnh hay Git GUI — máy cần có Git trước. Cài mất vài phút và chỉ làm một lần.',
+    ],
     sections: [
       {
-        heading: 'macOS',
+        heading: 'Kiểm tra máy đã có Git chưa',
         paragraphs: [
-          'Mở Terminal và chạy lệnh dưới đây. macOS sẽ hỏi cài Command Line Tools — bấm Cài đặt. Xong thì kiểm tra bằng git --version.',
+          'Mở Terminal (macOS) hoặc PowerShell (Windows) và chạy lệnh dưới đây. Nếu hiện số phiên bản như git version 2.4x là đã có Git, bỏ qua bước cài.',
         ],
-        code: ['xcode-select --install', 'git --version'],
+        code: ['git --version'],
       },
       {
-        heading: 'Windows',
+        heading: 'Cài Git trên Windows 10 / 11',
         steps: [
-          'Tải Git for Windows tại git-scm.com/download/win.',
-          'Chạy bộ cài, giữ các lựa chọn mặc định là được.',
-          'Mở PowerShell hoặc Git Bash, chạy git --version để kiểm tra.',
+          'Tải Git for Windows tại git-scm.com/download/win — đây là trang chính thức, bản 64-bit hợp với hầu hết máy.',
+          'Chạy file .exe vừa tải. Giữ các lựa chọn mặc định là được; ở bước chọn trình soạn thảo, có thể đổi sang Visual Studio Code nếu bạn đang dùng.',
+          'Cài xong, mở PowerShell hoặc Git Bash rồi chạy git --version để kiểm tra.',
         ],
+        code: ['winget install --id Git.Git -e', 'git --version'],
+        note: {
+          kind: 'tip',
+          text: 'Đã có winget (sẵn trên Windows 10 / 11 bản mới)? Lệnh winget ở trên cài Git chỉ bằng một dòng.',
+        },
+      },
+      {
+        heading: 'Git Bash là gì?',
+        paragraphs: [
+          'Git Bash được cài kèm Git for Windows: một cửa sổ dòng lệnh giống terminal Linux / macOS, có sẵn git, ls, cat, ssh-keygen… Nhiều hướng dẫn trên mạng viết lệnh cho Bash, nên dùng Git Bash sẽ chạy được y nguyên.',
+          'Không thích gõ lệnh? Bạn không bắt buộc phải mở Git Bash — Git GUI như Thaigit dùng Git đã cài và cho bạn làm mọi việc bằng chuột.',
+        ],
+      },
+      {
+        heading: 'Cài Git trên macOS (MacBook, iMac)',
+        paragraphs: [
+          'Cách dễ nhất: mở Terminal và chạy lệnh xcode-select. macOS sẽ hỏi cài Command Line Tools — bấm Cài đặt, chờ vài phút, xong kiểm tra bằng git --version.',
+          'Nếu đã dùng Homebrew, có thể cài bản Git mới nhất bằng brew install git.',
+        ],
+        code: ['xcode-select --install', 'git --version', '# hoặc, nếu có Homebrew:', 'brew install git'],
       },
       {
         heading: 'Cấu hình tên và email',
@@ -363,6 +385,16 @@ export const GUIDES_VI: Record<string, GuideText> = {
       },
     ],
     faq: [
+      {
+        q: 'Tải Git ở đâu cho an toàn?',
+        a: [
+          'Tải từ trang chính thức git-scm.com (Windows: git-scm.com/download/win). Trên macOS, Git đi kèm Command Line Tools của Apple hoặc cài qua Homebrew. Tránh các trang tải phần mềm trung gian.',
+        ],
+      },
+      {
+        q: 'Cài Git cho Windows 10 và Windows 11 có khác nhau không?',
+        a: ['Không. Cùng một bộ cài Git for Windows, các bước giống hệt nhau.'],
+      },
       {
         q: 'Có cần tài khoản GitHub để dùng Git không?',
         a: [
@@ -674,6 +706,327 @@ export const GUIDES_VI: Record<string, GuideText> = {
         a: [
           'SSH tiện khi dùng lâu dài vì không phải nhập lại thông tin. HTTPS với token thì dễ cài hơn lúc đầu, nhất là trên máy mượn hoặc sau tường lửa chặn cổng 22.',
         ],
+      },
+    ],
+  },
+  'git-gui': {
+    title: 'Top phần mềm Git GUI miễn phí tốt nhất 2026 cho Windows và macOS',
+    short: 'Phần mềm Git GUI',
+    description:
+      'So sánh các phần mềm Git GUI (Git client có giao diện) phổ biến nhất 2026: Thaigit, GitHub Desktop, Sourcetree, GitKraken, Fork, TortoiseGit — giá, hệ điều hành và nên chọn cái nào.',
+    intro: [
+      'Phần mềm Git GUI (còn gọi là Git client) giúp bạn dùng Git bằng chuột thay vì gõ lệnh: xem lịch sử commit dạng graph, commit, tạo nhánh, merge, pull, push chỉ bằng nút bấm. Bài này so sánh các phần mềm Git GUI phổ biến nhất hiện nay để bạn chọn đúng cái hợp với mình.',
+      'Giá và tính năng của các app có thể thay đổi theo thời gian — trước khi mua, hãy xem lại trang chủ của từng app.',
+    ],
+    sections: [
+      {
+        heading: 'Git GUI là gì? Có cần không?',
+        paragraphs: [
+          'Git vốn là công cụ dòng lệnh. Git GUI là lớp giao diện đặt lên trên: nó vẫn gọi đúng Git bên dưới, nhưng hiển thị nhánh, commit và thay đổi trực quan để bạn bấm thay vì nhớ lệnh.',
+          'Người mới đỡ sợ gõ sai lệnh; người làm lâu năm thì xem graph, stage từng dòng và giải conflict nhanh hơn. Vì mọi Git GUI dùng chung repo Git chuẩn, bạn vẫn có thể mở terminal làm song song bất cứ lúc nào.',
+        ],
+      },
+      {
+        heading: 'Bảng so sánh nhanh',
+        table: {
+          head: ['Phần mềm', 'Giá', 'Hệ điều hành', 'Hợp với'],
+          rows: [
+            [
+              'Thaigit',
+              'Miễn phí, không cần tài khoản',
+              'Windows 10 / 11, macOS 11+',
+              'Muốn làm Git bằng chuột, kéo & thả, giao diện tiếng Việt',
+            ],
+            ['GitHub Desktop', 'Miễn phí, mã nguồn mở', 'Windows, macOS', 'Người mới, chủ yếu dùng GitHub'],
+            ['Sourcetree', 'Miễn phí', 'Windows, macOS', 'Cần nhiều tuỳ chọn, dùng Bitbucket / Jira'],
+            [
+              'GitKraken Desktop',
+              'Miễn phí cho repo cục bộ và công khai; repo riêng tư cần gói trả phí',
+              'Windows, macOS, Linux',
+              'Nhóm cần tích hợp GitHub, GitLab, Jira',
+            ],
+            [
+              'Fork',
+              'Dùng thử miễn phí, bản quyền trả một lần',
+              'Windows, macOS',
+              'Muốn app nhanh, sẵn sàng trả phí',
+            ],
+            [
+              'TortoiseGit',
+              'Miễn phí, mã nguồn mở',
+              'Windows',
+              'Quen thao tác chuột phải trong File Explorer',
+            ],
+            [
+              'git-gui + gitk',
+              'Miễn phí, có sẵn trong Git',
+              'Windows, macOS, Linux',
+              'Thao tác cơ bản, không cài thêm',
+            ],
+          ],
+        },
+      },
+      {
+        heading: 'Thaigit — miễn phí, kéo & thả, giao diện tiếng Việt',
+        paragraphs: [
+          'Thaigit là Git GUI miễn phí cho Windows và macOS, không quảng cáo, không cần tài khoản và không giới hạn repo riêng tư. Đây là một trong số ít Git client có giao diện tiếng Việt (có cả tiếng Anh).',
+          'Điểm khác biệt là cách làm bằng chuột: kéo nhánh thả lên nhánh khác để merge hoặc rebase, kéo nhánh lên remote để push, bấm chọn từng dòng để stage, và giải conflict bằng vài cú bấm thay vì tự xoá dấu <<<<<<<. Graph lịch sử nhiều màu, mở repo 30.000 commit trong khoảng một giây, app tự cập nhật.',
+        ],
+        shot: 'drag',
+      },
+      {
+        heading: 'GitHub Desktop',
+        paragraphs: [
+          'Ứng dụng chính chủ của GitHub, miễn phí và mã nguồn mở. Rất dễ dùng cho người mới: clone, commit, tạo pull request đều gọn. Bù lại, lịch sử hiển thị dạng danh sách chứ không có graph nhánh, và nhiều thao tác nâng cao vẫn phải quay về terminal.',
+        ],
+      },
+      {
+        heading: 'Sourcetree',
+        paragraphs: [
+          'Git client miễn phí lâu đời của Atlassian, nhiều tính năng: graph, interactive rebase, Git-flow, submodule. Giao diện nhiều nút và tuỳ chọn nên người mới dễ rối, và nhiều người dùng phản ánh app chậm dần khi repo lớn.',
+        ],
+      },
+      {
+        heading: 'GitKraken Desktop',
+        paragraphs: [
+          'Graph đẹp, có kéo & thả, tích hợp sâu với GitHub, GitLab, Bitbucket, Azure DevOps và Jira, chạy được cả trên Linux. Bản miễn phí chỉ dùng với repo cục bộ và repo công khai; làm việc với repo riêng tư trên máy chủ cần gói trả phí.',
+        ],
+      },
+      {
+        heading: 'Fork, TortoiseGit và các lựa chọn khác',
+        steps: [
+          'Fork: nhanh, giao diện gọn, có bản dùng thử miễn phí và bản quyền trả một lần.',
+          'TortoiseGit: gắn vào menu chuột phải của File Explorer, chỉ có trên Windows.',
+          'Tower, Sublime Merge: mạnh nhưng trả phí.',
+          'SmartGit: miễn phí cho mục đích phi thương mại, dùng cho công việc thì trả phí.',
+          'VS Code, JetBrains: Git có sẵn trong trình soạn thảo, tiện cho thao tác nhanh nhưng khó xem toàn cảnh nhánh.',
+        ],
+      },
+      {
+        heading: 'Nên chọn phần mềm Git GUI nào?',
+        steps: [
+          'Mới học Git, muốn miễn phí hoàn toàn và có tiếng Việt: Thaigit.',
+          'Làm việc với repo riêng tư mà không muốn trả phí: Thaigit, GitHub Desktop hoặc Sourcetree.',
+          'Chỉ dùng GitHub và cần thật đơn giản: GitHub Desktop hoặc Thaigit.',
+          'Cần chạy trên Linux: GitKraken, SmartGit hoặc git-gui.',
+          'Cần tích hợp issue, pull request, Jira ngay trong app: GitKraken.',
+        ],
+        note: {
+          kind: 'tip',
+          text: 'Các Git GUI đều đọc chung một repo Git chuẩn, nên bạn có thể cài thử vài app trên cùng một repo rồi giữ lại cái thấy thuận tay nhất.',
+        },
+      },
+    ],
+    faq: [
+      {
+        q: 'Phần mềm Git GUI miễn phí nào tốt nhất?',
+        a: [
+          'Tuỳ nhu cầu. Muốn miễn phí hoàn toàn (kể cả repo riêng tư), không cần tài khoản và có giao diện tiếng Việt thì chọn Thaigit. Chỉ làm việc với GitHub và cần thật đơn giản thì GitHub Desktop cũng là lựa chọn tốt.',
+        ],
+      },
+      {
+        q: 'Có phần mềm Git GUI tiếng Việt không?',
+        a: [
+          'Có. Thaigit có giao diện tiếng Việt và tiếng Anh, chạy trên Windows 10 / 11 và macOS 11 trở lên.',
+        ],
+      },
+      {
+        q: 'Dùng Git GUI có cần biết lệnh Git không?',
+        a: [
+          'Không bắt buộc — các việc thường ngày đều có nút bấm. Nhưng hiểu commit, nhánh, merge là gì sẽ giúp bạn dùng tự tin hơn; các bài hướng dẫn của Thaigit giải thích từng khái niệm kèm lệnh tương ứng.',
+        ],
+      },
+      {
+        q: 'Git GUI có làm khác đi repo so với dùng lệnh không?',
+        a: [
+          'Không. Thaigit gọi thẳng git trên máy bạn, nên kết quả giống hệt khi gõ lệnh trong terminal — chỉ dễ nhìn và dễ bấm hơn.',
+        ],
+      },
+      {
+        q: 'Có cần cài Git trước khi dùng Git GUI không?',
+        a: [
+          'Một số app kèm sẵn Git riêng. Thaigit dùng Git đã cài trên máy: macOS chạy xcode-select --install, Windows cài Git for Windows — xem bài Cài đặt Git.',
+        ],
+      },
+    ],
+  },
+  'alt-sourcetree': {
+    title: 'Phần mềm thay thế Sourcetree miễn phí cho Windows và macOS',
+    short: 'Thay thế Sourcetree',
+    description:
+      'Tìm phần mềm thay thế Sourcetree? So sánh Thaigit và Sourcetree: kéo & thả để merge, stage từng dòng, giải conflict, giao diện tiếng Việt — và cách chuyển sang trong một phút.',
+    intro: [
+      'Sourcetree là Git client miễn phí lâu đời của Atlassian và vẫn được nhiều người dùng. Nếu bạn thấy Sourcetree quá nhiều nút, chậm với repo lớn, hoặc chỉ muốn một giao diện tiếng Việt gọn gàng hơn, Thaigit là lựa chọn miễn phí đáng thử.',
+    ],
+    sections: [
+      {
+        heading: 'Thaigit và Sourcetree khác nhau thế nào?',
+        table: {
+          head: ['Tiêu chí', 'Thaigit', 'Sourcetree'],
+          rows: [
+            ['Giá', 'Miễn phí, không quảng cáo', 'Miễn phí'],
+            ['Hệ điều hành', 'Windows 10 / 11, macOS 11+', 'Windows, macOS'],
+            [
+              'Merge, rebase, push',
+              'Kéo nhánh thả lên nhánh / remote, luôn hỏi lại',
+              'Qua menu và hộp thoại',
+            ],
+            ['Stage từng dòng', 'Bấm chọn dòng, Shift để chọn liên tiếp', 'Theo hunk hoặc theo dòng'],
+            [
+              'Giải conflict',
+              'Trình giải xung đột có sẵn, chọn từng khối',
+              'Chọn cả file theo một bên hoặc mở công cụ merge ngoài',
+            ],
+            ['Git-flow', 'Chưa có mục riêng', 'Có'],
+          ],
+        },
+      },
+      {
+        heading: 'Vì sao nhiều người tìm cách thay Sourcetree',
+        paragraphs: [
+          'Sourcetree mạnh nhưng nhồi nhiều tuỳ chọn lên cùng một màn hình, người mới dễ bấm nhầm. Nhiều người dùng cũng phản ánh app chậm dần khi repo có lịch sử dài.',
+          'Thaigit đi theo hướng ngược lại: ít nút hơn, việc thường ngày làm bằng kéo & thả, mọi thao tác có hộp thoại hỏi lại và có nút hoàn tác. Repo 30.000 commit mở trong khoảng một giây.',
+        ],
+        shot: 'drag',
+      },
+      {
+        heading: 'Chuyển từ Sourcetree sang Thaigit',
+        steps: [
+          'Tải Thaigit cho Windows hoặc macOS (miễn phí, không cần tài khoản).',
+          'Mở đúng thư mục repo bạn đang dùng với Sourcetree — không cần import, không mất lịch sử, nhánh hay stash.',
+          'Remote, nhánh và tag hiện ra ngay trên graph và sidebar.',
+          'Thaigit dùng chính git trên máy nên khoá SSH và thông tin đăng nhập đã cấu hình cho git vẫn dùng được.',
+        ],
+        note: {
+          kind: 'tip',
+          text: 'Bạn có thể giữ Sourcetree và dùng song song một thời gian — hai app cùng đọc một repo Git chuẩn.',
+        },
+      },
+    ],
+    faq: [
+      {
+        q: 'Chuyển sang Thaigit có mất lịch sử commit không?',
+        a: [
+          'Không. Lịch sử, nhánh, tag và stash nằm trong chính repo Git, Thaigit chỉ đọc và hiển thị chúng.',
+        ],
+      },
+      {
+        q: 'Thaigit có miễn phí như Sourcetree không?',
+        a: ['Có. Thaigit miễn phí, không quảng cáo, không cần tài khoản và không giới hạn repo riêng tư.'],
+      },
+    ],
+  },
+  'alt-github-desktop': {
+    title: 'Phần mềm thay thế GitHub Desktop: có graph nhánh, kéo & thả để merge',
+    short: 'Thay thế GitHub Desktop',
+    description:
+      'So sánh Thaigit và GitHub Desktop: graph lịch sử nhiều màu, kéo & thả để merge / rebase / push, giải conflict ngay trong app, giao diện tiếng Việt — miễn phí cho Windows và macOS.',
+    intro: [
+      'GitHub Desktop đơn giản và miễn phí, rất hợp lúc mới học Git. Khi dự án có nhiều nhánh, bạn sẽ muốn nhìn thấy các nhánh tách ra, nhập lại thế nào và merge nhanh hơn — đó là lúc nên thử một Git GUI có graph như Thaigit.',
+    ],
+    sections: [
+      {
+        heading: 'Thaigit và GitHub Desktop khác nhau thế nào?',
+        table: {
+          head: ['Tiêu chí', 'Thaigit', 'GitHub Desktop'],
+          rows: [
+            ['Giá', 'Miễn phí', 'Miễn phí, mã nguồn mở'],
+            ['Graph lịch sử', 'Graph nhiều màu, thấy mọi nhánh', 'Danh sách commit của nhánh hiện tại'],
+            ['Merge, rebase, push', 'Kéo & thả trên graph hoặc sidebar', 'Qua menu Branch'],
+            ['Stage từng dòng', 'Có', 'Có'],
+            [
+              'Giải conflict',
+              'Trình giải xung đột ngay trong app',
+              'Chọn cả file theo một bên hoặc mở trình soạn thảo',
+            ],
+            ['Dịch vụ remote', 'GitHub, GitLab, Bitbucket, máy chủ Git bất kỳ', 'Tối ưu cho GitHub'],
+            ['Giao diện tiếng Việt', 'Có', 'Không'],
+          ],
+        },
+      },
+      {
+        heading: 'Thấy toàn cảnh nhánh bằng graph',
+        paragraphs: [
+          'Graph của Thaigit vẽ mỗi nhánh một màu, nên bạn thấy ngay nhánh nào tách từ đâu, đã merge chưa, đang đứng ở commit nào. Nhấn ⌘B / Ctrl+B để tìm và chuyển nhánh trong một giây.',
+        ],
+        shot: 'overview-dark',
+      },
+      {
+        heading: 'Chuyển từ GitHub Desktop sang Thaigit',
+        steps: [
+          'Tải Thaigit cho Windows hoặc macOS.',
+          'Mở thư mục repo bạn đã clone bằng GitHub Desktop — không cần clone lại.',
+          'Pull, push, tạo nhánh như cũ, chỉ khác là làm được bằng kéo & thả.',
+        ],
+        note: {
+          kind: 'tip',
+          text: 'Thaigit dùng git trên máy. Nếu trước giờ chỉ dùng GitHub Desktop, hãy cài Git (xem bài Cài đặt Git) và tạo khoá SSH hoặc token để push lên GitHub.',
+        },
+      },
+    ],
+    faq: [
+      {
+        q: 'Thaigit có dùng được với GitHub không?',
+        a: [
+          'Có. Thaigit làm việc với mọi remote Git: GitHub, GitLab, Bitbucket hay máy chủ riêng của công ty.',
+        ],
+      },
+      {
+        q: 'Có thể dùng cả GitHub Desktop và Thaigit không?',
+        a: ['Được. Hai app cùng đọc một repo Git chuẩn, bạn dùng song song thoải mái.'],
+      },
+    ],
+  },
+  'alt-gitkraken': {
+    title: 'Phần mềm thay thế GitKraken miễn phí, dùng được cả repo riêng tư',
+    short: 'Thay thế GitKraken',
+    description:
+      'So sánh Thaigit và GitKraken Desktop: graph nhiều màu, kéo & thả để merge — miễn phí cả với repo riêng tư, không cần tài khoản, giao diện tiếng Việt cho Windows và macOS.',
+    intro: [
+      'GitKraken nổi tiếng với graph đẹp và kéo & thả, nhưng bản miễn phí chỉ dùng với repo cục bộ và repo công khai. Nếu bạn cần làm việc với repo riêng tư mà không muốn trả phí hằng tháng, Thaigit có cách làm tương tự và miễn phí hoàn toàn.',
+    ],
+    sections: [
+      {
+        heading: 'Thaigit và GitKraken khác nhau thế nào?',
+        table: {
+          head: ['Tiêu chí', 'Thaigit', 'GitKraken Desktop'],
+          rows: [
+            [
+              'Giá',
+              'Miễn phí, kể cả repo riêng tư',
+              'Miễn phí cho repo cục bộ và công khai; repo riêng tư cần gói trả phí',
+            ],
+            ['Hệ điều hành', 'Windows 10 / 11, macOS 11+', 'Windows, macOS, Linux'],
+            ['Graph nhiều màu', 'Có', 'Có'],
+            ['Kéo & thả để merge, rebase, push', 'Có', 'Có'],
+            ['Tích hợp issue, pull request, Jira', 'Chưa có', 'Có'],
+          ],
+        },
+      },
+      {
+        heading: 'Kéo & thả như GitKraken, nhưng miễn phí',
+        paragraphs: [
+          'Trong Thaigit, kéo nhãn nhánh trên graph rồi thả lên nhánh khác để merge, rebase hoặc fast-forward; thả lên remote để push. Luôn có hộp thoại hỏi lại, không có gì chạy ngầm ngoài ý muốn.',
+        ],
+        shot: 'drag',
+      },
+      {
+        heading: 'Khi nào GitKraken vẫn hợp hơn?',
+        paragraphs: [
+          'Nếu nhóm bạn cần xem issue, pull request và Jira ngay trong Git client, hoặc phải chạy trên Linux, GitKraken vẫn là lựa chọn mạnh. Còn nếu chủ yếu commit, tạo nhánh, merge và giải conflict, Thaigit đủ dùng mà không tốn phí.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Thaigit có giới hạn repo riêng tư không?',
+        a: [
+          'Không. Thaigit miễn phí với mọi repo, riêng tư hay công khai, trên GitHub, GitLab, Bitbucket hay máy chủ riêng.',
+        ],
+      },
+      {
+        q: 'Có cần tạo tài khoản để dùng Thaigit không?',
+        a: ['Không cần. Tải về, mở repo là dùng được ngay.'],
       },
     ],
   },

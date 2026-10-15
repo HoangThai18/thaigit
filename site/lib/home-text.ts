@@ -39,9 +39,9 @@ interface HomeText {
 const vi: HomeText = {
   hero: {
     eyebrow: 'Miễn phí · Không cần tài khoản',
-    titleLine: 'Git trực quan, làm bằng chuột.',
+    titleLine: 'Phần mềm Git GUI trực quan, làm bằng chuột.',
     titleGradient: 'Miễn phí, nhẹ, dễ dùng.',
-    lead: 'Thaigit giúp bạn làm việc với Git bằng chuột: graph lịch sử nhiều màu, kéo nhánh thả lên nhánh để merge, stage từng dòng, giải conflict trong vài cú bấm — không cần nhớ lệnh.',
+    lead: 'Thaigit là Git client miễn phí giúp bạn làm việc với Git bằng chuột: graph lịch sử nhiều màu, kéo nhánh thả lên nhánh để merge, stage từng dòng, giải conflict trong vài cú bấm — không cần nhớ lệnh.',
     checks: ['macOS 11+ · Windows 10 / 11', 'Tự cập nhật', 'Giao diện tiếng Việt', 'Sáng / tối'],
     badges: { drag: 'Kéo & thả để merge', switch: 'Tìm & chuyển nhánh', stage: 'Stage từng dòng' },
     stats: [
@@ -99,7 +99,7 @@ const vi: HomeText = {
   faq: { kicker: 'Hỏi đáp', title: 'Câu hỏi thường gặp' },
   english: {
     title: 'In English',
-    text: 'Thaigit is a free, visual Git GUI with a Liquid Glass look: a colorful commit graph, drag-and-drop to merge, rebase or push, line-by-line staging and a friendly conflict resolver. The native macOS app updates itself from GitHub Releases. The Windows app (Tauri 2, Windows 10/11) also updates itself. The macOS UI is Vietnamese; Windows offers Vietnamese and English.',
+    text: 'Thaigit is a free, visual Git GUI with a Liquid Glass look: a colorful commit graph, drag-and-drop to merge, rebase or push, line-by-line staging and a friendly conflict resolver. It runs on Windows 10/11 and macOS 11+, updates itself, and offers both Vietnamese and English interfaces.',
   },
   finalCta: {
     title: 'Làm việc với Git nhẹ nhàng hơn từ hôm nay',
@@ -111,7 +111,7 @@ const vi: HomeText = {
 const en: HomeText = {
   hero: {
     eyebrow: 'Free · No account needed',
-    titleLine: 'Visual Git, driven by your mouse.',
+    titleLine: 'A visual Git GUI, driven by your mouse.',
     titleGradient: 'Free, light, easy to use.',
     lead: 'Thaigit lets you work with Git using the mouse: a colorful history graph, drag one branch onto another to merge, stage single lines, resolve conflicts in a few clicks — no commands to memorize.',
     checks: ['macOS 11+ · Windows 10 / 11', 'Self-updating', 'Vietnamese & English UI', 'Light / dark'],

@@ -86,6 +86,36 @@ export function GuidePage({ lang, guide }: { lang: Lang; guide: Guide }) {
                   ))}
                 </ol>
               )}
+              {section.table && (
+                <div className="guide-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        {section.table.head.map((cell, col) => (
+                          <th key={col} scope="col">
+                            {cell}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {section.table.rows.map((row, rowIndex) => (
+                        <tr key={rowIndex}>
+                          {row.map((cell, col) =>
+                            col === 0 ? (
+                              <th key={col} scope="row">
+                                {cell}
+                              </th>
+                            ) : (
+                              <td key={col}>{cell}</td>
+                            ),
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               {section.sample && <pre className="code-sample">{section.sample.join('\n')}</pre>}
               {section.code && <CopyCode code={section.code.join('\n')} />}
               {section.note && (

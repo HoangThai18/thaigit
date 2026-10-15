@@ -320,28 +320,48 @@ export const GUIDES_EN: Record<string, GuideText> = {
     ],
   },
   install: {
-    title: 'Install Git on macOS and Windows — a beginner’s guide',
+    title: 'How to install Git on Windows 10 / 11 and macOS (with Git Bash)',
     short: 'Install Git',
     description:
-      'How to install Git on macOS (xcode-select) and Windows (Git for Windows), set your name and email, then open or clone your first repository with Thaigit.',
+      'Download and install Git on Windows 10 / 11 (Git for Windows, Git Bash) and macOS (xcode-select or Homebrew), check git --version, set your name and email, then open your first repository.',
     intro: [
-      'To use any Git client your machine needs Git first. Installing takes a few minutes and you only do it once.',
+      'To use any Git tool — command line or Git GUI — your machine needs Git first. Installing takes a few minutes and you only do it once.',
     ],
     sections: [
       {
-        heading: 'macOS',
+        heading: 'Check whether Git is already installed',
         paragraphs: [
-          'Open Terminal and run the command below. macOS will offer to install the Command Line Tools — click Install. When it finishes, check with git --version.',
+          'Open Terminal (macOS) or PowerShell (Windows) and run the command below. If it prints a version such as git version 2.4x, Git is already there and you can skip the install.',
         ],
-        code: ['xcode-select --install', 'git --version'],
+        code: ['git --version'],
       },
       {
-        heading: 'Windows',
+        heading: 'Install Git on Windows 10 / 11',
         steps: [
-          'Download Git for Windows from git-scm.com/download/win.',
-          'Run the installer; the default options are fine.',
-          'Open PowerShell or Git Bash and run git --version to check.',
+          'Download Git for Windows from git-scm.com/download/win — the official page; the 64-bit build suits most machines.',
+          'Run the downloaded .exe. The default options are fine; at the editor step you can pick Visual Studio Code if you use it.',
+          'When it finishes, open PowerShell or Git Bash and run git --version to check.',
         ],
+        code: ['winget install --id Git.Git -e', 'git --version'],
+        note: {
+          kind: 'tip',
+          text: 'Have winget (built into recent Windows 10 / 11)? The winget command above installs Git in one line.',
+        },
+      },
+      {
+        heading: 'What is Git Bash?',
+        paragraphs: [
+          'Git Bash comes with Git for Windows: a command window like the Linux / macOS terminal, with git, ls, cat, ssh-keygen and more. Many online tutorials are written for Bash, so they work as-is in Git Bash.',
+          'Not a fan of typing commands? You don’t have to open Git Bash at all — a Git GUI such as Thaigit uses the installed Git and lets you do everything with the mouse.',
+        ],
+      },
+      {
+        heading: 'Install Git on macOS',
+        paragraphs: [
+          'The easiest way: open Terminal and run xcode-select. macOS offers to install the Command Line Tools — click Install, wait a few minutes, then check with git --version.',
+          'If you use Homebrew, brew install git gets you the latest Git.',
+        ],
+        code: ['xcode-select --install', 'git --version', '# or, with Homebrew:', 'brew install git'],
       },
       {
         heading: 'Set your name and email',
@@ -368,6 +388,16 @@ export const GUIDES_EN: Record<string, GuideText> = {
       },
     ],
     faq: [
+      {
+        q: 'Where is it safe to download Git?',
+        a: [
+          'From the official site git-scm.com (Windows: git-scm.com/download/win). On macOS, Git comes with Apple’s Command Line Tools or via Homebrew. Avoid third-party download sites.',
+        ],
+      },
+      {
+        q: 'Is installing Git different on Windows 10 and Windows 11?',
+        a: ['No. It is the same Git for Windows installer with the same steps.'],
+      },
       {
         q: 'Do I need a GitHub account to use Git?',
         a: [
@@ -682,6 +712,312 @@ export const GUIDES_EN: Record<string, GuideText> = {
         a: [
           'SSH is handier long term because you do not re-enter anything. HTTPS with a token is easier to start with, especially on a borrowed machine or behind a firewall that blocks port 22.',
         ],
+      },
+    ],
+  },
+  'git-gui': {
+    title: 'The best free Git GUI clients in 2026 for Windows and macOS',
+    short: 'Best Git GUI',
+    description:
+      'A comparison of the most popular Git GUI clients in 2026 — Thaigit, GitHub Desktop, Sourcetree, GitKraken, Fork, TortoiseGit: price, platforms and which one to pick.',
+    intro: [
+      'A Git GUI (or Git client) lets you use Git with the mouse instead of typing commands: see your commit history as a graph, commit, branch, merge, pull and push with buttons. This guide compares the most popular Git GUIs so you can pick the right one.',
+      'Prices and features of these apps change over time — check each app’s website before you buy.',
+    ],
+    sections: [
+      {
+        heading: 'What is a Git GUI, and do you need one?',
+        paragraphs: [
+          'Git is a command-line tool. A Git GUI is a layer on top: it still runs real Git underneath, but shows branches, commits and changes visually so you click instead of memorizing commands.',
+          'Beginners worry less about typos; experienced users read the graph, stage single lines and resolve conflicts faster. Every Git GUI works on a standard Git repository, so you can still use the terminal side by side whenever you like.',
+        ],
+      },
+      {
+        heading: 'Quick comparison',
+        table: {
+          head: ['Client', 'Price', 'Platforms', 'Best for'],
+          rows: [
+            [
+              'Thaigit',
+              'Free, no account needed',
+              'Windows 10 / 11, macOS 11+',
+              'Doing Git with the mouse, drag & drop, Vietnamese or English UI',
+            ],
+            ['GitHub Desktop', 'Free, open source', 'Windows, macOS', 'Beginners who mostly use GitHub'],
+            ['Sourcetree', 'Free', 'Windows, macOS', 'Lots of options, Bitbucket / Jira users'],
+            [
+              'GitKraken Desktop',
+              'Free for local and public repos; private repos need a paid plan',
+              'Windows, macOS, Linux',
+              'Teams that want GitHub, GitLab and Jira integrations',
+            ],
+            [
+              'Fork',
+              'Free evaluation, one-time license',
+              'Windows, macOS',
+              'A fast app, if you don’t mind paying',
+            ],
+            ['TortoiseGit', 'Free, open source', 'Windows', 'Right-click workflows in File Explorer'],
+            [
+              'git-gui + gitk',
+              'Free, ships with Git',
+              'Windows, macOS, Linux',
+              'Basic tasks, nothing extra to install',
+            ],
+          ],
+        },
+      },
+      {
+        heading: 'Thaigit — free, drag & drop',
+        paragraphs: [
+          'Thaigit is a free Git GUI for Windows and macOS: no ads, no account, no limit on private repositories, with a Vietnamese and English interface.',
+          'What sets it apart is working with the mouse: drag a branch onto another to merge or rebase, drag it onto a remote to push, click lines to stage them, and resolve conflicts in a few clicks instead of deleting <<<<<<< markers by hand. A colorful history graph opens a 30,000-commit repo in about a second, and the app updates itself.',
+        ],
+        shot: 'drag',
+      },
+      {
+        heading: 'GitHub Desktop',
+        paragraphs: [
+          'GitHub’s own app, free and open source. Very approachable for beginners: cloning, committing and opening pull requests are all simple. On the other hand, history is a list rather than a branch graph, and many advanced tasks still send you back to the terminal.',
+        ],
+      },
+      {
+        heading: 'Sourcetree',
+        paragraphs: [
+          'Atlassian’s long-standing free Git client with plenty of features: a graph, interactive rebase, Git-flow, submodules. The interface packs many buttons and options, which can overwhelm beginners, and many users report it slowing down on large repositories.',
+        ],
+      },
+      {
+        heading: 'GitKraken Desktop',
+        paragraphs: [
+          'A good-looking graph, drag & drop, deep integrations with GitHub, GitLab, Bitbucket, Azure DevOps and Jira, and Linux support. The free plan only covers local and public repositories; working with private hosted repositories needs a paid plan.',
+        ],
+      },
+      {
+        heading: 'Fork, TortoiseGit and other options',
+        steps: [
+          'Fork: fast and tidy, with a free evaluation and a one-time license.',
+          'TortoiseGit: lives in the File Explorer right-click menu, Windows only.',
+          'Tower, Sublime Merge: powerful but paid.',
+          'SmartGit: free for non-commercial use, paid for work.',
+          'VS Code, JetBrains: Git built into the editor — handy for quick tasks, harder for seeing the whole branch picture.',
+        ],
+      },
+      {
+        heading: 'Which Git GUI should you choose?',
+        steps: [
+          'New to Git and want something completely free: Thaigit.',
+          'Private repositories without paying: Thaigit, GitHub Desktop or Sourcetree.',
+          'Only GitHub, and as simple as possible: GitHub Desktop or Thaigit.',
+          'Need Linux: GitKraken, SmartGit or git-gui.',
+          'Need issues, pull requests and Jira inside the client: GitKraken.',
+        ],
+        note: {
+          kind: 'tip',
+          text: 'Git GUIs all read the same standard Git repository, so you can try a few on one repo and keep whichever feels best.',
+        },
+      },
+    ],
+    faq: [
+      {
+        q: 'What is the best free Git GUI?',
+        a: [
+          'It depends on your needs. If you want something completely free (private repos included) with no account, Thaigit is a good fit. If you only work with GitHub and want maximum simplicity, GitHub Desktop is also a solid choice.',
+        ],
+      },
+      {
+        q: 'Do I need to know Git commands to use a Git GUI?',
+        a: [
+          'Not strictly — everyday tasks are buttons. Understanding commits, branches and merges does make you more confident; Thaigit’s guides explain each concept with the matching command.',
+        ],
+      },
+      {
+        q: 'Does a Git GUI change my repository differently from the command line?',
+        a: [
+          'No. Thaigit calls the real git on your machine, so results are identical to the terminal — just easier to see and click.',
+        ],
+      },
+      {
+        q: 'Do I need to install Git before using a Git GUI?',
+        a: [
+          'Some apps bundle their own Git. Thaigit uses the Git installed on your machine: run xcode-select --install on macOS, or install Git for Windows — see the Install Git guide.',
+        ],
+      },
+    ],
+  },
+  'alt-sourcetree': {
+    title: 'A free Sourcetree alternative for Windows and macOS',
+    short: 'Sourcetree alternative',
+    description:
+      'Looking for a Sourcetree alternative? Thaigit vs Sourcetree: drag & drop to merge, line-by-line staging, built-in conflict resolver — and how to switch in a minute.',
+    intro: [
+      'Sourcetree is Atlassian’s long-standing free Git client and still widely used. If it feels too busy, slows down on large repositories, or you simply want a cleaner interface, Thaigit is a free alternative worth trying.',
+    ],
+    sections: [
+      {
+        heading: 'Thaigit vs Sourcetree',
+        table: {
+          head: ['', 'Thaigit', 'Sourcetree'],
+          rows: [
+            ['Price', 'Free, no ads', 'Free'],
+            ['Platforms', 'Windows 10 / 11, macOS 11+', 'Windows, macOS'],
+            [
+              'Merge, rebase, push',
+              'Drag a branch onto a branch / remote, always confirmed',
+              'Menus and dialogs',
+            ],
+            ['Line staging', 'Click lines, Shift-click for a range', 'By hunk or by line'],
+            [
+              'Conflicts',
+              'Built-in resolver, block by block',
+              'Pick one side for the whole file or open an external merge tool',
+            ],
+            ['Git-flow', 'No dedicated menu yet', 'Yes'],
+          ],
+        },
+      },
+      {
+        heading: 'Why people look for a Sourcetree alternative',
+        paragraphs: [
+          'Sourcetree is capable, but it puts a lot of options on one screen and beginners click the wrong thing. Many users also report it slowing down on repositories with long histories.',
+          'Thaigit goes the other way: fewer buttons, everyday tasks by drag & drop, a confirmation for every action and an undo button. A 30,000-commit repository opens in about a second.',
+        ],
+        shot: 'drag',
+      },
+      {
+        heading: 'Switching from Sourcetree to Thaigit',
+        steps: [
+          'Download Thaigit for Windows or macOS (free, no account needed).',
+          'Open the same repository folder you use with Sourcetree — no import, nothing lost: history, branches and stashes stay put.',
+          'Remotes, branches and tags appear right away in the graph and sidebar.',
+          'Thaigit uses the git on your machine, so SSH keys and credentials already configured for git keep working.',
+        ],
+        note: {
+          kind: 'tip',
+          text: 'You can keep Sourcetree and use both for a while — they read the same standard Git repository.',
+        },
+      },
+    ],
+    faq: [
+      {
+        q: 'Will I lose my commit history if I switch?',
+        a: [
+          'No. History, branches, tags and stashes live in the Git repository itself; Thaigit just reads and shows them.',
+        ],
+      },
+      {
+        q: 'Is Thaigit free like Sourcetree?',
+        a: ['Yes. Thaigit is free, with no ads, no account and no limit on private repositories.'],
+      },
+    ],
+  },
+  'alt-github-desktop': {
+    title: 'A GitHub Desktop alternative with a branch graph and drag & drop',
+    short: 'GitHub Desktop alternative',
+    description:
+      'Thaigit vs GitHub Desktop: a colorful history graph, drag & drop to merge / rebase / push, a built-in conflict resolver — free for Windows and macOS.',
+    intro: [
+      'GitHub Desktop is simple and free, great when you are learning Git. Once a project has many branches you will want to see where they split and join, and merge faster — that is when a Git GUI with a graph like Thaigit helps.',
+    ],
+    sections: [
+      {
+        heading: 'Thaigit vs GitHub Desktop',
+        table: {
+          head: ['', 'Thaigit', 'GitHub Desktop'],
+          rows: [
+            ['Price', 'Free', 'Free, open source'],
+            ['History', 'Colorful graph of every branch', 'Commit list of the current branch'],
+            ['Merge, rebase, push', 'Drag & drop on the graph or sidebar', 'Branch menu'],
+            ['Line staging', 'Yes', 'Yes'],
+            ['Conflicts', 'Built-in resolver', 'Pick one side for the whole file or open your editor'],
+            ['Remotes', 'GitHub, GitLab, Bitbucket, any Git server', 'Optimized for GitHub'],
+            ['Interface language', 'English and Vietnamese', 'English'],
+          ],
+        },
+      },
+      {
+        heading: 'See the whole branch picture',
+        paragraphs: [
+          'Thaigit draws every branch in its own color, so you can see at a glance where a branch came from, whether it was merged, and which commit you are on. Press ⌘B / Ctrl+B to find and switch branches in a second.',
+        ],
+        shot: 'overview-dark',
+      },
+      {
+        heading: 'Switching from GitHub Desktop to Thaigit',
+        steps: [
+          'Download Thaigit for Windows or macOS.',
+          'Open the repository folder you cloned with GitHub Desktop — no need to clone again.',
+          'Pull, push and branch as before, now with drag & drop.',
+        ],
+        note: {
+          kind: 'tip',
+          text: 'Thaigit uses the git on your machine. If you have only used GitHub Desktop so far, install Git (see the Install Git guide) and set up an SSH key or token to push to GitHub.',
+        },
+      },
+    ],
+    faq: [
+      {
+        q: 'Does Thaigit work with GitHub?',
+        a: [
+          'Yes. Thaigit works with any Git remote: GitHub, GitLab, Bitbucket or your company’s own server.',
+        ],
+      },
+      {
+        q: 'Can I use GitHub Desktop and Thaigit together?',
+        a: ['Yes. Both read the same standard Git repository, so you can use them side by side.'],
+      },
+    ],
+  },
+  'alt-gitkraken': {
+    title: 'A free GitKraken alternative that works with private repositories',
+    short: 'GitKraken alternative',
+    description:
+      'Thaigit vs GitKraken Desktop: a colorful graph and drag & drop to merge — free even for private repositories, no account needed, for Windows and macOS.',
+    intro: [
+      'GitKraken is known for its graph and drag & drop, but the free plan only covers local and public repositories. If you work with private repositories and don’t want a monthly fee, Thaigit works in a similar way and is completely free.',
+    ],
+    sections: [
+      {
+        heading: 'Thaigit vs GitKraken',
+        table: {
+          head: ['', 'Thaigit', 'GitKraken Desktop'],
+          rows: [
+            [
+              'Price',
+              'Free, private repos included',
+              'Free for local and public repos; private repos need a paid plan',
+            ],
+            ['Platforms', 'Windows 10 / 11, macOS 11+', 'Windows, macOS, Linux'],
+            ['Colorful graph', 'Yes', 'Yes'],
+            ['Drag & drop to merge, rebase, push', 'Yes', 'Yes'],
+            ['Issues, pull requests, Jira', 'Not yet', 'Yes'],
+          ],
+        },
+      },
+      {
+        heading: 'Drag & drop like GitKraken, for free',
+        paragraphs: [
+          'In Thaigit, drag a branch label on the graph and drop it onto another branch to merge, rebase or fast-forward; drop it onto a remote to push. There is always a confirmation, nothing runs behind your back.',
+        ],
+        shot: 'drag',
+      },
+      {
+        heading: 'When GitKraken is still the better fit',
+        paragraphs: [
+          'If your team needs issues, pull requests and Jira inside the Git client, or you must run on Linux, GitKraken remains a strong choice. If you mostly commit, branch, merge and resolve conflicts, Thaigit covers it at no cost.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Does Thaigit limit private repositories?',
+        a: [
+          'No. Thaigit is free for every repository, private or public, on GitHub, GitLab, Bitbucket or your own server.',
+        ],
+      },
+      {
+        q: 'Do I need an account to use Thaigit?',
+        a: ['No. Download it, open a repository and you are ready to go.'],
       },
     ],
   },

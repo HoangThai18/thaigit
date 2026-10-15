@@ -29,6 +29,10 @@ export const GUIDE_SLUGS: Record<string, Record<Lang, string>> = {
   'fetch-pull': { vi: 'pull-va-fetch', en: 'fetch-vs-pull' },
   tag: { vi: 'git-tag', en: 'git-tag' },
   ssh: { vi: 'khoa-ssh-github', en: 'ssh-key-github' },
+  'git-gui': { vi: 'phan-mem-git-gui', en: 'best-git-gui' },
+  'alt-sourcetree': { vi: 'thay-the-sourcetree', en: 'sourcetree-alternative' },
+  'alt-github-desktop': { vi: 'thay-the-github-desktop', en: 'github-desktop-alternative' },
+  'alt-gitkraken': { vi: 'thay-the-gitkraken', en: 'gitkraken-alternative' },
 };
 
 export function langOfPath(pathname: string): Lang {

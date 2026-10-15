@@ -5,12 +5,18 @@ export interface GuideNote {
   text: string;
 }
 
+export interface GuideTable {
+  head: string[];
+  rows: string[][];
+}
+
 export interface GuideSection {
   heading: string;
   paragraphs?: string[];
   steps?: string[];
   code?: string[];
   sample?: string[];
+  table?: GuideTable;
   note?: GuideNote;
   shot?: import('./shots').ShotName;
 }

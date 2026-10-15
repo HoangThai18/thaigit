@@ -22,7 +22,17 @@ const VIOLET: [string, string] = ['#a17bf7', '#7447e0'];
 const CYAN: [string, string] = ['#21b8cf', '#0b8fa5'];
 const AMBER: [string, string] = ['#f7b53b', '#dd8a0c'];
 
+const CHOOSE = { vi: 'Chọn phần mềm', en: 'Choosing a client' };
+
 export const GUIDES: Guide[] = [
+  {
+    id: 'git-gui',
+    tag: CHOOSE,
+    accent: VIOLET,
+    cover: 'overview',
+    minutes: 7,
+    updated: '2026-10-15',
+  },
   {
     id: 'conflict',
     tag: { vi: 'Xung đột', en: 'Conflicts' },
@@ -68,8 +78,8 @@ export const GUIDES: Guide[] = [
     tag: { vi: 'Bắt đầu', en: 'Getting started' },
     accent: CYAN,
     cover: 'welcome',
-    minutes: 4,
-    updated: '2026-10-05',
+    minutes: 5,
+    updated: '2026-10-15',
   },
   {
     id: 'cherry-pick',
@@ -110,6 +120,30 @@ export const GUIDES: Guide[] = [
     cover: 'welcome',
     minutes: 5,
     updated: '2026-10-05',
+  },
+  {
+    id: 'alt-sourcetree',
+    tag: CHOOSE,
+    accent: BLUE,
+    cover: 'drag',
+    minutes: 3,
+    updated: '2026-10-15',
+  },
+  {
+    id: 'alt-github-desktop',
+    tag: CHOOSE,
+    accent: GREEN,
+    cover: 'overview-dark',
+    minutes: 3,
+    updated: '2026-10-15',
+  },
+  {
+    id: 'alt-gitkraken',
+    tag: CHOOSE,
+    accent: ORANGE,
+    cover: 'switch',
+    minutes: 3,
+    updated: '2026-10-15',
   },
 ];
 
