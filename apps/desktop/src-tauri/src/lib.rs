@@ -336,7 +336,9 @@ mod contract_tests {
             for forbidden in ["shell", "fs:", "dialog", "opener", "http", "process", "core:default", "webview:allow-create", "window:allow-create"] {
                 assert!(!permission.contains(forbidden), "capability không được cấp `{permission}`");
             }
-            assert!(permission.starts_with("allow-") || permission.starts_with("core:event:") || permission == "core:window:allow-start-dragging", "{permission}");
+            // The two window permissions back `data-tauri-drag-region`: drag to move, double-click to zoom (macOS) / maximize.
+            let drag_region = ["core:window:allow-start-dragging", "core:window:allow-internal-toggle-maximize"];
+            assert!(permission.starts_with("allow-") || permission.starts_with("core:event:") || drag_region.contains(&permission), "{permission}");
         }
         assert_eq!(json["windows"], serde_json::json!(["main", "repo-*"]));
     }
