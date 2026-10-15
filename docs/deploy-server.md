@@ -9,6 +9,7 @@
 | `POST /v1/telemetry/ping` | thống kê ẩn danh — chỉ máy nào bật trong Cài đặt |
 | `GET /download/mac`, `/download/win` | ghi một lượt tải (IP, fingerprint trình duyệt `?fp=`, User-Agent; xoá sau 90 ngày) rồi chuyển tới file trên GitHub Releases |
 | `GET /v1/stats/downloads` | `{total, mac, win}` — tổng lượt tải công khai (bỏ bot / curl) cho bộ đếm trên trang chủ |
+| `GET /v1/admin/downloads?days=30` | nhật ký lượt tải (IP, fingerprint, User-Agent, theo ngày) cho trang admin thaipro.store → Lượt tải; cần `Authorization: Bearer <ADMIN_API_TOKEN>`, không đặt token thì đường này không tồn tại |
 | `GET /healthz` | `{api, db, ai}` |
 | `http://127.0.0.1:8788/` | trang admin **chỉ-đọc**, không ra Internet |
 

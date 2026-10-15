@@ -287,4 +287,39 @@ describe('thống kê và lượt tải', () => {
     expect(response.headers.get('cache-control')).toBe('public, max-age=300');
     expect(await response.json()).toEqual({ total: 3, mac: 1, win: 2 });
   });
+
+  it('admin/downloads: chỉ trả nhật ký khi đúng token, không cấu hình token thì như không có', async () => {
+    const token = 'd'.repeat(40);
+    const { app } = setup({
+      config: testConfig({ ADMIN_API_TOKEN: token }),
+      now: () => Date.parse('2026-10-15T05:00:00Z'),
+    });
+    const fp = '0123456789abcdef0123456789abcdef';
+    await app.request(`/download/mac?fp=${fp}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh)', 'x-test-peer': '203.0.113.9' },
+    });
+    await app.request('/download/win', { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0)' } });
+    expect((await app.request('/v1/admin/downloads')).status).toBe(401);
+    expect(
+      (await app.request('/v1/admin/downloads', { headers: { Authorization: `Bearer ${'x'.repeat(40)}` } }))
+        .status,
+    ).toBe(401);
+    const response = await app.request('/v1/admin/downloads?days=7', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const body = await response.json();
+    expect(body.days).toBe(7);
+    expect(body.rows).toHaveLength(2);
+    expect(body.rows).toContainEqual(
+      expect.objectContaining({ asset: 'mac', ip: '203.0.113.9', fp, uaFamily: 'macos', day: '2026-10-15' }),
+    );
+    expect(body.daily).toEqual([{ day: '2026-10-15', mac: 1, win: 1, ips: 1, devices: 1, total: 2 }]);
+
+    const { app: closed } = setup();
+    expect(
+      (await closed.request('/v1/admin/downloads', { headers: { Authorization: `Bearer ${token}` } })).status,
+    ).toBe(404);
+  });
 });

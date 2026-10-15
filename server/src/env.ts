@@ -44,6 +44,8 @@ export interface Config {
     /** GitHub repo holding the release (redirects only ever target this repo). */
     repo: string;
   };
+  /** Bearer token for `GET /v1/admin/downloads` (read by the thaipro.store admin); null → the route does not exist. */
+  adminApiToken: string | null;
 }
 
 export class ConfigError extends Error {}
@@ -78,9 +80,15 @@ function list(env: Env, name: string, fallback: string[]): string[] {
 
 /** Secret: `<NAME>_FILE` (read the file) or `<NAME>`; at least 32 characters. */
 function secret(env: Env, name: string): string {
+  const value = optionalSecret(env, name);
+  if (value === null) throw new ConfigError(`Thiếu secret ${name} (hoặc ${name}_FILE)`);
+  return value;
+}
+
+function optionalSecret(env: Env, name: string): string | null {
   const file = env[`${name}_FILE`]?.trim();
   const value = file ? readFileSync(file, 'utf8').trim() : env[name]?.trim();
-  if (value === undefined || value === '') throw new ConfigError(`Thiếu secret ${name} (hoặc ${name}_FILE)`);
+  if (value === undefined || value === '') return null;
   if (value.length < 32) throw new ConfigError(`${name} quá ngắn (cần ≥ 32 ký tự ngẫu nhiên)`);
   return value;
 }
@@ -94,6 +102,10 @@ export function loadConfig(env: Env = process.env): Config {
   };
   if (new Set(Object.values(secrets)).size !== 3) {
     throw new ConfigError('AI_ID_SECRET, AI_TOKEN_SECRET và TELEMETRY_ID_SECRET phải khác nhau');
+  }
+  const adminApiToken = optionalSecret(env, 'ADMIN_API_TOKEN');
+  if (adminApiToken !== null && Object.values(secrets).includes(adminApiToken)) {
+    throw new ConfigError('ADMIN_API_TOKEN phải khác ba secret còn lại');
   }
   const apiKeyFile = env.HERMES_API_KEY_FILE?.trim();
   const apiKey = apiKeyFile ? readFileSync(apiKeyFile, 'utf8').trim() : (env.HERMES_API_KEY?.trim() ?? '');
@@ -144,5 +156,6 @@ export function loadConfig(env: Env = process.env): Config {
     download: {
       repo: text(env, 'DOWNLOAD_REPO', 'HoangThai18/thaigit'),
     },
+    adminApiToken,
   };
 }

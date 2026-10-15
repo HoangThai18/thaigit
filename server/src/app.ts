@@ -1,5 +1,5 @@
 // Public API (behind nginx/Caddy): /v1/ai/* (proxied to Hermes), /v1/telemetry/ping, /v1/stats/downloads, /download/:asset,
-// /healthz.
+// /v1/admin/downloads (bearer token, for the thaipro.store admin), /healthz.
 // Diff content, messages and raw IDs never reach the database or the logs — only technical counters. The one exception is
 // /download/:asset, which records the downloader's IP, browser fingerprint and User-Agent.
 
@@ -38,7 +38,7 @@ import type { Config } from './env.ts';
 import { Admission, AdmissionRejected } from './limits/admission.ts';
 import { consumeQuota, installInfo, recordSuccess, refundQuota, usedToday } from './limits/quota.ts';
 import { DailyCounter, RateLimiter } from './limits/rate.ts';
-import { nextVnMidnight, vnDay } from './time.ts';
+import { dayMinus, nextVnMidnight, vnDay } from './time.ts';
 
 export interface AppDeps {
   config: Config;
@@ -491,6 +491,35 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
     }
     c.header('Cache-Control', 'public, max-age=300');
     return c.json(downloadTotals.body);
+  });
+
+  // MARK: - Download log for the thaipro.store admin (server-to-server, bearer token; absent token config → 404)
+  app.get('/v1/admin/downloads', (c) => {
+    const expected = config.adminApiToken;
+    if (expected === null) return c.notFound();
+    const given = /^Bearer (.+)$/.exec(c.req.header('Authorization') ?? '')?.[1] ?? '';
+    if (!constantTimeEqual(given, expected)) return c.json({ error: { code: 'invalid_token' } }, 401);
+    const days = Math.min(Math.max(Number.parseInt(c.req.query('days') ?? '', 10) || 30, 1), 90);
+    const since = dayMinus(vnDay(now()), days - 1);
+    c.header('Cache-Control', 'no-store');
+    try {
+      const rows = db
+        .prepare(
+          `SELECT ts, day, asset, version, ua_family AS uaFamily, ip, fp, ua FROM downloads
+           WHERE day >= ? ORDER BY ts DESC LIMIT 1000`,
+        )
+        .all(since);
+      const daily = db
+        .prepare(
+          `SELECT day, SUM(asset = 'mac') AS mac, SUM(asset = 'win') AS win, COUNT(DISTINCT ip) AS ips,
+                  COUNT(DISTINCT fp) AS devices, COUNT(*) AS total
+           FROM downloads WHERE day >= ? GROUP BY day ORDER BY day DESC`,
+        )
+        .all(since);
+      return c.json({ days, rows, daily });
+    } catch {
+      return c.body(null, 503);
+    }
   });
 
   app.notFound((c) => c.json({ error: { code: 'bad_request' } }, 404));
