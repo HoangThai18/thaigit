@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forge-list-issues"
+description = "Enables the forge_list_issues command without any pre-configured scope."
+commands.allow = ["forge_list_issues"]
+
+[[permission]]
+identifier = "deny-forge-list-issues"
+description = "Denies the forge_list_issues command without any pre-configured scope."
+commands.deny = ["forge_list_issues"]
