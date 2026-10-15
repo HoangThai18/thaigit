@@ -36,6 +36,8 @@ export function createDevBridgeHost(): Host | null {
   if (!meta || !content) return null;
   const token: string = content;
   const autoOpen = meta.dataset.autoOpen === '1';
+  // Write mode (THAIGIT_DEV_WRITE=1 on a scratch repo in the temp dir): file / typed operations go to the dev server.
+  const writable = meta.dataset.write === '1';
 
   async function request(path: string, init: RequestInit = {}): Promise<Response> {
     const response = await fetch(`${BRIDGE_PATH}${path}`, {
@@ -59,6 +61,19 @@ export function createDevBridgeHost(): Host | null {
     return (await (await request(path, init)).json()) as T;
   }
 
+  function call(target: 'fs' | 'typed', method: string) {
+    return async (...args: unknown[]): Promise<never> => {
+      const encoded = args.map((arg) => (arg instanceof Uint8Array ? { $b64: bytesToBase64(arg) } : arg));
+      const { result } = await json<{ result: never }>('/call', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ target, method, args: encoded }),
+      });
+      return result;
+    };
+  }
+  const writer = (target: 'fs' | 'typed', method: string) => (writable ? call(target, method) : refuse);
+
   const fs: RepoFs = {
     async readGitFile(relative) {
       const response = await request(`/git-file?rel=${encodeURIComponent(relative)}`);
@@ -69,19 +84,19 @@ export function createDevBridgeHost(): Host | null {
       const response = await request(`/worktree-file?rel=${encodeURIComponent(relative)}${max}`);
       return response.status === 204 ? null : new Uint8Array(await response.arrayBuffer());
     },
-    writeWorktreeFile: refuse,
-    appendGitignore: refuse,
-    trashUntracked: refuse,
-    restoreTrash: refuse,
-    prepareSnapshotIndex: refuse,
+    writeWorktreeFile: writer('fs', 'writeWorktreeFile'),
+    appendGitignore: writer('fs', 'appendGitignore'),
+    trashUntracked: writer('fs', 'trashUntracked'),
+    restoreTrash: writer('fs', 'restoreTrash'),
+    prepareSnapshotIndex: writer('fs', 'prepareSnapshotIndex'),
   };
 
   const typedGit: TypedGit = {
-    configSet: refuse,
-    remoteAdd: refuse,
-    remoteSetUrl: refuse,
-    worktreeAdd: refuse,
-    rebaseInteractive: refuse,
+    configSet: writer('typed', 'configSet'),
+    remoteAdd: writer('typed', 'remoteAdd'),
+    remoteSetUrl: writer('typed', 'remoteSetUrl'),
+    worktreeAdd: writer('typed', 'worktreeAdd'),
+    rebaseInteractive: writer('typed', 'rebaseInteractive'),
   };
 
   function bind(info: OpenedRepo): RepoPort {

@@ -5,6 +5,8 @@
  *   THAIGIT_DEV_REPO=/đường/dẫn/repo pnpm --filter @thaigit/desktop dev --port 1430 --host 127.0.0.1
  *   (tuỳ chọn) THAIGIT_DEV_AUTOOPEN=1  mở repo ngay khi tải trang (như "Mở bằng…")
  *   (tuỳ chọn) THAIGIT_DEV_TRUST=unknown  giả lập repo lạ để thử hộp thoại tin tưởng
+ *   (tuỳ chọn) THAIGIT_DEV_WRITE=1  cho phép thao tác ghi để test thật — CHỈ khi repo nằm trong thư mục tạm của hệ điều hành
+ *              (một bản clone dùng để thử), cấu hình git toàn cục trỏ sang file riêng cạnh repo đó
  *
  * An toàn (dev server chạy trên máy lập trình viên, nên vẫn đóng cửa từng lớp):
  *  - chỉ hoạt động khi có `THAIGIT_DEV_REPO` và dev server nghe trên loopback;
@@ -13,9 +15,10 @@
  *  - git chạy qua `NodeExec` của `@thaigit/core/node` (kiểm `git-policy.json` như Rust), đúng MỘT repo cố định.
  */
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { readdirSync, statSync, watch, type FSWatcher } from 'node:fs';
+import { readdirSync, realpathSync, statSync, watch, type FSWatcher } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { basename, join, sep } from 'node:path';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join, sep } from 'node:path';
 import type { OpenedRepo, RepoChangeKind } from '@thaigit/contracts';
 import type { Plugin, ViteDevServer } from 'vite';
 import {
@@ -50,13 +53,38 @@ export interface DevBridgeOptions {
   repo: string | undefined;
   autoOpen: boolean;
   trust: 'trusted' | 'unknown';
+  /** Write mode for real end-to-end testing; only honoured for a repo inside the OS temp directory (see `isScratchRepo`). */
+  write?: boolean;
 }
+
+/** A throwaway repo under the OS temp dir: the only place write mode may touch. */
+export function isScratchRepo(repo: string): boolean {
+  try {
+    const real = realpathSync(repo);
+    return [tmpdir(), '/tmp'].some((base) => {
+      const root = realpathSync(base);
+      return real.startsWith(root + sep);
+    });
+  } catch {
+    return false;
+  }
+}
+
+const FS_WRITES = new Set([
+  'writeWorktreeFile',
+  'appendGitignore',
+  'trashUntracked',
+  'restoreTrash',
+  'prepareSnapshotIndex',
+]);
+const TYPED_CALLS = new Set(['configSet', 'remoteAdd', 'remoteSetUrl', 'worktreeAdd', 'rebaseInteractive']);
 
 export function optionsFromEnv(env: NodeJS.ProcessEnv = process.env): DevBridgeOptions {
   return {
     repo: env.THAIGIT_DEV_REPO?.trim() || undefined,
     autoOpen: env.THAIGIT_DEV_AUTOOPEN === '1',
     trust: env.THAIGIT_DEV_TRUST === 'unknown' ? 'unknown' : 'trusted',
+    write: env.THAIGIT_DEV_WRITE === '1',
   };
 }
 
@@ -174,8 +202,17 @@ async function createRuntime(
   const kindOf: KindOf = (sub, args) => effectiveKind(sub, args, gitPolicy);
 
   const location = await nodeCore.locateRepository(options.repo);
-  const exec = new nodeCore.NodeExec({ cwd: location.root, gitDir: location.gitDir });
+  // Write mode never reaches the developer's own git config: global config is a file next to the scratch repo.
+  const baseEnv = options.write
+    ? {
+        ...process.env,
+        GIT_CONFIG_GLOBAL: join(dirname(location.root), '.thaigit-dev-gitconfig'),
+        GIT_CONFIG_NOSYSTEM: '1',
+      }
+    : undefined;
+  const exec = new nodeCore.NodeExec({ cwd: location.root, gitDir: location.gitDir, baseEnv });
   const fs = new nodeCore.NodeRepoFs({ ...location });
+  const typedGit = new nodeCore.NodeTypedGit({ cwd: location.root, gitDir: location.gitDir, baseEnv });
 
   let trust: OpenedRepo['trust'] = options.trust;
   const findings =
@@ -256,11 +293,13 @@ async function createRuntime(
       }
       case 'POST /exec': {
         const body = parseExecBody(await readJson(req));
-        const verdict = checkReadOnly(kindOf, body.kind, body.sub, body.args);
-        if (!verdict.ok) throw new HttpError(403, 'policy', verdict.message);
+        if (!options.write) {
+          const verdict = checkReadOnly(kindOf, body.kind, body.sub, body.args);
+          if (!verdict.ok) throw new HttpError(403, 'policy', verdict.message);
+        }
         try {
           const result = await exec.run({
-            kind: 'read',
+            kind: options.write ? body.kind : 'read',
             sub: body.sub,
             args: body.args,
             env: body.env,
@@ -268,6 +307,30 @@ async function createRuntime(
             stdin: body.stdin === undefined ? undefined : new Uint8Array(Buffer.from(body.stdin, 'base64')),
           });
           return sendBytes(res, encodeExecFrame(result));
+        } catch (error) {
+          throw adapterFailure(error);
+        }
+      }
+      case 'POST /call': {
+        if (!options.write) throw new HttpError(403, 'policy', 'Cầu nối dev chỉ đọc.');
+        const body = (await readJson(req)) as { target?: unknown; method?: unknown; args?: unknown };
+        const method = typeof body.method === 'string' ? body.method : '';
+        const allowed = body.target === 'fs' ? FS_WRITES : body.target === 'typed' ? TYPED_CALLS : null;
+        if (allowed === null || !allowed.has(method) || !Array.isArray(body.args)) {
+          throw new HttpError(400, 'policy', 'Yêu cầu call sai định dạng.');
+        }
+        const args = body.args.map((arg: unknown) =>
+          typeof arg === 'object' && arg !== null && '$b64' in arg
+            ? new Uint8Array(Buffer.from(String((arg as { $b64: unknown }).$b64), 'base64'))
+            : arg,
+        );
+        const target = (body.target === 'fs' ? fs : typedGit) as unknown as Record<
+          string,
+          (...params: unknown[]) => Promise<unknown>
+        >;
+        try {
+          const result = await target[method]!(...args);
+          return sendJson(res, 200, { result: result ?? null });
         } catch (error) {
           throw adapterFailure(error);
         }
@@ -363,7 +426,8 @@ function isLoopbackBinding(host: ViteDevServer['config']['server']['host']): boo
   return host === undefined || host === false || (typeof host === 'string' && LOOPBACK_HOSTS.has(host));
 }
 
-export function thaigitDevBridge(options: DevBridgeOptions = optionsFromEnv()): Plugin {
+export function thaigitDevBridge(initial: DevBridgeOptions = optionsFromEnv()): Plugin {
+  let options = initial;
   const token = randomBytes(24).toString('base64url');
   const repo = options.repo;
   let enabled = repo !== undefined;
@@ -378,6 +442,12 @@ export function thaigitDevBridge(options: DevBridgeOptions = optionsFromEnv()): 
         enabled = false;
         config.logger.warn('[thaigit-dev-bridge] dev server không nghe trên loopback: cầu nối dev bị tắt.');
       }
+      if (options.write && repo !== undefined && !isScratchRepo(repo)) {
+        options = { ...options, write: false };
+        config.logger.warn(
+          '[thaigit-dev-bridge] THAIGIT_DEV_WRITE chỉ dùng cho repo trong thư mục tạm: giữ chế độ chỉ đọc.',
+        );
+      }
     },
 
     transformIndexHtml() {
@@ -389,6 +459,7 @@ export function thaigitDevBridge(options: DevBridgeOptions = optionsFromEnv()): 
             name: BRIDGE_META,
             content: token,
             ...(options.autoOpen ? { 'data-auto-open': '1' } : {}),
+            ...(options.write ? { 'data-write': '1' } : {}),
           },
           injectTo: 'head',
         },
@@ -410,7 +481,9 @@ export function thaigitDevBridge(options: DevBridgeOptions = optionsFromEnv()): 
         );
       });
       server.httpServer?.once('close', () => void runtime?.then((bridge) => bridge.dispose()));
-      server.config.logger.info(`[thaigit-dev-bridge] repo: ${repo} (chỉ đọc, 127.0.0.1)`);
+      server.config.logger.info(
+        `[thaigit-dev-bridge] repo: ${repo} (${options.write ? 'GHI — repo thử trong thư mục tạm' : 'chỉ đọc'}, 127.0.0.1)`,
+      );
     },
   };
 }
