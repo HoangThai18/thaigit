@@ -58,6 +58,8 @@ export interface OpenedRepo {
   trust: 'trusted' | 'unknown';
   /** Suspicious config keys / hooks found, so the UI can list them in the trust prompt. */
   findings: string[];
+  /** Names of the repo's own hooks (no `.sample`, no git-lfs hooks); they only run in a trusted repo. */
+  hooks?: string[];
 }
 
 export type RepoChangeKind = 'workingTree' | 'refs' | 'rescan';

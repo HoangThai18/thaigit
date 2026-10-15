@@ -90,6 +90,7 @@ export async function commit(
   const summary = draft.summary;
   const body = draft.body;
   const amend = draft.amend;
+  const noVerify = draft.skipHooks;
   const message = composeMessage(summary, body);
   if (summary.trim() === '') return;
   const previousHead = store.headOid;
@@ -99,7 +100,7 @@ export async function commit(
     vi.staging.committing,
     async (git) => {
       if (options.stageAllFirst) await git.stageAll();
-      await git.commit(message, { amend });
+      await git.commit(message, { amend, noVerify });
       committed = true;
     },
     {
@@ -108,6 +109,7 @@ export async function commit(
         draft.summary = '';
         draft.body = '';
         draft.amend = false;
+        draft.skipHooks = false;
         store.select({ kind: 'workingTree' });
         store.notify('success', amend ? vi.staging.amended : vi.staging.committed(branch), {
           actions: committed
@@ -119,6 +121,19 @@ export async function commit(
               ]
             : [],
         });
+      },
+      onError: (error) => {
+        if (noVerify || !store.hasVerifyHook('commit')) return false;
+        store.showError(vi.hooks.commitFailed, error, [
+          {
+            title: vi.hooks.commitSkipping,
+            run: () => {
+              draft.skipHooks = true;
+              void commit(store, options);
+            },
+          },
+        ]);
+        return true;
       },
     },
   );

@@ -4,6 +4,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## Chưa phát hành
 
+- Git hooks: mục HOOKS ở sidebar liệt kê các hook của repo (pre-commit, pre-push…), cho biết hook nào đang chạy hay bị chặn vì repo chưa được tin cậy, rê chuột để xem hook làm gì. Ô soạn commit có tuỳ chọn “Bỏ qua hook”; khi hook chặn commit hoặc push, thông báo lỗi có sẵn nút “Commit bỏ qua hook” / “Push bỏ qua hook”
 - Git-flow: nút Branch ▾ trên thanh công cụ → khởi tạo Git-flow (chọn nhánh chính, nhánh develop, tiền tố), bắt đầu feature / release / hotfix, và hoàn tất nhánh — app tự merge vào develop (release / hotfix vào cả nhánh chính), gắn tag phiên bản và xoá nhánh; chuột phải nhánh feature / release / hotfix cũng có mục Hoàn tất. Dùng chung cài đặt với git-flow và Sourcetree
 - Mục ISSUES ở sidebar: xem các issue đang mở của repo trên GitHub, GitLab hoặc Bitbucket, lọc theo số / tiêu đề / nhãn; bấm để mở trên web, chuột phải để tạo nhánh cho issue (tên nhánh gợi ý sẵn như issue/42-loi-dang-nhap) hoặc sao chép link
 - Review thay đổi của nhánh: chuột phải vào nhánh (kể cả nhánh đang đứng) → “Review thay đổi so với nhánh…” mở hộp tìm để chọn nhánh cần so sánh, gợi ý sẵn nhánh đang đứng và main / develop; trong panel review bấm tên nhánh so sánh để đổi sang nhánh khác. Sửa lỗi trước đây có thể tự so sánh nhánh với chính nó

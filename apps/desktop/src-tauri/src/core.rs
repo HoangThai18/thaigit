@@ -972,6 +972,20 @@ mod tests {
     }
 
     // Use a `#!/bin/sh` script as the hook: Unix only (Windows is covered by the phase 9 Windows CI).
+    #[tokio::test]
+    async fn opened_repo_lists_its_own_hooks_without_samples() {
+        let repo = TestRepo::new();
+        repo.write("a.txt", "1");
+        repo.commit_all("init");
+        let hooks = repo.root().join(".git/hooks");
+        std::fs::create_dir_all(&hooks).unwrap();
+        std::fs::write(hooks.join("pre-commit"), "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::write(hooks.join("pre-push.sample"), "#!/bin/sh\n").unwrap();
+        let (core, _data) = core_with(&repo).await;
+        let opened = open(&core, &repo).await;
+        assert_eq!(opened.hooks, ["pre-commit"]);
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn write_ops_are_exclusive_but_reads_never_wait() {

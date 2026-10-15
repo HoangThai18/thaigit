@@ -1,0 +1,27 @@
+/** Strings for Git hooks (sidebar section, commit / push bypass). Reached through `vi.hooks.*`. */
+export const hooks = {
+  section: 'HOOKS',
+  running: 'Đang chạy',
+  blocked: 'Bị chặn',
+  blockedNote: 'Repo chưa được tin cậy nên Thaigit không chạy các hook này.',
+  runningNote: 'Hook chạy tự động khi bạn commit, push, checkout… ngay trong app.',
+  describe: {
+    'pre-commit': 'Chạy trước khi commit — thường để chạy lint / test, có thể chặn commit.',
+    'prepare-commit-msg': 'Soạn sẵn message trước khi bạn viết commit.',
+    'commit-msg': 'Kiểm tra message commit, có thể chặn commit.',
+    'post-commit': 'Chạy sau khi commit xong.',
+    'pre-push': 'Chạy trước khi push, có thể chặn push.',
+    'pre-rebase': 'Chạy trước khi rebase, có thể chặn rebase.',
+    'post-checkout': 'Chạy sau khi checkout / chuyển nhánh.',
+    'post-merge': 'Chạy sau khi merge (cả khi pull).',
+    'pre-merge-commit': 'Chạy trước khi tạo commit merge, có thể chặn merge.',
+    'post-rewrite': 'Chạy sau khi amend hoặc rebase viết lại commit.',
+  } as Record<string, string>,
+  custom: 'Hook tuỳ chỉnh của repo.',
+  skip: 'Bỏ qua hook',
+  skipTip: 'Commit với --no-verify: không chạy pre-commit và commit-msg lần này.',
+  commitFailed: 'Commit chưa xong — có thể hook pre-commit / commit-msg của repo đã chặn',
+  commitSkipping: 'Commit bỏ qua hook',
+  pushFailed: 'Push chưa xong — có thể hook pre-push của repo đã chặn',
+  pushSkipping: 'Push bỏ qua hook',
+} as const;

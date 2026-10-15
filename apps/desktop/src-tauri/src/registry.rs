@@ -121,6 +121,8 @@ pub struct OpenedRepo {
     /// `trusted` | `unknown`.
     pub trust: &'static str,
     pub findings: Vec<String>,
+    /// Names of the repo's own hooks (`.sample` files and git-lfs's standard hooks excluded); they only run in a trusted repo.
+    pub hooks: Vec<String>,
 }
 
 impl RepoEntry {
@@ -132,6 +134,7 @@ impl RepoEntry {
             common_dir: self.common_dir.to_string_lossy().into_owned(),
             trust: if self.trusted { "trusted" } else { "unknown" },
             findings: self.findings.iter().map(|f| f.display.clone()).collect(),
+            hooks: self.findings.iter().filter_map(|f| f.label.strip_prefix("hook:").map(str::to_string)).collect(),
         }
     }
 }

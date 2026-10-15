@@ -20,6 +20,7 @@ import { dnd } from './strings/dnd.vi.ts';
 import { feedback } from './strings/feedback.vi.ts';
 import { gitflow } from './strings/gitflow.vi.ts';
 import { history } from './strings/history.vi.ts';
+import { hooks } from './strings/hooks.vi.ts';
 import { issues } from './strings/issues.vi.ts';
 import { lfs } from './strings/lfs.vi.ts';
 import { palette } from './strings/palette.vi.ts';
@@ -56,6 +57,7 @@ const viStrings = {
   pullRequests,
   issues,
   gitflow,
+  hooks,
   snapshots,
   risk,
   ssh,

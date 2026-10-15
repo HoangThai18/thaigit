@@ -6,6 +6,7 @@ import { dnd } from './strings/dnd.en.ts';
 import { feedback } from './strings/feedback.en.ts';
 import { gitflow } from './strings/gitflow.en.ts';
 import { history } from './strings/history.en.ts';
+import { hooks } from './strings/hooks.en.ts';
 import { issues } from './strings/issues.en.ts';
 import { lfs } from './strings/lfs.en.ts';
 import { palette } from './strings/palette.en.ts';
@@ -42,6 +43,7 @@ export const en: Strings = {
   pullRequests,
   issues,
   gitflow,
+  hooks,
   snapshots,
   risk,
   ssh,

@@ -224,7 +224,7 @@ export class RepoStore {
   /** A notification with an "Undo" button has just appeared and has not finished refreshing: lock the fingerprint until that operation's refresh completes. */
   pendingUndoFingerprint = $state(false);
   /** The commit editor (kept when switching between WIP and other commits). */
-  commitDraft = $state({ summary: '', body: '', amend: false });
+  commitDraft = $state({ summary: '', body: '', amend: false, skipHooks: false });
   /** The timeline (automatic snapshots) — replaces the right-hand details panel when open. */
   readonly timeline: TimelineStore;
   /** A file's history — replaces the right-hand details panel when open. */
@@ -398,6 +398,21 @@ export class RepoStore {
 
   get rootPath(): string {
     return this.port.info.root;
+  }
+
+  /** The repo's own hooks (names only); they run only when the repo is trusted. */
+  get hooks(): readonly string[] {
+    return this.port.info.hooks ?? [];
+  }
+
+  get hooksRun(): boolean {
+    return this.port.info.trust === 'trusted';
+  }
+
+  /** Whether a commit / push here would run one of the repo's hooks that `--no-verify` skips. */
+  hasVerifyHook(kind: 'commit' | 'push'): boolean {
+    const names = kind === 'commit' ? ['pre-commit', 'commit-msg'] : ['pre-push'];
+    return this.hooksRun && this.hooks.some((hook) => names.includes(hook));
   }
 
   // MARK: - Lifecycle

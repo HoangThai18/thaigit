@@ -208,6 +208,12 @@
       />
       <span>{vi.staging.amend}</span>
     </label>
+    {#if store.hasVerifyHook('commit')}
+      <label class="amend" title={vi.hooks.skipTip}>
+        <input type="checkbox" bind:checked={draft.skipHooks} disabled={store.operation !== null} />
+        <span>{vi.hooks.skip}</span>
+      </label>
+    {/if}
   </div>
   <div class="summary-field">
     <input

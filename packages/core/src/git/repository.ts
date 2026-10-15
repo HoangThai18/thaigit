@@ -162,11 +162,15 @@ export interface PushOptions extends NetworkOptions {
   setUpstream?: boolean;
   /** `--force-with-lease`. */
   force?: boolean;
+  /** `--no-verify`: skip the repo's pre-push hook. */
+  noVerify?: boolean;
 }
 
 export interface CommitOptions {
   amend?: boolean;
   allowEmpty?: boolean;
+  /** `--no-verify`: skip the repo's pre-commit and commit-msg hooks. */
+  noVerify?: boolean;
 }
 
 export interface ApplyPatchOptions {
@@ -752,6 +756,7 @@ export class GitRepository {
     const args = ['--cleanup=whitespace', '-F', '-'];
     if (options.amend) args.push('--amend');
     if (options.allowEmpty) args.push('--allow-empty');
+    if (options.noVerify) args.push('--no-verify');
     await this.runner.run('commit', args, { stdin: encodeUtf8(message) });
   }
 
@@ -1071,6 +1076,7 @@ export class GitRepository {
     const args = ['--progress'];
     if (options.setUpstream) args.push('--set-upstream');
     if (options.force) args.push('--force-with-lease');
+    if (options.noVerify) args.push('--no-verify');
     args.push(options.remote, `refs/heads/${options.localBranch}:refs/heads/${options.remoteBranch}`);
     await this.runner.run('push', args, networkRunOptions(options));
   }

@@ -13,9 +13,9 @@
  *  - git chạy qua `NodeExec` của `@thaigit/core/node` (kiểm `git-policy.json` như Rust), đúng MỘT repo cố định.
  */
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { statSync, watch, type FSWatcher } from 'node:fs';
+import { readdirSync, statSync, watch, type FSWatcher } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { basename, sep } from 'node:path';
+import { basename, join, sep } from 'node:path';
 import type { OpenedRepo, RepoChangeKind } from '@thaigit/contracts';
 import type { Plugin, ViteDevServer } from 'vite';
 import {
@@ -30,6 +30,16 @@ import {
   type BridgeInfo,
 } from '../src/lib/platform/dev-bridge-protocol.ts';
 import { checkReadOnly, type KindOf } from './read-only-gate.ts';
+
+function repoHooks(commonDir: string): string[] {
+  try {
+    return readdirSync(join(commonDir, 'hooks'))
+      .filter((name) => !name.endsWith('.sample'))
+      .sort();
+  } catch {
+    return [];
+  }
+}
 
 type CoreNode = typeof import('@thaigit/core/node');
 type Core = typeof import('@thaigit/core');
@@ -179,6 +189,7 @@ async function createRuntime(
     commonDir: location.commonDir,
     trust,
     findings: trust === 'unknown' ? findings : [],
+    hooks: repoHooks(location.commonDir),
   });
   const lastActivity = (): number => {
     try {

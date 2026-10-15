@@ -40,6 +40,7 @@ export interface PrefsData {
     issues: boolean;
     worktrees: boolean;
     submodules: boolean;
+    hooks: boolean;
     lfs: boolean;
   };
   columns: PreferredWidths;
@@ -108,6 +109,7 @@ export function defaultPrefs(): PrefsData {
       issues: false,
       worktrees: true,
       submodules: true,
+      hooks: true,
       lfs: true,
     },
     columns: { ...DEFAULT_WIDTHS },
@@ -180,6 +182,7 @@ export function sanitizePrefs(raw: unknown): PrefsData {
       issues: bool(sections.issues, base.sidebarSections.issues),
       worktrees: bool(sections.worktrees, base.sidebarSections.worktrees),
       submodules: bool(sections.submodules, base.sidebarSections.submodules),
+      hooks: bool(sections.hooks, base.sidebarSections.hooks),
       lfs: bool(sections.lfs, base.sidebarSections.lfs),
     },
     columns: sanitizePreferred(source.columns),

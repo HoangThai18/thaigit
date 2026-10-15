@@ -134,7 +134,7 @@
   key: keyof typeof sections,
   title: string,
   count: number,
-  icon: 'laptop' | 'cloud' | 'tag' | 'archive' | 'folder' | 'folder-open',
+  icon: 'laptop' | 'cloud' | 'tag' | 'archive' | 'folder' | 'folder-open' | 'shield',
 )}
   <button
     type="button"
@@ -440,6 +440,31 @@
       </section>
     {/if}
 
+    {#if store.hooks.length > 0 && !filtering}
+      <section>
+        {@render sectionHeader('hooks', vi.hooks.section, store.hooks.length, 'shield')}
+        {#if sections.hooks}
+          {#each store.hooks as hook, index (index)}
+            <div
+              class="sb-row hook-row"
+              title={showBidi(
+                `${vi.hooks.describe[hook] ?? vi.hooks.custom}\n${store.hooksRun ? vi.hooks.runningNote : vi.hooks.blockedNote}`,
+              )}
+            >
+              <span class="sb-icon tint-hook"><Icon name="shield" size={14} /></span>
+              <span class="sb-title"><bdi>{showBidi(hook)}</bdi></span>
+              <span class="hook-state" class:blocked={!store.hooksRun}>
+                {store.hooksRun ? vi.hooks.running : vi.hooks.blocked}
+              </span>
+            </div>
+          {/each}
+          {#if !store.hooksRun}
+            <p class="hook-note">{vi.hooks.blockedNote}</p>
+          {/if}
+        {/if}
+      </section>
+    {/if}
+
     <!-- GIT LFS: chỉ hiện khi repo có mẫu LFS trong .gitattributes (track mẫu đầu tiên từ menu chuột phải của file). -->
     {#if store.lfsPatterns.length > 0 && !filtering}
       <section>
@@ -601,6 +626,37 @@
   }
   .sh-lfs .sh-icon {
     color: var(--lane-11);
+  }
+  .sh-hooks .sh-icon,
+  .tint-hook {
+    color: var(--lane-8);
+  }
+
+  .hook-row {
+    cursor: default;
+  }
+
+  .hook-state {
+    flex: none;
+    padding: 0 6px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--success) 18%, transparent);
+    color: color-mix(in srgb, var(--success) 75%, var(--text));
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 16px;
+  }
+
+  .hook-state.blocked {
+    background: color-mix(in srgb, var(--warning) 20%, transparent);
+    color: color-mix(in srgb, var(--warning) 70%, var(--text));
+  }
+
+  .hook-note {
+    margin: 2px 10px 6px 34px;
+    color: var(--text-tertiary);
+    font-size: 11.5px;
+    line-height: 1.4;
   }
 
   .sh-title {

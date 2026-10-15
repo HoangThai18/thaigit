@@ -18,6 +18,7 @@ export interface PushRequest {
   readonly remoteBranch: string;
   readonly setUpstream: boolean;
   readonly force: boolean;
+  readonly noVerify?: boolean;
 }
 
 export function pullModeFromPref(pref: PullModePref): PullMode {
@@ -271,6 +272,7 @@ export function performPush(store: RepoStore, request: PushRequest, dialogs?: Di
         remoteBranch: request.remoteBranch,
         setUpstream: request.setUpstream,
         force: request.force,
+        noVerify: request.noVerify === true,
         onProgress: progress,
         signal,
       });
@@ -293,6 +295,15 @@ export function performPush(store: RepoStore, request: PushRequest, dialogs?: Di
             {
               title: vi.remote.forcePush,
               run: () => void confirmForcePush(store, { ...request, force: true }, dialogs),
+            },
+          ]);
+          return true;
+        }
+        if (request.noVerify !== true && store.hasVerifyHook('push')) {
+          store.showError(vi.hooks.pushFailed, error, [
+            {
+              title: vi.hooks.pushSkipping,
+              run: () => void performPush(store, { ...request, noVerify: true }, dialogs),
             },
           ]);
           return true;

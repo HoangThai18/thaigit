@@ -163,6 +163,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.commit('Tiêu đề\n\nThân -c core.fsmonitor=evil --upload-pack=x', {
       amend: true,
       allowEmpty: true,
+      noVerify: true,
     });
     await r.commit('đơn giản');
     await r.softReset('HEAD~1');
@@ -252,6 +253,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
       remoteBranch: 'b',
       setUpstream: true,
       force: true,
+      noVerify: true,
       ...network,
     });
     await r.push({ remote: 'origin', localBranch: 'a/b', remoteBranch: 'a/b' });
