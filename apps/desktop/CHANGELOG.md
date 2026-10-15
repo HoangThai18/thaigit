@@ -2,6 +2,12 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## 2.6.7 — 2026-10-15
+
+- Bấm đúp vào thanh tab để phóng to cửa sổ không còn báo lỗi
+- Bấm đúp một nhánh đang mở ở worktree khác: app nói rõ nhánh đang nằm ở đâu và có nút mở worktree đó, thay vì báo lỗi chung chung
+- Bộ icon theo loại file: mỗi file trong danh sách thay đổi, chi tiết commit và khung diff có nhãn màu theo loại (TS, JS, PHP, Python, Markdown, JSON, CSS, HTML…), ảnh và file lock có biểu tượng riêng
+
 ## 2.6.6 — 2026-10-15
 
 - Trang chủ trở lại như bản 1.4: bên trái là các nút lớn Mở repository, Clone, Tạo repository mới, Cài đặt, Tài khoản GitHub / GitLab (kèm dòng mô tả), bên phải là khung “Mở gần đây”
