@@ -4,52 +4,48 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## 2.6.8 — 2026-10-15
 
-- Xem diff không còn phải cuộn ngang: dòng dài tự xuống dòng (nút “Xuống dòng” trên thanh diff để bật / tắt); thanh công cụ diff gọn lại một hàng
-- Ảnh đại diện thật của tác giả (GitHub, Gravatar) hiện cả ở khung chi tiết commit và nút Profile, không chỉ trên graph
+- Xem diff không phải cuộn ngang: dòng dài tự xuống dòng, bật / tắt bằng nút “Xuống dòng”
+- Ảnh đại diện của tác giả hiện cả ở khung chi tiết commit
 
 ## 2.6.7 — 2026-10-15
 
-- Bấm đúp vào thanh tab để phóng to cửa sổ không còn báo lỗi
-- Bấm đúp một nhánh đang mở ở worktree khác: app nói rõ nhánh đang nằm ở đâu và có nút mở worktree đó, thay vì báo lỗi chung chung
-- Bộ icon theo loại file: mỗi file trong danh sách thay đổi, chi tiết commit và khung diff có nhãn màu theo loại (TS, JS, PHP, Python, Markdown, JSON, CSS, HTML…), ảnh và file lock có biểu tượng riêng
+- Bộ icon theo loại file trong danh sách thay đổi và khung diff
+- Bấm đúp thanh tab để phóng to cửa sổ
+- Chuyển sang nhánh đang mở ở worktree khác: app chỉ rõ worktree đó và mở giúp
 
 ## 2.6.6 — 2026-10-15
 
-- Trang chủ trở lại như bản 1.4: bên trái là các nút lớn Mở repository, Clone, Tạo repository mới, Cài đặt, Tài khoản GitHub / GitLab (kèm dòng mô tả), bên phải là khung “Mở gần đây”
-- “Có gì mới” trở lại: nút ✨ ở cuối thanh tab mở tab nhật ký thay đổi theo từng phiên bản, đánh dấu bản bạn đang dùng, có nút Kiểm tra cập nhật
-- Mỗi tab có biểu tượng nhỏ trước tên (thư mục cho repo, ✨ cho Có gì mới) như bản 1.4
+- Trang chủ mới: mở, clone, tạo repo và danh sách repo gần đây trên cùng một màn hình
+- Tab “Có gì mới” (nút ✨ cuối thanh tab) xem nhật ký thay đổi ngay trong app
+- Biểu tượng nhỏ trên từng tab
 
 ## 2.6.5 — 2026-10-15
 
-- Thông báo “… gặp xung đột” tự tắt khi xung đột đã giải quyết xong hoặc đã huỷ thao tác, không còn nằm lì trên màn hình
-- Cảnh báo chỉ để báo tin tự tắt sau vài giây thay vì chồng chất; cảnh báo có nút bấm vẫn giữ đến khi bạn đóng
-- Bấm “Tiếp tục” sau khi giải quyết xung đột: báo rõ “Đã hoàn tất merge / rebase…” thay vì “Đã tiếp tục”
-- Sửa message / đổi thứ tự / xoá commit cũ mà phía sau có commit merge: báo ngay từ đầu thay vì để bạn gõ xong rồi mới báo không làm được
-- Menu chuột phải không còn mời cherry-pick commit đã nằm sẵn trong nhánh hiện tại, hay merge nhánh đã được merge rồi
-- Hộp thoại tạo nhánh / tag không báo lỗi đỏ ngay khi vừa mở, chỉ báo khi tên bạn gõ không hợp lệ
-- Thanh công cụ của khung xem diff gọn lại khi khung hẹp: nút Stage / Huỷ thay đổi không còn bị che
+- Thông báo xung đột tự tắt khi đã giải quyết xong
+- Thông báo gọn hơn, không còn chồng chất trên màn hình
+- Menu chuột phải chỉ hiện những thao tác làm được
+- Sửa lỗi thanh công cụ khung diff bị che nút Stage
 
 ## 2.6.4 — 2026-10-15
 
-- Tab Trang chủ trở lại như GitKraken: ô ngôi nhà luôn đứng đầu thanh tab, bấm vào là về trang chủ mà các repo đang mở vẫn giữ nguyên ở tab của chúng; mở repo từ trang chủ thì repo mở thành tab mới (repo đã mở rồi thì chuyển sang tab đó); đóng tab repo cuối cùng thì về trang chủ. Ctrl/⌘ + 1 cũng về trang chủ
+- Tab Trang chủ luôn ở đầu thanh tab: về trang chủ mà các repo đang mở vẫn giữ nguyên; Ctrl/⌘ + 1 để về nhanh
 
 ## 2.6.3 — 2026-10-15
 
-- Nút về màn hình chính giờ là biểu tượng ngôi nhà ở góc phải thanh công cụ, dễ thấy hơn; bấm vào thì về màn hình chính ngay trong tab đó
-- Thanh tab luôn hiện khi đang mở repo, có sẵn nút + để mở thêm repo khác (trước đây chỉ hiện khi đã có từ 2 tab)
+- Thanh tab với nút + để mở thêm repo
 
 ## 2.6.2 — 2026-10-15
 
-- Thông báo bản mới nhanh hơn: đang mở app vẫn nhận được thông báo cập nhật — app kiểm tra mỗi giờ và mỗi khi bạn quay lại cửa sổ app, không cần thoát ra mở lại
-- Thanh công cụ tự thu gọn theo chỗ trống thật (trừ phần thanh bên): cửa sổ vừa phải không còn đẩy mất nút Cài đặt, Tài khoản và nút ✕ về màn hình chính
-- Sửa “Huỷ thay đổi” với submodule: trước đây báo đã huỷ mà submodule vẫn nằm đó; giờ submodule quay về đúng commit repo đang ghi nhận. Nếu thay đổi nằm bên trong submodule, app nhắc mở submodule đó để huỷ thay vì báo thành công
+- Báo bản mới ngay cả khi đang mở app
+- Thanh công cụ tự thu gọn khi cửa sổ hẹp
+- Sửa lỗi huỷ thay đổi với submodule
 
 ## 2.6.1 — 2026-10-15
 
 - Git hooks: mục HOOKS ở sidebar liệt kê các hook của repo (pre-commit, pre-push…), cho biết hook nào đang chạy hay bị chặn vì repo chưa được tin cậy, rê chuột để xem hook làm gì. Ô soạn commit có tuỳ chọn “Bỏ qua hook”; khi hook chặn commit hoặc push, thông báo lỗi có sẵn nút “Commit bỏ qua hook” / “Push bỏ qua hook”
-- Git-flow: nút Branch ▾ trên thanh công cụ → khởi tạo Git-flow (chọn nhánh chính, nhánh develop, tiền tố), bắt đầu feature / release / hotfix, và hoàn tất nhánh — app tự merge vào develop (release / hotfix vào cả nhánh chính), gắn tag phiên bản và xoá nhánh; chuột phải nhánh feature / release / hotfix cũng có mục Hoàn tất. Dùng chung cài đặt với git-flow và Sourcetree
+- Git-flow: nút Branch ▾ trên thanh công cụ → khởi tạo Git-flow (chọn nhánh chính, nhánh develop, tiền tố), bắt đầu feature / release / hotfix, và hoàn tất nhánh — app tự merge vào develop (release / hotfix vào cả nhánh chính), gắn tag phiên bản và xoá nhánh; chuột phải nhánh feature / release / hotfix cũng có mục Hoàn tất.
 - Mục ISSUES ở sidebar: xem các issue đang mở của repo trên GitHub, GitLab hoặc Bitbucket, lọc theo số / tiêu đề / nhãn; bấm để mở trên web, chuột phải để tạo nhánh cho issue (tên nhánh gợi ý sẵn như issue/42-loi-dang-nhap) hoặc sao chép link
-- Review thay đổi của nhánh: chuột phải vào nhánh (kể cả nhánh đang đứng) → “Review thay đổi so với nhánh…” mở hộp tìm để chọn nhánh cần so sánh, gợi ý sẵn nhánh đang đứng và main / develop; trong panel review bấm tên nhánh so sánh để đổi sang nhánh khác. Sửa lỗi trước đây có thể tự so sánh nhánh với chính nó
+- Review thay đổi của nhánh: chuột phải vào nhánh (kể cả nhánh đang đứng) → “Review thay đổi so với nhánh…” mở hộp tìm để chọn nhánh cần so sánh, gợi ý sẵn nhánh đang đứng và main / develop; trong panel review bấm tên nhánh so sánh để đổi sang nhánh khác
 - Giao diện nhiều màu hơn: dòng có nhánh hoặc tag trên graph được tô theo màu của làn, icon ở sidebar có màu riêng theo từng mục
 - Luôn biết mình đang ở nhánh nào: nút nhánh trên thanh công cụ thành chip xanh lá ghi rõ “Đang ở nhánh”, nhánh hiện tại trong sidebar có nhãn “Đang ở”, dòng của nhánh hiện tại trên graph được viền và tô đậm
 - Góp ý & báo lỗi ngay trong app: menu … (hoặc bảng lệnh Ctrl/⌘ + P, hay màn hình chào) → “Góp ý & báo lỗi…”, viết vài dòng rồi bấm “Soạn email” để mở ứng dụng email với thư soạn sẵn gửi tới tác giả; tuỳ chọn kèm phiên bản Thaigit và hệ điều hành, không kèm gì về repo của bạn
@@ -90,11 +86,11 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 ## 2.2.0 — 2026-10-05
 
 - Nhiều nhánh / tag cùng một commit: nhãn ưu tiên nhánh đang đứng rồi main / master / develop; rê chuột vào "+N" hiện danh sách nhánh bị gom, bấm để chọn nhánh (Checkout, Merge, Push…); nhấp đúp lên nhãn checkout đúng nhánh đó
-- Checkout khi còn thay đổi chưa commit: Thaigit tự stash, chuyển nhánh rồi mang thay đổi sang (như GitKraken) — không còn báo lỗi; xung đột thì bản gốc vẫn giữ trong stash
+- Checkout khi còn thay đổi chưa commit: Thaigit tự stash, chuyển nhánh rồi mang thay đổi sang — không còn báo lỗi; xung đột thì bản gốc vẫn giữ trong stash
 - Cạnh tên nhánh trên thanh công cụ có số file chưa commit (bấm để về WIP); xem một commit mà còn file chưa commit thì đầu panel chi tiết nhắc kèm nút Stage tất cả / Xem & commit
 - Nút Undo trên thanh công cụ: hoàn tác thao tác git gần nhất (commit, checkout, pull, huỷ thay đổi…), tự tắt khi repo đã đổi khác
 - Rê chuột vào cột graph để xem tên người commit và thời gian; dải "Nên xem lại trước khi commit" có nút ẩn; danh sách đang trống trong panel thay đổi thu nhỏ để danh sách kia hiện nhiều file hơn; cùng một thông báo không hiện lặp
-- Danh sách file thay đổi xem được dạng cây thư mục (nút cạnh "Stage tất cả", như Path / Tree của GitKraken): gập / mở thư mục, stage hoặc bỏ stage cả thư mục một lần bấm
+- Danh sách file thay đổi xem được dạng cây thư mục (nút cạnh "Stage tất cả"): gập / mở thư mục, stage hoặc bỏ stage cả thư mục một lần bấm
 - Ẩn nhánh khỏi graph hoặc "Chỉ hiện nhánh này" (solo) từ menu chuột phải của nhánh — graph gọn lại khi repo có nhiều nhánh; dải báo phía trên graph có nút "Hiện tất cả nhánh"; nhớ riêng cho từng repo
 - Hàng nút trên thanh công cụ dễ nhìn hơn: nền sáng có viền, mỗi thao tác một màu biểu tượng (Fetch xanh dương, Pull xanh ngọc, Push xanh lá, Branch tím, Stash / Pop cam)
 - Nút Cài đặt và Profile ở góc phải thanh công cụ: avatar tên / email Git đang dùng để commit, bấm để đổi tên & email (cho riêng repo hoặc mọi repo), chọn tài khoản GitHub / GitLab cho repo hoặc mở Cài đặt
@@ -110,7 +106,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 Tab nhiều repo, rebase tương tác, lịch sử file và blame, worktree / submodule, Git LFS, command palette và diff tô màu cú pháp.
 
 - Dòng thời gian: Thaigit tự lưu thư mục làm việc mỗi khi file thay đổi (kể cả file chưa commit) để bạn quay lại được khi code bị hỏng — rất hợp khi code cùng AI (Cursor, Claude Code…). Mở bằng nút "Dòng thời gian" ở panel thay đổi hoặc menu Thêm; chọn một mốc để xem khác gì so với bây giờ, khôi phục một file hoặc tất cả, luôn hỏi trước và có Hoàn tác
-- Mốc chỉ nằm trên máy (trong thư mục .git của repo), không bao giờ được push, không đụng tới phần đã stage, nhánh hay stash; mỗi worktree một dòng thời gian riêng. Mặc định giữ 7 ngày / 300 mốc, chỉnh ở Cài đặt → Dòng thời gian; tắt riêng cho một repo ngay trong panel
+- Mốc chỉ lưu trên máy bạn, không ảnh hưởng tới phần đã stage, nhánh hay stash; mỗi worktree một dòng thời gian riêng. Mặc định giữ 7 ngày / 300 mốc, chỉnh ở Cài đặt → Dòng thời gian; tắt riêng cho một repo ngay trong panel
 - Cảnh báo trước khi commit: panel thay đổi báo khi bạn (hoặc AI) xoá / bỏ qua test, đổi dependency, sửa CI / Docker, thêm file lớn hơn 1 MB, hoặc có file trông như chứa mật khẩu / khoá bí mật — chỉ hiện tên file, không chặn commit
 - Giao diện tiếng Anh: chọn ở Cài đặt → Giao diện → Ngôn ngữ / Language
 - Tài khoản GitHub / GitLab / Bitbucket (Cài đặt → Tài khoản): dán token hoặc đăng nhập bằng mã; token nằm trong Credential Manager của Windows, fetch / pull / push không phải nhập lại

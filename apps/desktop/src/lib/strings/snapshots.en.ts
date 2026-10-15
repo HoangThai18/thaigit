@@ -45,12 +45,11 @@ export const snapshots: Translation<typeof source> = {
   undone: 'Your working folder is back to how it was before the restore',
 
   firstNotice:
-    'Thaigit will save your working folder when files change so you can go back if your code breaks (Timeline, in the changes panel). Snapshots stay on this computer and are never pushed.',
+    'Thaigit will save your working folder when files change so you can go back if your code breaks (Timeline, in the changes panel). Snapshots stay on your computer.',
 
   settingsTitle: 'Timeline',
   settingsEnabled: 'Save the working folder automatically when files change',
-  settingsHelp:
-    'Snapshots live in each repo’s .git folder (a hidden per-worktree ref) and are never pushed. Turn them off for a single repo in the Timeline panel.',
+  settingsHelp: 'Snapshots stay on your computer. Turn them off for a single repo in the Timeline panel.',
   keepDays: 'Keep snapshots for (days)',
   keepCount: 'Maximum snapshots per repo',
 };

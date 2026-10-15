@@ -43,12 +43,11 @@ export const snapshots = {
   undone: 'Đã đưa thư mục làm việc về như trước khi khôi phục',
 
   firstNotice:
-    'Thaigit sẽ tự lưu thư mục làm việc khi file thay đổi để bạn quay lại được nếu code bị hỏng (Dòng thời gian, ở panel thay đổi). Mốc chỉ nằm trên máy, không bao giờ được push.',
+    'Thaigit sẽ tự lưu thư mục làm việc khi file thay đổi để bạn quay lại được nếu code bị hỏng (Dòng thời gian, ở panel thay đổi). Mốc chỉ lưu trên máy bạn.',
 
   settingsTitle: 'Dòng thời gian',
   settingsEnabled: 'Tự lưu thư mục làm việc khi file thay đổi',
-  settingsHelp:
-    'Mốc nằm trong thư mục .git của từng repo (ref ẩn theo worktree), không bao giờ được push. Tắt riêng cho một repo ở panel Dòng thời gian.',
+  settingsHelp: 'Mốc chỉ lưu trên máy bạn. Tắt riêng cho một repo ở panel Dòng thời gian.',
   keepDays: 'Giữ mốc trong (ngày)',
   keepCount: 'Số mốc tối đa mỗi repo',
 } as const;
