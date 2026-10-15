@@ -54,11 +54,18 @@ describe('DialogHost', () => {
     flushSync();
     const input = document.querySelector<HTMLInputElement>('input[type="text"]')!;
     expect(document.activeElement).toBe(input);
-    expect(document.querySelector('.error')?.textContent).toBe('Nhập tên');
+    // Nothing typed yet: the button is off but no error is shouted at the user.
+    expect(document.querySelector('.error')).toBeNull();
     expect(document.querySelector<HTMLButtonElement>('.button.primary')!.disabled).toBe(true);
     // Enter while errors remain: nothing is submitted.
     key(input, 'Enter');
     expect(store.current).not.toBeNull();
+    input.value = 'a..b';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    expect(document.querySelector('.error')?.textContent).toBe('Nhập tên');
 
     input.value = 'feature/x';
     input.dispatchEvent(new Event('input', { bubbles: true }));

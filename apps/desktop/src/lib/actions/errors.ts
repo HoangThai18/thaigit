@@ -5,7 +5,7 @@ import { GitError } from '@thaigit/core';
 import { assignAccountForRepo } from '../forge/assignOwner.ts';
 import { targetOf } from '../forge/pullRequests.ts';
 import { vi } from '../strings.vi.ts';
-import type { RepoStore } from '../stores/repo.svelte.ts';
+import { CONFLICT_TAG, type RepoStore } from '../stores/repo.svelte.ts';
 import type { ToastAction } from '../stores/toasts.svelte.ts';
 
 export function gitErrorContains(error: unknown, ...needles: string[]): boolean {
@@ -22,7 +22,7 @@ export function handleConflictError(
   if (gitErrorContains(error, 'CONFLICT', 'Resolve all conflicts', 'could not apply')) {
     store.notify('warning', vi.remote.conflict(operation), {
       message: vi.remote.conflictMessage,
-      tag: 'conflict',
+      tag: CONFLICT_TAG,
     });
     store.select({ kind: 'workingTree' }, true);
     return true;

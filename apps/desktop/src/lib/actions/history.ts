@@ -324,23 +324,28 @@ export function ignore(store: RepoStore, pattern: string): Promise<void> {
 
 // MARK: - In-progress operations (banner)
 
-export function continueOperation(store: RepoStore): Promise<void> {
+export async function continueOperation(store: RepoStore): Promise<void> {
   const operation = store.operation;
-  if (!operation || !operationCanContinue(operation)) return Promise.resolve();
+  if (!operation || !operationCanContinue(operation)) return;
   if (store.status.conflicts.length > 0) {
     store.notify('warning', vi.branches.conflictsLeft(store.status.conflicts.length));
-    return Promise.resolve();
+    return;
   }
   const name = operationShortName(operation);
-  return store.perform(vi.branches.continueTitle(name), (git) => git.continueOperation(operation), {
+  let continued = false;
+  await store.perform(vi.branches.continueTitle(name), (git) => git.continueOperation(operation), {
     refresh: Scope.all,
     onSuccess: () => {
       store.commitDraft.summary = '';
       store.commitDraft.body = '';
-      store.notify('success', vi.branches.continued);
+      continued = true;
     },
     onError: onConflict(store, operationTitle(operation)),
   });
+  // `perform` refreshes after `onSuccess`: only now does `store.operation` say whether the whole operation is done.
+  if (continued) {
+    store.notify('success', store.operation === null ? vi.branches.finished(name) : vi.branches.continued);
+  }
 }
 
 export async function abortOperation(store: RepoStore, dialogs?: DialogStore): Promise<void> {

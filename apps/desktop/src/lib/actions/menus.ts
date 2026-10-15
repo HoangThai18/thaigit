@@ -113,7 +113,8 @@ export function commitMenu(store: RepoStore, entry: GraphEntry): MenuItem[] {
     {
       title: vi.branches.menuCherryPick(branch),
       icon: 'cherry-pick',
-      disabled: isHead || store.headOid === null,
+      // Already part of the current branch: picking it again would only conflict with itself or make an empty commit.
+      disabled: isHead || store.headOid === null || store.reachableFromHead(commit.id) === true,
       run: () => void cherryPick(store, commit),
     },
     {
@@ -294,6 +295,8 @@ export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
           items.push({
             title: vi.branches.menuMergeInto(name, current),
             icon: 'merge',
+            // Already merged: git would only answer "Already up to date".
+            disabled: store.reachableFromHead(ref.target) === true,
             run: () => void merge(store, name, name),
           });
           items.push({
@@ -358,6 +361,7 @@ export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
         items.push({
           title: vi.branches.menuMergeInto(name, current),
           icon: 'merge',
+          disabled: store.reachableFromHead(ref.target) === true,
           run: () => void merge(store, name, name),
         });
         items.push({

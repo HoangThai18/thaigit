@@ -17,12 +17,15 @@
   let firstField = $state<HTMLElement | null>(null);
   let values = $state<Record<string, string | boolean>>({});
   let valuesFor = 0;
+  /** The user has edited a field: only then is a validation message shown (an empty required field on open is not an error yet). */
+  let touched = $state(false);
 
   // A new dialog: load each field's initial value (keyed by dialog id, so it doesn't re-run while the user types).
   $effect.pre(() => {
     const pending = current;
     if (!pending || pending.id === valuesFor) return;
     valuesFor = pending.id;
+    touched = false;
     values =
       pending.kind === 'form'
         ? Object.fromEntries(pending.fields.map((field) => [field.id, field.value]))
@@ -100,7 +103,7 @@
         <p id="dialog-message" class="selectable">{current.message}</p>
       {/if}
       {#if current.kind === 'form'}
-        <div class="fields">
+        <div class="fields" oninput={() => (touched = true)} onchange={() => (touched = true)}>
           {#each current.fields as field, index (field.id)}
             {#if field.kind === 'checkbox'}
               <label class="check">
@@ -203,7 +206,7 @@
               </label>
             {/if}
           {/each}
-          {#if error}
+          {#if error && touched}
             <p class="error" role="alert">{error}</p>
           {/if}
         </div>

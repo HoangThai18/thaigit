@@ -40,6 +40,11 @@ export async function beginInteractiveRebase(store: RepoStore, base: Commit): Pr
     store.notify('info', vi.rebase.nothingAfter);
     return;
   }
+  // Say so before the dialog opens: no plan over a merge commit could run, so editing one would be wasted work.
+  if (commits.some((commit) => commit.parents.length > 1)) {
+    store.notify('warning', vi.rebase.problemMerge);
+    return;
+  }
   rebaseEditor.open(new RebaseSession(base, branch, commits, (sha) => store.git.commitMessage(sha)));
 }
 
@@ -145,6 +150,11 @@ async function rewritable(
   }
   if (commits === null || !commits.some((commit) => commit.id === sha)) {
     store.notify('warning', vi.rebase.notOnBranch(sha.slice(0, 7)));
+    return null;
+  }
+  // Checked before any dialog (reword asks for the new message first): a plan crossing a merge commit can't run.
+  if (commits.some((commit) => commit.parents.length > 1)) {
+    store.notify('warning', vi.rebase.problemMerge);
     return null;
   }
   return { branch, commits };

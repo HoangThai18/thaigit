@@ -36,9 +36,15 @@ export interface ToastOptions {
 
 export const MAX_TOASTS = 4;
 
-/** `null` = never auto-hide. */
-export function toastLifetimeMs(toast: Pick<Toast, 'style' | 'actions'>): number | null {
-  if (toast.style === 'error' || toast.style === 'warning') return null;
+/**
+ * `null` = never auto-hide. A warning that only informs (no button, no tag tying it to repo state such as an unresolved
+ * conflict) fades after a while instead of piling up; errors and actionable warnings stay until dismissed.
+ */
+export function toastLifetimeMs(
+  toast: Pick<Toast, 'style' | 'actions'> & { tag?: string | null },
+): number | null {
+  if (toast.style === 'error') return null;
+  if (toast.style === 'warning') return toast.actions.length === 0 && !toast.tag ? 10000 : null;
   return toast.actions.length === 0 ? 4000 : 9000;
 }
 
@@ -113,8 +119,11 @@ export class ToastStore {
     this.replace(this.items.filter((item) => item.id !== id));
   }
 
-  dismissTag(tag: string): void {
-    this.replace(this.items.filter((item) => item.tag !== tag));
+  /** Remove the toasts carrying `tag` (only `owner`'s when given). */
+  dismissTag(tag: string, owner?: string): void {
+    this.replace(
+      this.items.filter((item) => item.tag !== tag || (owner !== undefined && item.owner !== owner)),
+    );
   }
 
   /** Remove every toast of one owner (e.g. when closing a repo). */

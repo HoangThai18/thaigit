@@ -158,7 +158,8 @@ export const branches: Translation<typeof source> = {
   skipOperation: 'Skip this commit',
   abortOperation: 'Abort',
   continueTitle: (name: string) => `Continue ${name}`,
-  continued: 'Continued',
+  continued: 'Continued — more steps to go',
+  finished: (name: string) => `Finished ${name}`,
   conflictsLeft: (count: number) => `${count} conflicted ${count === 1 ? 'file' : 'files'} still unresolved`,
   abortConfirmTitle: (name: string) => `Abort ${name}?`,
   abortConfirmMessage: (name: string) =>

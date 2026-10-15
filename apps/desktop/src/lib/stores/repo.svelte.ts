@@ -127,6 +127,8 @@ async function settle<T>(promise: Promise<T>): Promise<Settled<T>> {
 
 const NO_LABELS: readonly RefLabel[] = Object.freeze([]);
 const REFRESH_ERROR_TAG = 'refresh-error';
+/** Tag of the "<operation> hit a conflict" notice, dismissed once the repo has no operation or conflict left. */
+export const CONFLICT_TAG = 'conflict';
 /** A serial number for the repo window (reopening the same repo is a different toast owner). */
 let storeSerial = 0;
 
@@ -457,6 +459,27 @@ export class RepoStore {
     return headBranchName(this.status.head);
   }
 
+  /**
+   * Whether `sha` is HEAD or one of its ancestors, judged from the loaded history; `null` when that can't tell (either commit is
+   * not loaded). The history lists children before parents, so every commit on a path HEAD → `sha` is loaded whenever `sha` is.
+   */
+  reachableFromHead(sha: string): boolean | null {
+    const head = this.headOid;
+    if (head === null || !this.rowIndex.has(sha) || !this.rowIndex.has(head)) return null;
+    const seen = new Set<string>();
+    const stack = [head];
+    while (stack.length > 0) {
+      const id = stack.pop()!;
+      if (id === sha) return true;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const row = this.rowIndex.get(id);
+      if (row === undefined) continue;
+      stack.push(...(this.entries[row]?.commit.parents ?? []));
+    }
+    return false;
+  }
+
   get headDescription(): string {
     const head = this.status.head;
     switch (head.kind) {
@@ -647,6 +670,10 @@ export class RepoStore {
     if (gapsResult?.ok && !jsonEqual(gapsResult.value, this.historyGaps)) this.historyGaps = gapsResult.value;
     if (operationResult?.ok && !jsonEqual(operationResult.value, this.operation)) {
       this.operation = operationResult.value;
+    }
+    // The "… hit a conflict" notice is stale once nothing is in progress any more (continued, aborted, or done in a terminal).
+    if (operationResult?.ok && this.operation === null && this.status.conflicts.length === 0) {
+      this.toasts.dismissTag(CONFLICT_TAG, this.ownerId);
     }
 
     const fingerprint = this.currentFingerprint();

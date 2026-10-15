@@ -296,17 +296,28 @@
         <button
           type="button"
           class="action destructive"
+          title={vi.staging.discardFile}
           onclick={() => void discardFiles(store, [file.change])}
         >
           <Icon name="discard" size={14} />
           <span>{vi.staging.discardFile}</span>
         </button>
-        <button type="button" class="action primary" onclick={() => void stageFiles(store, [file.change])}>
+        <button
+          type="button"
+          class="action primary"
+          title={vi.staging.stageFile}
+          onclick={() => void stageFiles(store, [file.change])}
+        >
           <Icon name="stage" size={14} />
           <span>{vi.staging.stageFile}</span>
         </button>
       {:else if file.source.kind === 'staged'}
-        <button type="button" class="action" onclick={() => void unstageFiles(store, [file.change])}>
+        <button
+          type="button"
+          class="action"
+          title={vi.staging.unstageFile}
+          onclick={() => void unstageFiles(store, [file.change])}
+        >
           <Icon name="unstage" size={14} />
           <span>{vi.staging.unstageFile}</span>
         </button>
@@ -464,7 +475,9 @@
   }
 
   .header {
+    container: diffhead / inline-size;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     flex: none;
@@ -903,5 +916,16 @@
     border-top: 1px solid var(--separator);
     background: var(--surface-muted);
     font-size: 12.5px;
+  }
+
+  /* A narrow diff pane (inspector open on a laptop screen): icon-only buttons so Stage / Discard stay in view; anything
+     still too wide wraps onto a second row instead of being cut off. */
+  @container diffhead (max-width: 1000px) {
+    .action span,
+    .back span,
+    .badge,
+    .dir {
+      display: none;
+    }
   }
 </style>

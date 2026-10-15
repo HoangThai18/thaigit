@@ -4,7 +4,9 @@ import { MAX_TOASTS, ToastStore, describeError, toastLifetimeMs } from '../src/l
 describe('toastLifetimeMs', () => {
   it('lỗi/cảnh báo không tự ẩn; còn lại 4s, có nút hành động thì 9s', () => {
     expect(toastLifetimeMs({ style: 'error', actions: [] })).toBeNull();
-    expect(toastLifetimeMs({ style: 'warning', actions: [] })).toBeNull();
+    expect(toastLifetimeMs({ style: 'warning', actions: [] })).toBe(10000);
+    expect(toastLifetimeMs({ style: 'warning', actions: [], tag: 'conflict' })).toBeNull();
+    expect(toastLifetimeMs({ style: 'warning', actions: [{ title: 'x', run: () => {} }] })).toBeNull();
     expect(toastLifetimeMs({ style: 'info', actions: [] })).toBe(4000);
     expect(toastLifetimeMs({ style: 'success', actions: [{ title: 'x', run: () => {} }] })).toBe(9000);
   });

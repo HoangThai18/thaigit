@@ -2,6 +2,16 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## Chưa phát hành
+
+- Thông báo “… gặp xung đột” tự tắt khi xung đột đã giải quyết xong hoặc đã huỷ thao tác, không còn nằm lì trên màn hình
+- Cảnh báo chỉ để báo tin tự tắt sau vài giây thay vì chồng chất; cảnh báo có nút bấm vẫn giữ đến khi bạn đóng
+- Bấm “Tiếp tục” sau khi giải quyết xung đột: báo rõ “Đã hoàn tất merge / rebase…” thay vì “Đã tiếp tục”
+- Sửa message / đổi thứ tự / xoá commit cũ mà phía sau có commit merge: báo ngay từ đầu thay vì để bạn gõ xong rồi mới báo không làm được
+- Menu chuột phải không còn mời cherry-pick commit đã nằm sẵn trong nhánh hiện tại, hay merge nhánh đã được merge rồi
+- Hộp thoại tạo nhánh / tag không báo lỗi đỏ ngay khi vừa mở, chỉ báo khi tên bạn gõ không hợp lệ
+- Thanh công cụ của khung xem diff gọn lại khi khung hẹp: nút Stage / Huỷ thay đổi không còn bị che
+
 ## 2.6.4 — 2026-10-15
 
 - Tab Trang chủ trở lại như GitKraken: ô ngôi nhà luôn đứng đầu thanh tab, bấm vào là về trang chủ mà các repo đang mở vẫn giữ nguyên ở tab của chúng; mở repo từ trang chủ thì repo mở thành tab mới (repo đã mở rồi thì chuyển sang tab đó); đóng tab repo cuối cùng thì về trang chủ. Ctrl/⌘ + 1 cũng về trang chủ
