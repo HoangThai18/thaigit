@@ -57,7 +57,7 @@ curl -s http://127.0.0.1:8787/healthz   # {"api":"ok","db":"ok","ai":"ok"}
 
 ## 3. Mở ra Internet qua Caddy / nginx
 
-Thêm đoạn trong `server/deploy/Caddyfile.example` (Caddy) hoặc `server/deploy/nginx.conf.example` (nginx) vào khối `git.thaipro.store` sẵn có, rồi reload. Hai điểm bắt buộc: **ghi đè** `X-Real-IP` bằng IP thật, và **không đệm** SSE.
+Thêm đoạn trong `server/deploy/Caddyfile.example` (Caddy) hoặc `server/deploy/nginx.conf.example` (nginx) vào khối `git.thaipro.store` sẵn có, rồi reload. Ba điểm bắt buộc: **ghi đè** `X-Real-IP` bằng IP thật, **không đệm** SSE, và vì tên miền đi qua **Cloudflare** nên phải bật phần tin `CF-Connecting-IP` từ dải IP Cloudflare (khối global của Caddy / `set_real_ip_from` của nginx) — thiếu nó thì giới hạn theo IP và nhật ký lượt tải chỉ thấy IP của Cloudflare.
 
 Kiểm từ máy khác:
 

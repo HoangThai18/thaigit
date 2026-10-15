@@ -1,11 +1,21 @@
 # Thêm vào khối git.thaipro.store sẵn có (trang tĩnh), TRƯỚC file_server. API dùng chung tên miền với trang chủ:
 #   https://git.thaipro.store/v1/…, /download/mac, /download/win, /healthz
+# Tên miền đi qua Cloudflare: Caddy chỉ thấy IP máy Cloudflare. Khối global dưới đây (đầu Caddyfile) bảo Caddy tin header
+# CF-Connecting-IP — CHỈ khi request đến từ dải IP của Cloudflare (https://www.cloudflare.com/ips/), nên người khác không
+# giả được. Sau đó {client_ip} là IP thật của người dùng.
+{
+	servers {
+		trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+		client_ip_headers CF-Connecting-IP
+	}
+}
+
 git.thaipro.store {
 	@api path /v1/* /download/* /healthz
 	handle @api {
 		reverse_proxy 127.0.0.1:8787 {
-			# IP thật cho giới hạn tốc độ (API chỉ tin header này khi đến từ 127.0.0.1).
-			header_up X-Real-IP {remote_host}
+			# IP thật cho giới hạn tốc độ và nhật ký lượt tải (API chỉ tin header này khi đến từ 127.0.0.1).
+			header_up X-Real-IP {client_ip}
 			# SSE: đẩy từng chữ ngay, không gom.
 			flush_interval -1
 		}
