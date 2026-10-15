@@ -162,6 +162,7 @@ export const shell = {
     nounTag: 'tag',
     nounStash: 'stash',
     upstreamGone: 'Nhánh trên remote đã bị xoá',
+    currentChip: 'Đang ở',
     aheadTip: (count: number) => `${count} commit chưa push`,
     behindTip: (count: number) => `${count} commit mới trên remote chưa pull`,
     annotatedTag: 'Annotated tag',

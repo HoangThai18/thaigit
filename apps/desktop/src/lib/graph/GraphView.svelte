@@ -312,6 +312,7 @@
 {#snippet row(entry: GraphEntry, index: number)}
   {@const commit = entry.commit}
   {@const isWip = isWorkingTreeCommit(commit)}
+  {@const rowLane = laneColor(laneColors, entry.row.color, '#8a93a3')}
   <!--
     Keyboard handling lives on the outer `listbox` (Up/Down/PageUp/PageDown/Home/End/Enter). Virtualised rows are
     removed from the DOM once scrolled away; if focus sits on a row the arrow keys stop working, so clicking a row
@@ -322,6 +323,9 @@
     class="g-row"
     class:selected={index === selectedRow}
     class:wip={isWip}
+    class:labeled={entry.labels.length > 0}
+    class:head={!isWip && commit.id === store.headOid}
+    style:--lane={rowLane}
     class:match={search?.active === true && search.matchSet.has(index)}
     class:dim={search?.active === true && !search.matchSet.has(index)}
     id={rowId(index)}
@@ -355,7 +359,7 @@
           (text) => measurePillText(showBidi(text), fontFamily),
           pendingOnCurrent,
         )}
-        {@const lane = laneColor(laneColors, entry.row.color, '#8a93a3')}
+        {@const lane = rowLane}
         {#each placement.pills as pill (pill.index)}
           {@const label = entry.labels[pill.index]}
           {#if label}
@@ -623,12 +627,36 @@
     font-size: 13px;
   }
 
+  .g-row.labeled {
+    background-image: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--lane) 16%, transparent) var(--w-refs),
+      color-mix(in srgb, var(--lane) 6%, transparent) var(--w-refs)
+    );
+  }
+
+  .g-row.head {
+    background-image: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--lane) 26%, transparent) var(--w-refs),
+      color-mix(in srgb, var(--lane) 13%, transparent) var(--w-refs)
+    );
+    box-shadow:
+      inset 4px 0 0 var(--success),
+      inset 0 1px 0 color-mix(in srgb, var(--lane) 45%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--lane) 45%, transparent);
+  }
+
+  .g-row.head .subject {
+    font-weight: 600;
+  }
+
   .g-row:hover {
-    background: var(--row-hover);
+    background-color: var(--row-hover);
   }
 
   .g-row.selected {
-    background: var(--row-selected);
+    background-color: var(--row-selected);
   }
 
   .g-row.dim {
@@ -636,11 +664,11 @@
   }
 
   .g-row.match:not(.selected) {
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    background-color: color-mix(in srgb, var(--accent) 10%, transparent);
   }
 
   .graph-table:focus-within .g-row.selected {
-    background: var(--row-selected-focus);
+    background-color: var(--row-selected-focus);
   }
 
   .cell {
@@ -722,6 +750,17 @@
       0 0 0 0.75px var(--pill-edge);
     overflow: hidden;
     white-space: nowrap;
+  }
+
+  .pill.current {
+    height: 20px;
+    margin-top: -10px;
+    border-radius: 10px;
+    font-weight: 700;
+    box-shadow:
+      inset 0 0 0 var(--pill-rim-width) var(--pill-rim),
+      0 0 0 2px var(--success),
+      0 2px 10px -2px var(--success);
   }
 
   .pill-text {

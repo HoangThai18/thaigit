@@ -29,6 +29,8 @@ export const remote: Translation<typeof source> = {
   refresh: 'Refresh',
   commandLog: 'Git command log…',
   switchBranchTip: 'Switch branch',
+  currentBranchCaption: 'On branch',
+  detachedCaption: 'Not on a branch',
   recentBranches: 'Recent branches',
   localBranches: 'Local branches',
   noBranches: 'No branches yet',

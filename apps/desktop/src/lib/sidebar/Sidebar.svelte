@@ -137,7 +137,7 @@
 )}
   <button
     type="button"
-    class="section-header"
+    class="section-header sh-{key}"
     aria-expanded={sections[key]}
     title={vi.sidebar.section(title)}
     onclick={() => toggle(key)}
@@ -166,7 +166,7 @@
     ondblclick={() => void checkout(store, ref)}
     oncontextmenu={(event) => menus.openAt(event, refMenu(store, ref))}
   >
-    <span class="sb-icon">
+    <span class="sb-icon {ref.kind === 'remoteBranch' ? 'tint-remote' : 'tint-local'}">
       {#if current}
         <span class="badge"><Icon name="check" size={10} strokeWidth={3.2} /></span>
       {:else}
@@ -174,6 +174,9 @@
       {/if}
     </span>
     <span class="sb-title" class:current><bdi>{showBidi(title)}</bdi></span>
+    {#if current}
+      <span class="sb-head-chip">{vi.sidebar.currentChip}</span>
+    {/if}
     {#if ref.upstreamGone}
       <span class="gone" title={vi.sidebar.upstreamGone}><Icon name="warning" size={13} /></span>
     {/if}
@@ -261,7 +264,7 @@
             <span class="sb-chevron"
               ><Icon name={open ? 'chevron-down' : 'chevron-right'} size={11} strokeWidth={2.4} /></span
             >
-            <span class="sb-icon"><Icon name="cloud" size={15} /></span>
+            <span class="sb-icon tint-remote"><Icon name="cloud" size={15} /></span>
             <span class="sb-title"><bdi>{showBidi(remote.name)}</bdi></span>
           </button>
           {#if open}
@@ -305,7 +308,7 @@
                 onclick={() => selectRef(ref)}
                 oncontextmenu={(event) => menus.openAt(event, refMenu(store, ref))}
               >
-                <span class="sb-icon"><Icon name="tag" size={15} /></span>
+                <span class="sb-icon tint-tag"><Icon name="tag" size={15} /></span>
                 <span class="sb-title"><bdi>{showBidi(refName(ref))}</bdi></span>
               </button>
             {/snippet}
@@ -332,7 +335,7 @@
                 onclick={() => selectStash(stash)}
                 oncontextmenu={(event) => menus.openAt(event, stashMenu(store, stash))}
               >
-                <span class="sb-icon"><Icon name="archive" size={15} /></span>
+                <span class="sb-icon tint-stash"><Icon name="archive" size={15} /></span>
                 <span class="sb-title"><bdi>{showBidi(message === '' ? stash.selector : message)}</bdi></span>
               </button>
             {/snippet}
@@ -425,7 +428,7 @@
               )}
               oncontextmenu={(event) => menus.openAt(event, submoduleMenu(store, submodule))}
             >
-              <span class="sb-icon"><Icon name="folder-open" size={15} /></span>
+              <span class="sb-icon tint-sub"><Icon name="folder-open" size={15} /></span>
               <span class="sb-title"><bdi>{showBidi(submodule.path)}</bdi></span>
               {#if submodule.state === 'modified' || submodule.state === 'conflict'}
                 <span class="sb-flag" aria-hidden="true">●</span>
@@ -476,7 +479,7 @@
               )}
               oncontextmenu={(event) => menus.openAt(event, lfsPatternMenu(store, pattern))}
             >
-              <span class="sb-icon"><Icon name="cloud" size={15} /></span>
+              <span class="sb-icon tint-remote"><Icon name="cloud" size={15} /></span>
               <span class="sb-title mono"><bdi>{showBidi(pattern.display)}</bdi></span>
             </button>
           {/each}
@@ -576,6 +579,28 @@
     width: 16px;
   }
 
+  .sh-local .sh-icon {
+    color: var(--lane-0);
+  }
+  .sh-remote .sh-icon {
+    color: var(--lane-5);
+  }
+  .sh-tags .sh-icon {
+    color: var(--lane-6);
+  }
+  .sh-stashes .sh-icon {
+    color: var(--lane-2);
+  }
+  .sh-worktrees .sh-icon {
+    color: var(--lane-3);
+  }
+  .sh-submodules .sh-icon {
+    color: var(--lane-7);
+  }
+  .sh-lfs .sh-icon {
+    color: var(--lane-11);
+  }
+
   .sh-title {
     flex: none;
   }
@@ -638,7 +663,7 @@
     width: 15px;
     height: 15px;
     border-radius: 50%;
-    background: var(--accent);
+    background: var(--success);
     color: #fff;
   }
 

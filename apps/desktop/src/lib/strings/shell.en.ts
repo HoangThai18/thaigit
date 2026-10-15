@@ -163,6 +163,7 @@ export const shell: Translation<typeof source> = {
     nounTag: 'tags',
     nounStash: 'stashes',
     upstreamGone: 'The remote branch was deleted',
+    currentChip: 'Current',
     aheadTip: (count: number) => `${count} ${count === 1 ? 'commit' : 'commits'} not pushed yet`,
     behindTip: (count: number) =>
       `${count} new ${count === 1 ? 'commit' : 'commits'} on the remote not pulled yet`,

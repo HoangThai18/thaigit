@@ -4,6 +4,8 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## Chưa phát hành
 
+- Giao diện nhiều màu hơn: dòng có nhánh hoặc tag trên graph được tô theo màu của làn, icon ở sidebar có màu riêng theo từng mục
+- Luôn biết mình đang ở nhánh nào: nút nhánh trên thanh công cụ thành chip xanh lá ghi rõ “Đang ở nhánh”, nhánh hiện tại trong sidebar có nhãn “Đang ở”, dòng của nhánh hiện tại trên graph được viền và tô đậm
 - Góp ý & báo lỗi ngay trong app: menu … (hoặc bảng lệnh Ctrl/⌘ + P, hay màn hình chào) → “Góp ý & báo lỗi…”, viết vài dòng rồi bấm “Soạn email” để mở ứng dụng email với thư soạn sẵn gửi tới tác giả; tuỳ chọn kèm phiên bản Thaigit và hệ điều hành, không kèm gì về repo của bạn
 
 ## 2.6.0 — 2026-10-14

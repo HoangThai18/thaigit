@@ -30,6 +30,8 @@ export const remote = {
   refresh: 'Làm mới',
   commandLog: 'Nhật ký lệnh git…',
   switchBranchTip: 'Đổi nhánh',
+  currentBranchCaption: 'Đang ở nhánh',
+  detachedCaption: 'Không ở nhánh nào',
   recentBranches: 'Nhánh gần đây',
   localBranches: 'Nhánh local',
   noBranches: 'Chưa có nhánh nào',
