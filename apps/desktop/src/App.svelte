@@ -94,6 +94,8 @@
   }
 
   const tabItems = $derived(tabs.tabs.map((tab) => tabItem(tab.id, tab.view)));
+  // Shown as soon as a repo is open (not only from the second tab) so "+" for another repo is always in sight.
+  const showTabBar = $derived(tabs.tabs.length > 1 || tabs.tabs.some((tab) => tab.view.kind !== 'welcome'));
 
   function folderName(root: string): string {
     return root.split(/[\\/]/).filter(Boolean).pop() ?? root;
@@ -377,8 +379,14 @@
     }
   }
 
-  /** The × button on a repo's toolbar: close that tab's repo (the last tab returns to the welcome screen). */
-  const closeRepo = (tabId: number): Promise<void> => closeTab(tabId);
+  /** The home button on a repo's toolbar: close the repo but keep its tab, showing the welcome screen in it. */
+  async function goHome(tabId: number): Promise<void> {
+    const tab = tabs.get(tabId);
+    if (!tab) return;
+    tabs.set(tabId, { kind: 'welcome' });
+    void app.refreshRecent();
+    await release(tab.view);
+  }
 
   /** Create a new repo: pick the parent folder, name it, `git init`, then open it. */
   async function createRepo(tabId: number): Promise<void> {
@@ -417,8 +425,8 @@
 
 <svelte:window onkeydown={onwindowkeydown} />
 
-<div class="shell" class:tabbed={tabItems.length > 1}>
-  {#if tabItems.length > 1}
+<div class="shell" class:tabbed={showTabBar}>
+  {#if showTabBar}
     <TabBar
       items={tabItems}
       activeId={tabs.activeId}
@@ -437,9 +445,9 @@
         {#key view.store}
           <!-- A rendering error in the repo UI: don't show the exception, just report it friendly and offer retry / back to the home screen. -->
           <svelte:boundary onerror={(error) => reportUnexpected(error)}>
-            <RepoWindow store={view.store} onclose={() => closeRepo(tabId)} />
+            <RepoWindow store={view.store} onclose={() => goHome(tabId)} />
             {#snippet failed(_error, reset)}
-              <CrashPanel onretry={reset} onhome={() => void closeRepo(tabId)} />
+              <CrashPanel onretry={reset} onhome={() => void goHome(tabId)} />
             {/snippet}
           </svelte:boundary>
         {/key}

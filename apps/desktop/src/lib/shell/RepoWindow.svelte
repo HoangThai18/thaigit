@@ -235,7 +235,7 @@
         aria-label={vi.window.closeRepo}
         onclick={onclose}
       >
-        <Icon name="x" size={16} />
+        <Icon name="home" size={18} />
       </button>
     </header>
 
