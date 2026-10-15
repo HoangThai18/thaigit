@@ -54,6 +54,8 @@ export interface PrefsData {
   diffContext: number;
   /** Unified diff (one column) or split (old | new). */
   diffLayout: DiffLayout;
+  /** Wrap long diff lines instead of scrolling sideways (for diffs small enough to lay out in full). */
+  diffWrap: boolean;
   /** Show the changed files as a folder tree (Path / Tree, like GitKraken). */
   fileListTree: boolean;
   /** Real avatars on graph nodes. Off means no image is downloaded at all (Swift: `AvatarStore.enabledKey`). */
@@ -118,6 +120,7 @@ export function defaultPrefs(): PrefsData {
     autoFetchMinutes: 10,
     diffContext: 3,
     diffLayout: 'unified',
+    diffWrap: true,
     fileListTree: false,
     showAvatars: true,
     diffIgnoreWhitespace: false,
@@ -191,6 +194,7 @@ export function sanitizePrefs(raw: unknown): PrefsData {
     autoFetchMinutes: clamp(source.autoFetchMinutes, 0, AUTO_FETCH_MINUTES_MAX, base.autoFetchMinutes),
     diffContext: clamp(source.diffContext, 0, DIFF_CONTEXT_MAX, base.diffContext),
     diffLayout: source.diffLayout === 'split' ? 'split' : 'unified',
+    diffWrap: bool(source.diffWrap, base.diffWrap),
     fileListTree: bool(source.fileListTree, base.fileListTree),
     showAvatars: bool(source.showAvatars, base.showAvatars),
     diffIgnoreWhitespace: bool(source.diffIgnoreWhitespace, base.diffIgnoreWhitespace),

@@ -4,6 +4,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## Chưa phát hành
 
+- Xem diff không còn phải cuộn ngang: dòng dài tự xuống dòng (nút “Xuống dòng” trên thanh diff để bật / tắt); thanh công cụ diff gọn lại một hàng
 - Ảnh đại diện thật của tác giả (GitHub, Gravatar) hiện cả ở khung chi tiết commit và nút Profile, không chỉ trên graph
 
 ## 2.6.7 — 2026-10-15

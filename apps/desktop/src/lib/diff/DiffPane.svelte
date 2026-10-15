@@ -50,6 +50,7 @@
       };
 
   const ROW_HEIGHT = 20;
+  const WRAP_LIMIT = 4000;
 
   const diff = $derived(store.diff);
   const file = $derived(diff.file);
@@ -94,6 +95,10 @@
   const list: { current?: VirtualList<Row> } = {};
   /** Top visible line: previous / next hunk jumps relative to where the user is reading. */
   let firstVisible = 0;
+  // A plain holder like `list` (the `state` variable shadows the rune); only read when jumping between hunks.
+  const wrapHolder: { current?: HTMLDivElement } = {};
+  /** Wrapping needs every row laid out (variable heights), so very long diffs keep the fixed-height virtual list. */
+  const wrapped = $derived(prefs.value.diffWrap && rows.length <= WRAP_LIMIT);
   const hunkRows = $derived(rows.flatMap((row, index) => (row.kind === 'hunk' ? [index] : [])));
   const siblings = $derived(diff.siblings);
   const filePosition = $derived(
@@ -127,7 +132,28 @@
     return line.kind === 'addition' || line.kind === 'deletion';
   }
 
+  function rowKey(row: Row): string {
+    return row.kind === 'hunk'
+      ? `h${row.hunk.id}`
+      : row.kind === 'split'
+        ? `${row.hunkId}:s${row.key}`
+        : `${row.hunkId}:${row.line.index}`;
+  }
+
+  /** Wrapped mode lays every row out (no virtual list): the first row whose bottom is below the top of the view. */
+  function firstWrappedRow(): number {
+    const box = wrapHolder.current;
+    if (!box) return 0;
+    const top = box.getBoundingClientRect().top;
+    const rows = box.querySelectorAll<HTMLElement>('[data-row]');
+    for (const [index, element] of rows.entries()) {
+      if (element.getBoundingClientRect().bottom > top + 1) return index;
+    }
+    return 0;
+  }
+
   function jumpHunk(direction: 1 | -1): void {
+    if (wrapped) firstVisible = firstWrappedRow();
     let target: number | undefined;
     for (const index of hunkRows) {
       if (direction === 1 && index > firstVisible) {
@@ -136,7 +162,9 @@
       }
       if (direction === -1 && index < firstVisible) target = index;
     }
-    if (target !== undefined) list.current?.scrollToIndex(target, 'top');
+    if (target === undefined) return;
+    if (wrapped) wrapHolder.current?.querySelector(`[data-row="${target}"]`)?.scrollIntoView({ block: 'start' });
+    else list.current?.scrollToIndex(target, 'top');
   }
 
   function isTyping(target: EventTarget | null): boolean {
@@ -175,6 +203,58 @@
       >{:else if segment.type}<span class="tok tok-{segment.type}">{segment.text}</span
       >{:else}{segment.text}{/if}
   {/each}
+{/snippet}
+
+{#snippet diffRow(row: Row)}
+  {#if row.kind === 'hunk'}
+    <div class="hunk">
+      <span class="hunk-header"><bdi>{row.hunk.header}</bdi></span>
+      {#if pickable}
+        <span class="hunk-actions">
+          {#if unstaged}
+            <button type="button" class="mini destructive" onclick={() => apply('discard', row.hunk.id)}>
+              {vi.staging.discardHunk}
+            </button>
+            <button type="button" class="mini" onclick={() => apply('stage', row.hunk.id)}>
+              {vi.staging.stageHunk}
+            </button>
+          {:else}
+            <button type="button" class="mini" onclick={() => apply('unstage', row.hunk.id)}>
+              {vi.staging.unstageHunk}
+            </button>
+          {/if}
+        </span>
+      {/if}
+    </div>
+  {:else if row.kind === 'split'}
+    <div class="split-row">
+      {@render half(row.hunkId, row.left, 'left')}
+      {@render half(row.hunkId, row.right, 'right')}
+    </div>
+  {:else if pickable && isChange(row.line)}
+    {@const checked = diff.isSelected(row.hunkId, row.line.index)}
+    <div
+      class="line pick {row.line.kind}"
+      class:selected={checked}
+      role="checkbox"
+      aria-checked={checked}
+      tabindex="0"
+      title={vi.staging.lineTip}
+      onclick={() => diff.toggleLine(row.hunkId, row.line.index)}
+      onkeydown={(event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault();
+          diff.toggleLine(row.hunkId, row.line.index);
+        }
+      }}
+    >
+      {@render lineBody(row.line)}
+    </div>
+  {:else}
+    <div class="line {row.line.kind}">
+      {@render lineBody(row.line)}
+    </div>
+  {/if}
 {/snippet}
 
 {#snippet lineBody(line: PresentationLine)}
@@ -273,12 +353,14 @@
             type="button"
             class:active={!split}
             aria-pressed={!split}
+            title={vi.staging.layoutUnifiedTip}
             onclick={() => prefs.update({ diffLayout: 'unified' })}>{vi.staging.layoutUnified}</button
           >
           <button
             type="button"
             class:active={split}
             aria-pressed={split}
+            title={vi.staging.layoutSplitTip}
             onclick={() => prefs.update({ diffLayout: 'split' })}>{vi.staging.layoutSplit}</button
           >
         </div>
@@ -291,6 +373,13 @@
             aria-pressed={ignoreWhitespace}
             title={vi.staging.ignoreWhitespaceTip}
             onclick={toggleWhitespace}>{vi.staging.ignoreWhitespace}</button
+          >
+          <button
+            type="button"
+            class:active={prefs.value.diffWrap}
+            aria-pressed={prefs.value.diffWrap}
+            title={vi.staging.wrapLinesTip}
+            onclick={() => prefs.update({ diffWrap: !prefs.value.diffWrap })}>{vi.staging.wrapLines}</button
           >
         </div>
       {/if}
@@ -365,77 +454,28 @@
           </p>
         {/if}
         <div class="lines" style:--digits={digits}>
-          <VirtualList
-            bind:this={list.current}
-            items={rows}
-            rowHeight={ROW_HEIGHT}
-            overscan={20}
-            minContentWidth={minWidth}
-            key={(row) =>
-              row.kind === 'hunk'
-                ? `h${row.hunk.id}`
-                : row.kind === 'split'
-                  ? `${row.hunkId}:s${row.key}`
-                  : `${row.hunkId}:${row.line.index}`}
-            label={vi.staging.diffLabel}
-            onrange={(range) => (firstVisible = range.start)}
-          >
-            {#snippet row(row: Row)}
-              {#if row.kind === 'hunk'}
-                <div class="hunk">
-                  <span class="hunk-header"><bdi>{row.hunk.header}</bdi></span>
-                  {#if pickable}
-                    <span class="hunk-actions">
-                      {#if unstaged}
-                        <button
-                          type="button"
-                          class="mini destructive"
-                          onclick={() => apply('discard', row.hunk.id)}
-                        >
-                          {vi.staging.discardHunk}
-                        </button>
-                        <button type="button" class="mini" onclick={() => apply('stage', row.hunk.id)}>
-                          {vi.staging.stageHunk}
-                        </button>
-                      {:else}
-                        <button type="button" class="mini" onclick={() => apply('unstage', row.hunk.id)}>
-                          {vi.staging.unstageHunk}
-                        </button>
-                      {/if}
-                    </span>
-                  {/if}
-                </div>
-              {:else if row.kind === 'split'}
-                <div class="split-row">
-                  {@render half(row.hunkId, row.left, 'left')}
-                  {@render half(row.hunkId, row.right, 'right')}
-                </div>
-              {:else if pickable && isChange(row.line)}
-                {@const checked = diff.isSelected(row.hunkId, row.line.index)}
-                <div
-                  class="line pick {row.line.kind}"
-                  class:selected={checked}
-                  role="checkbox"
-                  aria-checked={checked}
-                  tabindex="0"
-                  title={vi.staging.lineTip}
-                  onclick={() => diff.toggleLine(row.hunkId, row.line.index)}
-                  onkeydown={(event) => {
-                    if (event.key === ' ' || event.key === 'Enter') {
-                      event.preventDefault();
-                      diff.toggleLine(row.hunkId, row.line.index);
-                    }
-                  }}
-                >
-                  {@render lineBody(row.line)}
-                </div>
-              {:else}
-                <div class="line {row.line.kind}">
-                  {@render lineBody(row.line)}
-                </div>
-              {/if}
-            {/snippet}
-          </VirtualList>
+          {#if wrapped}
+            <div class="wrapped" role="list" aria-label={vi.staging.diffLabel} bind:this={wrapHolder.current}>
+              {#each rows as item, index (rowKey(item))}
+                <div class="wrapped-row" role="listitem" data-row={index}>{@render diffRow(item)}</div>
+              {/each}
+            </div>
+          {:else}
+            <VirtualList
+              bind:this={list.current}
+              items={rows}
+              rowHeight={ROW_HEIGHT}
+              overscan={20}
+              minContentWidth={minWidth}
+              key={rowKey}
+              label={vi.staging.diffLabel}
+              onrange={(range) => (firstVisible = range.start)}
+            >
+              {#snippet row(row: Row)}
+                {@render diffRow(row)}
+              {/snippet}
+            </VirtualList>
+          {/if}
         </div>
       {/if}
     </div>
@@ -929,5 +969,39 @@
     .dir {
       display: none;
     }
+  }
+
+  .wrapped {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .wrapped-row {
+    min-height: 20px;
+  }
+
+  .wrapped .hunk,
+  .wrapped .line,
+  .wrapped .split-row {
+    height: auto;
+    min-height: 20px;
+  }
+
+  .wrapped .line {
+    align-items: flex-start;
+    line-height: 20px;
+  }
+
+  .wrapped .text {
+    flex: 1;
+    min-width: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .wrapped .half .text {
+    overflow: visible;
+    text-overflow: clip;
   }
 </style>
