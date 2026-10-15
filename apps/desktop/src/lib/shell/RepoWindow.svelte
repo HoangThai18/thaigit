@@ -411,6 +411,7 @@
   }
 
   .toolbar {
+    container: toolbar / inline-size;
     display: flex;
     align-items: center;
     flex: none;

@@ -458,8 +458,9 @@
     text-align: center;
   }
 
-  /* Narrow window: drop the label, keep the icon (plus the before/after commit counts as a badge). */
-  @media (max-width: 1180px) {
+  /* Narrow toolbar (window width minus the sidebar): drop the label, keep the icon (plus the before/after commit counts as a
+     badge) so the buttons at the right end — settings, profile, close repo — never get pushed out of view. */
+  @container toolbar (max-width: 1480px) {
     .label {
       display: none;
     }
