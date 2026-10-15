@@ -606,4 +606,11 @@
     opacity: 0.45;
     cursor: default;
   }
+
+  @container toolbar (max-width: 1080px) {
+    .uncommitted span,
+    .titles {
+      display: none;
+    }
+  }
 </style>

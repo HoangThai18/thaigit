@@ -337,11 +337,25 @@
 </div>
 
 <style>
+  /* Last resort on a very narrow toolbar: the buttons scroll sideways instead of pushing settings / profile / close repo out
+     of the window. */
   .actions {
     display: flex;
     align-items: center;
-    flex: none;
+    flex: 0 1 auto;
+    min-width: 0;
     gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .action,
+  .split {
+    flex: none;
   }
 
   .gap {

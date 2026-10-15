@@ -82,7 +82,8 @@
   .branch {
     display: inline-flex;
     align-items: center;
-    flex: none;
+    flex: 0 1 auto;
+    min-width: 0;
     gap: 8px;
     max-width: 280px;
     height: 34px;
@@ -134,6 +135,9 @@
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .branch-name {
