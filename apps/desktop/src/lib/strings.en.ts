@@ -3,6 +3,7 @@ import { accounts, pullRequests } from './strings/accounts.en.ts';
 import { ai } from './strings/ai.en.ts';
 import { branches } from './strings/branches.en.ts';
 import { dnd } from './strings/dnd.en.ts';
+import { feedback } from './strings/feedback.en.ts';
 import { history } from './strings/history.en.ts';
 import { lfs } from './strings/lfs.en.ts';
 import { palette } from './strings/palette.en.ts';
@@ -41,4 +42,5 @@ export const en: Strings = {
   risk,
   ssh,
   terminal,
+  feedback,
 };

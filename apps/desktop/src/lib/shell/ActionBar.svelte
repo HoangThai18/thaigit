@@ -17,6 +17,7 @@
   import { vi } from '../strings.vi.ts';
   import { hasTauriInternals } from '../platform/host.ts';
   import { menus, tidyMenu } from '../stores/menus.svelte.ts';
+  import { feedback } from '../stores/feedback.svelte.ts';
   import { settingsStore } from '../stores/settings.svelte.ts';
   import { updates } from '../stores/update.svelte.ts';
   import type { RepoStore } from '../stores/repo.svelte.ts';
@@ -101,6 +102,7 @@
           shortcut: vi.settings.shortcut,
           run: () => settingsStore.open(),
         },
+        { title: vi.feedback.open, icon: 'info', run: () => feedback.open() },
         hasTauriInternals() &&
           (available
             ? {

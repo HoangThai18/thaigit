@@ -17,6 +17,7 @@ import { accounts, pullRequests } from './strings/accounts.vi.ts';
 import { ai } from './strings/ai.vi.ts';
 import { branches } from './strings/branches.vi.ts';
 import { dnd } from './strings/dnd.vi.ts';
+import { feedback } from './strings/feedback.vi.ts';
 import { history } from './strings/history.vi.ts';
 import { lfs } from './strings/lfs.vi.ts';
 import { palette } from './strings/palette.vi.ts';
@@ -55,6 +56,7 @@ const viStrings = {
   risk,
   ssh,
   terminal,
+  feedback,
 } as const;
 
 /** The shape shared by every translation (strings are `string`, functions keep their parameters). */

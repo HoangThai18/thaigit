@@ -15,6 +15,7 @@
   import AiResultDialog from './lib/ai/AiResultDialog.svelte';
   import CreatePullRequestDialog from './lib/forge/CreatePullRequestDialog.svelte';
   import SettingsPanel from './lib/settings/SettingsPanel.svelte';
+  import FeedbackDialog from './lib/feedback/FeedbackDialog.svelte';
   import { telemetry } from './lib/stores/telemetry.svelte.ts';
   import MenuHost from './lib/ui/MenuHost.svelte';
   import UpdateBar from './lib/shell/UpdateBar.svelte';
@@ -480,6 +481,7 @@
 
 <Toasts />
 <SettingsPanel />
+<FeedbackDialog />
 <AiResultDialog />
 <DialogHost />
 <CreatePullRequestDialog />

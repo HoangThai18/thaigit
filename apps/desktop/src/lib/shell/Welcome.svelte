@@ -8,6 +8,7 @@
   import logo from '../assets/logo.png';
   import { hasTauriInternals } from '../platform/host.ts';
   import { vi } from '../strings.vi.ts';
+  import { feedback } from '../stores/feedback.svelte.ts';
   import { settingsStore } from '../stores/settings.svelte.ts';
   import { telemetry } from '../stores/telemetry.svelte.ts';
   import { updates } from '../stores/update.svelte.ts';
@@ -117,6 +118,7 @@
     <footer class="footer">
       {#if version}<span class="version">{vi.appName} {version}</span>{/if}
       <button type="button" class="link" onclick={() => settingsStore.open()}>{vi.settings.title}</button>
+      <button type="button" class="link" onclick={() => feedback.open()}>{vi.feedback.title}</button>
       {#if inApp}
         {#if updates.available}
           <button type="button" class="link" onclick={() => void updates.install()}>
