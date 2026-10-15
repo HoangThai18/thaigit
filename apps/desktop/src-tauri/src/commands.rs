@@ -13,7 +13,7 @@ use crate::accounts::{AccountsView, Provider};
 use crate::ssh_keys::SshKeysView;
 use crate::core::{Core, GitExecRequest};
 use crate::errors::{AppError, Result};
-use crate::forge::{self, DeviceCode, ForgeMergeRequest, ForgePerson, ForgeRepository, PeopleRole};
+use crate::forge::{self, DeviceCode, ForgeIssue, ForgeMergeRequest, ForgePerson, ForgeRepository, PeopleRole};
 use crate::exec::FrameSink;
 use crate::health::RepoHealth;
 use crate::locate::GitInfo;
@@ -616,6 +616,11 @@ pub struct NewMergeRequest {
 #[tauri::command]
 pub async fn forge_list_merge_requests(core: CoreState<'_>, repo: RepoRef) -> Result<Vec<ForgeMergeRequest>> {
     forge::list_for(&core.accounts, &repo.host, repo.provider, &repo.owner, &repo.repo).await
+}
+
+#[tauri::command]
+pub async fn forge_list_issues(core: CoreState<'_>, repo: RepoRef) -> Result<Vec<ForgeIssue>> {
+    forge::issues_for(&core.accounts, &repo.host, repo.provider, &repo.owner, &repo.repo).await
 }
 
 #[tauri::command]

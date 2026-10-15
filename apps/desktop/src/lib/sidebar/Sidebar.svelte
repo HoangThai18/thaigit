@@ -38,6 +38,7 @@
   import Icon from '../ui/Icon.svelte';
   import BranchTree from './BranchTree.svelte';
   import LimitedRows from './LimitedRows.svelte';
+  import IssueSection from './IssueSection.svelte';
   import PullRequestSection from './PullRequestSection.svelte';
   import './sidebar.css';
   import { buildBranchTree } from './tree.ts';
@@ -488,6 +489,7 @@
     {/if}
 
     <PullRequestSection {store} />
+    <IssueSection {store} />
   </div>
 </div>
 

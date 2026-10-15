@@ -207,6 +207,7 @@ fn register_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         commands::ssh_keys_upload,
         commands::ssh_keys_test,
         commands::forge_list_merge_requests,
+        commands::forge_list_issues,
         commands::forge_create_merge_request,
         commands::forge_list_assignable,
         commands::forge_set_people,

@@ -214,11 +214,11 @@ export async function checkoutDetached(
 /** Ask for a name, then create the branch at `startPoint` (default HEAD), with an option to switch to it. */
 export async function beginCreateBranch(
   store: RepoStore,
-  startPoint?: { sha: string; label: string },
+  startPoint?: { sha: string; label: string; name?: string },
   dialogs?: DialogStore,
 ): Promise<void> {
   const head = store.headOid;
-  const start =
+  const start: { sha: string; label: string; name?: string } | null =
     startPoint ?? (head === null ? null : { sha: head, label: store.currentBranch ?? head.slice(0, 7) });
   if (start === null) {
     store.notify('info', vi.branches.needCommitFirst);
@@ -234,7 +234,7 @@ export async function beginCreateBranch(
         kind: 'text',
         id: 'name',
         label: vi.branches.nameLabel,
-        value: '',
+        value: start.name ?? '',
         placeholder: 'feature/ten-nhanh',
         monospace: true,
       },

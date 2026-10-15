@@ -3,6 +3,7 @@ import type {
   AccountsView,
   ForgeAccount,
   ForgeDeviceCode,
+  ForgeIssue,
   ForgeMergeRequest,
   ForgePerson,
   ForgeProvider,
@@ -105,6 +106,11 @@ export interface ForgeRepoRef {
 /** Open PRs (GitHub / Bitbucket) or open MRs (GitLab) for `owner/repo`. */
 export function forgeListMergeRequests(repo: ForgeRepoRef): Promise<ForgeMergeRequest[]> {
   return call<ForgeMergeRequest[]>(Commands.forgeListMergeRequests, { repo });
+}
+
+/** Open issues of `owner/repo`. */
+export function forgeListIssues(repo: ForgeRepoRef): Promise<ForgeIssue[]> {
+  return call<ForgeIssue[]>(Commands.forgeListIssues, { repo });
 }
 
 export interface NewMergeRequest extends ForgeRepoRef {

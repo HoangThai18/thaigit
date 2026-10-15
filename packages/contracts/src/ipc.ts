@@ -182,6 +182,7 @@ export const Commands = {
   sshKeysTest: 'ssh_keys_test',
   // Pull Requests (GitHub / Bitbucket) and Merge Requests (GitLab). */
   forgeListMergeRequests: 'forge_list_merge_requests',
+  forgeListIssues: 'forge_list_issues',
   forgeCreateMergeRequest: 'forge_create_merge_request',
   // PR / MR reviewer and assignee. */
   forgeListAssignable: 'forge_list_assignable',
@@ -369,6 +370,20 @@ export interface ForgeMergeRequest {
   assignees: ForgePerson[];
   /** Requested reviewer. */
   reviewers: ForgePerson[];
+}
+
+/** An open issue (GitHub / GitLab / Bitbucket issue tracker). */
+export interface ForgeIssue {
+  host: string;
+  /** Issue number (GitHub) or iid (GitLab) / id (Bitbucket). */
+  number: string;
+  title: string;
+  author: string;
+  webUrl: string;
+  updatedAt: string;
+  comments: number;
+  labels: string[];
+  assignees: ForgePerson[];
 }
 
 /** Users on the server who can be assigned to a PR / MR (or already are). */

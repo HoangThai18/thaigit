@@ -19,6 +19,7 @@ import { branches } from './strings/branches.vi.ts';
 import { dnd } from './strings/dnd.vi.ts';
 import { feedback } from './strings/feedback.vi.ts';
 import { history } from './strings/history.vi.ts';
+import { issues } from './strings/issues.vi.ts';
 import { lfs } from './strings/lfs.vi.ts';
 import { palette } from './strings/palette.vi.ts';
 import { rebase } from './strings/rebase.vi.ts';
@@ -52,6 +53,7 @@ const viStrings = {
   tabs,
   accounts,
   pullRequests,
+  issues,
   snapshots,
   risk,
   ssh,

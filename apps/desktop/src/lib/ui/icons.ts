@@ -63,6 +63,7 @@ export const ICONS = {
   'sidebar-left': [rect(3, 4.5, 18, 15, 2.6), d('M9.5 4.5v15')],
   'sidebar-right': [rect(3, 4.5, 18, 15, 2.6), d('M14.5 4.5v15')],
   warning: [d('M12 4.6l8.8 15.2H3.2z'), d('M12 10.2v4.1'), circle(12, 16.9, 0.55, true)],
+  issue: [circle(12, 12, 8.5), circle(12, 12, 2, true)],
   info: [circle(12, 12, 8.6), d('M12 11v5.4'), circle(12, 7.9, 0.6, true)],
   'check-circle': [circle(12, 12, 8.6), d('M8.2 12.3l2.6 2.6 5-5.4')],
   'x-circle': [circle(12, 12, 8.6), d('M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6')],

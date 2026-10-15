@@ -132,6 +132,22 @@ pub struct ForgeMergeRequest {
     pub reviewers: Vec<ForgePerson>,
 }
 
+/// An open issue of the repository (GitHub / GitLab / Bitbucket's issue tracker).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgeIssue {
+    pub host: String,
+    /// The issue number (GitHub) or `iid` (GitLab) / `id` (Bitbucket).
+    pub number: String,
+    pub title: String,
+    pub author: String,
+    pub web_url: String,
+    pub updated_at: String,
+    pub comments: u32,
+    pub labels: Vec<String>,
+    pub assignees: Vec<ForgePerson>,
+}
+
 /// A user on the server who can be assigned to PRs / MRs (or already is).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -630,6 +646,107 @@ pub async fn fetch_merge_request(
         .ok_or_else(|| AppError::Io(format!("Máy chủ {host} không trả về PR {number}")))
 }
 
+// MARK: - Issues
+
+/// The repository's open issues, most recently updated first. A Bitbucket repo with its issue tracker turned
+/// off answers 404: that is "no issues", not "no access".
+pub async fn list_issues(host: &str, provider: Provider, token: &str, owner: &str, repo: &str) -> Result<Vec<ForgeIssue>> {
+    let client = http()?;
+    let base = provider.api_base(host);
+    let mut items: Vec<ForgeIssue> = Vec::new();
+    for page in 1..=MAX_PAGES {
+        let url = issue_list_url(provider, &base, owner, repo, page);
+        let (status, value) = request(&client, reqwest::Method::GET, &url, token, None).await?;
+        if provider == Provider::Bitbucket && status == 404 {
+            return Ok(items);
+        }
+        check_status(provider, host, status, &value)?;
+        let raw = match provider {
+            Provider::Bitbucket => value["values"].as_array().cloned().unwrap_or_default(),
+            _ => value.as_array().cloned().unwrap_or_default(),
+        };
+        if raw.is_empty() {
+            break;
+        }
+        items.extend(raw.iter().filter_map(|item| parse_issue(host, provider, item)));
+        if raw.len() < 30 || items.len() >= MAX_ITEMS {
+            break;
+        }
+    }
+    items.truncate(MAX_ITEMS);
+    Ok(items)
+}
+
+fn issue_list_url(provider: Provider, base: &str, owner: &str, repo: &str, page: u32) -> String {
+    match provider {
+        Provider::Github => format!("{base}/repos/{owner}/{repo}/issues?state=open&sort=updated&per_page=100&page={page}"),
+        Provider::Gitlab => format!(
+            "{base}/projects/{}/issues?state=opened&order_by=updated_at&per_page=100&page={page}",
+            urlencode(&format!("{owner}/{repo}"))
+        ),
+        Provider::Bitbucket => format!(
+            "{base}/repositories/{owner}/{repo}/issues?q={}&sort=-updated_on&pagelen=50&page={page}",
+            urlencode("state=\"new\" OR state=\"open\"")
+        ),
+    }
+}
+
+/// One issue from the host's JSON. GitHub lists pull requests among issues: those are skipped (`None`).
+fn parse_issue(host: &str, provider: Provider, item: &serde_json::Value) -> Option<ForgeIssue> {
+    let text = |value: &serde_json::Value| value.as_str().unwrap_or_default().to_string();
+    let issue = match provider {
+        Provider::Github => {
+            if item.get("pull_request").is_some_and(|value| !value.is_null()) {
+                return None;
+            }
+            ForgeIssue {
+                host: host.to_string(),
+                number: item["number"].as_i64()?.to_string(),
+                title: text(&item["title"]),
+                author: text(&item["user"]["login"]),
+                web_url: text(&item["html_url"]),
+                updated_at: text(&item["updated_at"]),
+                comments: item["comments"].as_u64().unwrap_or(0) as u32,
+                labels: item["labels"]
+                    .as_array()
+                    .map(|labels| labels.iter().filter_map(|label| label["name"].as_str().map(str::to_string)).collect())
+                    .unwrap_or_default(),
+                assignees: people(Provider::Github, &item["assignees"]),
+            }
+        }
+        Provider::Gitlab => ForgeIssue {
+            host: host.to_string(),
+            number: item["iid"].as_i64()?.to_string(),
+            title: text(&item["title"]),
+            author: text(&item["author"]["username"]),
+            web_url: text(&item["web_url"]),
+            updated_at: text(&item["updated_at"]),
+            comments: item["user_notes_count"].as_u64().unwrap_or(0) as u32,
+            labels: item["labels"]
+                .as_array()
+                .map(|labels| labels.iter().filter_map(|label| label.as_str().map(str::to_string)).collect())
+                .unwrap_or_default(),
+            assignees: people(Provider::Gitlab, &item["assignees"]),
+        },
+        Provider::Bitbucket => ForgeIssue {
+            host: host.to_string(),
+            number: item["id"].as_i64()?.to_string(),
+            title: text(&item["title"]),
+            author: item["reporter"]["nickname"]
+                .as_str()
+                .or_else(|| item["reporter"]["display_name"].as_str())
+                .unwrap_or_default()
+                .to_string(),
+            web_url: text(&item["links"]["html"]["href"]),
+            updated_at: text(&item["updated_on"]),
+            comments: 0,
+            labels: item["kind"].as_str().map(|kind| vec![kind.to_string()]).unwrap_or_default(),
+            assignees: person(Provider::Bitbucket, &item["assignee"]).into_iter().collect(),
+        },
+    };
+    Some(issue)
+}
+
 fn parse_merge_request(
     host: &str,
     provider: Provider,
@@ -775,6 +892,21 @@ pub async fn list_for(
     accounts.refresh_due(&host).await;
     let (provider, token) = owner_token(accounts, &host, &owner)?;
     list_merge_requests(&host, provider, &token, &owner, &repo).await
+}
+
+/// Open issues of `owner/repo` (the webview sends host + owner + repo; the token is chosen in Rust).
+pub async fn issues_for(
+    accounts: &crate::accounts::Accounts,
+    host: &str,
+    provider: Option<Provider>,
+    owner: &str,
+    repo: &str,
+) -> Result<Vec<ForgeIssue>> {
+    let (host, _) = check_host(host, provider)?;
+    let (owner, repo) = check_repo_path(owner, repo)?;
+    accounts.refresh_due(&host).await;
+    let (provider, token) = owner_token(accounts, &host, &owner)?;
+    list_issues(&host, provider, &token, &owner, &repo).await
 }
 
 /// Create a PR / MR from the current branch.
@@ -1149,6 +1281,67 @@ mod tests {
         assert_eq!(Provider::Github.api_base("git.acme.vn"), "https://git.acme.vn/api/v3");
         assert_eq!(Provider::Gitlab.api_base("gitlab.com"), "https://gitlab.com/api/v4");
         assert_eq!(Provider::Bitbucket.api_base("bitbucket.org"), "https://api.bitbucket.org/2.0");
+    }
+
+    #[test]
+    fn github_issues_skip_pull_requests() {
+        let issue = serde_json::json!({
+            "number": 7,
+            "title": "Lỗi đăng nhập",
+            "user": { "login": "bob" },
+            "html_url": "https://github.com/acme/app/issues/7",
+            "updated_at": "2026-10-03T00:00:00Z",
+            "comments": 2,
+            "labels": [{ "name": "bug" }],
+            "assignees": [{ "login": "alice" }],
+        });
+        let parsed = parse_issue("github.com", Provider::Github, &issue).unwrap();
+        assert_eq!(parsed.number, "7");
+        assert_eq!(parsed.author, "bob");
+        assert_eq!(parsed.comments, 2);
+        assert_eq!(parsed.labels, vec!["bug".to_string()]);
+        assert_eq!(parsed.assignees[0].username, "alice");
+        let pull = serde_json::json!({ "number": 8, "title": "PR", "pull_request": { "url": "x" } });
+        assert!(parse_issue("github.com", Provider::Github, &pull).is_none());
+    }
+
+    #[test]
+    fn gitlab_and_bitbucket_issues_are_parsed() {
+        let gitlab = serde_json::json!({
+            "iid": 3,
+            "title": "Thêm dark mode",
+            "author": { "username": "carol" },
+            "web_url": "https://gitlab.com/acme/app/-/issues/3",
+            "user_notes_count": 5,
+            "labels": ["feature"],
+        });
+        let parsed = parse_issue("gitlab.com", Provider::Gitlab, &gitlab).unwrap();
+        assert_eq!((parsed.number.as_str(), parsed.comments), ("3", 5));
+        assert_eq!(parsed.labels, vec!["feature".to_string()]);
+        let bitbucket = serde_json::json!({
+            "id": 12,
+            "title": "Crash",
+            "reporter": { "nickname": "dan" },
+            "kind": "bug",
+            "assignee": { "nickname": "erin" },
+            "links": { "html": { "href": "https://bitbucket.org/acme/app/issues/12" } },
+        });
+        let parsed = parse_issue("bitbucket.org", Provider::Bitbucket, &bitbucket).unwrap();
+        assert_eq!(parsed.author, "dan");
+        assert_eq!(parsed.labels, vec!["bug".to_string()]);
+        assert_eq!(parsed.assignees[0].username, "erin");
+    }
+
+    #[test]
+    fn issue_urls_cover_each_provider() {
+        assert_eq!(
+            issue_list_url(Provider::Github, "https://api.github.com", "acme", "app", 1),
+            "https://api.github.com/repos/acme/app/issues?state=open&sort=updated&per_page=100&page=1"
+        );
+        assert!(issue_list_url(Provider::Gitlab, "https://gitlab.com/api/v4", "acme", "sub/app", 2)
+            .starts_with("https://gitlab.com/api/v4/projects/acme%2Fsub%2Fapp/issues?state=opened"));
+        assert!(issue_list_url(Provider::Bitbucket, "https://api.bitbucket.org/2.0", "acme", "app", 1)
+            .starts_with("https://api.bitbucket.org/2.0/repositories/acme/app/issues?q=state%3D%22new%22"));
     }
 
     #[test]

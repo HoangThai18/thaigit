@@ -4,6 +4,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## Chưa phát hành
 
+- Mục ISSUES ở sidebar: xem các issue đang mở của repo trên GitHub, GitLab hoặc Bitbucket, lọc theo số / tiêu đề / nhãn; bấm để mở trên web, chuột phải để tạo nhánh cho issue (tên nhánh gợi ý sẵn như issue/42-loi-dang-nhap) hoặc sao chép link
 - Review thay đổi của nhánh: chuột phải vào nhánh (kể cả nhánh đang đứng) → “Review thay đổi so với nhánh…” mở hộp tìm để chọn nhánh cần so sánh, gợi ý sẵn nhánh đang đứng và main / develop; trong panel review bấm tên nhánh so sánh để đổi sang nhánh khác. Sửa lỗi trước đây có thể tự so sánh nhánh với chính nó
 - Giao diện nhiều màu hơn: dòng có nhánh hoặc tag trên graph được tô theo màu của làn, icon ở sidebar có màu riêng theo từng mục
 - Luôn biết mình đang ở nhánh nào: nút nhánh trên thanh công cụ thành chip xanh lá ghi rõ “Đang ở nhánh”, nhánh hiện tại trong sidebar có nhãn “Đang ở”, dòng của nhánh hiện tại trên graph được viền và tô đậm

@@ -37,6 +37,7 @@ export interface PrefsData {
     tags: boolean;
     stashes: boolean;
     pullRequests: boolean;
+    issues: boolean;
     worktrees: boolean;
     submodules: boolean;
     lfs: boolean;
@@ -104,6 +105,7 @@ export function defaultPrefs(): PrefsData {
       tags: false,
       stashes: true,
       pullRequests: false,
+      issues: false,
       worktrees: true,
       submodules: true,
       lfs: true,
@@ -175,6 +177,7 @@ export function sanitizePrefs(raw: unknown): PrefsData {
       tags: bool(sections.tags, base.sidebarSections.tags),
       stashes: bool(sections.stashes, base.sidebarSections.stashes),
       pullRequests: bool(sections.pullRequests, base.sidebarSections.pullRequests),
+      issues: bool(sections.issues, base.sidebarSections.issues),
       worktrees: bool(sections.worktrees, base.sidebarSections.worktrees),
       submodules: bool(sections.submodules, base.sidebarSections.submodules),
       lfs: bool(sections.lfs, base.sidebarSections.lfs),

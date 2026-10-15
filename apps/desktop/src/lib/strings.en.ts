@@ -5,6 +5,7 @@ import { branches } from './strings/branches.en.ts';
 import { dnd } from './strings/dnd.en.ts';
 import { feedback } from './strings/feedback.en.ts';
 import { history } from './strings/history.en.ts';
+import { issues } from './strings/issues.en.ts';
 import { lfs } from './strings/lfs.en.ts';
 import { palette } from './strings/palette.en.ts';
 import { rebase } from './strings/rebase.en.ts';
@@ -38,6 +39,7 @@ export const en: Strings = {
   tabs,
   accounts,
   pullRequests,
+  issues,
   snapshots,
   risk,
   ssh,
