@@ -58,7 +58,7 @@ const vi: PageText = {
       },
       {
         heading: 'Tự cập nhật',
-        text: 'App hỏi GitHub Releases (lúc mở và mỗi 6 giờ) để biết có bản mới không, rồi tải file cài đặt từ GitHub. Yêu cầu này không kèm mã định danh hay thông tin nào về máy hoặc repo của bạn; GitHub thấy địa chỉ IP như mọi lượt tải. Bản Windows chọn được kênh Beta hoặc Ổn định trong Cài đặt.',
+        text: 'App hỏi GitHub Releases (lúc mở, mỗi giờ và khi bạn quay lại cửa sổ app) để biết có bản mới không, rồi tải file cài đặt từ GitHub. Yêu cầu này không kèm mã định danh hay thông tin nào về máy hoặc repo của bạn; GitHub thấy địa chỉ IP như mọi lượt tải. Bản Windows chọn được kênh Beta hoặc Ổn định trong Cài đặt.',
       },
       {
         heading: 'Thống kê ẩn danh (mặc định tắt)',
@@ -105,7 +105,7 @@ const en: PageText = {
       },
       {
         heading: 'Self-updating',
-        text: 'The app asks GitHub Releases (on launch and every 6 hours) whether a new version exists, then downloads the installer from GitHub. The request carries no identifier or information about your machine or repositories; GitHub sees your IP address like for any download. On Windows you can pick the Beta or Stable channel in Settings.',
+        text: 'The app asks GitHub Releases (on launch, every hour and when you come back to the app window) whether a new version exists, then downloads the installer from GitHub. The request carries no identifier or information about your machine or repositories; GitHub sees your IP address like for any download. On Windows you can pick the Beta or Stable channel in Settings.',
       },
       {
         heading: 'Anonymous statistics (off by default)',

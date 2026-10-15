@@ -276,7 +276,7 @@ export const FAQ: Record<Lang, HomeFaq[]> = {
       id: 'update',
       q: 'Cập nhật Thaigit thế nào?',
       a: [
-        'Tự động: app kiểm tra mỗi 6 giờ, tải bản mới ngầm và kiểm chữ ký. Bạn chỉ cần khởi động lại — hoặc cứ thoát app, lần mở sau đã là bản mới.',
+        'Tự động: khi app đang mở, cứ mỗi giờ và mỗi lần bạn quay lại cửa sổ app, Thaigit kiểm tra bản mới. Có bản mới thì hiện thông báo — bấm Cài đặt là app tải, kiểm chữ ký rồi mở lại ở bản mới.',
       ],
     },
     {
@@ -334,7 +334,7 @@ export const FAQ: Record<Lang, HomeFaq[]> = {
       id: 'update',
       q: 'How do I update Thaigit?',
       a: [
-        'Automatically: the app checks every 6 hours, downloads the new version quietly and verifies its signature. Just restart — or simply quit, and the next launch is the new version.',
+        'Automatically: while the app is open it checks every hour and whenever you come back to its window. When a new version is out you get a notification — click Install and the app downloads it, verifies the signature and reopens on the new version.',
       ],
     },
     {
