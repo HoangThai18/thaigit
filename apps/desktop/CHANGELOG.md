@@ -2,6 +2,12 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## 2.6.6 — 2026-10-15
+
+- Trang chủ trở lại như bản 1.4: bên trái là các nút lớn Mở repository, Clone, Tạo repository mới, Cài đặt, Tài khoản GitHub / GitLab (kèm dòng mô tả), bên phải là khung “Mở gần đây”
+- “Có gì mới” trở lại: nút ✨ ở cuối thanh tab mở tab nhật ký thay đổi theo từng phiên bản, đánh dấu bản bạn đang dùng, có nút Kiểm tra cập nhật
+- Mỗi tab có biểu tượng nhỏ trước tên (thư mục cho repo, ✨ cho Có gì mới) như bản 1.4
+
 ## 2.6.5 — 2026-10-15
 
 - Thông báo “… gặp xung đột” tự tắt khi xung đột đã giải quyết xong hoặc đã huỷ thao tác, không còn nằm lì trên màn hình
