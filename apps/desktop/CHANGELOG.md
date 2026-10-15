@@ -2,7 +2,7 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
-## Chưa phát hành
+## 2.6.2 — 2026-10-15
 
 - Thông báo bản mới nhanh hơn: đang mở app vẫn nhận được thông báo cập nhật — app kiểm tra mỗi giờ và mỗi khi bạn quay lại cửa sổ app, không cần thoát ra mở lại
 - Thanh công cụ tự thu gọn theo chỗ trống thật (trừ phần thanh bên): cửa sổ vừa phải không còn đẩy mất nút Cài đặt, Tài khoản và nút ✕ về màn hình chính
