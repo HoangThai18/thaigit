@@ -4,6 +4,7 @@ export const SITE = {
   name: 'Thaigit',
   url: 'https://git.thaipro.store',
   author: 'Phan Thái',
+  email: 'phanthai18072001@gmail.com',
   repo: 'HoangThai18/thaigit',
 } as const;
 

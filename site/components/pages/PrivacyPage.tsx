@@ -17,7 +17,7 @@ export function PrivacyPage({ lang }: { lang: Lang }) {
         </section>
       ))}
       <h2>{text.contactHeading}</h2>
-      <p>{text.contact(SITE.author)}</p>
+      <p>{text.contact(SITE.author, SITE.email)}</p>
     </article>
   );
 }

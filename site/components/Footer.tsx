@@ -22,6 +22,9 @@ export function Footer({ lang }: { lang: Lang }) {
           <Link href={PATHS.guides[lang]}>{text.guides}</Link>
           <Link href={PATHS.changelog[lang]}>{text.changelog}</Link>
           <Link href={PATHS.privacy[lang]}>{text.privacy}</Link>
+          <a href={`mailto:${SITE.email}?subject=${encodeURIComponent(text.feedbackSubject)}`}>
+            {text.feedback}
+          </a>
         </nav>
       </div>
     </footer>

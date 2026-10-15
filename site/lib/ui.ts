@@ -18,6 +18,8 @@ const vi = {
     guides: 'Hướng dẫn Git',
     changelog: 'Nhật ký thay đổi',
     privacy: 'Quyền riêng tư',
+    feedback: 'Góp ý & báo lỗi',
+    feedbackSubject: 'Góp ý Thaigit',
   },
   download: {
     mac: 'Tải cho macOS',
@@ -77,6 +79,8 @@ const en: typeof vi = {
     guides: 'Git guides',
     changelog: 'Changelog',
     privacy: 'Privacy',
+    feedback: 'Feedback & bug reports',
+    feedbackSubject: 'Thaigit feedback',
   },
   download: {
     mac: 'Download for macOS',

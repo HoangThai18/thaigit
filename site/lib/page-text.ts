@@ -22,7 +22,7 @@ interface PageText {
     h1: string;
     updated: string;
     sections: { heading: string; text: string }[];
-    contact: (author: string) => string;
+    contact: (author: string, email: string) => string;
     contactHeading: string;
   };
 }
@@ -70,7 +70,8 @@ const vi: PageText = {
       },
     ],
     contactHeading: 'Liên hệ',
-    contact: (author) => `Câu hỏi về quyền riêng tư: gửi email cho ${author}.`,
+    contact: (author, email) =>
+      `Câu hỏi về quyền riêng tư, góp ý hay báo lỗi: gửi email cho ${author} tại ${email}. Trong app: menu … → Góp ý & báo lỗi.`,
   },
 };
 
@@ -116,7 +117,8 @@ const en: PageText = {
       },
     ],
     contactHeading: 'Contact',
-    contact: (author) => `Privacy questions: email ${author}.`,
+    contact: (author, email) =>
+      `Privacy questions, feedback or bug reports: email ${author} at ${email}. In the app: the … menu → Feedback & bug report.`,
   },
 };
 
