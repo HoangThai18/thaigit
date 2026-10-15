@@ -27,6 +27,14 @@ export const update: Translation<typeof source> = {
   failedHint: "Couldn't download or install the new version — check your network connection and try again.",
   retry: 'Try again',
   close: 'Close',
+  whatsNewTip: "What's new in Thaigit",
+  youAreOn: (version: string) => `You're on Thaigit ${version}`,
+  checkButton: 'Check for updates',
+  currentBadge: 'Your version',
+  unreleasedBadge: 'In development',
+  sectionTitle: (version: string) => `Thaigit ${version}`,
+  notesEmptyTitle: 'No release notes yet',
+  notesEmpty: "This build doesn't include release notes.",
   progressBytes: (downloaded: string, total: string | null) =>
     total ? `${downloaded} / ${total}` : downloaded,
 };

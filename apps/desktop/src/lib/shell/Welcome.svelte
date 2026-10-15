@@ -1,6 +1,6 @@
 <!--
-  Màn hình chính tối giản: mở thư mục + danh sách repo gần đây (do Rust lưu), Cài đặt, và (một lần) thẻ hỏi có muốn gửi thống kê
-  ẩn danh không — mặc định là KHÔNG gửi gì.
+  Home screen, laid out like the Swift 1.x app: on the left the logo and the big actions (open, clone, create, settings,
+  accounts), on the right a "Recent" panel. Also hosts the one-time anonymous-stats question (off unless the user agrees).
 -->
 <script lang="ts">
   import { formatRelative } from '../format/time.ts';
@@ -13,6 +13,7 @@
   import { telemetry } from '../stores/telemetry.svelte.ts';
   import { updates } from '../stores/update.svelte.ts';
   import Icon from '../ui/Icon.svelte';
+  import type { IconName } from '../ui/icons.ts';
 
   interface Props {
     recent: readonly RecentRepo[];
@@ -31,56 +32,157 @@
 
   const version = import.meta.env.VITE_APP_VERSION ?? '';
   const inApp = hasTauriInternals();
+
+  interface Action {
+    title: string;
+    subtitle: string;
+    icon: IconName;
+    tint: string;
+    shortcut: string;
+    disabled: boolean;
+    run: () => void;
+  }
+
+  const actions = $derived(
+    [
+      {
+        title: opening ? vi.welcome.opening : vi.welcome.openTitle,
+        subtitle: vi.welcome.openSub,
+        icon: 'folder-open',
+        tint: 'var(--brand-blue)',
+        shortcut: '',
+        disabled: opening || unavailable !== undefined,
+        run: onopen,
+      },
+      onclone && {
+        title: vi.welcome.cloneTitle,
+        subtitle: vi.welcome.cloneSub,
+        icon: 'download',
+        tint: 'var(--success)',
+        shortcut: '',
+        disabled: opening,
+        run: onclone,
+      },
+      oninit && {
+        title: vi.welcome.initTitle,
+        subtitle: vi.welcome.initSub,
+        icon: 'plus',
+        tint: 'var(--brand-orange)',
+        shortcut: '',
+        disabled: opening,
+        run: oninit,
+      },
+      {
+        title: vi.settings.title,
+        subtitle: vi.welcome.settingsSub,
+        icon: 'settings',
+        tint: 'var(--text-secondary)',
+        shortcut: '',
+        disabled: false,
+        run: () => settingsStore.open(),
+      },
+      inApp && {
+        title: vi.welcome.accounts,
+        subtitle: vi.welcome.accountsSub,
+        icon: 'user',
+        tint: '#af52de',
+        shortcut: '',
+        disabled: false,
+        run: () => settingsStore.open('accounts'),
+      },
+    ].filter((action): action is Action => Boolean(action)),
+  );
 </script>
 
 <main class="welcome" data-tauri-drag-region>
-  <section class="card glass">
-    <img class="logo" src={logo} alt="" width="96" height="96" />
-    <h1><span class="brand">{vi.appName}</span></h1>
-    <p class="tagline">{vi.welcome.tagline}</p>
-
-    <button type="button" class="primary" disabled={opening || unavailable !== undefined} onclick={onopen}>
-      <Icon name="folder-open" size={17} />
-      {opening ? vi.welcome.opening : vi.welcome.openFolder}
-    </button>
-
-    {#if onclone || oninit}
-      <div class="secondary">
-        {#if onclone}
-          <button type="button" class="link" disabled={opening} onclick={onclone}>{vi.welcome.clone}</button>
-        {/if}
-        {#if oninit}
-          <button type="button" class="link" disabled={opening} onclick={oninit}>{vi.welcome.init}</button>
-        {/if}
+  <section class="left">
+    <header class="brand-row">
+      <img class="logo" src={logo} alt="" width="72" height="72" />
+      <div>
+        <h1><span class="brand">{vi.appName}</span></h1>
+        <p class="tagline">{vi.welcome.shortTagline}</p>
       </div>
-    {/if}
+    </header>
 
-    <div class="quick">
-      <button type="button" class="quick-button" onclick={() => settingsStore.open()}>
-        <Icon name="settings" size={15} />
-        <span>{vi.settings.title}</span>
-      </button>
-      {#if inApp}
-        <button type="button" class="quick-button" onclick={() => settingsStore.open('accounts')}>
-          <Icon name="user" size={15} />
-          <span>{vi.welcome.accounts}</span>
+    <div class="actions">
+      {#each actions as action, index (index)}
+        <button
+          type="button"
+          class="action glass"
+          style:--tint={action.tint}
+          disabled={action.disabled}
+          onclick={action.run}
+        >
+          <span class="action-icon"><Icon name={action.icon} size={22} /></span>
+          <span class="action-text">
+            <strong>{action.title}</strong>
+            <span>{action.subtitle}</span>
+          </span>
+          {#if action.shortcut}<kbd>{action.shortcut}</kbd>{/if}
         </button>
-      {/if}
+      {/each}
     </div>
 
     {#if unavailable}
       <p class="notice" role="status">{unavailable}</p>
     {/if}
 
-    <h2>{vi.welcome.recent}</h2>
+    {#if inApp && telemetry.supported && !telemetry.saved.asked}
+      <div class="ask" role="region" aria-label={vi.settings.askTitle}>
+        <strong>{vi.settings.askTitle}</strong>
+        <p>{vi.settings.askText}</p>
+        <div class="ask-buttons">
+          <button type="button" class="ask-no" onclick={() => telemetry.dismiss()}>{vi.settings.askNo}</button
+          >
+          <button type="button" class="ask-yes" onclick={() => telemetry.setEnabled(true)}
+            >{vi.settings.askYes}</button
+          >
+        </div>
+      </div>
+    {/if}
+
+    <span class="grow"></span>
+
+    <footer class="footer">
+      {#if version}<span>{vi.appName} {version}</span>{/if}
+      <button type="button" class="link" onclick={() => feedback.open()}>{vi.feedback.title}</button>
+      {#if inApp}
+        {#if updates.available}
+          <button type="button" class="link" onclick={() => void updates.install()}>
+            {vi.update.installMenu(updates.available.version)}
+          </button>
+        {:else}
+          <button
+            type="button"
+            class="link"
+            disabled={updates.checking || updates.installing}
+            onclick={() => void updates.check(version)}>{vi.update.checkNow}</button
+          >
+        {/if}
+      {/if}
+    </footer>
+  </section>
+
+  <section class="recent-panel glass">
+    <h2>{vi.welcome.recentTitle}</h2>
     {#if recent.length === 0}
-      <p class="empty">{vi.welcome.recentEmpty}</p>
+      <div class="empty">
+        <Icon name="history" size={34} />
+        <strong>{vi.welcome.recentEmptyTitle}</strong>
+        <span>{vi.welcome.recentEmptySub}</span>
+      </div>
     {:else}
       <ul class="recent">
-        {#each recent.slice(0, 8) as repo, index (index)}
+        {#each recent as repo, index (index)}
           <li>
-            <button type="button" class="item" disabled={opening} onclick={() => onrecent(repo)}>
-              <span class="glyph"><Icon name="folder" size={18} /></span>
+            <button
+              type="button"
+              class="item"
+              title={repo.path}
+              disabled={opening}
+              onclick={() => onrecent(repo)}
+            >
+              <span class="glyph"><Icon name="folder" size={20} /></span>
               <span class="text">
                 <strong>{repo.name}</strong>
                 <span class="path"><bdi>{repo.path}</bdi></span>
@@ -100,87 +202,137 @@
         {/each}
       </ul>
     {/if}
-
-    {#if inApp && telemetry.supported && !telemetry.saved.asked}
-      <div class="ask" role="region" aria-label={vi.settings.askTitle}>
-        <strong>{vi.settings.askTitle}</strong>
-        <p>{vi.settings.askText}</p>
-        <div class="ask-buttons">
-          <button type="button" class="ask-no" onclick={() => telemetry.dismiss()}>{vi.settings.askNo}</button
-          >
-          <button type="button" class="ask-yes" onclick={() => telemetry.setEnabled(true)}
-            >{vi.settings.askYes}</button
-          >
-        </div>
-      </div>
-    {/if}
-
-    <footer class="footer">
-      {#if version}<span class="version">{vi.appName} {version}</span>{/if}
-      <button type="button" class="link" onclick={() => settingsStore.open()}>{vi.settings.title}</button>
-      <button type="button" class="link" onclick={() => feedback.open()}>{vi.feedback.title}</button>
-      {#if inApp}
-        {#if updates.available}
-          <button type="button" class="link" onclick={() => void updates.install()}>
-            {vi.update.installMenu(updates.available.version)}
-          </button>
-        {:else}
-          <button
-            type="button"
-            class="link"
-            disabled={updates.checking || updates.installing}
-            onclick={() => void updates.check(version)}>{vi.update.checkNow}</button
-          >
-        {/if}
-      {/if}
-    </footer>
   </section>
 </main>
 
 <style>
-  .secondary {
+  .welcome {
     display: flex;
-    gap: 18px;
-    margin-top: 10px;
-    font-size: 13px;
+    gap: 20px;
+    height: 100%;
+    padding: 20px 20px 20px 0;
+    overflow: hidden;
   }
 
-  .quick {
+  .left {
     display: flex;
-    gap: 8px;
-    margin-top: 14px;
+    flex-direction: column;
+    flex: none;
+    gap: 22px;
+    width: 420px;
+    max-width: 45%;
+    padding: 16px 0 16px 36px;
+    overflow-y: auto;
   }
 
-  .quick-button {
-    display: inline-flex;
+  .brand-row {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border: 1px solid color-mix(in srgb, var(--text) 11%, transparent);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--text) 4.5%, transparent);
-    color: var(--text);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
+    gap: 14px;
   }
 
-  .quick-button:hover {
-    background: color-mix(in srgb, var(--text) 9%, transparent);
+  .logo {
+    flex: none;
+    filter: drop-shadow(0 6px 14px rgb(47 134 232 / 0.25));
   }
 
-  .quick-button :global(svg) {
+  h1 {
+    margin: 0;
+    font-size: 34px;
+    letter-spacing: -0.01em;
+  }
+
+  .brand {
+    background: linear-gradient(90deg, var(--brand-orange), var(--brand-blue));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .tagline {
+    margin: 2px 0 0;
     color: var(--text-secondary);
   }
 
-  .ask {
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .action {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     width: 100%;
-    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .action:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--tint) 18%, var(--glass-fill));
+  }
+
+  .action:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .action:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .action-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 30px;
+    color: var(--tint);
+  }
+
+  .action-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .action-text strong {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .action-text span {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  kbd {
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+  }
+
+  .notice {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--chip-fill);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+  }
+
+  .ask {
     padding: 12px 14px;
     border: 1px solid var(--separator);
     border-radius: var(--radius-m);
     background: var(--field-fill);
-    text-align: left;
     font-size: 12.5px;
   }
 
@@ -213,12 +365,15 @@
     color: #fff;
   }
 
+  .grow {
+    flex: 1;
+  }
+
   .footer {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
     gap: 12px;
-    margin-top: 18px;
     color: var(--text-tertiary);
     font-size: 12px;
   }
@@ -237,97 +392,42 @@
     cursor: default;
   }
 
-  .welcome {
-    display: grid;
-    place-items: center;
-    height: 100%;
-    padding: 24px;
-  }
-
-  .card {
+  .recent-panel {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    width: min(520px, 100%);
-    max-height: 100%;
-    padding: 28px 32px 24px;
+    flex: 1;
+    min-width: 0;
     border-radius: 24px;
-    text-align: center;
-    overflow-y: auto;
-  }
-
-  .logo {
-    filter: drop-shadow(0 8px 16px rgb(20 30 60 / 0.25));
-  }
-
-  h1 {
-    margin: 10px 0 4px;
-    font-size: 36px;
-    letter-spacing: -0.01em;
-  }
-
-  .brand {
-    background: linear-gradient(90deg, var(--brand-orange), var(--brand-blue));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
-  .tagline {
-    margin: 0 0 18px;
-    color: var(--text-secondary);
-  }
-
-  .primary {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 22px;
-    border: 1px solid rgb(255 255 255 / 0.35);
-    border-radius: 20px;
-    background: linear-gradient(to bottom, #4a9bf0, var(--brand-blue));
-    box-shadow: 0 4px 14px rgb(47 134 232 / 0.35);
-    color: #fff;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .primary:disabled {
-    opacity: 0.6;
-  }
-
-  .notice {
-    margin: 14px 0 0;
-    padding: 8px 12px;
-    border-radius: 10px;
-    background: var(--chip-fill);
-    color: var(--text-secondary);
-    font-size: 12.5px;
+    overflow: hidden;
   }
 
   h2 {
-    align-self: flex-start;
-    margin: 24px 0 8px;
-    color: var(--text-secondary);
-    font-size: 11px;
+    margin: 0;
+    padding: 24px 24px 10px;
+    font-size: 15px;
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
   }
 
   .empty {
-    align-self: flex-start;
-    margin: 0;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     color: var(--text-tertiary);
   }
 
+  .empty strong {
+    color: var(--text-secondary);
+    font-size: 15px;
+  }
+
   .recent {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    width: 100%;
+    flex: 1;
     margin: 0;
-    padding: 0;
+    padding: 0 12px 12px;
+    overflow-y: auto;
     list-style: none;
   }
 
@@ -340,11 +440,14 @@
     align-items: center;
     gap: 12px;
     width: 100%;
-    padding: 8px 40px 8px 10px;
+    padding: 9px 44px 9px 12px;
     border: 0;
     border-radius: 12px;
     background: none;
+    color: var(--text);
+    font: inherit;
     text-align: left;
+    cursor: pointer;
   }
 
   .item:hover {
@@ -353,7 +456,7 @@
 
   .glyph {
     display: grid;
-    color: var(--text-secondary);
+    color: var(--accent);
   }
 
   .text {
@@ -365,6 +468,7 @@
 
   .text strong {
     font-size: 13.5px;
+    font-weight: 600;
   }
 
   .path {
@@ -387,7 +491,7 @@
   .forget {
     position: absolute;
     top: 50%;
-    right: 10px;
+    right: 12px;
     display: grid;
     place-items: center;
     width: 22px;
@@ -409,5 +513,24 @@
   .forget:hover {
     background: var(--chip-fill);
     color: var(--text);
+  }
+
+  @media (max-width: 760px) {
+    .welcome {
+      flex-direction: column;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    .left {
+      width: auto;
+      max-width: none;
+      padding: 0;
+      overflow: visible;
+    }
+
+    .recent-panel {
+      min-height: 280px;
+    }
   }
 </style>

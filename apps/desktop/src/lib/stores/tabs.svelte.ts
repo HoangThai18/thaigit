@@ -16,6 +16,8 @@ export interface TabItem {
   readonly tooltip: string;
   /** The Home tab: drawn as an icon, always first, cannot be closed or dragged. */
   readonly pinned?: boolean;
+  /** Small glyph before the title (a folder for a repo…). */
+  readonly icon?: 'folder' | 'sparkles' | 'plus';
 }
 
 export class TabsStore<V> {

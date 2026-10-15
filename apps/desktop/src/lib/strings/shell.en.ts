@@ -7,6 +7,16 @@ export const shell: Translation<typeof source> = {
 
   welcome: {
     accounts: 'GitHub / GitLab accounts',
+    accountsSub: 'Sign in to clone, fetch and push without typing it again',
+    openTitle: 'Open repository',
+    openSub: 'Pick an existing folder on this computer',
+    cloneSub: 'Download from GitHub, GitLab, Bitbucket…',
+    initSub: 'Start Git in a folder',
+    settingsSub: 'Appearance, language, Git, auto-fetch…',
+    shortTagline: 'A visual, free Git client',
+    recentTitle: 'Recent',
+    recentEmptyTitle: 'No repositories yet',
+    recentEmptySub: 'Repositories you open show up here.',
     tagline: 'A free, visual Git client — colorful graph, everything with the mouse.',
     openFolder: 'Open folder…',
     opening: 'Opening…',

@@ -25,6 +25,14 @@ export const update = {
   failedHint: 'Không tải hoặc cài được bản mới — kiểm tra kết nối mạng rồi thử lại.',
   retry: 'Thử lại',
   close: 'Đóng',
+  whatsNewTip: 'Có gì mới trong Thaigit',
+  youAreOn: (version: string) => `Bạn đang dùng Thaigit ${version}`,
+  checkButton: 'Kiểm tra cập nhật',
+  currentBadge: 'Bản bạn đang dùng',
+  unreleasedBadge: 'Đang phát triển',
+  sectionTitle: (version: string) => `Thaigit ${version}`,
+  notesEmptyTitle: 'Chưa có nhật ký thay đổi',
+  notesEmpty: 'Bản build này không kèm nhật ký thay đổi.',
   progressBytes: (downloaded: string, total: string | null) =>
     total ? `${downloaded} / ${total}` : downloaded,
 } as const;

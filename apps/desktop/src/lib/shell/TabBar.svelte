@@ -15,11 +15,14 @@
     onactivate: (id: number) => void;
     onclose: (id: number) => void;
     onnew: () => void;
+    /** The ✨ "What's New" button at the end of the bar. */
+    onnotes: () => void;
+    notesActive: boolean;
     onmove: (id: number, index: number) => void;
     menu: (id: number) => MenuItem[];
   }
 
-  let { items, activeId, onactivate, onclose, onnew, onmove, menu }: Props = $props();
+  let { items, activeId, onactivate, onclose, onnew, onnotes, notesActive, onmove, menu }: Props = $props();
 
   let bar = $state<HTMLElement | undefined>();
   /** The tab being dragged (to reorder) — only counts as a drag once the pointer has moved a few px. */
@@ -104,6 +107,7 @@
       {#if item.pinned}
         <Icon name="home" size={16} />
       {:else}
+        {#if item.icon}<span class="glyph"><Icon name={item.icon} size={12} /></span>{/if}
         <span class="title"><bdi>{showBidi(item.title)}</bdi></span>
         <button
           type="button"
@@ -126,6 +130,16 @@
     <Icon name="plus" size={13} strokeWidth={2.4} />
   </button>
   <span class="grow" data-tauri-drag-region></span>
+  <button
+    type="button"
+    class="notes"
+    class:active={notesActive}
+    title={vi.update.whatsNewTip}
+    aria-label={vi.update.whatsNewTip}
+    onclick={onnotes}
+  >
+    <Icon name="sparkles" size={14} />
+  </button>
 </div>
 
 <style>
@@ -189,7 +203,8 @@
   }
 
   .close,
-  .new {
+  .new,
+  .notes {
     display: grid;
     place-items: center;
     flex: none;
@@ -225,6 +240,33 @@
   .new:hover {
     background: var(--row-hover);
     color: var(--text);
+  }
+
+  .notes {
+    align-self: center;
+    width: 28px;
+    height: 26px;
+    margin-left: 4px;
+    color: var(--text-secondary);
+  }
+
+  .notes:hover {
+    background: var(--row-hover);
+    color: var(--text);
+  }
+
+  .notes.active {
+    color: var(--brand-blue);
+  }
+
+  .glyph {
+    display: grid;
+    flex: none;
+    color: var(--text-tertiary);
+  }
+
+  .tab.active .glyph {
+    color: var(--brand-blue);
   }
 
   .tab.home {

@@ -8,6 +8,7 @@
   import type { RecentRepo } from './lib/ipc/types.ts';
   import { detectOs, hasTauriInternals, resolveHost, type Host, type RepoPort } from './lib/platform/host.ts';
   import RepoWindow from './lib/shell/RepoWindow.svelte';
+  import ReleaseNotes from './lib/shell/ReleaseNotes.svelte';
   import TabBar from './lib/shell/TabBar.svelte';
   import Toasts from './lib/shell/Toasts.svelte';
   import DialogHost from './lib/ui/DialogHost.svelte';
@@ -47,6 +48,7 @@
   type View =
     | { kind: 'boot' }
     | { kind: 'home' }
+    | { kind: 'notes' }
     | { kind: 'welcome' }
     | { kind: 'trust'; port: RepoPort }
     | { kind: 'repo'; store: RepoStore };
@@ -86,11 +88,13 @@
   function tabItem(id: number, view: View): TabItem {
     switch (view.kind) {
       case 'repo':
-        return { id, title: view.store.name, tooltip: view.store.port.info.root };
+        return { id, title: view.store.name, tooltip: view.store.port.info.root, icon: 'folder' };
       case 'trust':
-        return { id, title: folderName(view.port.info.root), tooltip: view.port.info.root };
+        return { id, title: folderName(view.port.info.root), tooltip: view.port.info.root, icon: 'folder' };
       case 'home':
         return { id, title: vi.tabs.homeTitle, tooltip: vi.tabs.home, pinned: true };
+      case 'notes':
+        return { id, title: vi.update.notes, tooltip: vi.update.whatsNewTip, icon: 'sparkles' };
       default:
         return { id, title: vi.tabs.welcomeTitle, tooltip: vi.tabs.welcomeTitle };
     }
@@ -125,6 +129,13 @@
     tabs.remove(id);
     if (tabs.active?.view.kind === 'home') void app.refreshRecent();
     await release(tab.view);
+  }
+
+  /** The ✨ button at the end of the tab bar: the "What's New" tab (reused when already open). */
+  function openNotes(): void {
+    const open = tabs.find((view) => view.kind === 'notes');
+    if (open) tabs.activate(open.id);
+    else tabs.add({ kind: 'notes' });
   }
 
   function goHome(): void {
@@ -437,6 +448,8 @@
     }}
     onclose={(id) => void closeTab(id)}
     onnew={newTab}
+    onnotes={openNotes}
+    notesActive={active?.view.kind === 'notes'}
     onmove={(id, index) => tabs.move(id, Math.max(1, index))}
     menu={tabMenu}
   />
@@ -470,6 +483,8 @@
           ontrust={() => trust(tabId, port)}
           oncancel={() => void closeTab(tabId)}
         />
+      {:else if view.kind === 'notes'}
+        <ReleaseNotes />
       {:else if view.kind === 'welcome' || view.kind === 'home'}
         <Welcome
           recent={app.recent}

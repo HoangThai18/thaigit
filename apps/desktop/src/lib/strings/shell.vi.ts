@@ -9,6 +9,16 @@ export const shell = {
 
   welcome: {
     accounts: 'Tài khoản GitHub / GitLab',
+    accountsSub: 'Đăng nhập để clone, fetch, push không phải nhập lại',
+    openTitle: 'Mở repository',
+    openSub: 'Chọn một thư mục có sẵn trên máy',
+    cloneSub: 'Tải về từ GitHub, GitLab, Bitbucket…',
+    initSub: 'Khởi tạo Git cho một thư mục',
+    settingsSub: 'Giao diện, ngôn ngữ, Git, tự fetch…',
+    shortTagline: 'Git client trực quan, miễn phí',
+    recentTitle: 'Mở gần đây',
+    recentEmptyTitle: 'Chưa có repository nào',
+    recentEmptySub: 'Repository bạn mở sẽ hiện ở đây.',
     tagline: 'Git client trực quan, miễn phí — graph nhiều màu, thao tác bằng chuột.',
     openFolder: 'Mở thư mục…',
     opening: 'Đang mở…',
