@@ -6,6 +6,9 @@ export const related = {
   worktrees: 'WORKTREES',
   submodules: 'SUBMODULES',
   worktreeCurrent: 'Worktree đang mở',
+  branchInWorktree: (branch: string) => `Nhánh ${branch} đang mở ở một worktree khác`,
+  branchInWorktreeMessage: (path: string) =>
+    `Git không cho một nhánh mở ở hai nơi cùng lúc. Nhánh này đang ở ${path} — mở worktree đó để làm việc trên nhánh.`,
   worktreeMain: 'Worktree chính',
   worktreeDetached: (sha: string) => `detached HEAD @ ${sha}`,
   worktreeMissing: 'Thư mục không còn — dùng “Dọn worktree đã mất”',

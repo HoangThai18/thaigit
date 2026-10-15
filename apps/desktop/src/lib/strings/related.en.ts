@@ -6,6 +6,9 @@ export const related: Translation<typeof source> = {
   worktrees: 'WORKTREES',
   submodules: 'SUBMODULES',
   worktreeCurrent: 'Open worktree',
+  branchInWorktree: (branch: string) => `${branch} is checked out in another worktree`,
+  branchInWorktreeMessage: (path: string) =>
+    `Git won't check out one branch in two places at once. It's at ${path} — open that worktree to work on it.`,
   worktreeMain: 'Main worktree',
   worktreeDetached: (sha: string) => `detached HEAD @ ${sha}`,
   worktreeMissing: 'The folder is gone — use “Prune missing worktrees”',

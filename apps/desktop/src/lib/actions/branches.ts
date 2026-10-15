@@ -19,6 +19,7 @@ import {
 } from '../stores/dialogs.svelte.ts';
 import { Scope, type RepoStore } from '../stores/repo.svelte.ts';
 import { gitErrorContains, handleNetworkError } from './errors.ts';
+import { isCurrentWorktree, openWorktree } from './related.ts';
 
 type Work = (git: GitRepository) => Promise<void>;
 
@@ -172,6 +173,19 @@ export function checkout(store: RepoStore, ref: GitRef, dialogs?: DialogStore): 
 }
 
 export function switchToBranch(store: RepoStore, name: string, dialogs?: DialogStore): Promise<void> {
+  // Git refuses to check out a branch that another worktree has checked out: say where it is and offer to open it there.
+  const elsewhere = store.worktrees.find(
+    (worktree) => worktree.branch === name && !isCurrentWorktree(store, worktree),
+  );
+  if (elsewhere) {
+    store.notify('warning', vi.related.branchInWorktree(name), {
+      message: vi.related.branchInWorktreeMessage(elsewhere.path),
+      actions: store.port.openRelated
+        ? [{ title: vi.related.openInNewWindow, run: () => openWorktree(store, elsewhere) }]
+        : [],
+    });
+    return Promise.resolve();
+  }
   const previous = store.status.head;
   const work: Work = (git) => git.switchTo(name);
   return store.perform(vi.branches.checkoutTitle(name), work, {
