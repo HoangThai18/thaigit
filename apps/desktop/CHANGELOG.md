@@ -2,6 +2,10 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## Chưa phát hành
+
+- Ảnh đại diện thật của tác giả (GitHub, Gravatar) hiện cả ở khung chi tiết commit và nút Profile, không chỉ trên graph
+
 ## 2.6.7 — 2026-10-15
 
 - Bấm đúp vào thanh tab để phóng to cửa sổ không còn báo lỗi

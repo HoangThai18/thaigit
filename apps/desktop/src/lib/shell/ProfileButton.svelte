@@ -67,7 +67,7 @@
   title={identity.name ? `${identity.name} <${identity.email ?? ''}>` : vi.window.identityMissing}
   onclick={open}
 >
-  <Avatar name={identity.name ?? '?'} size={26} />
+  <Avatar name={identity.name ?? '?'} email={identity.email} size={26} />
 </button>
 
 <style>

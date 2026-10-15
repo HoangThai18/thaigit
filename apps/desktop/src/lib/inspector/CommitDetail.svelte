@@ -91,7 +91,7 @@
       {/if}
 
       <div class="author">
-        <Avatar name={commit.authorName} size={32} />
+        <Avatar name={commit.authorName} email={commit.authorEmail} size={32} />
         <div class="who">
           <span class="name selectable"><bdi>{showBidi(commit.authorName)}</bdi></span>
           <span class="email selectable"><bdi>{showBidi(commit.authorEmail)}</bdi></span>
