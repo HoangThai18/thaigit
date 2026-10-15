@@ -1,0 +1,47 @@
+import type { gitflow as gitflowSource } from './gitflow.vi.ts';
+import type { Translation } from './types.ts';
+
+export const gitflow: Translation<typeof gitflowSource> = {
+  menu: 'Git-flow',
+  options: 'More branch actions and Git-flow',
+  newBranch: 'New branch…',
+  setup: 'Set up Git-flow…',
+  settings: 'Git-flow settings…',
+  setupTitle: 'Set up Git-flow',
+  setupMessage:
+    'Git-flow splits work into branches: features and releases start from develop, hotfixes from the production branch. Finishing one merges it and tags the version for you.',
+  setupConfirm: 'Save',
+  masterLabel: 'Production branch',
+  developLabel: 'Development branch',
+  featureLabel: 'Feature prefix',
+  releaseLabel: 'Release prefix',
+  hotfixLabel: 'Hotfix prefix',
+  versionTagLabel: 'Version tag prefix (optional)',
+  problemBranch: 'That branch name is not valid.',
+  problemSame: 'The production and development branches must differ.',
+  problemPrefix: 'A prefix is invalid or used twice.',
+  masterMissing: (name: string) =>
+    `There is no ${name} branch — create it or pick an existing production branch.`,
+  setupTitleNamed: 'Save Git-flow settings',
+  setupDone: (develop: string) => `Git-flow is on — the development branch is ${develop}`,
+  kindName: { feature: 'feature', release: 'release', hotfix: 'hotfix' },
+  start: (kind: string) => `Start a ${kind}…`,
+  startTitle: (kind: string) => `Start a ${kind}`,
+  startMessage: (kind: string, base: string) => `Create a new ${kind} branch from ${base} and switch to it.`,
+  nameLabel: (kind: string) => (kind === 'feature' ? 'Feature name' : 'Version'),
+  namePlaceholder: (kind: string) => (kind === 'feature' ? 'google-sign-in' : '1.2.0'),
+  baseMissing: (base: string) => `There is no ${base} branch — check the Git-flow settings.`,
+  finish: (branch: string) => `Finish ${branch}`,
+  finishOther: 'Finish another branch',
+  finishTitle: (branch: string) => `Finish ${branch}`,
+  finishSteps: (branch: string, targets: string, tag: string | null) =>
+    `The app will merge ${branch} into ${targets} (no fast-forward)${tag ? ` and tag ${tag}` : ''}. If a conflict comes up: resolve it, commit, then click Finish again to do the remaining steps.`,
+  deleteAfter: 'Delete the branch when done',
+  finishConfirm: 'Finish',
+  tagMessage: (tag: string) => `Version ${tag}`,
+  finished: (branch: string, targets: string) => `Finished ${branch} — merged into ${targets}`,
+  needClean: 'Commit or stash your changes before finishing a branch.',
+  needNoOperation: 'A merge / rebase is in progress — deal with it before finishing a branch.',
+  and: ' and ',
+  loadFailed: 'Reading the Git-flow settings',
+};

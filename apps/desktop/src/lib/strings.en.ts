@@ -4,6 +4,7 @@ import { ai } from './strings/ai.en.ts';
 import { branches } from './strings/branches.en.ts';
 import { dnd } from './strings/dnd.en.ts';
 import { feedback } from './strings/feedback.en.ts';
+import { gitflow } from './strings/gitflow.en.ts';
 import { history } from './strings/history.en.ts';
 import { issues } from './strings/issues.en.ts';
 import { lfs } from './strings/lfs.en.ts';
@@ -40,6 +41,7 @@ export const en: Strings = {
   accounts,
   pullRequests,
   issues,
+  gitflow,
   snapshots,
   risk,
   ssh,

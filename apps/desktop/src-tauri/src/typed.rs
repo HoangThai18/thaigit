@@ -320,6 +320,7 @@ mod tests {
         for key in [
             "user.name", "user.email", "USER.Name", "pull.rebase", "pull.ff", "init.defaultBranch", "push.autoSetupRemote",
             "branch.main.remote", "branch.feature/x.merge", "branch.a.b.c.rebase", "branch.main.REMOTE",
+            "gitflow.branch.master", "gitflow.branch.develop", "gitflow.prefix.feature", "gitflow.prefix.versiontag",
         ] {
             assert!(config_key_allowed(p, key), "{key}");
         }
@@ -327,6 +328,7 @@ mod tests {
             "core.fsmonitor", "core.hooksPath", "core.sshCommand", "alias.x", "credential.helper", "filter.x.clean", "include.path",
             "branch.main.pushremote", "branch..remote", "branch.remote", "user", "user.", ".name", "user.name\n", "user.na me",
             "branch.x.remote=evil", "url.x.insteadOf", "remote.origin.url", "diff.external", "",
+            "gitflow.branch.other", "gitflow.prefix.x.feature", "gitflow.feature",
         ] {
             assert!(!config_key_allowed(p, key), "{key:?}");
         }

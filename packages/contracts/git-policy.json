@@ -345,7 +345,13 @@
     "push.autoSetupRemote",
     "branch.*.remote",
     "branch.*.merge",
-    "branch.*.rebase"
+    "branch.*.rebase",
+    "gitflow.branch.master",
+    "gitflow.branch.develop",
+    "gitflow.prefix.feature",
+    "gitflow.prefix.release",
+    "gitflow.prefix.hotfix",
+    "gitflow.prefix.versiontag"
   ],
   "networkKinds": ["fetch", "pull", "push", "ls-remote", "clone"],
   "shortAttached": ["^-[UMCBl][0-9]+%?$", "^-n[0-9]+$", "^-[0-9]+$", "^-u(no|normal|all)$"]

@@ -135,6 +135,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.blame(FILE.path, SHA);
     await r.resolveCommit('HEAD~1');
     await r.config('user.name');
+    await r.configEntries('^gitflow\\.');
     await r.setConfig('user.name', 'Tên', 'global');
     await r.isValidRefName('feature/x', true);
     await r.isValidRefName('v1.0', false);

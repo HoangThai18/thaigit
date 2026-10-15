@@ -11,6 +11,9 @@
   import { fetch, pull, push, sync } from '../actions/remote.ts';
   import { popLatestStash, quickStash } from '../actions/stash.ts';
   import { repoForgeItems, repoOsItems } from '../actions/menus.ts';
+  import { finishFlow, loadGitFlow, setupGitFlow, startFlow } from '../gitflow/actions.ts';
+  import { FLOW_KINDS, flowBranchOf, flowBranches } from '../gitflow/model.ts';
+  import type { MenuItem } from '../stores/menus.svelte.ts';
   import { newWindow } from '../ipc/os.ts';
   import { app } from '../stores/app.svelte.ts';
   import { toasts } from '../stores/toasts.svelte.ts';
@@ -43,6 +46,67 @@
   const wording = $derived(requestWording(forgeTarget?.provider));
   let pullMenuButton = $state<HTMLButtonElement | null>(null);
   let moreButton = $state<HTMLButtonElement | null>(null);
+  let branchMenuButton = $state<HTMLButtonElement | null>(null);
+
+  $effect(() => {
+    void loadGitFlow(store);
+  });
+
+  async function openBranchMenu(event: MouseEvent): Promise<void> {
+    const button = branchMenuButton;
+    if (!button) return;
+    const text = vi.gitflow;
+    const config = await loadGitFlow(store);
+    const items: MenuItem[] = [
+      { title: text.newBranch, icon: 'branch', run: () => void beginCreateBranch(store) },
+      { kind: 'separator' },
+      { kind: 'header', title: text.menu },
+    ];
+    if (config === null) {
+      items.push({ title: text.setup, icon: 'settings', run: () => void setupGitFlow(store) });
+    } else {
+      for (const kind of FLOW_KINDS) {
+        items.push({
+          title: text.start(text.kindName[kind]),
+          icon: kind === 'hotfix' ? 'warning' : kind === 'release' ? 'tag' : 'plus',
+          run: () => void startFlow(store, config, kind),
+        });
+      }
+      const current = store.currentBranch;
+      const own = current === null ? null : flowBranchOf(config, current);
+      const others = flowBranches(
+        config,
+        store.localBranches.map((ref) => refName(ref)),
+      ).filter((item) => item.branch !== current);
+      if (own !== null || others.length > 0) items.push({ kind: 'separator' });
+      if (own !== null) {
+        items.push({
+          title: text.finish(own.branch),
+          icon: 'merge',
+          disabled: busy,
+          run: () => void finishFlow(store, config, own.branch),
+        });
+      }
+      if (others.length > 0) {
+        items.push({
+          kind: 'submenu',
+          title: text.finishOther,
+          icon: 'merge',
+          items: others.map((item) => ({
+            title: item.branch,
+            icon: 'branch' as const,
+            disabled: busy,
+            run: () => void finishFlow(store, config, item.branch),
+          })),
+        });
+      }
+      items.push(
+        { kind: 'separator' },
+        { title: text.settings, icon: 'settings', run: () => void setupGitFlow(store) },
+      );
+    }
+    menus.openBelow(button, items, { focusFirst: event.detail === 0 });
+  }
 
   function openPullMenu(event: MouseEvent | KeyboardEvent): void {
     if (!pullMenuButton) return;
@@ -200,15 +264,28 @@
 
   <span class="gap"></span>
 
-  <button
-    type="button"
-    class="action"
-    title={vi.remote.branchTip}
-    onclick={() => void beginCreateBranch(store)}
-  >
-    <span class="tone branch"><Icon name="branch" size={16} /></span>
-    <span class="label">{vi.remote.branch}</span>
-  </button>
+  <div class="split">
+    <button
+      type="button"
+      class="action left"
+      title={vi.remote.branchTip}
+      onclick={() => void beginCreateBranch(store)}
+    >
+      <span class="tone branch"><Icon name="branch" size={16} /></span>
+      <span class="label">{vi.remote.branch}</span>
+    </button>
+    <button
+      type="button"
+      class="action right"
+      title={vi.gitflow.options}
+      aria-label={vi.gitflow.options}
+      aria-haspopup="menu"
+      bind:this={branchMenuButton}
+      onclick={(event) => void openBranchMenu(event)}
+    >
+      <Icon name="chevron-down" size={12} />
+    </button>
+  </div>
 
   <button
     type="button"

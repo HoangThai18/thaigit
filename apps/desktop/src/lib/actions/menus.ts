@@ -28,6 +28,8 @@ import {
   rewordCommit,
 } from '../rebase/actions.ts';
 import { assignAccountForRepo } from '../forge/assignOwner.ts';
+import { cachedGitFlow, finishFlow } from '../gitflow/actions.ts';
+import { flowBranchOf } from '../gitflow/model.ts';
 import { createPullRequest } from '../forge/createPullRequest.svelte.ts';
 import { targetOf } from '../forge/pullRequests.ts';
 import { requestWording } from '../forge/wording.ts';
@@ -233,6 +235,21 @@ export function workingTreeMenu(store: RepoStore): MenuItem[] {
   ];
 }
 
+/** "Finish <branch>" for a feature / release / hotfix branch of a repo set up for Git-flow. */
+function gitFlowItems(store: RepoStore, branch: string): MenuItem[] {
+  const config = cachedGitFlow(store);
+  if (!config || flowBranchOf(config, branch) === null) return [];
+  return [
+    { kind: 'separator' },
+    {
+      title: vi.gitflow.finish(branch),
+      icon: 'merge',
+      disabled: store.busy !== null,
+      run: () => void finishFlow(store, config, branch),
+    },
+  ];
+}
+
 /**
  * "Review changes against…" for a branch: a shortcut against the checked-out branch (only when that compares
  * two different tips — not the branch itself or its own upstream), then a box to pick any other branch.
@@ -298,6 +315,7 @@ export function refMenu(store: RepoStore, ref: GitRef): MenuItem[] {
           run: () => void fastForward(store, ref),
         });
       }
+      items.push(...gitFlowItems(store, name));
       items.push({ kind: 'separator' }, ...reviewItems(store, ref));
       items.push({ kind: 'separator' });
       if (AI_ENABLED) {

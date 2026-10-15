@@ -806,6 +806,9 @@ describe('NodeTypedGit: lệnh có kiểu', () => {
       ).toBe('policy');
       expect(isAllowedConfigKey('USER.NAME')).toBe(true);
       expect(isAllowedConfigKey('branch.a.b.merge')).toBe(true);
+      expect(isAllowedConfigKey('gitflow.branch.develop')).toBe(true);
+      expect(isAllowedConfigKey('gitflow.prefix.feature')).toBe(true);
+      expect(isAllowedConfigKey('gitflow.branch.other')).toBe(false);
     }));
 
   it('configSet phạm vi global ghi vào file GIT_CONFIG_GLOBAL', async () => {

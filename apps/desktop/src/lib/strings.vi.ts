@@ -18,6 +18,7 @@ import { ai } from './strings/ai.vi.ts';
 import { branches } from './strings/branches.vi.ts';
 import { dnd } from './strings/dnd.vi.ts';
 import { feedback } from './strings/feedback.vi.ts';
+import { gitflow } from './strings/gitflow.vi.ts';
 import { history } from './strings/history.vi.ts';
 import { issues } from './strings/issues.vi.ts';
 import { lfs } from './strings/lfs.vi.ts';
@@ -54,6 +55,7 @@ const viStrings = {
   accounts,
   pullRequests,
   issues,
+  gitflow,
   snapshots,
   risk,
   ssh,

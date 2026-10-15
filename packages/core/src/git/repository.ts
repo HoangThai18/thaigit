@@ -560,6 +560,20 @@ export class GitRepository {
     return value === '' ? null : value;
   }
 
+  /** Every config entry whose key matches `pattern` (`git config -z --get-regexp`), keys lower-cased; empty when nothing matches. */
+  async configEntries(pattern: string): Promise<Map<string, string>> {
+    assertArgument(pattern);
+    const out = await this.runner.run('config', ['-z', '--get-regexp', pattern], { acceptExitCodes: [0, 1] });
+    const entries = new Map<string, string>();
+    if (out.code !== 0) return entries;
+    for (const entry of decodeUtf8(out.stdout).split('\0')) {
+      const newline = entry.indexOf('\n');
+      const key = (newline < 0 ? entry : entry.slice(0, newline)).toLowerCase();
+      if (key !== '') entries.set(key, newline < 0 ? '' : entry.slice(newline + 1));
+    }
+    return entries;
+  }
+
   /** Set a config value (only keys in the policy's allowlist; enforced by the typed adapter). */
   async setConfig(key: string, value: string, scope: 'local' | 'global'): Promise<void> {
     await this.requireTyped().configSet(key, value, scope);
