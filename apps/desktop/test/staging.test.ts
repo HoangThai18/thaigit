@@ -1,5 +1,5 @@
 // Stage / unstage / discard by file, hunk, line, plus commit / undo — on a real git repo (core's Node adapter).
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { canCommit, commit, composeMessage, splitMessage } from '../src/lib/actions/commit.ts';
@@ -8,7 +8,7 @@ import { DialogStore } from '../src/lib/stores/dialogs.svelte.ts';
 import { PrefsStore } from '../src/lib/stores/prefs.svelte.ts';
 import { RepoStore } from '../src/lib/stores/repo.svelte.ts';
 import { ToastStore } from '../src/lib/stores/toasts.svelte.ts';
-import { openTestPort, type TestPort } from './helpers/node-port.ts';
+import { openTestPort, rawGit, type TestPort } from './helpers/node-port.ts';
 
 const cleanups: (() => Promise<void> | void)[] = [];
 
@@ -204,6 +204,64 @@ describe('stage / huỷ theo file', () => {
     };
     await until(() => currentTracked() === 'đổi hết\n', 'trả file đã track');
     expect(readFileSync(join(test.root, 'moi.txt'), 'utf8')).toBe('file mới\n');
+  });
+});
+
+describe('huỷ thay đổi của submodule', () => {
+  /** A submodule `vendor` (from a sibling repo with two commits), recorded at the first commit; returns the second sha. */
+  async function openWithSubmodule(): Promise<{
+    test: TestPort;
+    store: RepoStore;
+    toasts: ToastStore;
+    second: string;
+  }> {
+    let second = '';
+    const opened = await openStore((git, root) => {
+      const lib = `${root}-lib`;
+      mkdirSync(lib);
+      cleanups.push(() => rmSync(lib, { recursive: true, force: true }));
+      rawGit(lib, ['init', '-q', '-b', 'main', '.']);
+      writeFileSync(join(lib, 'lib.txt'), '1\n');
+      rawGit(lib, ['add', '.']);
+      rawGit(lib, ['commit', '-qm', 'một']);
+      writeFileSync(join(lib, 'lib.txt'), '2\n');
+      rawGit(lib, ['commit', '-qam', 'hai']);
+      second = rawGit(lib, ['rev-parse', 'HEAD']).trim();
+      git('-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', lib, 'vendor');
+      rawGit(join(root, 'vendor'), ['checkout', '-q', 'HEAD~1']);
+      git('add', 'vendor');
+      git('commit', '-qm', 'thêm submodule');
+    });
+    return { ...opened, second };
+  }
+
+  it('submodule đang mở commit khác → huỷ đưa về commit repo ghi nhận', async () => {
+    const { test, store, toasts, second } = await openWithSubmodule();
+    const recorded = rawGit(join(test.root, 'vendor'), ['rev-parse', 'HEAD']).trim();
+    rawGit(join(test.root, 'vendor'), ['checkout', '-q', second]);
+    await store.refreshAndWait(1);
+    expect(store.status.unstaged).toEqual([{ path: 'vendor', kind: 'modified', submodule: 'commit' }]);
+
+    const dialogs = new DialogStore();
+    const discarding = discardFiles(store, store.status.unstaged, { dialogs });
+    await answerNext(dialogs, 'confirm');
+    await discarding;
+    expect(rawGit(join(test.root, 'vendor'), ['rev-parse', 'HEAD']).trim()).toBe(recorded);
+    expect(store.status.unstaged).toHaveLength(0);
+    expect(toasts.items.at(-1)?.actions).toHaveLength(0);
+  });
+
+  it('chỉ sửa file bên trong submodule → không đụng tới, báo mở submodule', async () => {
+    const { test, store, toasts } = await openWithSubmodule();
+    await test.write('vendor/lib.txt', 'sửa trong submodule\n');
+    await store.refreshAndWait(1);
+    expect(store.status.unstaged).toEqual([{ path: 'vendor', kind: 'modified', submodule: 'content' }]);
+
+    const dialogs = new DialogStore();
+    await discardFiles(store, store.status.unstaged, { dialogs });
+    expect(dialogs.current).toBeNull();
+    expect(readFileSync(join(test.root, 'vendor/lib.txt'), 'utf8')).toBe('sửa trong submodule\n');
+    expect(toasts.items.at(-1)?.style).toBe('info');
   });
 });
 

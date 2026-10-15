@@ -6,6 +6,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 - Thông báo bản mới nhanh hơn: đang mở app vẫn nhận được thông báo cập nhật — app kiểm tra mỗi giờ và mỗi khi bạn quay lại cửa sổ app, không cần thoát ra mở lại
 - Thanh công cụ tự thu gọn theo chỗ trống thật (trừ phần thanh bên): cửa sổ vừa phải không còn đẩy mất nút Cài đặt, Tài khoản và nút ✕ về màn hình chính
+- Sửa “Huỷ thay đổi” với submodule: trước đây báo đã huỷ mà submodule vẫn nằm đó; giờ submodule quay về đúng commit repo đang ghi nhận. Nếu thay đổi nằm bên trong submodule, app nhắc mở submodule đó để huỷ thay vì báo thành công
 
 ## 2.6.1 — 2026-10-15
 

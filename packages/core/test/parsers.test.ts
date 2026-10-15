@@ -102,6 +102,26 @@ describe('Parsers (port ParserTests.swift)', () => {
     expect(parseStatus(new Uint8Array(0)).head).toEqual({ kind: 'unknown' });
   });
 
+  it('parsesSubmoduleEntries', () => {
+    const status = parseStatus(
+      enc.encode(
+        [
+          '1 .M SC.. 160000 160000 160000 aaa aaa vendor/moved',
+          '1 .M SCM. 160000 160000 160000 aaa aaa vendor/both',
+          '1 .M S.MU 160000 160000 160000 aaa aaa vendor/edited',
+          '1 M. S... 160000 160000 160000 aaa bbb vendor/staged',
+          '',
+        ].join('\0'),
+      ),
+    );
+    expect(status.unstaged).toEqual([
+      { path: 'vendor/moved', kind: 'modified', submodule: 'commit' },
+      { path: 'vendor/both', kind: 'modified', submodule: 'commit' },
+      { path: 'vendor/edited', kind: 'modified', submodule: 'content' },
+    ]);
+    expect(status.staged).toEqual([{ path: 'vendor/staged', kind: 'modified' }]);
+  });
+
   it('parsesNameStatusWithRenames', () => {
     const files = parseNameStatus(
       enc.encode('M\0a.txt\0R087\0old/x.txt\0new/x.txt\0A\0b c.txt\0D\0gone.txt\0'),

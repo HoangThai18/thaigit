@@ -249,11 +249,19 @@ export function changeKindFromCode(code: string): ChangeKind {
   return Object.hasOwn(CHANGE_KIND_BY_CODE, code) ? (CHANGE_KIND_BY_CODE[code] ?? 'unknown') : 'unknown';
 }
 
+/**
+ * What changed in a submodule (porcelain v2 `S<c><m><u>`): `commit` — it has a different commit checked out than the one
+ * recorded (possibly with local edits too); `content` — same commit, only edits / new files inside it.
+ */
+export type SubmoduleChange = 'commit' | 'content';
+
 export interface FileChange {
   readonly path: string;
   /** Only for renames/copies. */
   readonly oldPath?: string;
   readonly kind: ChangeKind;
+  /** Set when the path is a submodule: its changes cannot be restored like a file's. */
+  readonly submodule?: SubmoduleChange;
 }
 
 export function fileChange(path: string, kind: ChangeKind, oldPath?: string): FileChange {

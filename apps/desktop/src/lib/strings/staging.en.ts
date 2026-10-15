@@ -32,6 +32,10 @@ export const staging: Translation<typeof source> = {
       : `Discard all unstaged changes in ${count} files?`,
   discardConfirmMessage:
     "Unstaged changes will be dropped; new (untracked) files are moved to Thaigit's trash. You can click “Undo” right after.",
+  discardSubmoduleMessage:
+    'The submodule goes back to the exact commit this repo records. The commit it has open now is not lost — it stays in that submodule’s history.',
+  submoduleContentOnly: (name: string) =>
+    `The changes in ${name} are inside the submodule — open ${name} as its own repo to discard them.`,
   discardConfirm: 'Discard changes',
   discarded: (count: number) => (count === 1 ? 'Changes discarded' : `Discarded changes in ${count} files`),
   undo: 'Undo',

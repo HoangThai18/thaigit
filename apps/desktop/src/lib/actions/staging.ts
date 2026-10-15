@@ -1,7 +1,8 @@
 // Stage / unstage / discard changes — by file, hunk or individual line (a port of the staging part of RepoModel+Actions.swift).
 // Every write operation goes through `store.perform` (a sequential queue that refreshes automatically). Discarding always asks
 // first and offers "Undo": a tracked file is captured with `stash create` (a dangling commit) and restored via `restore --source`; a new file is moved to
-// the app's trash and can be brought back.
+// the app's trash and can be brought back. A submodule is not a file: `restore` leaves its checked-out commit alone, so it is put
+// back with `submodule update` instead (no Undo — the commit it had open stays in the submodule's own history).
 
 import {
   fileChangeAllPaths,
@@ -63,18 +64,37 @@ export async function discardFiles(
 ): Promise<void> {
   if (changes.length === 0) return;
   const ask = options.dialogs ?? dialogs;
-  const first = changes[0];
+  // Edits inside a submodule belong to that repo: discarding them from here would mean resetting someone else's working tree.
+  const insideSubmodule = changes.filter((change) => change.submodule === 'content');
+  const discardable = changes.filter((change) => change.submodule !== 'content');
+  const notifyInsideSubmodule = (): void => {
+    const first = insideSubmodule[0];
+    if (first) store.notify('info', vi.staging.submoduleContentOnly(fileChangeName(first)));
+  };
+  if (discardable.length === 0) {
+    notifyInsideSubmodule();
+    return;
+  }
+  const first = discardable[0];
   const name = first ? fileChangeName(first) : '';
+  const submodules = discardable
+    .filter((change) => change.submodule === 'commit')
+    .map((change) => change.path);
   const confirmed = await ask.confirm({
-    title: vi.staging.discardConfirmTitle(changes.length, name),
-    message: vi.staging.discardConfirmMessage,
+    title: vi.staging.discardConfirmTitle(discardable.length, name),
+    message:
+      submodules.length === discardable.length
+        ? vi.staging.discardSubmoduleMessage
+        : vi.staging.discardConfirmMessage,
     confirmTitle: vi.staging.discardConfirm,
     destructive: true,
   });
   if (!confirmed) return;
 
-  const untracked = changes.filter((change) => change.kind === 'untracked').map((change) => change.path);
-  const tracked = allPaths(changes.filter((change) => change.kind !== 'untracked'));
+  const untracked = discardable.filter((change) => change.kind === 'untracked').map((change) => change.path);
+  const tracked = allPaths(
+    discardable.filter((change) => change.kind !== 'untracked' && change.submodule === undefined),
+  );
   let snapshot: string | null = null;
   let trashToken: string | null = null;
   await store.perform(
@@ -85,13 +105,19 @@ export async function discardFiles(
         await git.discard(tracked);
       }
       if (untracked.length > 0) trashToken = await git.trashUntracked(untracked);
+      if (submodules.length > 0) await git.resetSubmodules(submodules);
     },
     {
       refresh: Scope.status,
       onSuccess: () => {
         const restoreSnapshot = snapshot;
         const restoreToken = trashToken;
-        store.notify('success', vi.staging.discarded(changes.length), {
+        notifyInsideSubmodule();
+        if (restoreSnapshot === null && restoreToken === null) {
+          store.notify('success', vi.staging.discarded(discardable.length));
+          return;
+        }
+        store.notify('success', vi.staging.discarded(discardable.length), {
           actions: [
             {
               title: vi.staging.undo,

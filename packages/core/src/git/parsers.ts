@@ -15,6 +15,7 @@ import {
   type FileChange,
   type FileHistoryEntry,
   type Submodule,
+  type SubmoduleChange,
   type SubmoduleState,
   type Worktree,
   type GitRef,
@@ -349,6 +350,7 @@ export function parseTrack(text: string): { ahead: number; behind: number; gone:
 function pushStatusEntry(
   x: string,
   y: string,
+  sub: string,
   path: string,
   origPath: string | undefined,
   staged: FileChange[],
@@ -360,8 +362,16 @@ function pushStatusEntry(
   }
   if (y !== '.') {
     const kind = changeKindFromCode(y);
-    unstaged.push(fileChange(path, kind, isRenameOrCopy(kind) ? origPath : undefined));
+    const change = fileChange(path, kind, isRenameOrCopy(kind) ? origPath : undefined);
+    const submodule = submoduleChange(sub);
+    unstaged.push(submodule === null ? change : { ...change, submodule });
   }
+}
+
+/** `sub` field of a porcelain v2 entry: "N..." for a regular file, "S<c><m><u>" for a submodule. */
+function submoduleChange(sub: string): SubmoduleChange | null {
+  if (!sub.startsWith('S')) return null;
+  return sub.charAt(1) === 'C' ? 'commit' : 'content';
 }
 
 function isRenameOrCopy(kind: ChangeKind): boolean {
@@ -425,7 +435,7 @@ export function parseStatus(data: Uint8Array | string): WorkingTreeStatus {
         const xy = f[1];
         const path = f[8];
         if (f.length !== 9 || xy === undefined || path === undefined || xy.length !== 2) break;
-        pushStatusEntry(xy.charAt(0), xy.charAt(1), path, undefined, staged, unstaged);
+        pushStatusEntry(xy.charAt(0), xy.charAt(1), f[2] ?? '', path, undefined, staged, unstaged);
         break;
       }
       case '2': {
@@ -436,7 +446,7 @@ export function parseStatus(data: Uint8Array | string): WorkingTreeStatus {
         const xy = f[1];
         const path = f[9];
         if (f.length !== 10 || xy === undefined || path === undefined || xy.length !== 2) break;
-        pushStatusEntry(xy.charAt(0), xy.charAt(1), path, origPath, staged, unstaged);
+        pushStatusEntry(xy.charAt(0), xy.charAt(1), f[2] ?? '', path, origPath, staged, unstaged);
         break;
       }
       case 'u': {

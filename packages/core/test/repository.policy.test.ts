@@ -191,6 +191,7 @@ describe('GitRepository: mọi thao tác qua được validator chính sách', (
     await r.submodules();
     await r.updateSubmodules(null);
     await r.updateSubmodules(['vendor/thư viện', '-lạ']);
+    await r.resetSubmodules(['vendor/thư viện', '-lạ']);
     await r.syncSubmodules();
     await r.lfsVersion();
     await r.lfsPatterns();

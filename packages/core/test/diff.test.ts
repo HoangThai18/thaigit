@@ -41,6 +41,27 @@ const sample = lines(
 const kinds = (hunkLines: readonly { kind: string }[]): string[] => hunkLines.map((line) => line.kind);
 const text = (bytes: Uint8Array): string => decodeUtf8Lossy(bytes);
 
+describe('diff của submodule', () => {
+  it('không cho stage / huỷ từng hunk', () => {
+    const [file] = parseDiff(
+      utf8(
+        [
+          'diff --git a/com b/com',
+          'index 14f6ffb..cc6e7f0 160000',
+          '--- a/com',
+          '+++ b/com',
+          '@@ -1 +1 @@',
+          '-Subproject commit 14f6ffbd7c7f7eebef66e8e153c41d59e0a8fa56',
+          '+Subproject commit cc6e7f042aa03ed54b9c9bcc3320f7ecbd6a95e7',
+          '',
+        ].join('\n'),
+      ),
+    );
+    expect(file?.hunks).toHaveLength(1);
+    expect(supportsPartialStaging(file!)).toBe(false);
+  });
+});
+
 describe('parseDiff (port DiffTests.swift)', () => {
   it('parsesHunksAndLineNumbers', () => {
     const files = parseDiff(utf8(sample));

@@ -1196,6 +1196,18 @@ export class GitRepository {
     await this.runner.run('submodule', args, { env: LITERAL_PATHSPECS });
   }
 
+  /**
+   * Put submodules back on the commit the parent repo records (`submodule update --checkout`) — "discard" for a submodule,
+   * whose checked-out commit `restore` does not touch. Fails rather than overwrite edits inside the submodule.
+   */
+  async resetSubmodules(paths: readonly string[]): Promise<void> {
+    if (paths.length === 0) return;
+    for (const path of paths) assertNoNul(path);
+    await this.runner.run('submodule', ['update', '--init', '--checkout', '--recursive', '--', ...paths], {
+      env: LITERAL_PATHSPECS,
+    });
+  }
+
   /** Copy submodule URLs from `.gitmodules` back into config (after a submodule's remote changed address). */
   async syncSubmodules(): Promise<void> {
     await this.runner.run('submodule', ['sync', '--recursive']);

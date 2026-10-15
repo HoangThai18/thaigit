@@ -79,11 +79,23 @@ export function diffLineCount(file: FileDiff): number {
 export function supportsPartialStaging(file: FileDiff): boolean {
   return (
     !file.isBinary &&
+    !isSubmoduleDiff(file) &&
     !file.isNewFile &&
     !file.isDeletedFile &&
     file.hunks.length > 0 &&
     file.headerLines.some((line) => startsWithAscii(line, '--- ')) &&
     file.headerLines.some((line) => startsWithAscii(line, '+++ '))
+  );
+}
+
+/** A submodule's diff ("Subproject commit …" lines, mode 160000): there is no file content to patch. */
+export function isSubmoduleDiff(file: FileDiff): boolean {
+  return (
+    file.oldMode === '160000' ||
+    file.newMode === '160000' ||
+    file.headerLines.some(
+      (line) => startsWithAscii(line, 'index ') && decodeUtf8Lossy(line).endsWith(' 160000'),
+    )
   );
 }
 

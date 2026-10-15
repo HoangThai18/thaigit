@@ -32,6 +32,10 @@ export const staging = {
       : `Huỷ mọi thay đổi chưa stage của ${count} file?`,
   discardConfirmMessage:
     'Thay đổi chưa stage sẽ bị bỏ; file mới (chưa track) được dời vào thùng rác của Thaigit. Có thể bấm “Hoàn tác” ngay sau đó.',
+  discardSubmoduleMessage:
+    'Submodule sẽ quay về đúng commit mà repo đang ghi nhận. Commit đang mở trong submodule không mất — vẫn còn trong lịch sử của submodule đó.',
+  submoduleContentOnly: (name: string) =>
+    `Thay đổi của ${name} nằm bên trong submodule — mở ${name} như một repo riêng để huỷ.`,
   discardConfirm: 'Huỷ thay đổi',
   discarded: (count: number) => (count === 1 ? 'Đã huỷ thay đổi' : `Đã huỷ thay đổi của ${count} file`),
   undo: 'Hoàn tác',
