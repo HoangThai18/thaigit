@@ -82,7 +82,6 @@ export const shell: Translation<typeof source> = {
     operationResolved: 'All conflicts resolved',
     toggleSidebar: 'Show/hide sidebar',
     toggleInspector: 'Show/hide details panel',
-    closeRepo: 'Back to the start screen (close this repository)',
     detachedHead: (sha: string) => `Detached HEAD @ ${sha}`,
     noBranch: '—',
     branchLabel: 'Current branch',

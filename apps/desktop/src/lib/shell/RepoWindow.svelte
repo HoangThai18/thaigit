@@ -47,10 +47,9 @@
 
   interface Props {
     store: RepoStore;
-    onclose: () => void;
   }
 
-  let { store, onclose }: Props = $props();
+  let { store }: Props = $props();
 
   const showSidebar = $derived(prefs.value.showSidebar);
   const showInspector = $derived(prefs.value.showInspector);
@@ -228,15 +227,6 @@
         <Icon name="settings" size={17} />
       </button>
       <ProfileButton {store} />
-      <button
-        type="button"
-        class="tool"
-        title={vi.window.closeRepo}
-        aria-label={vi.window.closeRepo}
-        onclick={onclose}
-      >
-        <Icon name="home" size={18} />
-      </button>
     </header>
 
     <BusyBar {store} />

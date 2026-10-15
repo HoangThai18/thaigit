@@ -1,6 +1,6 @@
 // App.svelte: the "Review repo config" button on a toast must only affect the repo that is CURRENTLY open;
 // a toast of an already closed repo just gets dismissed. RepoWindow is replaced by a fake (it only takes
-// `store` / `onclose`): this covers App's glue, not the whole repo window.
+// `store`): this covers App's glue, not the whole repo window.
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExecRequest } from '@thaigit/core';
@@ -9,12 +9,12 @@ import { toasts } from '../../src/lib/stores/toasts.svelte.ts';
 import { openTestPort } from '../helpers/node-port.ts';
 
 const hoisted = vi.hoisted(() => ({
-  window: { props: null as null | { store: { port: unknown }; onclose: () => Promise<void> } },
+  window: { props: null as null | { store: { port: unknown } } },
   host: null as null | Host,
 }));
 
 vi.mock('../../src/lib/shell/RepoWindow.svelte', () => ({
-  default: (_anchor: unknown, props: { store: { port: unknown }; onclose: () => Promise<void> }) => {
+  default: (_anchor: unknown, props: { store: { port: unknown } }) => {
     hoisted.window.props = props;
   },
 }));
@@ -96,8 +96,9 @@ describe('App: toast "Xem lại cấu hình repo"', () => {
     const { trust } = await openUntrustedApp();
     const stale = toasts.items.find((toast) => toast.style === 'warning')?.actions[0];
     expect(stale).toBeDefined();
-    const props = hoisted.window.props!;
-    await props.onclose();
+    // Ctrl + W closes the repo's tab; Home becomes the selected tab.
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', ctrlKey: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
     flushSync();
 
     expect(toasts.items.filter((toast) => toast.style === 'warning')).toEqual([]);

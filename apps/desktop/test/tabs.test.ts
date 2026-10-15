@@ -53,6 +53,15 @@ describe('TabsStore', () => {
     expect(names(tabs)).toEqual(['a', 'c', 'B']);
   });
 
+  it('atEnd: thêm vào cuối dù đang chọn tab đầu (mở repo từ Trang chủ)', () => {
+    const tabs = new TabsStore<string>();
+    const home = tabs.add('home');
+    tabs.add('a', { atEnd: true });
+    tabs.activate(home);
+    tabs.add('b', { atEnd: true });
+    expect(names(tabs)).toEqual(['home', 'a', 'b']);
+  });
+
   it('một tab thì Ctrl + Tab không làm gì', () => {
     const tabs = new TabsStore<string>();
     const only = tabs.add('x');

@@ -84,7 +84,6 @@ export const shell = {
     operationResolved: 'Đã giải quyết hết xung đột',
     toggleSidebar: 'Ẩn/hiện thanh bên',
     toggleInspector: 'Ẩn/hiện panel chi tiết',
-    closeRepo: 'Về màn hình chính (đóng repo này)',
     detachedHead: (sha: string) => `Detached HEAD @ ${sha}`,
     noBranch: '—',
     branchLabel: 'Nhánh hiện tại',

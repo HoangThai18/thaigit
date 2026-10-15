@@ -1,7 +1,7 @@
 <!--
   Vỏ ứng dụng: chọn host (Tauri / cầu nối dev), mở repo (hộp thoại, danh sách gần đây, "Mở bằng…"), hỏi tin tưởng repo lạ, rồi
-  vào cửa sổ repo. Mỗi cửa sổ có nhiều tab (như GitKraken), mỗi tab một repo; chỉ tab đang chọn được vẽ, repo ở tab nền vẫn
-  sống. Cửa sổ chính nhớ các tab để lần sau mở lại.
+  vào cửa sổ repo. Mỗi cửa sổ có nhiều tab (như GitKraken): tab Trang chủ luôn đứng đầu, mỗi tab còn lại một repo; chỉ tab
+  đang chọn được vẽ, repo ở tab nền vẫn sống. Cửa sổ chính nhớ các tab để lần sau mở lại.
 -->
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
@@ -46,6 +46,7 @@
 
   type View =
     | { kind: 'boot' }
+    | { kind: 'home' }
     | { kind: 'welcome' }
     | { kind: 'trust'; port: RepoPort }
     | { kind: 'repo'; store: RepoStore };
@@ -88,14 +89,14 @@
         return { id, title: view.store.name, tooltip: view.store.port.info.root };
       case 'trust':
         return { id, title: folderName(view.port.info.root), tooltip: view.port.info.root };
+      case 'home':
+        return { id, title: vi.tabs.homeTitle, tooltip: vi.tabs.home, pinned: true };
       default:
         return { id, title: vi.tabs.welcomeTitle, tooltip: vi.tabs.welcomeTitle };
     }
   }
 
   const tabItems = $derived(tabs.tabs.map((tab) => tabItem(tab.id, tab.view)));
-  // Shown as soon as a repo is open (not only from the second tab) so "+" for another repo is always in sight.
-  const showTabBar = $derived(tabs.tabs.length > 1 || tabs.tabs.some((tab) => tab.view.kind !== 'welcome'));
 
   function folderName(root: string): string {
     return root.split(/[\\/]/).filter(Boolean).pop() ?? root;
@@ -103,7 +104,7 @@
 
   function newTab(): void {
     if (app.host === null) return;
-    tabs.add({ kind: 'welcome' });
+    tabs.add({ kind: 'welcome' }, { atEnd: true });
     void app.refreshRecent();
   }
 
@@ -116,18 +117,21 @@
     if (view?.kind === 'repo') await view.store.dispose();
   }
 
-  /** Close a tab; the last remaining tab just returns to the welcome screen. */
+  /** Close a tab (the Home tab stays); closing the selected tab selects its right neighbour, or the left one. */
   async function closeTab(id: number): Promise<void> {
     const tab = tabs.get(id);
-    if (!tab) return;
+    if (!tab || tab.view.kind === 'home') return;
     // Detach the repo from the tab BEFORE releasing it: a late button press (that repo's toast) immediately sees the tab no longer holds it.
-    if (tabs.tabs.length === 1) {
-      tabs.set(id, { kind: 'welcome' });
-      void app.refreshRecent();
-    } else {
-      tabs.remove(id);
-    }
+    tabs.remove(id);
+    if (tabs.active?.view.kind === 'home') void app.refreshRecent();
     await release(tab.view);
+  }
+
+  function goHome(): void {
+    const home = tabs.find((view) => view.kind === 'home');
+    if (!home) return;
+    tabs.activate(home.id);
+    void app.refreshRecent();
   }
 
   async function closeOtherTabs(id: number): Promise<void> {
@@ -254,35 +258,33 @@
       return;
     }
     const restoring = host.kind === 'tauri' && isMainWindow();
+    tabs.set(first, { kind: 'home' });
+    let launched = false;
     try {
-      const launched = await host.openLaunchRepo();
-      if (launched) {
-        await show(first, launched);
-        // Opened with a folder ("Open With Thaigit"): still restore the old tabs, after the tab just opened.
-        if (restoring) await restoreTabs(host, false);
-        remembersTabs = restoring;
-        return;
+      const port = await host.openLaunchRepo();
+      if (port) {
+        await show(first, port);
+        launched = true;
       }
     } catch (error) {
       toasts.error(vi.welcome.openFailed, error);
     }
-    tabs.set(first, { kind: 'welcome' });
-    if (restoring) await restoreTabs(host, true);
+    // Opened with a folder ("Open With Thaigit"): still restore the old tabs, after the tab just opened, and keep it selected.
+    if (restoring) await restoreTabs(host, launched);
     remembersTabs = restoring;
   }
 
-  /** Reopen the repos of the previous session's tabs (main window). `intoFirst`: the first tab reuses the existing welcome tab. */
-  async function restoreTabs(host: Host, intoFirst: boolean): Promise<void> {
+  /** Reopen the repos of the previous session's tabs (main window), after the existing tabs. */
+  async function restoreTabs(host: Host, keepSelection: boolean): Promise<void> {
     const { openTabs, activeTab } = prefs.value;
-    const welcome = intoFirst ? tabs.activeId : null;
-    const keepActive = intoFirst ? null : tabs.activeId;
+    const keepActive = keepSelection ? tabs.activeId : null;
     let failed = 0;
     let wanted: number | null = null;
     for (const [index, id] of openTabs.entries()) {
       try {
         const port = await host.openRecent(id);
         if (tabs.find((view) => sameRepo(view, port))) continue;
-        const tabId = index === 0 && welcome !== null ? welcome : tabs.add({ kind: 'boot' });
+        const tabId = tabs.add({ kind: 'boot' }, { atEnd: true });
         await show(tabId, port);
         if (index === activeTab) wanted = tabId;
       } catch {
@@ -323,9 +325,18 @@
     }
   }
 
-  async function show(tabId: number, port: RepoPort): Promise<void> {
-    // The repo is already open in another tab: switch to it and drop the welcome tab that was just used to open it.
+  async function show(target: number, port: RepoPort): Promise<void> {
     const existing = tabs.find((view) => sameRepo(view, port));
+    let tabId = target;
+    // Opened from Home: Home stays, the repo gets a new tab at the end (or its existing tab).
+    if (tabs.get(tabId)?.view.kind === 'home') {
+      if (existing) {
+        tabs.activate(existing.id);
+        return;
+      }
+      tabId = tabs.add({ kind: 'boot' }, { atEnd: true });
+    }
+    // The repo is already open in another tab: switch to it and drop the welcome tab that was just used to open it.
     if (existing && existing.id !== tabId) {
       const current = tabs.get(tabId)?.view.kind;
       if (current === 'welcome' || current === 'boot') tabs.remove(tabId);
@@ -379,15 +390,6 @@
     }
   }
 
-  /** The home button on a repo's toolbar: close the repo but keep its tab, showing the welcome screen in it. */
-  async function goHome(tabId: number): Promise<void> {
-    const tab = tabs.get(tabId);
-    if (!tab) return;
-    tabs.set(tabId, { kind: 'welcome' });
-    void app.refreshRecent();
-    await release(tab.view);
-  }
-
   /** Create a new repo: pick the parent folder, name it, `git init`, then open it. */
   async function createRepo(tabId: number): Promise<void> {
     const host = app.host;
@@ -425,18 +427,19 @@
 
 <svelte:window onkeydown={onwindowkeydown} />
 
-<div class="shell" class:tabbed={showTabBar}>
-  {#if showTabBar}
-    <TabBar
-      items={tabItems}
-      activeId={tabs.activeId}
-      onactivate={(id) => tabs.activate(id)}
-      onclose={(id) => void closeTab(id)}
-      onnew={newTab}
-      onmove={(id, index) => tabs.move(id, index)}
-      menu={tabMenu}
-    />
-  {/if}
+<div class="shell">
+  <TabBar
+    items={tabItems}
+    activeId={tabs.activeId}
+    onactivate={(id) => {
+      tabs.activate(id);
+      if (tabs.get(id)?.view.kind === 'home') void app.refreshRecent();
+    }}
+    onclose={(id) => void closeTab(id)}
+    onnew={newTab}
+    onmove={(id, index) => tabs.move(id, Math.max(1, index))}
+    menu={tabMenu}
+  />
   <div class="tab-content">
     {#if active}
       {@const tabId = active.id}
@@ -445,9 +448,15 @@
         {#key view.store}
           <!-- A rendering error in the repo UI: don't show the exception, just report it friendly and offer retry / back to the home screen. -->
           <svelte:boundary onerror={(error) => reportUnexpected(error)}>
-            <RepoWindow store={view.store} onclose={() => goHome(tabId)} />
+            <RepoWindow store={view.store} />
             {#snippet failed(_error, reset)}
-              <CrashPanel onretry={reset} onhome={() => void goHome(tabId)} />
+              <CrashPanel
+                onretry={reset}
+                onhome={() => {
+                  goHome();
+                  void closeTab(tabId);
+                }}
+              />
             {/snippet}
           </svelte:boundary>
         {/key}
@@ -461,7 +470,7 @@
           ontrust={() => trust(tabId, port)}
           oncancel={() => void closeTab(tabId)}
         />
-      {:else if view.kind === 'welcome'}
+      {:else if view.kind === 'welcome' || view.kind === 'home'}
         <Welcome
           recent={app.recent}
           opening={busy}
@@ -510,7 +519,7 @@
   }
 
   /* The tab bar already reserved room for the macOS traffic lights: the content area doesn't need to. */
-  .tabbed .tab-content {
+  .tab-content {
     --titlebar-inset: 0px;
   }
 </style>

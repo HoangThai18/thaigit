@@ -110,7 +110,7 @@ describe('ký tự bidi trong tên nhánh / tag / tệp', () => {
     repo.test.git('switch', '-q', BRANCH);
     repo.store.refreshEverything();
     await until(() => repo.store.currentBranch === BRANCH, 'đã chuyển nhánh');
-    const root = mountInto(RepoWindow, { store: repo.store, onclose() {} });
+    const root = mountInto(RepoWindow, { store: repo.store });
     await tick();
     flushSync();
     expect(root.querySelector('.branch-name')?.textContent).toBe('fix-‹RLO U+202E›gnp.exe');

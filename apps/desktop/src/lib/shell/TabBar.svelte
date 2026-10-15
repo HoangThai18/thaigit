@@ -1,5 +1,5 @@
 <!--
-  Thanh tab của cửa sổ (chỉ hiện khi có từ hai tab): bấm để chuyển repo, nút × hoặc nhấp chuột giữa để đóng, kéo để đổi chỗ,
+  Thanh tab của cửa sổ (như GitKraken): tab Trang chủ hình ngôi nhà luôn đứng đầu, không đóng / kéo được; bấm tab để chuyển repo, nút × hoặc nhấp chuột giữa để đóng, kéo để đổi chỗ,
   chuột phải để đóng tab khác / chép đường dẫn, nút + để mở tab mới. Phím ← / → chuyển tab khi tab đang có focus.
 -->
 <script lang="ts">
@@ -41,14 +41,14 @@
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onactivate(id);
-    } else if (event.key === 'Delete') {
+    } else if (event.key === 'Delete' && !items[index]?.pinned) {
       event.preventDefault();
       onclose(id);
     }
   }
 
   function onpointerdown(event: PointerEvent, id: number): void {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || items.find((item) => item.id === id)?.pinned) return;
     dragging = { id, x: event.clientX, moved: false };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }
@@ -62,7 +62,8 @@
       const rect = tab.getBoundingClientRect();
       return event.clientX >= rect.left && event.clientX < rect.right;
     });
-    if (target >= 0 && items[target]?.id !== dragging.id) onmove(dragging.id, target);
+    if (target >= 0 && !items[target]?.pinned && items[target]?.id !== dragging.id)
+      onmove(dragging.id, target);
   }
 
   function onpointerup(): void {
@@ -78,39 +79,47 @@
     <div
       class="tab"
       class:active
+      class:home={item.pinned}
       role="tab"
       tabindex={active ? 0 : -1}
       aria-selected={active}
       title={showBidi(item.tooltip)}
       onclick={() => onactivate(item.id)}
       onauxclick={(event) => {
-        if (event.button === 1) {
+        if (event.button === 1 && !item.pinned) {
           event.preventDefault();
           onclose(item.id);
         }
       }}
       onkeydown={(event) => onkeydown(event, index, item.id)}
-      oncontextmenu={(event) => menus.openAt(event, menu(item.id))}
+      oncontextmenu={(event) => {
+        if (item.pinned) event.preventDefault();
+        else menus.openAt(event, menu(item.id));
+      }}
       onpointerdown={(event) => onpointerdown(event, item.id)}
       {onpointermove}
       {onpointerup}
       onpointercancel={onpointerup}
     >
-      <span class="title"><bdi>{showBidi(item.title)}</bdi></span>
-      <button
-        type="button"
-        class="close"
-        tabindex="-1"
-        title={vi.tabs.closeTab}
-        aria-label={vi.tabs.closeNamed(item.title)}
-        onpointerdown={(event) => event.stopPropagation()}
-        onclick={(event) => {
-          event.stopPropagation();
-          onclose(item.id);
-        }}
-      >
-        <Icon name="x" size={11} strokeWidth={2.4} />
-      </button>
+      {#if item.pinned}
+        <Icon name="home" size={16} />
+      {:else}
+        <span class="title"><bdi>{showBidi(item.title)}</bdi></span>
+        <button
+          type="button"
+          class="close"
+          tabindex="-1"
+          title={vi.tabs.closeTab}
+          aria-label={vi.tabs.closeNamed(item.title)}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={(event) => {
+            event.stopPropagation();
+            onclose(item.id);
+          }}
+        >
+          <Icon name="x" size={11} strokeWidth={2.4} />
+        </button>
+      {/if}
     </div>
   {/each}
   <button type="button" class="new" title={vi.tabs.newTab} aria-label={vi.tabs.newTab} onclick={onnew}>
@@ -216,6 +225,18 @@
   .new:hover {
     background: var(--row-hover);
     color: var(--text);
+  }
+
+  .tab.home {
+    flex: none;
+    justify-content: center;
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+
+  .tab.home.active {
+    color: var(--accent);
   }
 
   .grow {

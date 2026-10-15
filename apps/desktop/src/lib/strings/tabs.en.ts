@@ -5,6 +5,8 @@ import type { Translation } from './types.ts';
 export const tabs: Translation<typeof source> = {
   label: 'Open repositories',
   newTab: 'New tab',
+  homeTitle: 'Home',
+  home: 'Home — open, clone, create a repository (Ctrl/⌘ + 1)',
   newTabShortcut: 'Ctrl/⌘ + T',
   newWindowShortcut: 'Ctrl/⌘ + Shift + N',
   welcomeTitle: 'New tab',

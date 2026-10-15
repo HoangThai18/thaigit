@@ -14,6 +14,8 @@ export interface TabItem {
   readonly title: string;
   /** The tooltip line on hover (a repo path…). */
   readonly tooltip: string;
+  /** The Home tab: drawn as an icon, always first, cannot be closed or dragged. */
+  readonly pinned?: boolean;
 }
 
 export class TabsStore<V> {
@@ -33,10 +35,10 @@ export class TabsStore<V> {
     return this.tabs.find((tab) => tab.id === id);
   }
 
-  /** Add a tab right after the selected one (or at the end); selected by default. Returns its id. */
-  add(view: V, options: { activate?: boolean } = {}): number {
+  /** Add a tab right after the selected one (or at the end, or with `atEnd`); selected by default. Returns its id. */
+  add(view: V, options: { activate?: boolean; atEnd?: boolean } = {}): number {
     const tab: Tab<V> = { id: this.nextId++, view };
-    const index = this.activeIndex;
+    const index = options.atEnd ? -1 : this.activeIndex;
     const next = [...this.tabs];
     next.splice(index < 0 ? next.length : index + 1, 0, tab);
     this.tabs = next;

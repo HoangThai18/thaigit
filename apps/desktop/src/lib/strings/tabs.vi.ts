@@ -4,6 +4,8 @@
 export const tabs = {
   label: 'Các repo đang mở',
   newTab: 'Tab mới',
+  homeTitle: 'Trang chủ',
+  home: 'Trang chủ — mở, clone, tạo repo (Ctrl/⌘ + 1)',
   newTabShortcut: 'Ctrl/⌘ + T',
   newWindowShortcut: 'Ctrl/⌘ + Shift + N',
   welcomeTitle: 'Tab mới',
