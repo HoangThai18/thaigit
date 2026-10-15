@@ -2,6 +2,10 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## 2.6.4 — 2026-10-15
+
+- Tab Trang chủ trở lại như GitKraken: ô ngôi nhà luôn đứng đầu thanh tab, bấm vào là về trang chủ mà các repo đang mở vẫn giữ nguyên ở tab của chúng; mở repo từ trang chủ thì repo mở thành tab mới (repo đã mở rồi thì chuyển sang tab đó); đóng tab repo cuối cùng thì về trang chủ. Ctrl/⌘ + 1 cũng về trang chủ
+
 ## 2.6.3 — 2026-10-15
 
 - Nút về màn hình chính giờ là biểu tượng ngôi nhà ở góc phải thanh công cụ, dễ thấy hơn; bấm vào thì về màn hình chính ngay trong tab đó
