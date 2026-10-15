@@ -166,7 +166,9 @@ export function createAdminApp(db: Db, now: () => number = Date.now): Hono {
           </head>
           <body>
             <h1>Thaigit · Thống kê (${today}, giờ VN)</h1>
-            <p class="note">Chỉ đọc. Không có IP, ID gốc hay nội dung nào được lưu.</p>
+            <p class="note">
+              Chỉ đọc. Không lưu ID gốc hay nội dung; IP và fingerprint chỉ có ở lượt tải (xoá sau 90 ngày).
+            </p>
             ${table('Người dùng (chỉ máy đã bật thống kê)', ['Chỉ số', 'Giá trị'], summary)}
             ${table('Lượt tải qua trang chủ — 30 ngày', ['Ngày', 'macOS', 'Windows', 'Tổng'], downloads)}
             ${table('Phiên bản đang dùng', ['Nền tảng', 'Phiên bản', 'Máy (7 ngày)'], versions)}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { browserFingerprint } from '@/lib/fingerprint';
 import { fetchRelease, formatDate, formatSize, type Release, type ReleaseOs } from '@/lib/release';
 import { LINKS } from '@/lib/site';
 import { UI } from '@/lib/ui';
@@ -39,12 +40,23 @@ export function DownloadButton({
   const text = UI[lang].download;
   const release = useRelease(initial);
   const asset = release?.[os];
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void browserFingerprint().then((value) => {
+      if (alive) setFingerprint(value);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const Icon = os === 'mac' ? AppleIcon : WindowsIcon;
   const fallback = os === 'mac' ? text.macFallback : text.winSub;
+  const href = os === 'mac' ? LINKS.downloadMac : LINKS.downloadWindows;
   return (
     <a
       className={className}
-      href={os === 'mac' ? LINKS.downloadMac : LINKS.downloadWindows}
+      href={fingerprint === null ? href : `${href}?fp=${fingerprint}`}
       data-download={os}
       title={title}
     >

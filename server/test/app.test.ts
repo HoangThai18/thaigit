@@ -254,18 +254,22 @@ describe('thống kê và lượt tải', () => {
     expect(rows[0]?.tel_hash).not.toContain(ping.telemetryId);
   });
 
-  it('download: ghi lượt (không IP) rồi chuyển tới GitHub', async () => {
+  it('download: ghi lượt kèm IP, fingerprint, User-Agent rồi chuyển tới GitHub', async () => {
     const { app, db } = setup();
-    const mac = await app.request('/download/mac', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X)' },
+    const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X)';
+    const fp = '0123456789abcdef0123456789abcdef';
+    const mac = await app.request(`/download/mac?fp=${fp}`, {
+      headers: { 'User-Agent': ua, 'x-test-peer': '203.0.113.9' },
     });
     expect(mac.status).toBe(302);
     expect(mac.headers.get('location')).toBe(
       'https://github.com/HoangThai18/thaigit/releases/download/desktop-stable/Thaigit-macOS.dmg',
     );
+    await app.request('/download/win?fp=<script>', { headers: { 'x-test-peer': '198.51.100.7' } });
     expect((await app.request('/download/linux')).status).toBe(404);
-    expect(db.prepare('SELECT asset, ua_family FROM downloads').all()).toEqual([
-      { asset: 'mac', ua_family: 'macos' },
+    expect(db.prepare('SELECT asset, ua_family, ip, fp, ua FROM downloads ORDER BY id').all()).toEqual([
+      { asset: 'mac', ua_family: 'macos', ip: '203.0.113.9', fp, ua },
+      { asset: 'win', ua_family: 'other', ip: '198.51.100.7', fp: null, ua: null },
     ]);
   });
 

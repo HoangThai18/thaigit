@@ -7,14 +7,14 @@
 | `POST /v1/ai/install`, `GET /v1/ai/quota` | đăng ký máy (chỉ sau khi người dùng đồng ý dùng AI), xem lượt còn lại |
 | `POST /v1/ai/commit-message` · `/v1/ai/explain-commit` · `/v1/ai/pr-description` | chuyển ngữ cảnh đã lọc cho **Hermes trên chính VPS**, stream chữ về app (SSE) |
 | `POST /v1/telemetry/ping` | thống kê ẩn danh — chỉ máy nào bật trong Cài đặt |
-| `GET /download/mac`, `/download/win` | đếm một lượt tải (không IP) rồi chuyển tới file trên GitHub Releases |
+| `GET /download/mac`, `/download/win` | ghi một lượt tải (IP, fingerprint trình duyệt `?fp=`, User-Agent; xoá sau 90 ngày) rồi chuyển tới file trên GitHub Releases |
 | `GET /v1/stats/downloads` | `{total, mac, win}` — tổng lượt tải công khai (bỏ bot / curl) cho bộ đếm trên trang chủ |
 | `GET /healthz` | `{api, db, ai}` |
 | `http://127.0.0.1:8788/` | trang admin **chỉ-đọc**, không ra Internet |
 
 App gọi API ở `https://git.thaipro.store` (cùng tên miền với trang chủ). Cập nhật app **không** phụ thuộc máy chủ này: VPS tắt thì chỉ AI và số đếm tạm ngừng.
 
-Không lưu nội dung: DB chỉ có số liệu kỹ thuật (số token, thời gian, mã lỗi), ID đã băm HMAC, không IP.
+Không lưu nội dung: DB chỉ có số liệu kỹ thuật (số token, thời gian, mã lỗi), ID đã băm HMAC, không IP — trừ bảng `downloads` (IP + fingerprint + User-Agent của người bấm tải, xoá sau 90 ngày).
 
 ## 1. Hermes (model)
 

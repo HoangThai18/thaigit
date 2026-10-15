@@ -1,7 +1,8 @@
 // Retention cleanup (runs at startup and every 6 hours; running it repeatedly is harmless):
 //  - ai_quota older than 7 days, ai_requests older than 30 days;
 //  - daily_active older than 90 days — before deleting, roll them up into daily_counts (counters only, no ids) so they
-//    can be kept long term.
+//    can be kept long term;
+//  - downloads older than 90 days keep their row (the public total) but lose ip / fp / ua.
 
 import { transaction, type Db } from './db.ts';
 import { dayMinus, vnDay } from './time.ts';
@@ -19,5 +20,8 @@ export function runRetention(db: Db, now: number): void {
     db.prepare('DELETE FROM daily_active WHERE day < ?').run(dayMinus(today, 90));
     db.prepare('DELETE FROM ai_quota WHERE day < ?').run(dayMinus(today, 7));
     db.prepare('DELETE FROM ai_requests WHERE day < ?').run(dayMinus(today, 30));
+    db.prepare(
+      'UPDATE downloads SET ip = NULL, fp = NULL, ua = NULL WHERE day < ? AND (ip IS NOT NULL OR fp IS NOT NULL OR ua IS NOT NULL)',
+    ).run(dayMinus(today, 90));
   });
 }

@@ -16,7 +16,7 @@ Phạm vi: `server/`, `packages/core/src/ai/`, `packages/contracts/src/{ai,telem
 
 | Rủi ro | Cách chặn | Bằng chứng |
 | --- | --- | --- |
-| Lưu nội dung code / message / IP / ID | DB chỉ có số liệu kỹ thuật; ID băm HMAC bằng 2 secret khác nhau (AI, thống kê — không nối được); log chỉ tên lỗi | `server/test/app.test.ts` "không lưu nội dung diff / ID / IP vào DB" |
+| Lưu nội dung code / message / IP / ID | DB chỉ có số liệu kỹ thuật; ID băm HMAC bằng 2 secret khác nhau (AI, thống kê — không nối được); log chỉ tên lỗi. Ngoại lệ có chủ đích: bảng `downloads` lưu IP + fingerprint + User-Agent người bấm tải, xoá sau 90 ngày (`retention.ts`) | `server/test/app.test.ts` "không lưu nội dung diff / ID / IP vào DB" |
 | Giả token / đoán token | Token = HMAC(secret, aiInstallId), so sánh thời gian hằng; đăng ký ≤ 5 lần/giờ/IP | `crypto.ts`, test "đăng ký cài đặt tối đa 5 lần/giờ/IP" |
 | Giả IP để né giới hạn | Chỉ tin `X-Real-IP` khi peer thuộc `TRUSTED_PROXY`; IPv6 gom /64 | test "chỉ tin X-Real-IP khi peer là proxy tin cậy" |
 | Làm nghẽn máy chạy model | Song song tối đa N, hàng đợi có hạn + hết giờ, giới hạn/phút toàn cục + theo IP, 1 stream/cài đặt, quota/ngày, trần token đầu vào (tự cắt), body ≤ 200 KB, kill switch, chặn theo `id_hash`; người dùng cũ được ưu tiên, máy mới chỉ chiếm ½ luồng | `units.test.ts` "300 cài đặt mới không chặn được người dùng cũ", app tests quota / kill switch / one-stream |

@@ -129,7 +129,7 @@ describe('cấu hình, thời gian, DB', () => {
     }
   });
 
-  it('retention gộp daily_active vào daily_counts rồi xoá dữ liệu quá hạn', () => {
+  it('retention gộp daily_active vào daily_counts, xoá dữ liệu quá hạn, bỏ IP lượt tải sau 90 ngày', () => {
     const db = openDatabase(':memory:');
     const insert = db.prepare(
       'INSERT INTO daily_active (day, tel_hash, platform, arch, app_version) VALUES (?, ?, ?, ?, ?)',
@@ -138,7 +138,16 @@ describe('cấu hình, thời gian, DB', () => {
     insert.run('2026-06-01', 'h2', 'windows', 'x86_64', '2.0.0');
     insert.run('2026-10-03', 'h1', 'macos', 'aarch64', '2.0.0');
     db.prepare(`INSERT INTO ai_quota VALUES ('2026-09-01', 'x', 'commit', 3)`).run();
+    const download = db.prepare(
+      `INSERT INTO downloads (ts, day, asset, ua_family, ip, fp, ua) VALUES (0, ?, 'mac', 'macos', '203.0.113.9', 'f', 'u')`,
+    );
+    download.run('2026-06-01');
+    download.run('2026-10-03');
     runRetention(db, Date.parse('2026-10-03T05:00:00Z'));
+    expect(db.prepare('SELECT day, ip, fp, ua FROM downloads ORDER BY day').all()).toEqual([
+      { day: '2026-06-01', ip: null, fp: null, ua: null },
+      { day: '2026-10-03', ip: '203.0.113.9', fp: 'f', ua: 'u' },
+    ]);
     expect(db.prepare('SELECT day, platform, dau FROM daily_counts').all()).toEqual([
       { day: '2026-06-01', platform: 'windows', dau: 2 },
     ]);

@@ -50,7 +50,7 @@ const vi: PageText = {
     metaDescription:
       'Thaigit gửi gì, khi nào và tới đâu: tự cập nhật, thống kê ẩn danh có đồng ý, trang web này.',
     h1: 'Quyền riêng tư',
-    updated: 'Cập nhật ngày 05/10/2026',
+    updated: 'Cập nhật ngày 15/10/2026',
     sections: [
       {
         heading: 'Tóm tắt',
@@ -66,7 +66,7 @@ const vi: PageText = {
       },
       {
         heading: 'Trang web này',
-        text: 'Trang git.thaipro.store là trang tĩnh: không dùng cookie, không có mã theo dõi hay quảng cáo. Khi mở trang, trình duyệt hỏi GitHub để hiện số phiên bản mới nhất; nhà cung cấp hosting có thể ghi nhật ký truy cập thông thường (địa chỉ IP, thời gian). Lựa chọn giao diện sáng / tối được lưu ngay trong trình duyệt của bạn, không gửi đi đâu.',
+        text: 'Trang git.thaipro.store là trang tĩnh: không dùng cookie, không có quảng cáo. Khi bạn bấm nút tải, máy chủ ghi lại địa chỉ IP, thông tin trình duyệt (User-Agent) và một mã nhận dạng trình duyệt tính từ cấu hình máy (màn hình, múi giờ, ngôn ngữ, card đồ hoạ) để đếm lượt tải thật và chặn tải ảo; sau 90 ngày các thông tin này bị xoá, chỉ còn số đếm. Khi mở trang, trình duyệt hỏi GitHub để hiện số phiên bản mới nhất; nhà cung cấp hosting có thể ghi nhật ký truy cập thông thường (địa chỉ IP, thời gian). Lựa chọn giao diện sáng / tối được lưu ngay trong trình duyệt của bạn, không gửi đi đâu.',
       },
     ],
     contactHeading: 'Liên hệ',
@@ -96,7 +96,7 @@ const en: PageText = {
     metaDescription:
       'What Thaigit sends, when and where: self-updating, opt-in anonymous statistics, and this website.',
     h1: 'Privacy',
-    updated: 'Updated October 5, 2026',
+    updated: 'Updated October 15, 2026',
     sections: [
       {
         heading: 'In short',
@@ -112,7 +112,7 @@ const en: PageText = {
       },
       {
         heading: 'This website',
-        text: 'git.thaipro.store is a static site: no cookies, no tracking scripts or ads. When you open it, your browser asks GitHub for the latest version number; the hosting provider may keep ordinary access logs (IP address, time). Your light / dark and language choices are stored only in your own browser and are not sent anywhere.',
+        text: 'git.thaipro.store is a static site: no cookies, no ads. When you click a download button, the server records your IP address, browser details (User-Agent) and a browser identifier computed from your device setup (screen, time zone, language, graphics card) to count real downloads and block fake ones; after 90 days these are deleted and only the counts remain. When you open it, your browser asks GitHub for the latest version number; the hosting provider may keep ordinary access logs (IP address, time). Your light / dark and language choices are stored only in your own browser and are not sent anywhere.',
       },
     ],
     contactHeading: 'Contact',

@@ -68,6 +68,12 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX downloads_day ON downloads(day);
   `,
+  // 2 — who clicked download: IP, browser fingerprint from the site, full User-Agent (cleared after 90 days).
+  `
+  ALTER TABLE downloads ADD COLUMN ip TEXT;
+  ALTER TABLE downloads ADD COLUMN fp TEXT;
+  ALTER TABLE downloads ADD COLUMN ua TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

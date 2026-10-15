@@ -1,6 +1,7 @@
 // Public API (behind nginx/Caddy): /v1/ai/* (proxied to Hermes), /v1/telemetry/ping, /v1/stats/downloads, /download/:asset,
 // /healthz.
-// Diff content, messages, IPs and raw IDs never reach the database or the logs — only technical counters.
+// Diff content, messages and raw IDs never reach the database or the logs — only technical counters. The one exception is
+// /download/:asset, which records the downloader's IP, browser fingerprint and User-Agent.
 
 import { existsSync } from 'node:fs';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -57,6 +58,8 @@ export interface AppState {
 }
 
 type Env = { Variables: { ip: string; idHash: string; appVersion: string | null } };
+
+const FINGERPRINT_PATTERN = /^[0-9a-f]{32}$/;
 
 const DOWNLOAD_TARGETS: Record<DownloadAsset, (repo: string) => { url: string; manifest: string }> = {
   mac: (repo) => ({
@@ -428,7 +431,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
     },
   );
 
-  // MARK: - Download counting: records one row (no IP) then redirects to the file on GitHub Releases
+  // MARK: - Download log: records one row (IP, fingerprint, User-Agent) then redirects to the file on GitHub Releases
   const refreshVersion = async (asset: DownloadAsset, manifest: string) => {
     const cached = versions.get(asset);
     if (cached !== undefined && now() - cached.fetchedAt < 5 * 60_000) return;
@@ -449,13 +452,20 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; state: AppState } {
     if (!(DOWNLOAD_ASSETS as readonly string[]).includes(asset)) return c.notFound();
     const target = DOWNLOAD_TARGETS[asset as DownloadAsset](config.download.repo);
     void refreshVersion(asset as DownloadAsset, target.manifest);
+    const ua = c.req.header('User-Agent');
+    const fp = c.req.query('fp') ?? '';
     try {
-      db.prepare('INSERT INTO downloads (ts, day, asset, version, ua_family) VALUES (?, ?, ?, ?, ?)').run(
+      db.prepare(
+        'INSERT INTO downloads (ts, day, asset, version, ua_family, ip, fp, ua) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      ).run(
         now(),
         vnDay(now()),
         asset,
         versions.get(asset as DownloadAsset)?.version ?? null,
-        uaFamily(c.req.header('User-Agent')),
+        uaFamily(ua),
+        c.get('ip'),
+        FINGERPRINT_PATTERN.test(fp) ? fp : null,
+        ua === undefined ? null : ua.slice(0, 512),
       );
     } catch {
       // A failed count still allows the download.
