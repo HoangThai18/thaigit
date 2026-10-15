@@ -1,7 +1,8 @@
 //! Auto-update: `tauri-plugin-updater` fetches the channel's `latest.json` (from the fixed `desktop-<channel>` GitHub
 //! release), and the installed build verifies its minisign signature with the public key in `tauri.conf.json`
 //! (`requireSignedVersion`: the version recorded in the signature must match the manifest, so an old signed build cannot be
-//! swapped for a newer version number). It checks at startup (after 20 seconds) and every 6 hours, emits
+//! swapped for a newer version number). It checks at startup (after 20 seconds), every hour, and whenever a window regains
+//! focus more than 15 minutes after the last check (so a release shows up while the app stays open), emits
 //! `update-available` when there is a new version, and installs when the user clicks (waiting for running git commands
 //! to finish), emitting `update-progress`.
 //! The webview only calls `update_check` / `update_install` / `update_set_channel` and listens for events — which channel
@@ -24,7 +25,9 @@ use crate::store;
 /// Where the manifest lives: `<RELEASES>/desktop-<channel>/latest.json`.
 const RELEASES: &str = "https://github.com/HoangThai18/thaigit/releases/download";
 const FIRST_CHECK_DELAY: Duration = Duration::from_secs(20);
-const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
+const CHECK_INTERVAL: Duration = Duration::from_secs(60 * 60);
+/// A window regaining focus re-checks only when the last check is at least this old (switching apps must not hammer GitHub).
+const FOCUS_RECHECK_AFTER: Duration = Duration::from_secs(15 * 60);
 /// Wait at most this long for running git commands before installing (installing mid-write can leave an index.lock).
 const IDLE_WAIT: Duration = Duration::from_secs(30);
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
@@ -94,6 +97,8 @@ struct UpdaterState {
     pending: tokio::sync::Mutex<Option<Update>>,
     installing: AtomicBool,
     saved_path: Option<PathBuf>,
+    /// When the last check started (`None` = the startup check has not run yet).
+    last_check: std::sync::Mutex<Option<Instant>>,
 }
 
 /// Updater state (present after `init`). An app built without going through `setup` (IPC tests) reports an error instead of panicking.
@@ -133,6 +138,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
         pending: tokio::sync::Mutex::new(None),
         installing: AtomicBool::new(false),
         saved_path,
+        last_check: std::sync::Mutex::new(None),
     });
     if !cfg!(debug_assertions) {
         let handle = app.clone();
@@ -152,6 +158,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
 /// exists (and `update-available` is emitted as well).
 pub async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<UpdateInfo>> {
     let state = state(app)?;
+    *state.last_check.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Instant::now());
     let channel = *state.channel.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let updater = app
         .updater_builder()
@@ -175,6 +182,30 @@ pub async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<UpdateInfo>>
             Ok(Some(info))
         }
     }
+}
+
+fn is_stale(last_check: Option<Instant>, now: Instant) -> bool {
+    last_check.is_some_and(|last| now.saturating_duration_since(last) >= FOCUS_RECHECK_AFTER)
+}
+
+/// A window regained focus: check again in the background when the last check is old enough (release builds only, not while
+/// installing). Network errors are silent, like the periodic check.
+pub fn check_when_stale<R: Runtime>(app: &AppHandle<R>) {
+    if cfg!(debug_assertions) {
+        return;
+    }
+    let Ok(state) = state(app) else { return };
+    if state.installing.load(Ordering::SeqCst) {
+        return;
+    }
+    let last = *state.last_check.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if !is_stale(last, Instant::now()) {
+        return;
+    }
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = check(&handle).await;
+    });
 }
 
 fn emit_progress<R: Runtime>(app: &AppHandle<R>, phase: &'static str, downloaded: u64, total: Option<u64>, message: Option<String>) {
@@ -280,6 +311,15 @@ mod tests {
             serde_json::to_value(progress).unwrap(),
             serde_json::json!({ "phase": "downloading", "downloaded": 10, "total": null, "message": null })
         );
+    }
+
+    #[test]
+    fn focus_rechecks_only_after_the_quiet_period() {
+        let now = Instant::now() + Duration::from_secs(3600);
+        assert!(!is_stale(None, now), "chưa kiểm lần đầu thì để lượt khởi động lo");
+        assert!(!is_stale(Some(now - Duration::from_secs(60)), now));
+        assert!(is_stale(Some(now - FOCUS_RECHECK_AFTER), now));
+        assert!(is_stale(Some(now - Duration::from_secs(40 * 60)), now));
     }
 
     #[test]

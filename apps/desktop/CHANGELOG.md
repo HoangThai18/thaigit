@@ -2,6 +2,10 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## Chưa phát hành
+
+- Thông báo bản mới nhanh hơn: đang mở app vẫn nhận được thông báo cập nhật — app kiểm tra mỗi giờ và mỗi khi bạn quay lại cửa sổ app, không cần thoát ra mở lại
+
 ## 2.6.1 — 2026-10-15
 
 - Git hooks: mục HOOKS ở sidebar liệt kê các hook của repo (pre-commit, pre-push…), cho biết hook nào đang chạy hay bị chặn vì repo chưa được tin cậy, rê chuột để xem hook làm gì. Ô soạn commit có tuỳ chọn “Bỏ qua hook”; khi hook chặn commit hoặc push, thông báo lỗi có sẵn nút “Commit bỏ qua hook” / “Push bỏ qua hook”

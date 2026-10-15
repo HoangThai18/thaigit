@@ -26,7 +26,7 @@ export class UpdateStore {
   private readonly toasts: ToastStore;
   private readonly dialogs: DialogStore;
   private stops: (() => void)[] = [];
-  /** The version already announced by a toast (so it is not announced again every 6 hours). */
+  /** The version already announced by a toast (so it is not announced again on every check). */
   private announced: string | null = null;
 
   constructor(options: { toasts?: ToastStore; dialogs?: DialogStore } = {}) {

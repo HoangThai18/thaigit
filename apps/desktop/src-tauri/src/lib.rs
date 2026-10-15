@@ -245,10 +245,10 @@ pub fn run() {
                 reset_window_session(webview.app_handle(), webview.label());
             }
         })
-        .on_window_event(|window, event| {
-            if matches!(event, WindowEvent::Destroyed) {
-                reset_window_session(window.app_handle(), window.label());
-            }
+        .on_window_event(|window, event| match event {
+            WindowEvent::Destroyed => reset_window_session(window.app_handle(), window.label()),
+            WindowEvent::Focused(true) => updater::check_when_stale(window.app_handle()),
+            _ => {}
         });
     let app = match register_commands(builder).build(app_context()) {
         Ok(app) => app,
