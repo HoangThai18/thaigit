@@ -30,6 +30,7 @@ Xem giao diện Tauri trong trình duyệt thường, không mở cửa sổ app
 THAIGIT_DEV_REPO=/đường/dẫn/repo THAIGIT_DEV_AUTOOPEN=1 pnpm --filter @thaigit/desktop exec vite --port 1431 --host 127.0.0.1
 ```
 
+- Test thật cả thao tác ghi (commit, merge, rebase, push…): clone repo vào thư mục tạm kèm một remote bare (`git clone --bare … remote.git && git clone remote.git thu`), rồi chạy lệnh trên với `THAIGIT_DEV_WRITE=1` và `THAIGIT_DEV_REPO` trỏ vào bản clone. Chế độ ghi chỉ bật với repo nằm trong thư mục tạm của hệ điều hành, cấu hình git toàn cục trỏ sang file riêng cạnh repo đó.
 - Đừng dùng `pnpm --filter @thaigit/desktop dev -- --port …`: vite nhận nguyên chữ `--` rồi quay về cổng 1420 của Tauri.
 - Puppeteer: chờ `load` rồi chờ `.g-row`; không dùng `networkidle0` (cầu nối giữ long-poll 20 giây ở `/__thaigit_dev/changes`).
 - `$effect` không chạy trong vitest (component biên dịch kiểu SSR), nên lỗi vòng lặp của effect phải kiểm trong trình duyệt.
