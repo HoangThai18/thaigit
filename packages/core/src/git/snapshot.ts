@@ -80,7 +80,7 @@ export class SnapshotStore {
     this.quiet = new GitRunner(repo.runner.exec);
   }
 
-  /** The markers, newest first (reflog entries that are not Thaigit snapshots are skipped, but real reflog indexes are kept). */
+  /** The markers, newest first (reflog entries that are not Gitlane snapshots are skipped, but real reflog indexes are kept). */
   async list(limit?: number): Promise<SnapshotEntry[]> {
     return this.read(this.repo.runner, limit);
   }

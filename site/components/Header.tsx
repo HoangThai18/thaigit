@@ -12,7 +12,7 @@ export function Header({ lang }: { lang: Lang }) {
       <div className="container">
         <Link className="brand" href={home} aria-label={text.brandAria}>
           <img src="/logo-96.png" width={34} height={34} alt="" />
-          Thaigit
+          Gitlane
         </Link>
         <nav className="nav" aria-label={text.navAria}>
           <a href={`${home}#tinh-nang`}>{text.nav.features}</a>

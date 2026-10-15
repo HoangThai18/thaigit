@@ -5,7 +5,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'How to resolve merge conflicts in Git — a beginner-friendly guide',
     short: 'Resolve conflicts',
     description:
-      'What a Git merge conflict is, why it happens on merge / rebase / pull, how to read the <<<<<<< ======= >>>>>>> markers, and how to resolve it from the command line or in a few clicks with Thaigit.',
+      'What a Git merge conflict is, why it happens on merge / rebase / pull, how to read the <<<<<<< ======= >>>>>>> markers, and how to resolve it from the command line or in a few clicks with Gitlane.',
     intro: [
       'A conflict happens when two branches change the same spot in a file and Git cannot decide which version to keep. It is completely normal in team work — nothing is broken, Git is just waiting for you to choose.',
     ],
@@ -51,9 +51,9 @@ export const GUIDES_EN: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Resolving with Thaigit',
+        heading: 'Resolving with Gitlane',
         paragraphs: [
-          'Thaigit shows a banner saying whether you are merging, rebasing or cherry-picking, plus the list of conflicting files. Click a file to open the conflict resolver: every block is split out, so you never delete markers by hand.',
+          'Gitlane shows a banner saying whether you are merging, rebasing or cherry-picking, plus the list of conflicting files. Click a file to open the conflict resolver: every block is split out, so you never delete markers by hand.',
         ],
         steps: [
           'For each block choose Keep Current, Keep Incoming or keep both.',
@@ -76,7 +76,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
       {
         q: 'Can I fix a wrong resolution?',
         a: [
-          'Yes. If you have not committed yet, run git merge --abort (or click Abort in Thaigit) to start over. If you already committed, click Undo in Thaigit or use git reset to go back.',
+          'Yes. If you have not committed yet, run git merge --abort (or click Abort in Gitlane) to start over. If you already committed, click Undo in Gitlane or use git reset to go back.',
         ],
       },
       {
@@ -91,7 +91,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'Stage line by line in Git (instead of git add -p) — clean, intentional commits',
     short: 'Stage line by line',
     description:
-      'How to put only part of a file’s changes in a commit: git add -p on the command line, and how to pick single lines to Stage / Discard in Thaigit.',
+      'How to put only part of a file’s changes in a commit: git add -p on the command line, and how to pick single lines to Stage / Discard in Gitlane.',
     intro: [
       'You edited one file for two different reasons — fixing a bug and adding a feature — and want two separate commits. That is when you stage parts (hunks or single lines) instead of the whole file.',
     ],
@@ -118,7 +118,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
         ],
       },
       {
-        heading: 'Staging lines in Thaigit',
+        heading: 'Staging lines in Gitlane',
         steps: [
           'Pick a file under “Unstaged” to see its diff.',
           'Click a line to select it; Shift+click to select a continuous range.',
@@ -127,7 +127,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
         ],
         shot: 'diff-lines',
         paragraphs: [
-          'Discarded the wrong thing? Click Undo right away. Thaigit keeps every byte of the file intact (even CRLF line endings or non-UTF-8 files) when staging part of it.',
+          'Discarded the wrong thing? Click Undo right away. Gitlane keeps every byte of the file intact (even CRLF line endings or non-UTF-8 files) when staging part of it.',
         ],
       },
     ],
@@ -144,7 +144,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'How to undo a commit in Git: reset, revert and amend',
     short: 'Undo a commit',
     description:
-      'Committed the wrong thing, the wrong file or a bad message? Compare git reset, git revert and git commit --amend — when to use each — and how to undo with one button in Thaigit.',
+      'Committed the wrong thing, the wrong file or a bad message? Compare git reset, git revert and git commit --amend — when to use each — and how to undo with one button in Gitlane.',
     intro: [
       'Committing by mistake happens to everyone. The right fix depends on one question: has the commit been pushed to a remote yet?',
     ],
@@ -179,7 +179,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
         code: ['git reflog', 'git reset --hard HEAD@{1}'],
       },
       {
-        heading: 'Undoing in Thaigit',
+        heading: 'Undoing in Gitlane',
         steps: [
           'Right after a commit, checkout, pull, merge, rebase, reset, branch deletion or discard, click the Undo button on the toolbar to go back.',
           'Fix the last commit: tick “Amend previous commit” in the commit box, edit the message or stage more files, then commit again.',
@@ -212,7 +212,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'Git merge vs rebase: what is the difference and when to use each',
     short: 'Merge vs rebase',
     description:
-      'A clear explanation of git merge and git rebase, their pros and cons, the golden rule of rebasing, and how to merge / rebase by drag & drop in Thaigit.',
+      'A clear explanation of git merge and git rebase, their pros and cons, the golden rule of rebasing, and how to merge / rebase by drag & drop in Gitlane.',
     intro: [
       'Both merge and rebase bring changes from one branch into another. The difference is how the history looks afterwards.',
     ],
@@ -246,10 +246,10 @@ export const GUIDES_EN: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Merge / rebase by drag & drop in Thaigit',
+        heading: 'Merge / rebase by drag & drop in Gitlane',
         steps: [
           'Drag a branch label on the graph (or in the sidebar) and drop it on the target branch.',
-          'Thaigit asks whether you want to merge, rebase or fast-forward — nothing runs behind your back.',
+          'Gitlane asks whether you want to merge, rebase or fast-forward — nothing runs behind your back.',
           'If there is a conflict, the conflict resolver opens right away (see the guide on resolving conflicts).',
           'Changed your mind? Click Undo merge / Undo rebase.',
         ],
@@ -278,7 +278,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'What is git stash? Shelve changes to switch branches',
     short: 'Git stash',
     description:
-      'Use git stash to shelve half-finished work when you must switch branches in a hurry: stash, stash pop, apply, list, drop — and the one-button way in Thaigit.',
+      'Use git stash to shelve half-finished work when you must switch branches in a hurry: stash, stash pop, apply, list, drop — and the one-button way in Gitlane.',
     intro: [
       'Halfway through some code when an urgent fix comes up on another branch? You do not want a half-baked commit — stash it: Git puts your changes in a separate shelf and your working directory is clean again.',
     ],
@@ -301,10 +301,10 @@ export const GUIDES_EN: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Stash in Thaigit',
+        heading: 'Stash in Gitlane',
         steps: [
           'Click Stash on the toolbar to shelve all uncommitted changes, or choose “Stash with message…” to give it a memorable name.',
-          'When you switch branches with changes pending, Thaigit offers “Stash and checkout” — one step and done.',
+          'When you switch branches with changes pending, Gitlane offers “Stash and checkout” — one step and done.',
           'Stashes live in the sidebar: Apply stash to restore, Drop stash when you no longer need it. Dropped by mistake? Click Undo.',
         ],
         shot: 'switch',
@@ -352,7 +352,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
         heading: 'What is Git Bash?',
         paragraphs: [
           'Git Bash comes with Git for Windows: a command window like the Linux / macOS terminal, with git, ls, cat, ssh-keygen and more. Many online tutorials are written for Bash, so they work as-is in Git Bash.',
-          'Not a fan of typing commands? You don’t have to open Git Bash at all — a Git GUI such as Thaigit uses the installed Git and lets you do everything with the mouse.',
+          'Not a fan of typing commands? You don’t have to open Git Bash at all — a Git GUI such as Gitlane uses the installed Git and lets you do everything with the mouse.',
         ],
       },
       {
@@ -378,9 +378,9 @@ export const GUIDES_EN: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Get started with Thaigit',
+        heading: 'Get started with Gitlane',
         steps: [
-          'Download Thaigit for macOS or Windows (free, no account needed).',
+          'Download Gitlane for macOS or Windows (free, no account needed).',
           'On the welcome screen, open an existing folder, clone from GitHub / GitLab, or create a new repository.',
           'The history graph appears right away — from here you commit, pull and push with buttons.',
         ],
@@ -410,7 +410,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'What is git cherry-pick? Take exactly one commit to another branch',
     short: 'Git cherry-pick',
     description:
-      'Use git cherry-pick to copy one or a few commits to another branch without merging the whole branch. How to use it, handle conflicts, and cherry-pick with a right-click in Thaigit.',
+      'Use git cherry-pick to copy one or a few commits to another branch without merging the whole branch. How to use it, handle conflicts, and cherry-pick with a right-click in Gitlane.',
     intro: [
       'You fixed a bug on a feature branch, but the fix is needed on the main branch right now. Merging the whole branch is not an option because the feature is not done — use cherry-pick: copy just that commit to another branch.',
     ],
@@ -451,10 +451,10 @@ export const GUIDES_EN: Record<string, GuideText> = {
         ],
       },
       {
-        heading: 'Cherry-pick in Thaigit',
+        heading: 'Cherry-pick in Gitlane',
         steps: [
           'Right-click a commit on the graph and choose Cherry-pick into <branch>.',
-          'Thaigit runs it and reports the result. On a conflict, a “Cherry-picking” banner appears with the conflict resolver (see the guide on resolving conflicts).',
+          'Gitlane runs it and reports the result. On a conflict, a “Cherry-picking” banner appears with the conflict resolver (see the guide on resolving conflicts).',
           'Picked the wrong commit? Click Undo cherry-pick.',
         ],
         shot: 'overview',
@@ -473,7 +473,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'What is .gitignore? How to keep unwanted files out of Git',
     short: '.gitignore file',
     description:
-      'Use .gitignore so Git stops tracking junk files, build output and secrets (.env). Basic syntax, what to do about files already committed, and adding to .gitignore quickly with Thaigit.',
+      'Use .gitignore so Git stops tracking junk files, build output and secrets (.env). Basic syntax, what to do about files already committed, and adding to .gitignore quickly with Gitlane.',
     intro: [
       'Not every file in your project folder belongs in Git: the node_modules folder, build output, config files with passwords (.env), system files like .DS_Store… A .gitignore file tells Git what to skip.',
     ],
@@ -514,10 +514,10 @@ export const GUIDES_EN: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Add to .gitignore with Thaigit',
+        heading: 'Add to .gitignore with Gitlane',
         steps: [
           'In the “Unstaged” list, right-click the file or folder to skip.',
-          'Choose “Add to .gitignore”. Thaigit writes a suitable pattern into .gitignore and tells you what it added.',
+          'Choose “Add to .gitignore”. Gitlane writes a suitable pattern into .gitignore and tells you what it added.',
           'The file disappears from the changes list; just commit the .gitignore file.',
         ],
         shot: 'diff-lines',
@@ -542,7 +542,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'git fetch vs git pull: what is the difference and which to use',
     short: 'Fetch vs pull',
     description:
-      'Compare git fetch and git pull, pull with merge or rebase, when to use fast-forward only, and how to choose the pull style in Thaigit.',
+      'Compare git fetch and git pull, pull with merge or rebase, when to use fast-forward only, and how to choose the pull style in Gitlane.',
     intro: [
       'Both bring changes from the remote to your machine. The difference is whether they also fold those changes into your branch.',
     ],
@@ -578,9 +578,9 @@ export const GUIDES_EN: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Fetch and pull in Thaigit',
+        heading: 'Fetch and pull in Gitlane',
         steps: [
-          'Click Fetch on the toolbar to update every remote; Thaigit also fetches periodically on its own.',
+          'Click Fetch on the toolbar to update every remote; Gitlane also fetches periodically on its own.',
           'Click Pull to bring changes into the current branch. The small arrow beside it offers Pull (merge if needed), Pull (rebase) or Pull (fast-forward only).',
           'To make the Pull button always use one style, choose it under “Pull button uses” in Settings.',
           'Pull did not go well? Click Undo pull.',
@@ -601,7 +601,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'What is a Git tag? Mark release versions of your project',
     short: 'Git tag',
     description:
-      'A Git tag marks an important commit such as version v1.0. Lightweight vs annotated tags, how to create, push and delete them, and how to create a tag with a right-click in Thaigit.',
+      'A Git tag marks an important commit such as version v1.0. Lightweight vs annotated tags, how to create, push and delete them, and how to create a tag with a right-click in Gitlane.',
     intro: [
       'Branches move forward with every new commit, but a tag stands still. That makes tags the right tool for marking points worth remembering for a long time — typically release versions like v1.0.0.',
     ],
@@ -629,7 +629,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
         ],
       },
       {
-        heading: 'Creating a tag in Thaigit',
+        heading: 'Creating a tag in Gitlane',
         steps: [
           'Right-click a commit on the graph and choose “Create tag here…”.',
           'Enter a tag name. Add a message too if you want an annotated tag.',
@@ -656,7 +656,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'Create an SSH key for GitHub and GitLab — no more passwords',
     short: 'SSH key for GitHub',
     description:
-      'How to create an SSH key (ed25519), add the public key to GitHub / GitLab and clone with git@github.com. Do it on the command line or generate the key right inside Thaigit.',
+      'How to create an SSH key (ed25519), add the public key to GitHub / GitLab and clone with git@github.com. Do it on the command line or generate the key right inside Gitlane.',
     intro: [
       'Typing a password or token on every push to GitHub gets old. An SSH key solves that: you create a key pair, give GitHub the public half, and your machine proves who you are on every connection.',
       'Note: GitHub no longer accepts your account password for Git over HTTPS — you need an SSH key or a personal access token.',
@@ -690,12 +690,12 @@ export const GUIDES_EN: Record<string, GuideText> = {
         code: ['ssh -T git@github.com', 'git clone git@github.com:your-name/project.git'],
       },
       {
-        heading: 'Create a key inside Thaigit',
+        heading: 'Create a key inside Gitlane',
         steps: [
           'Open Settings → SSH keys, click “New key” and name it after your machine.',
           'Click “Copy public key” and paste it into GitHub / GitLab as above.',
           'From then on you can clone, fetch and push git@github.com:… repositories without setting up ssh-agent or a .ssh folder.',
-          'No longer need the key? Delete it in Thaigit and remember to remove the public key on GitHub / GitLab.',
+          'No longer need the key? Delete it in Gitlane and remember to remove the public key on GitHub / GitLab.',
         ],
         shot: 'welcome',
       },
@@ -719,7 +719,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'The best free Git GUI clients in 2026 for Windows and macOS',
     short: 'Best Git GUI',
     description:
-      'A comparison of the most popular Git GUI clients in 2026 — Thaigit, GitHub Desktop, Sourcetree, GitKraken, Fork, TortoiseGit: price, platforms and which one to pick.',
+      'A comparison of the most popular Git GUI clients in 2026 — Gitlane, GitHub Desktop, Sourcetree, GitKraken, Fork, TortoiseGit: price, platforms and which one to pick.',
     intro: [
       'A Git GUI (or Git client) lets you use Git with the mouse instead of typing commands: see your commit history as a graph, commit, branch, merge, pull and push with buttons. This guide compares the most popular Git GUIs so you can pick the right one.',
       'Prices and features of these apps change over time — check each app’s website before you buy.',
@@ -738,7 +738,7 @@ export const GUIDES_EN: Record<string, GuideText> = {
           head: ['Client', 'Price', 'Platforms', 'Best for'],
           rows: [
             [
-              'Thaigit',
+              'Gitlane',
               'Free, no account needed',
               'Windows 10 / 11, macOS 11+',
               'Doing Git with the mouse, drag & drop, Vietnamese or English UI',
@@ -768,9 +768,9 @@ export const GUIDES_EN: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Thaigit — free, drag & drop',
+        heading: 'Gitlane — free, drag & drop',
         paragraphs: [
-          'Thaigit is a free Git GUI for Windows and macOS: no ads, no account, no limit on private repositories, with a Vietnamese and English interface.',
+          'Gitlane is a free Git GUI for Windows and macOS: no ads, no account, no limit on private repositories, with a Vietnamese and English interface.',
           'What sets it apart is working with the mouse: drag a branch onto another to merge or rebase, drag it onto a remote to push, click lines to stage them, and resolve conflicts in a few clicks instead of deleting <<<<<<< markers by hand. A colorful history graph opens a 30,000-commit repo in about a second, and the app updates itself.',
         ],
         shot: 'drag',
@@ -806,9 +806,9 @@ export const GUIDES_EN: Record<string, GuideText> = {
       {
         heading: 'Which Git GUI should you choose?',
         steps: [
-          'New to Git and want something completely free: Thaigit.',
-          'Private repositories without paying: Thaigit, GitHub Desktop or Sourcetree.',
-          'Only GitHub, and as simple as possible: GitHub Desktop or Thaigit.',
+          'New to Git and want something completely free: Gitlane.',
+          'Private repositories without paying: Gitlane, GitHub Desktop or Sourcetree.',
+          'Only GitHub, and as simple as possible: GitHub Desktop or Gitlane.',
           'Need Linux: GitKraken, SmartGit or git-gui.',
           'Need issues, pull requests and Jira inside the client: GitKraken.',
         ],
@@ -822,25 +822,25 @@ export const GUIDES_EN: Record<string, GuideText> = {
       {
         q: 'What is the best free Git GUI?',
         a: [
-          'It depends on your needs. If you want something completely free (private repos included) with no account, Thaigit is a good fit. If you only work with GitHub and want maximum simplicity, GitHub Desktop is also a solid choice.',
+          'It depends on your needs. If you want something completely free (private repos included) with no account, Gitlane is a good fit. If you only work with GitHub and want maximum simplicity, GitHub Desktop is also a solid choice.',
         ],
       },
       {
         q: 'Do I need to know Git commands to use a Git GUI?',
         a: [
-          'Not strictly — everyday tasks are buttons. Understanding commits, branches and merges does make you more confident; Thaigit’s guides explain each concept with the matching command.',
+          'Not strictly — everyday tasks are buttons. Understanding commits, branches and merges does make you more confident; Gitlane’s guides explain each concept with the matching command.',
         ],
       },
       {
         q: 'Does a Git GUI change my repository differently from the command line?',
         a: [
-          'No. Thaigit calls the real git on your machine, so results are identical to the terminal — just easier to see and click.',
+          'No. Gitlane calls the real git on your machine, so results are identical to the terminal — just easier to see and click.',
         ],
       },
       {
         q: 'Do I need to install Git before using a Git GUI?',
         a: [
-          'Some apps bundle their own Git. Thaigit uses the Git installed on your machine: run xcode-select --install on macOS, or install Git for Windows — see the Install Git guide.',
+          'Some apps bundle their own Git. Gitlane uses the Git installed on your machine: run xcode-select --install on macOS, or install Git for Windows — see the Install Git guide.',
         ],
       },
     ],
@@ -849,15 +849,15 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'A free Sourcetree alternative for Windows and macOS',
     short: 'Sourcetree alternative',
     description:
-      'Looking for a Sourcetree alternative? Thaigit vs Sourcetree: drag & drop to merge, line-by-line staging, built-in conflict resolver — and how to switch in a minute.',
+      'Looking for a Sourcetree alternative? Gitlane vs Sourcetree: drag & drop to merge, line-by-line staging, built-in conflict resolver — and how to switch in a minute.',
     intro: [
-      'Sourcetree is Atlassian’s long-standing free Git client and still widely used. If it feels too busy, slows down on large repositories, or you simply want a cleaner interface, Thaigit is a free alternative worth trying.',
+      'Sourcetree is Atlassian’s long-standing free Git client and still widely used. If it feels too busy, slows down on large repositories, or you simply want a cleaner interface, Gitlane is a free alternative worth trying.',
     ],
     sections: [
       {
-        heading: 'Thaigit vs Sourcetree',
+        heading: 'Gitlane vs Sourcetree',
         table: {
-          head: ['', 'Thaigit', 'Sourcetree'],
+          head: ['', 'Gitlane', 'Sourcetree'],
           rows: [
             ['Price', 'Free, no ads', 'Free'],
             ['Platforms', 'Windows 10 / 11, macOS 11+', 'Windows, macOS'],
@@ -880,17 +880,17 @@ export const GUIDES_EN: Record<string, GuideText> = {
         heading: 'Why people look for a Sourcetree alternative',
         paragraphs: [
           'Sourcetree is capable, but it puts a lot of options on one screen and beginners click the wrong thing. Many users also report it slowing down on repositories with long histories.',
-          'Thaigit goes the other way: fewer buttons, everyday tasks by drag & drop, a confirmation for every action and an undo button. A 30,000-commit repository opens in about a second.',
+          'Gitlane goes the other way: fewer buttons, everyday tasks by drag & drop, a confirmation for every action and an undo button. A 30,000-commit repository opens in about a second.',
         ],
         shot: 'drag',
       },
       {
-        heading: 'Switching from Sourcetree to Thaigit',
+        heading: 'Switching from Sourcetree to Gitlane',
         steps: [
-          'Download Thaigit for Windows or macOS (free, no account needed).',
+          'Download Gitlane for Windows or macOS (free, no account needed).',
           'Open the same repository folder you use with Sourcetree — no import, nothing lost: history, branches and stashes stay put.',
           'Remotes, branches and tags appear right away in the graph and sidebar.',
-          'Thaigit uses the git on your machine, so SSH keys and credentials already configured for git keep working.',
+          'Gitlane uses the git on your machine, so SSH keys and credentials already configured for git keep working.',
         ],
         note: {
           kind: 'tip',
@@ -902,12 +902,12 @@ export const GUIDES_EN: Record<string, GuideText> = {
       {
         q: 'Will I lose my commit history if I switch?',
         a: [
-          'No. History, branches, tags and stashes live in the Git repository itself; Thaigit just reads and shows them.',
+          'No. History, branches, tags and stashes live in the Git repository itself; Gitlane just reads and shows them.',
         ],
       },
       {
-        q: 'Is Thaigit free like Sourcetree?',
-        a: ['Yes. Thaigit is free, with no ads, no account and no limit on private repositories.'],
+        q: 'Is Gitlane free like Sourcetree?',
+        a: ['Yes. Gitlane is free, with no ads, no account and no limit on private repositories.'],
       },
     ],
   },
@@ -915,15 +915,15 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'A GitHub Desktop alternative with a branch graph and drag & drop',
     short: 'GitHub Desktop alternative',
     description:
-      'Thaigit vs GitHub Desktop: a colorful history graph, drag & drop to merge / rebase / push, a built-in conflict resolver — free for Windows and macOS.',
+      'Gitlane vs GitHub Desktop: a colorful history graph, drag & drop to merge / rebase / push, a built-in conflict resolver — free for Windows and macOS.',
     intro: [
-      'GitHub Desktop is simple and free, great when you are learning Git. Once a project has many branches you will want to see where they split and join, and merge faster — that is when a Git GUI with a graph like Thaigit helps.',
+      'GitHub Desktop is simple and free, great when you are learning Git. Once a project has many branches you will want to see where they split and join, and merge faster — that is when a Git GUI with a graph like Gitlane helps.',
     ],
     sections: [
       {
-        heading: 'Thaigit vs GitHub Desktop',
+        heading: 'Gitlane vs GitHub Desktop',
         table: {
-          head: ['', 'Thaigit', 'GitHub Desktop'],
+          head: ['', 'Gitlane', 'GitHub Desktop'],
           rows: [
             ['Price', 'Free', 'Free, open source'],
             ['History', 'Colorful graph of every branch', 'Commit list of the current branch'],
@@ -938,32 +938,32 @@ export const GUIDES_EN: Record<string, GuideText> = {
       {
         heading: 'See the whole branch picture',
         paragraphs: [
-          'Thaigit draws every branch in its own color, so you can see at a glance where a branch came from, whether it was merged, and which commit you are on. Press ⌘B / Ctrl+B to find and switch branches in a second.',
+          'Gitlane draws every branch in its own color, so you can see at a glance where a branch came from, whether it was merged, and which commit you are on. Press ⌘B / Ctrl+B to find and switch branches in a second.',
         ],
         shot: 'overview-dark',
       },
       {
-        heading: 'Switching from GitHub Desktop to Thaigit',
+        heading: 'Switching from GitHub Desktop to Gitlane',
         steps: [
-          'Download Thaigit for Windows or macOS.',
+          'Download Gitlane for Windows or macOS.',
           'Open the repository folder you cloned with GitHub Desktop — no need to clone again.',
           'Pull, push and branch as before, now with drag & drop.',
         ],
         note: {
           kind: 'tip',
-          text: 'Thaigit uses the git on your machine. If you have only used GitHub Desktop so far, install Git (see the Install Git guide) and set up an SSH key or token to push to GitHub.',
+          text: 'Gitlane uses the git on your machine. If you have only used GitHub Desktop so far, install Git (see the Install Git guide) and set up an SSH key or token to push to GitHub.',
         },
       },
     ],
     faq: [
       {
-        q: 'Does Thaigit work with GitHub?',
+        q: 'Does Gitlane work with GitHub?',
         a: [
-          'Yes. Thaigit works with any Git remote: GitHub, GitLab, Bitbucket or your company’s own server.',
+          'Yes. Gitlane works with any Git remote: GitHub, GitLab, Bitbucket or your company’s own server.',
         ],
       },
       {
-        q: 'Can I use GitHub Desktop and Thaigit together?',
+        q: 'Can I use GitHub Desktop and Gitlane together?',
         a: ['Yes. Both read the same standard Git repository, so you can use them side by side.'],
       },
     ],
@@ -972,15 +972,15 @@ export const GUIDES_EN: Record<string, GuideText> = {
     title: 'A free GitKraken alternative that works with private repositories',
     short: 'GitKraken alternative',
     description:
-      'Thaigit vs GitKraken Desktop: a colorful graph and drag & drop to merge — free even for private repositories, no account needed, for Windows and macOS.',
+      'Gitlane vs GitKraken Desktop: a colorful graph and drag & drop to merge — free even for private repositories, no account needed, for Windows and macOS.',
     intro: [
-      'GitKraken is known for its graph and drag & drop, but the free plan only covers local and public repositories. If you work with private repositories and don’t want a monthly fee, Thaigit works in a similar way and is completely free.',
+      'GitKraken is known for its graph and drag & drop, but the free plan only covers local and public repositories. If you work with private repositories and don’t want a monthly fee, Gitlane works in a similar way and is completely free.',
     ],
     sections: [
       {
-        heading: 'Thaigit vs GitKraken',
+        heading: 'Gitlane vs GitKraken',
         table: {
-          head: ['', 'Thaigit', 'GitKraken Desktop'],
+          head: ['', 'Gitlane', 'GitKraken Desktop'],
           rows: [
             [
               'Price',
@@ -997,26 +997,26 @@ export const GUIDES_EN: Record<string, GuideText> = {
       {
         heading: 'Drag & drop like GitKraken, for free',
         paragraphs: [
-          'In Thaigit, drag a branch label on the graph and drop it onto another branch to merge, rebase or fast-forward; drop it onto a remote to push. There is always a confirmation, nothing runs behind your back.',
+          'In Gitlane, drag a branch label on the graph and drop it onto another branch to merge, rebase or fast-forward; drop it onto a remote to push. There is always a confirmation, nothing runs behind your back.',
         ],
         shot: 'drag',
       },
       {
         heading: 'When GitKraken is still the better fit',
         paragraphs: [
-          'If your team needs issues, pull requests and Jira inside the Git client, or you must run on Linux, GitKraken remains a strong choice. If you mostly commit, branch, merge and resolve conflicts, Thaigit covers it at no cost.',
+          'If your team needs issues, pull requests and Jira inside the Git client, or you must run on Linux, GitKraken remains a strong choice. If you mostly commit, branch, merge and resolve conflicts, Gitlane covers it at no cost.',
         ],
       },
     ],
     faq: [
       {
-        q: 'Does Thaigit limit private repositories?',
+        q: 'Does Gitlane limit private repositories?',
         a: [
-          'No. Thaigit is free for every repository, private or public, on GitHub, GitLab, Bitbucket or your own server.',
+          'No. Gitlane is free for every repository, private or public, on GitHub, GitLab, Bitbucket or your own server.',
         ],
       },
       {
-        q: 'Do I need an account to use Thaigit?',
+        q: 'Do I need an account to use Gitlane?',
         a: ['No. Download it, open a repository and you are ready to go.'],
       },
     ],

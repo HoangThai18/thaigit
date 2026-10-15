@@ -185,7 +185,7 @@ describe('AppStore', () => {
     expect(toasts.items).toHaveLength(1);
     expect(toasts.items[0]).toMatchObject({
       style: 'error',
-      message: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+      message: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Gitlane.',
     });
     expect(app.recentLoaded).toBe(true);
     expect(app.recent).toEqual([]);

@@ -8,5 +8,5 @@ export const terminal = {
   closeTab: 'Đóng tab (dừng shell của tab này)',
   hide: 'Ẩn terminal (Ctrl+`) — các lệnh đang chạy vẫn tiếp tục',
   resize: 'Kéo để đổi chiều cao terminal',
-  unavailable: 'Terminal chỉ chạy trong app Thaigit.',
+  unavailable: 'Terminal chỉ chạy trong app Gitlane.',
 } as const;

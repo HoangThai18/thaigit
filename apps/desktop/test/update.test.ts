@@ -59,12 +59,12 @@ describe('UpdateStore', () => {
     await store.start(fake.port);
     fake.announce(NEXT);
     fake.announce(NEXT);
-    expect(toasts.items.map((toast) => toast.title)).toEqual(['Có Thaigit 2.0.0-beta.2']);
+    expect(toasts.items.map((toast) => toast.title)).toEqual(['Có Gitlane 2.0.0-beta.2']);
     expect(toasts.items[0]?.actions.map((action) => action.title)).toEqual(['Cập nhật ngay', 'Có gì mới']);
     expect(store.available).toEqual(NEXT);
 
     const installing = store.install();
-    expect(dialogs.current?.title).toBe('Cập nhật lên Thaigit 2.0.0-beta.2?');
+    expect(dialogs.current?.title).toBe('Cập nhật lên Gitlane 2.0.0-beta.2?');
     expect(dialogs.current?.message).toContain('Sửa lỗi push');
     dialogs.answer('confirm');
     await installing;
@@ -119,6 +119,6 @@ describe('UpdateStore', () => {
     await store.start(fake.port);
     fake.announce(NEXT);
     await store.check('2.0.0-beta.1');
-    expect(toasts.items.at(-1)?.title).toBe('Có Thaigit 2.0.0-beta.2');
+    expect(toasts.items.at(-1)?.title).toBe('Có Gitlane 2.0.0-beta.2');
   });
 });

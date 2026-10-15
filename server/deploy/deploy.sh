@@ -1,5 +1,5 @@
 #!/bin/bash
-# Updates the Thaigit API on the VPS after the checkout has pulled new code (called by the VPS's existing deploy script,
+# Updates the Gitlane API on the VPS after the checkout has pulled new code (called by the VPS's existing deploy script,
 # runs as root):
 #   /srv/thaigit/server/deploy/deploy.sh
 # Steps: back up the DB → install dependencies → restart → wait for /healthz. On failure it reports the error (exit 1) and
@@ -42,7 +42,7 @@ wait_healthy() {
 }
 
 if wait_healthy; then
-  echo "✓ API Thaigit đã chạy bản $(git rev-parse --short HEAD)"
+  echo "✓ API Gitlane đã chạy bản $(git rev-parse --short HEAD)"
   exit 0
 fi
 

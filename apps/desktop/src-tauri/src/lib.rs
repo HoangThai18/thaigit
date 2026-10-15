@@ -1,4 +1,4 @@
-//! Thaigit's thin Rust layer: runs git through the policy checker, does byte-level file access scoped to the repo, runs a
+//! Gitlane's thin Rust layer: runs git through the policy checker, does byte-level file access scoped to the repo, runs a
 //! filtered watcher, and shows native dialogs — the UI and the git logic live in TypeScript. This is the SECURITY
 //! BOUNDARY between the untrusted webview and the machine.
 
@@ -253,7 +253,7 @@ pub fn run() {
     let app = match register_commands(builder).build(app_context()) {
         Ok(app) => app,
         Err(error) => {
-            eprintln!("không khởi động được Thaigit: {error}");
+            eprintln!("không khởi động được Gitlane: {error}");
             std::process::exit(1);
         }
     };

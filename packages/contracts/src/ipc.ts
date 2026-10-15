@@ -173,7 +173,7 @@ export const Commands = {
   terminalWrite: 'terminal_write',
   terminalResize: 'terminal_resize',
   terminalClose: 'terminal_close',
-  // Thaigit-managed SSH key (the secret stays in Rust plus the OS keystore).
+  // Gitlane-managed SSH key (the secret stays in Rust plus the OS keystore).
   sshKeysList: 'ssh_keys_list',
   sshKeysGenerate: 'ssh_keys_generate',
   sshKeysImport: 'ssh_keys_import',
@@ -310,7 +310,7 @@ export interface AccountsView {
 /** Terminal event: output (base64) or shell exit. */
 export type TerminalEvent = { kind: 'data'; data: string } | { kind: 'exit' };
 
-/** One Thaigit-managed SSH key — the private key never crosses IPC. */
+/** One Gitlane-managed SSH key — the private key never crosses IPC. */
 export interface SshKeyInfo {
   id: string;
   name: string;
@@ -326,7 +326,7 @@ export interface SshKeyInfo {
 
 export interface SshKeysView {
   keys: SshKeyInfo[];
-  /** Use this Thaigit key for the SSH remote. */
+  /** Use this Gitlane key for the SSH remote. */
   enabled: boolean;
 }
 

@@ -31,7 +31,7 @@ export function setNativeLocale(locale: 'vi' | 'en'): Promise<void> {
   return call<void>(Commands.appSetLocale, { locale });
 }
 
-/** Open another Thaigit window (the home screen) to work with other repos in parallel. */
+/** Open another Gitlane window (the home screen) to work with other repos in parallel. */
 export function newWindow(): Promise<void> {
   return call<void>(Commands.newWindow);
 }

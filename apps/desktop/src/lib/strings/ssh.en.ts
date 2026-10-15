@@ -4,9 +4,9 @@ import type { Translation } from './types.ts';
 
 export const ssh: Translation<typeof sshSource> = {
   title: 'SSH keys',
-  help: 'Create an SSH key right in Thaigit (or import an existing one) to clone / fetch / push SSH repositories (git@github.com:…, git@gitlab.com:…) without setting up ssh-agent or a .ssh folder.',
+  help: 'Create an SSH key right in Gitlane (or import an existing one) to clone / fetch / push SSH repositories (git@github.com:…, git@gitlab.com:…) without setting up ssh-agent or a .ssh folder.',
   vaultHelp:
-    "Private keys live only in this computer's secret store (Credential Manager on Windows, Keychain on macOS) and are never written to files. When a git command needs one, Thaigit loads it into a temporary ssh-agent just for that command, then shuts it down.",
+    "Private keys live only in this computer's secret store (Credential Manager on Windows, Keychain on macOS) and are never written to files. When a git command needs one, Gitlane loads it into a temporary ssh-agent just for that command, then shuts it down.",
   empty: 'No SSH keys yet.',
   generate: 'New key',
   generateTitle: 'New SSH key',
@@ -22,15 +22,15 @@ export const ssh: Translation<typeof sshSource> = {
   removeConfirm: (name: string) =>
     `Delete key “${name}”? The private key is permanently deleted from this computer and can't be recovered — SSH repositories using it will no longer fetch / push.`,
   encrypted: 'Passphrase',
-  encryptedHelp: 'Passphrase-protected key — Thaigit asks for the passphrase each time it is used',
+  encryptedHelp: 'Passphrase-protected key — Gitlane asks for the passphrase each time it is used',
   created: (date: string) => `Created ${date}`,
-  enabled: 'Use Thaigit keys for SSH remotes',
+  enabled: 'Use Gitlane keys for SSH remotes',
   enabledHelp: 'When off, git uses your ssh-agent and the keys in your .ssh folder, just like in a terminal.',
   test: 'Test connection',
   testing: 'Testing…',
-  testOk: (host: string) => `Connected to ${host} with Thaigit's keys.`,
+  testOk: (host: string) => `Connected to ${host} with Gitlane's keys.`,
   testFailed: (host: string) =>
-    `${host} doesn't accept any of Thaigit's keys yet — add the public key to your account first, or check your network (port 22).`,
+    `${host} doesn't accept any of Gitlane's keys yet — add the public key to your account first, or check your network (port 22).`,
   generatedToast: (name: string) => `Created key “${name}”. Add its public key to GitHub / GitLab to use it.`,
   importedToast: "Imported the key into this computer's secret store.",
   copiedToast: 'Copied the public key.',
@@ -39,13 +39,13 @@ export const ssh: Translation<typeof sshSource> = {
   uploadedToast: (host: string) => `Added the key to ${host}.`,
   existsToast: (host: string) => `This key is already on ${host}.`,
   missingScopeToast: (host: string) =>
-    `Your ${host} account hasn't allowed Thaigit to add SSH keys. The key was copied and the add-key page opened — paste it there.`,
+    `Your ${host} account hasn't allowed Gitlane to add SSH keys. The key was copied and the add-key page opened — paste it there.`,
   errors: {
     invalid:
-      "This file isn't a private SSH key Thaigit can read — choose the private key file (e.g. id_ed25519), not the .pub file.",
-    duplicate: 'This SSH key is already in Thaigit.',
+      "This file isn't a private SSH key Gitlane can read — choose the private key file (e.g. id_ed25519), not the .pub file.",
+    duplicate: 'This SSH key is already in Gitlane.',
     vault: "Couldn't open the operating system's secret store — unlock it and try again.",
     agent:
-      "Couldn't start ssh-agent on this computer (Git for Windows is required), so Thaigit's SSH keys can't be used yet.",
+      "Couldn't start ssh-agent on this computer (Git for Windows is required), so Gitlane's SSH keys can't be used yet.",
   },
 };

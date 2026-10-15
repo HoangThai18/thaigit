@@ -22,7 +22,7 @@ pub const AVATAR_SIZE: u32 = 80;
 const IMAGE_LIFETIME: Duration = Duration::from_secs(7 * 24 * 3600);
 const MISSING_LIFETIME: Duration = Duration::from_secs(3 * 24 * 3600);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
-const USER_AGENT: &str = "Thaigit";
+const USER_AGENT: &str = "Gitlane";
 /// Size cap (graph dots are much smaller; this stops a server from returning something huge by mistake).
 const MAX_IMAGE_BYTES: usize = 4 * 1024 * 1024;
 

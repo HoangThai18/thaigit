@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Hướng dẫn cho agent lập trình (Claude Code, Codex, Cursor, Gemini…) làm việc trong repo Thaigit. Code, chuỗi giao diện và commit message viết bằng tiếng Việt như phần còn lại của repo; **chú thích trong code viết bằng tiếng Anh** (repo mở nguồn) — và chỉ chú thích chỗ cần: giải thích *tại sao* / quyết định thiết kế, cảnh báo gotcha, doc public API (`///` cho Rust), MARK chia mục. Không chú thích lại cái mà tên hàm đã nói, không chú thích từng dòng cho dễ đọc.
+Hướng dẫn cho agent lập trình (Claude Code, Codex, Cursor, Gemini…) làm việc trong repo thaigit (app Gitlane). Code, chuỗi giao diện và commit message viết bằng tiếng Việt như phần còn lại của repo; **chú thích trong code viết bằng tiếng Anh** (repo mở nguồn) — và chỉ chú thích chỗ cần: giải thích *tại sao* / quyết định thiết kế, cảnh báo gotcha, doc public API (`///` cho Rust), MARK chia mục. Không chú thích lại cái mà tên hàm đã nói, không chú thích từng dòng cho dễ đọc.
 
 ## Repo gồm gì
 
-Thaigit là git client **một mã nguồn cho cả macOS lẫn Windows** (bản macOS Swift 1.x đã xoá — lịch sử trong git):
+Gitlane (tên cũ Thaigit) là git client **một mã nguồn cho cả macOS lẫn Windows** (bản macOS Swift 1.x đã xoá — lịch sử trong git). Chỉ tên hiển thị đổi; các định danh sau cố ý giữ tên cũ để bản đã cài vẫn tự cập nhật và không mất dữ liệu: mã app `com.phanthai.thaigit.desktop`, repo GitHub, package `@thaigit/*`, biến `THAIGIT_*`, dịch vụ Keychain `Thaigit`, danh tính commit của mốc (`Thaigit <snapshot@thaigit.invalid>`), ref `refs/worktree/thaigit/…`.
 
 - **App đa nền tảng (Tauri 2 + Svelte 5 + TypeScript, bản 2.x)**: `apps/desktop` (Rust ở `src-tauri/`), nhật ký `apps/desktop/CHANGELOG.md`. Dùng `packages/core` (lõi TS) và `packages/contracts` (hợp đồng TS ↔ Rust).
 - `server/`: proxy AI tới Hermes tự host + thống kê (Hono). Node ≥ 24 chạy thẳng file `.ts`, nên chỉ dùng cú pháp TS xoá được (`erasableSyntaxOnly`: không `enum`, `namespace`…). Dựng máy chủ: `docs/deploy-server.md`.

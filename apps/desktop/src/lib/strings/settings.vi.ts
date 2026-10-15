@@ -40,8 +40,8 @@ export const settings = {
   diffContext: 'Số dòng ngữ cảnh quanh thay đổi',
 
   ai: 'AI viết commit',
-  aiOn: 'Đang bật — bạn đã đồng ý gửi thay đổi đã lọc tới máy chủ Thaigit khi bấm nút AI.',
-  aiOff: 'Chưa bật — lần đầu bấm "Viết bằng AI", Thaigit sẽ hỏi đồng ý trước khi gửi gì.',
+  aiOn: 'Đang bật — bạn đã đồng ý gửi thay đổi đã lọc tới máy chủ Gitlane khi bấm nút AI.',
+  aiOff: 'Chưa bật — lần đầu bấm "Viết bằng AI", Gitlane sẽ hỏi đồng ý trước khi gửi gì.',
   aiDisable: 'Tắt AI',
   aiLanguage: 'Ngôn ngữ mặc định',
   aiLength: 'Độ dài mặc định',
@@ -50,7 +50,7 @@ export const settings = {
   privacy: 'Quyền riêng tư',
   telemetry: 'Gửi thống kê ẩn danh',
   telemetryHelp:
-    'Mỗi ngày tối đa một lần: một mã ngẫu nhiên, hệ điều hành, kiến trúc máy và phiên bản Thaigit — để biết có bao nhiêu người đang dùng bản nào. Không gửi tên repo, đường dẫn, code hay email. Tắt là xoá mã.',
+    'Mỗi ngày tối đa một lần: một mã ngẫu nhiên, hệ điều hành, kiến trúc máy và phiên bản Gitlane — để biết có bao nhiêu người đang dùng bản nào. Không gửi tên repo, đường dẫn, code hay email. Tắt là xoá mã.',
   telemetryUnsupported: 'Bản build này không gửi thống kê.',
 
   updates: 'Cập nhật',
@@ -60,9 +60,9 @@ export const settings = {
   channelFailed: 'Không đổi được kênh cập nhật',
 
   safety: 'An toàn',
-  safetyHelp: 'Thaigit không tin repo lạ: mỗi lệnh git đều qua lớp kiểm tra trước khi chạy.',
+  safetyHelp: 'Gitlane không tin repo lạ: mỗi lệnh git đều qua lớp kiểm tra trước khi chạy.',
   safetyAllowedCommands: (n: number) =>
-    `Chỉ chạy đúng ${n} lệnh git Thaigit biết (không alias, không đường dẫn lạ).`,
+    `Chỉ chạy đúng ${n} lệnh git Gitlane biết (không alias, không đường dẫn lạ).`,
   safetyForceSafeConfig:
     'Ép thêm `core.fsmonitor=false`, `core.hooksPath` trống và `protocol.file.allow=user`, `protocol.ext.allow=never` cho mọi lệnh.',
   safetyDiffNeverRunsRepoCode:
@@ -74,7 +74,7 @@ export const settings = {
 
   invalidNumber: (min: number, max: number) => `Nhập số từ ${min} đến ${max}`,
 
-  askTitle: 'Giúp Thaigit tốt hơn?',
+  askTitle: 'Giúp Gitlane tốt hơn?',
   askText:
     'Cho phép gửi thống kê ẩn danh (mỗi ngày một lần: mã ngẫu nhiên, hệ điều hành, phiên bản). Không gửi gì về repo hay code của bạn. Đổi lại được trong Cài đặt.',
   askYes: 'Đồng ý gửi',

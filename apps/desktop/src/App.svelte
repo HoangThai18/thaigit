@@ -280,7 +280,7 @@
     } catch (error) {
       toasts.error(vi.welcome.openFailed, error);
     }
-    // Opened with a folder ("Open With Thaigit"): still restore the old tabs, after the tab just opened, and keep it selected.
+    // Opened with a folder ("Open With Gitlane"): still restore the old tabs, after the tab just opened, and keep it selected.
     if (restoring) await restoreTabs(host, launched);
     remembersTabs = restoring;
   }

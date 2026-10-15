@@ -2,7 +2,7 @@
   "name": "@thaigit/server",
   "version": "0.1.0",
   "private": true,
-  "description": "Máy chủ Thaigit trên VPS: proxy AI tới Hermes tự host (giới hạn năng lực, quota), thống kê có đồng ý, đếm lượt tải, trang admin chỉ-đọc",
+  "description": "Máy chủ Gitlane trên VPS: proxy AI tới Hermes tự host (giới hạn năng lực, quota), thống kê có đồng ý, đếm lượt tải, trang admin chỉ-đọc",
   "type": "module",
   "engines": {
     "node": ">=24"

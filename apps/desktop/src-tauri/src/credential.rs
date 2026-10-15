@@ -1,4 +1,4 @@
-//! Thaigit's credential helper: when git asks "which account should I sign in to this host with", the app returns the
+//! Gitlane's credential helper: when git asks "which account should I sign in to this host with", the app returns the
 //! right account's token.
 //!
 //! Mechanism (like askpass): the app binary itself acts as the helper — `thaigit --credential-helper get|store|erase`.
@@ -252,7 +252,7 @@ pub fn helper_program(data_dir: &std::path::Path, exe: &std::path::Path) -> OsSt
         use std::os::unix::fs::PermissionsExt;
         let path: std::path::PathBuf = data_dir.join("credential.sh");
         let quoted = format!("'{}'", exe.to_string_lossy().replace('\'', r"'\''"));
-        let script = format!("#!/bin/sh\n# Thaigit: trả token của tài khoản cho host đó khi git hỏi credential.\nexec {quoted} {HELPER_FLAG} \"$@\"\n");
+        let script = format!("#!/bin/sh\n# Gitlane: trả token của tài khoản cho host đó khi git hỏi credential.\nexec {quoted} {HELPER_FLAG} \"$@\"\n");
         let current = std::fs::read_to_string(&path).ok();
         let executable = std::fs::metadata(&path).is_ok_and(|meta| meta.permissions().mode() & 0o111 != 0);
         if current.as_deref() != Some(script.as_str()) || !executable {
@@ -433,14 +433,14 @@ mod tests {
 
     #[test]
     fn helper_config_clears_only_that_url_and_quotes_the_path() {
-        let config = helper_config("github.com", Path::new("/Applications/Thaigit's App.app/Contents/MacOS/thaigit"));
+        let config = helper_config("github.com", Path::new("/Applications/Gitlane's App.app/Contents/MacOS/thaigit"));
         assert_eq!(
             config,
             vec![
                 "-c".to_string(),
                 "credential.https://github.com/helper=".to_string(),
                 "-c".to_string(),
-                r"credential.https://github.com/helper=!'/Applications/Thaigit'\''s App.app/Contents/MacOS/thaigit' --credential-helper"
+                r"credential.https://github.com/helper=!'/Applications/Gitlane'\''s App.app/Contents/MacOS/thaigit' --credential-helper"
                     .to_string(),
                 "-c".to_string(),
                 "credential.https://github.com/useHttpPath=true".to_string(),
@@ -545,11 +545,11 @@ mod tests {
     fn the_helper_program_is_a_script_that_execs_the_app() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
-        let program = std::path::PathBuf::from(helper_program(dir.path(), std::path::Path::new("/Applications/Thaigit's App.app/Contents/MacOS/thaigit")));
+        let program = std::path::PathBuf::from(helper_program(dir.path(), std::path::Path::new("/Applications/Gitlane's App.app/Contents/MacOS/thaigit")));
         assert_eq!(program, dir.path().join("credential.sh"));
         assert_eq!(std::fs::metadata(&program).unwrap().permissions().mode() & 0o111, 0o111);
         let script = std::fs::read_to_string(&program).unwrap();
-        let expected = r#"'/Applications/Thaigit'\''s App.app/Contents/MacOS/thaigit' --credential-helper "$@""#;
+        let expected = r#"'/Applications/Gitlane'\''s App.app/Contents/MacOS/thaigit' --credential-helper "$@""#;
         assert!(script.contains(expected), "{script}");
     }
 

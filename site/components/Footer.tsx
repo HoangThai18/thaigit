@@ -11,7 +11,7 @@ export function Footer({ lang }: { lang: Lang }) {
         <div className="footer-brand">
           <img src="/logo-96.png" width={28} height={28} alt="" />
           <div>
-            <strong>Thaigit</strong> — {text.tagline}
+            <strong>Gitlane</strong> — {text.tagline}
             <br />© {new Date().getFullYear()} {SITE.author}
             <small>{text.disclaimer}</small>
           </div>

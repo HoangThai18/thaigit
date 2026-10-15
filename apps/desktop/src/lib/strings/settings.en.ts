@@ -41,9 +41,9 @@ export const settings: Translation<typeof source> = {
   diffContext: 'Context lines around changes',
 
   ai: 'AI commit messages',
-  aiOn: 'On — you agreed to send filtered changes to the Thaigit server when you click the AI button.',
+  aiOn: 'On — you agreed to send filtered changes to the Gitlane server when you click the AI button.',
   aiOff:
-    'Off — the first time you click "Write with AI", Thaigit asks for your consent before sending anything.',
+    'Off — the first time you click "Write with AI", Gitlane asks for your consent before sending anything.',
   aiDisable: 'Turn off AI',
   aiLanguage: 'Default language',
   aiLength: 'Default length',
@@ -52,7 +52,7 @@ export const settings: Translation<typeof source> = {
   privacy: 'Privacy',
   telemetry: 'Send anonymous statistics',
   telemetryHelp:
-    'At most once a day: a random ID, the operating system, CPU architecture and Thaigit version — to know how many people use which version. No repository names, paths, code or emails are sent. Turning it off deletes the ID.',
+    'At most once a day: a random ID, the operating system, CPU architecture and Gitlane version — to know how many people use which version. No repository names, paths, code or emails are sent. Turning it off deletes the ID.',
   telemetryUnsupported: "This build doesn't send statistics.",
 
   updates: 'Updates',
@@ -63,9 +63,9 @@ export const settings: Translation<typeof source> = {
 
   safety: 'Safety',
   safetyHelp:
-    "Thaigit doesn't trust unusual repos: every git command passes through a checkpoint before running.",
+    "Gitlane doesn't trust unusual repos: every git command passes through a checkpoint before running.",
   safetyAllowedCommands: (n: number) =>
-    `Only the ${n} git commands Thaigit knows run (no aliases, no unusual paths).`,
+    `Only the ${n} git commands Gitlane knows run (no aliases, no unusual paths).`,
   safetyForceSafeConfig:
     'Force `core.fsmonitor=false`, empty `core.hooksPath`, and `protocol.file.allow=user`, `protocol.ext.allow=never` on every command.',
   safetyDiffNeverRunsRepoCode:
@@ -77,7 +77,7 @@ export const settings: Translation<typeof source> = {
 
   invalidNumber: (min: number, max: number) => `Enter a number from ${min} to ${max}`,
 
-  askTitle: 'Help make Thaigit better?',
+  askTitle: 'Help make Gitlane better?',
   askText:
     'Allow sending anonymous statistics (once a day: a random ID, operating system, version). Nothing about your repositories or code is sent. You can change this in Settings.',
   askYes: 'Allow',

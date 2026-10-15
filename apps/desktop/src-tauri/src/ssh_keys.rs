@@ -1,4 +1,4 @@
-//! Thaigit's own SSH keys (like 1Password's agent): the secret key lives in the OS keystore (Credential Manager on
+//! Gitlane's own SSH keys (like 1Password's agent): the secret key lives in the OS keystore (Credential Manager on
 //! Windows, Keychain on macOS), the non-secret part (name, public key) in `<data>/ssh-keys.json`.
 //!
 //! When a network command touches an SSH remote, Rust builds a temporary ssh-agent for that command alone (`SshAgent`):
@@ -270,7 +270,7 @@ impl SshKeys {
     pub fn import(&self, name: &str, private_key: &str, public_line: Option<&str>) -> Result<SshKeyInfo> {
         if !looks_like_private_key(private_key) {
             return Err(AppError::Policy(
-                "File này không phải khoá SSH bí mật mà Thaigit đọc được — hãy chọn file khoá bí mật (vd. id_ed25519), không phải file .pub".into(),
+                "File này không phải khoá SSH bí mật mà Gitlane đọc được — hãy chọn file khoá bí mật (vd. id_ed25519), không phải file .pub".into(),
             ));
         }
         let given = public_line.and_then(PublicKey::parse_line);
@@ -297,7 +297,7 @@ impl SshKeys {
         let name = clean_name(name)?;
         let fingerprint = public.fingerprint();
         if self.lock().keys.iter().any(|key| key.fingerprint == fingerprint) {
-            return Err(AppError::Conflict("Khoá SSH này đã có trong Thaigit".into()));
+            return Err(AppError::Conflict("Khoá SSH này đã có trong Gitlane".into()));
         }
         let info = SshKeyInfo {
             id: uuid::Uuid::new_v4().to_string(),
@@ -452,7 +452,7 @@ impl SshAgent {
     /// Start an agent, then load `keys` (a key that fails to load — wrong passphrase, cancelled dialog… — is skipped). `env`: the
     /// command's environment (so ssh-add can ask for a passphrase through the app's askpass).
     pub fn start(agent: &Path, add: &Path, keys: &[String], env: &[(OsString, OsString)]) -> Result<SshAgent> {
-        let unavailable = || AppError::Io("Không chạy được ssh-agent nên chưa dùng được khoá SSH của Thaigit".into());
+        let unavailable = || AppError::Io("Không chạy được ssh-agent nên chưa dùng được khoá SSH của Gitlane".into());
         let base = if cfg!(unix) { PathBuf::from("/tmp") } else { std::env::temp_dir() };
         let dir = base.join(format!("thaigit-ssh-{}", &uuid::Uuid::new_v4().simple().to_string()[..12]));
         create_private_dir(&dir).map_err(|_| unavailable())?;
@@ -582,7 +582,7 @@ pub fn connection_message(output: &str, host: &str) -> std::result::Result<Strin
         }
     }
     if output.contains("Permission denied") {
-        return Err(format!("{host} chưa nhận khoá nào của Thaigit — hãy thêm khoá công khai lên tài khoản trước"));
+        return Err(format!("{host} chưa nhận khoá nào của Gitlane — hãy thêm khoá công khai lên tài khoản trước"));
     }
     if output.contains("Host key verification failed") || output.contains("REMOTE HOST IDENTIFICATION HAS CHANGED") {
         return Err(format!("Khoá của máy chủ {host} không khớp với lần trước (known_hosts) — kiểm tra lại mạng trước khi tiếp tục"));

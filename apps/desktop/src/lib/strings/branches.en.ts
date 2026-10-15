@@ -24,7 +24,7 @@ export const branches: Translation<typeof source> = {
     'You will be in “detached HEAD” mode (not on any branch). To keep committing, create a new branch there.',
   detached: (label: string) => `On ${label} (detached HEAD)`,
   undoCheckout: 'Undo checkout',
-  autoStashMessage: (title: string) => `Thaigit: auto-stash before ${title.toLowerCase()}`,
+  autoStashMessage: (title: string) => `Gitlane: auto-stash before ${title.toLowerCase()}`,
   carriedChanges: (title: string) => `${title} done — your uncommitted changes came along`,
   stashedAndDone: (title: string) =>
     `${title} done — your uncommitted changes were saved to the latest stash`,
@@ -136,7 +136,7 @@ export const branches: Translation<typeof source> = {
   resetHardMenu: 'Hard — discard all changes',
   discardAllConfirmTitle: 'Discard ALL uncommitted changes?',
   discardAllConfirmMessage:
-    "All changes (including staged ones) will be dropped; untracked files are moved to Thaigit's trash. You can click “Undo” right after.",
+    "All changes (including staged ones) will be dropped; untracked files are moved to Gitlane's trash. You can click “Undo” right after.",
   discardAll: 'Discard all',
   discardAllTitle: 'Discard all changes',
   discardedAll: 'All changes discarded',
@@ -250,7 +250,7 @@ export const branches: Translation<typeof source> = {
   saveResolution: 'Save & mark resolved',
   saveResolutionRunning: 'Save resolved file',
   unresolvedBlocks: 'Some conflicts have no resolution chosen yet',
-  changedOnDisk: 'The file was changed outside Thaigit — reloaded, please choose again',
+  changedOnDisk: 'The file was changed outside Gitlane — reloaded, please choose again',
   markResolved: 'Mark resolved',
   markResolvedRunning: 'Mark resolved',
   wholeFileOnly: (description: string) => `${description} — only the whole file can be chosen.`,

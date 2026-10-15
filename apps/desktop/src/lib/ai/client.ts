@@ -1,4 +1,4 @@
-// Talks to Thaigit's AI API (`server/`) using the webview's own fetch (the server allows the app's origin
+// Talks to Gitlane's AI API (`server/`) using the webview's own fetch (the server allows the app's origin
 // via CORS; the CSP `connect-src` only opens that one domain). Every failure becomes an `AiFailure` with a
 // contracts code — the UI turns codes into a friendly sentence and never shows the original message.
 

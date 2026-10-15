@@ -1,20 +1,20 @@
 <p align="center">
-  <img src="brand/thaigit-icon-macos.png" width="128" alt="Biểu tượng Thaigit">
+  <img src="brand/thaigit-icon-macos.png" width="128" alt="Biểu tượng Gitlane">
 </p>
 
-<h1 align="center">Thaigit</h1>
+<h1 align="center">Gitlane</h1>
 
 <p align="center">
   <b>Git client miễn phí, trực quan — một mã nguồn cho macOS và Windows.</b>
 </p>
 
-![Thaigit: graph commit nhiều màu, sidebar nhánh và panel commit](docs/screenshots/overview.png)
+![Gitlane: graph commit nhiều màu, sidebar nhánh và panel commit](docs/screenshots/overview.png)
 
-Thaigit giúp làm việc với git bằng chuột: nhìn lịch sử dạng graph nhiều màu, kéo nhánh thả lên nhánh để merge / rebase / push, stage từng dòng, giải conflict bằng vài cú bấm. Mọi thao tác gọi thẳng `git` trên máy, nên kết quả giống hệt dùng terminal — chỉ dễ nhìn và dễ bấm hơn.
+Gitlane giúp làm việc với git bằng chuột: nhìn lịch sử dạng graph nhiều màu, kéo nhánh thả lên nhánh để merge / rebase / push, stage từng dòng, giải conflict bằng vài cú bấm. Mọi thao tác gọi thẳng `git` trên máy, nên kết quả giống hệt dùng terminal — chỉ dễ nhìn và dễ bấm hơn.
 
 | Bản | Nền tảng | Trạng thái |
 | --- | --- | --- |
-| Thaigit đa nền tảng (Tauri 2) | Windows 10/11, macOS | **Dùng được** — tải ở [trang chủ](https://git.thaipro.store), tự cập nhật (kênh Ổn định / Beta) trên cả hai |
+| Gitlane đa nền tảng (Tauri 2) | Windows 10/11, macOS | **Dùng được** — tải ở [trang chủ](https://git.thaipro.store), tự cập nhật (kênh Ổn định / Beta) trên cả hai |
 
 ## Tính năng nổi bật
 
@@ -70,7 +70,7 @@ Commit, huỷ thay đổi, merge, reset, xoá nhánh, xoá stash… đều có n
 
 ### Tự cập nhật — khởi động lại là có bản mới
 
-Thaigit tự hỏi GitHub Releases mỗi 6 giờ, tải bản mới ngầm và **kiểm chữ ký Ed25519** trước khi cài. Khi xong, góc cửa sổ hiện thẻ *"Thaigit x.y.z đã sẵn sàng"* — bấm **Khởi động lại** (hoặc cứ thoát app, lần mở sau đã là bản mới). Kiểm tra tay: menu **Thaigit → Kiểm tra cập nhật…**; tắt / bật trong Cài đặt.
+Gitlane tự hỏi GitHub Releases mỗi 6 giờ, tải bản mới ngầm và **kiểm chữ ký Ed25519** trước khi cài. Khi xong, góc cửa sổ hiện thẻ *"Gitlane x.y.z đã sẵn sàng"* — bấm **Khởi động lại** (hoặc cứ thoát app, lần mở sau đã là bản mới). Kiểm tra tay: menu **Gitlane → Kiểm tra cập nhật…**; tắt / bật trong Cài đặt.
 
 ### Giao diện kính, sáng & tối
 
@@ -101,7 +101,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 - **So sánh** hai commit bất kỳ (giữ ⌘ và bấm 2 commit trên graph) hoặc một nhánh với nhánh hiện tại (chuột phải vào nhánh → *So sánh với …*): panel bên phải liệt kê các commit nằm giữa và các file khác nhau, bấm file để xem diff.
 - **Ẩn / solo nhánh trên graph**: rê chuột vào nhánh ở sidebar, bấm con mắt để ẩn (hoặc chuột phải → *Ẩn khỏi graph*); *Chỉ hiện nhánh này (solo)* để graph chỉ còn các nhánh đã chọn và nhánh đang checkout. Ẩn nhánh local thì nhánh remote nó theo dõi cũng ẩn theo; app nhớ riêng cho từng repo; dải báo ở đáy graph có nút *Hiện tất cả*.
 - **Blame** (chuột phải vào file → *Blame — ai sửa từng dòng*): mỗi dòng kèm tác giả, thời gian và commit đã sửa nó; theo dấu cả khi đoạn code được chuyển từ file khác sang.
-- **Dòng thời gian** (nút *Dòng thời gian* ở panel thay đổi, hoặc ⌘P): Thaigit tự lưu thư mục làm việc mỗi khi file thay đổi — kể cả file chưa commit — để quay lại được khi code (hay AI) làm hỏng. Chọn một mốc để xem khác gì so với bây giờ, khôi phục một file hoặc tất cả, luôn hỏi trước và có Hoàn tác. Mốc nằm trong `.git` của repo dưới dạng ref ẩn theo worktree (`refs/worktree/thaigit/snapshots`, kiểu `refs/stash`), không bao giờ được push, không đụng tới phần đã stage; mặc định giữ 7 ngày / 300 mốc.
+- **Dòng thời gian** (nút *Dòng thời gian* ở panel thay đổi, hoặc ⌘P): Gitlane tự lưu thư mục làm việc mỗi khi file thay đổi — kể cả file chưa commit — để quay lại được khi code (hay AI) làm hỏng. Chọn một mốc để xem khác gì so với bây giờ, khôi phục một file hoặc tất cả, luôn hỏi trước và có Hoàn tác. Mốc nằm trong `.git` của repo dưới dạng ref ẩn theo worktree (`refs/worktree/thaigit/snapshots`, kiểu `refs/stash`), không bao giờ được push, không đụng tới phần đã stage; mặc định giữ 7 ngày / 300 mốc.
 - **Cảnh báo trước khi commit**: panel thay đổi báo khi có file test bị xoá / bỏ qua, thư viện phụ thuộc hay CI / Docker bị sửa, file lớn hơn 1 MB, hoặc file trông như chứa mật khẩu / khoá bí mật — chỉ hiện tên file, không chặn commit.
 
 **Nhánh, remote, stash, tag**
@@ -119,7 +119,7 @@ Liquid Glass trên macOS 26 (bản cũ hơn dùng vật liệu mờ), màu lấy
 
 **Khác**
 - Nhiều repo trong nhiều tab: thanh tab ở hàng trên cùng cạnh 3 nút đỏ/vàng/xanh. Đầu hàng là tab **Trang chủ** (🏠, mở / clone / tạo repo, danh sách repo gần đây), cuối hàng là nút ✨ **Có gì mới**; **+** mở tab mới (màn hình chọn repo gần đây), **×** đóng tab, kéo tab để đổi chỗ, chuột phải để đóng các tab khác. Mỗi tab giữ nguyên repo của nó; mở lại app thì các tab của lần trước được mở lại. *File → Đóng repository* đưa tab về màn hình chọn repo. Hàng công cụ của repo (Fetch, Pull, Push…) nằm ngay dưới thanh tab, cửa sổ hẹp thì chỉ còn biểu tượng.
-- Tab **Có gì mới** (nút ✨ cuối thanh tab, hoặc menu *Thaigit → Có gì mới…*) đọc nhật ký thay đổi; tự mở một lần sau mỗi lần cập nhật.
+- Tab **Có gì mới** (nút ✨ cuối thanh tab, hoặc menu *Gitlane → Có gì mới…*) đọc nhật ký thay đổi; tự mở một lần sau mỗi lần cập nhật.
 - **Bảng lệnh ⌘P**: gõ để tìm mọi thao tác (fetch, pull, stash, tạo nhánh, tạo PR…), checkout nhánh, so sánh nhánh, chuyển tab, mở repo gần đây; gõ không dấu vẫn ra ("nhanh" → "nhánh"), ↑↓ chọn, ↩ chạy.
 - Mở gần đây, clone có tiến trình, tạo repo mới.
 - Tự làm mới khi file đổi bên ngoài (sửa trong editor, commit từ terminal…), tự fetch định kỳ.
@@ -144,7 +144,7 @@ THAIGIT_DEV_REPO=/đường/dẫn/repo THAIGIT_DEV_AUTOOPEN=1 pnpm --filter @tha
 ```
 
 Ghi chú:
-- Bản macOS ký ad-hoc: tải về lần đầu Gatekeeper có thể chặn (Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Vẫn mở, hoặc `xattr -dr com.apple.quarantine /Applications/Thaigit.app`). Phát hành rộng nên ký bằng Apple Developer ID.
+- Bản macOS ký ad-hoc: tải về lần đầu Gatekeeper có thể chặn (Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Vẫn mở, hoặc `xattr -dr com.apple.quarantine /Applications/Gitlane.app`). Phát hành rộng nên ký bằng Apple Developer ID.
 - Tự cập nhật chỉ thay app nằm trong thư mục ứng dụng.
 
 ### Xác thực khi fetch / push
@@ -154,13 +154,13 @@ Ghi chú:
 
 ### Đăng nhập GitHub
 
-Menu **Thaigit → Đăng nhập GitHub…** (hoặc Cài đặt → Tài khoản): app hiện một mã, bấm **Mở GitHub để xác nhận** (mã đã được sao chép sẵn), dán mã trên github.com rồi bấm *Authorize*. Không cần tự tạo token; Thaigit không bao giờ thấy mật khẩu GitHub.
+Menu **Gitlane → Đăng nhập GitHub…** (hoặc Cài đặt → Tài khoản): app hiện một mã, bấm **Mở GitHub để xác nhận** (mã đã được sao chép sẵn), dán mã trên github.com rồi bấm *Authorize*. Không cần tự tạo token; Gitlane không bao giờ thấy mật khẩu GitHub.
 
 - Fetch / pull / push / clone tới repo **HTTPS trên github.com** dùng tài khoản GitHub; host khác (GitLab…) và SSH giữ nguyên cách cũ. Hộp Clone liệt kê repo của từng tài khoản, gõ để lọc theo tên.
 - **Nhiều tài khoản** (cá nhân, công ty…): Cài đặt → Tài khoản → *Thêm tài khoản…* (trên trình duyệt, chuyển sang đúng tài khoản GitHub đó trước khi nhập mã). Mỗi lệnh git chọn token theo **owner** trong URL `github.com/<owner>/…`: owner bạn tự gán → owner là chính tài khoản → tổ chức mà tài khoản là thành viên → tài khoản mặc định. URL có username trùng một tài khoản (`https://alice@github.com/…`) thì dùng tài khoản đó. Tài khoản không đọc được token thì owner của nó không mượn token tài khoản khác: lệnh báo lỗi và gợi ý đăng nhập lại đúng tài khoản ấy. Repo bị GitHub từ chối thì thông báo có nút *Dùng tài khoản khác cho &lt;owner&gt;…*.
 - **Tài khoản cho repo này** (menu Repository): gán owner của `origin` cho một tài khoản và — sau khi bạn xác nhận — ghi tên / email commit của tài khoản đó vào config local của repo (mặc định: tên GitHub + email `id+login@users.noreply.github.com`, sửa được trong Cài đặt). Ô commit nhắc khi email đang dùng khác tài khoản của repo.
 - Quyền xin: `repo`, `workflow` (để push được thay đổi trong `.github/workflows`) và `read:org` (biết tài khoản thuộc tổ chức nào).
-- Token mỗi tài khoản nằm riêng trong Keychain (mục `com.phanthai.thaigit.github.v2`, theo login) — không ghi vào cấu hình git, không hiện trong nhật ký lệnh. Token chỉ được đưa (qua biến môi trường và script `~/Library/Application Support/Thaigit/github-credential.sh`) cho lệnh git thật sự chạm remote `https://github.com/…` — fetch / pull / push tới remote đó, clone hay merge từ URL đó — và chỉ token của tài khoản dùng cho remote ấy; `fetch --all` mang token của đúng các tài khoản ứng với các remote github.com của repo. Lệnh tới remote khác (GitLab, thư mục trên máy, SSH) và mọi lệnh local không có token nào. Trong lúc lệnh đó chạy, hook của chính repo (pre-push…) và các chương trình git gọi ra vẫn thấy token của tài khoản dùng cho remote đó.
+- Token mỗi tài khoản nằm riêng trong Keychain (mục `com.phanthai.thaigit.github.v2`, theo login) — không ghi vào cấu hình git, không hiện trong nhật ký lệnh. Token chỉ được đưa (qua biến môi trường và script `~/Library/Application Support/Gitlane/github-credential.sh`) cho lệnh git thật sự chạm remote `https://github.com/…` — fetch / pull / push tới remote đó, clone hay merge từ URL đó — và chỉ token của tài khoản dùng cho remote ấy; `fetch --all` mang token của đúng các tài khoản ứng với các remote github.com của repo. Lệnh tới remote khác (GitLab, thư mục trên máy, SSH) và mọi lệnh local không có token nào. Trong lúc lệnh đó chạy, hook của chính repo (pre-push…) và các chương trình git gọi ra vẫn thấy token của tài khoản dùng cho remote đó.
 - Xoá một tài khoản chỉ xoá token của tài khoản đó; muốn vô hiệu hẳn token, thu hồi ở [github.com/settings/applications](https://github.com/settings/applications).
 
 Người duy trì — bản build chưa có Client ID thì mục này hiện *Chưa cấu hình*. Tạo OAuth App một lần:
@@ -217,16 +217,16 @@ Bản Windows dùng Ctrl thay cho ⌘.
 ## Bản đa nền tảng (Tauri)
 
 - Chung một code cho Windows và macOS (Tauri 2 + Svelte 5 + TypeScript); cả hai đều đã có bản cài — Windows (NSIS) và macOS (dmg), tự cập nhật — kênh Ổn định mặc định, đổi sang Beta trong Cài đặt.
-- **AI viết commit message** bằng model Hermes (Nous Research) chạy trên máy chủ của Thaigit — bấm *✨ Viết bằng AI* là có, không cần API key. Thêm: *Giải thích bằng AI* trong chi tiết commit, *Viết mô tả PR với AI…* trong menu nhánh. Máy chủ: `server/`, cách dựng: [docs/deploy-server.md](docs/deploy-server.md).
+- **AI viết commit message** bằng model Hermes (Nous Research) chạy trên máy chủ của Gitlane — bấm *✨ Viết bằng AI* là có, không cần API key. Thêm: *Giải thích bằng AI* trong chi tiết commit, *Viết mô tả PR với AI…* trong menu nhánh. Máy chủ: `server/`, cách dựng: [docs/deploy-server.md](docs/deploy-server.md).
 - Thống kê ẩn danh **chỉ khi bạn bật** (Cài đặt → Quyền riêng tư): mỗi ngày một lần một mã ngẫu nhiên, hệ điều hành, kiến trúc máy, phiên bản app. Không gửi tên repo, đường dẫn, code hay email.
 - Sắp có: giao diện tiếng Anh.
 
 ### Quyền riêng tư
 
 - **Tự cập nhật** chỉ tải `latest.json` và gói cập nhật từ GitHub Releases (`desktop-stable` / `desktop-beta`) — không gửi thông tin gì về máy hay repo của bạn (GitHub vẫn thấy địa chỉ IP như mọi lượt tải).
-- **Đăng nhập GitHub** (nếu dùng): app nói chuyện thẳng với github.com / api.github.com; token chỉ nằm trong Keychain trên máy bạn, không gửi tới server Thaigit.
+- **Đăng nhập GitHub** (nếu dùng): app nói chuyện thẳng với github.com / api.github.com; token chỉ nằm trong Keychain trên máy bạn, không gửi tới server Gitlane.
 - **Ảnh đại diện trên graph**: để tìm ảnh, app gửi mã băm SHA-256 của email người commit tới Gravatar, và với repo nằm trên GitHub thì hỏi API GitHub "tài khoản nào đã commit bằng email này" (GitHub vốn đã có các commit đó). Ảnh được cache trên máy 7 ngày. Tắt trong Cài đặt → Chung → *Ảnh đại diện thật*, hoặc chuột phải lên tiêu đề cột graph → bỏ chọn *Ảnh đại diện thật*: khi đó app dừng ngay hàng đợi và không gửi gì nữa.
-- **AI viết commit message**: chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu (có nút *Xem dữ liệu sẽ gửi*). App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file sinh tự động, file nhị phân và mọi đoạn trông như mật khẩu / token) tới máy chủ Thaigit, nơi model Hermes chạy ngay trên máy chủ của dự án — không gửi cho bên thứ ba, không lưu nội dung code hay message.
+- **AI viết commit message**: chạy khi bạn bấm nút AI và đã đồng ý ở lần đầu (có nút *Xem dữ liệu sẽ gửi*). App gửi phần thay đổi đã lọc (tự bỏ `.env`, khoá bí mật, lockfile, file sinh tự động, file nhị phân và mọi đoạn trông như mật khẩu / token) tới máy chủ Gitlane, nơi model Hermes chạy ngay trên máy chủ của dự án — không gửi cho bên thứ ba, không lưu nội dung code hay message.
 - **Thống kê** (app Windows) mặc định tắt; chỉ gửi khi bạn bật: mỗi ngày một lần một mã ngẫu nhiên, hệ điều hành, kiến trúc máy, phiên bản app. Không gửi tên repo, đường dẫn, code hay email.
 
 ## Phát triển
@@ -260,7 +260,7 @@ Trang chủ (`site/`) cần Node 24 và pnpm: `pnpm install`, rồi `pnpm --filt
 
 ## English
 
-Thaigit is a free, visual Git GUI. The cross-platform app (Tauri 2, Rust core + Svelte UI) runs on both Windows 10/11 and macOS, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
+Gitlane is a free, visual Git GUI. The cross-platform app (Tauri 2, Rust core + Svelte UI) runs on both Windows 10/11 and macOS, with AI commit messages powered by a self-hosted Hermes model (no API key needed, no third party) and opt-in anonymous usage stats. The UI is Vietnamese for now; English is planned.
 
 ---
 

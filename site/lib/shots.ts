@@ -34,12 +34,12 @@ export const SHOTS = {
   'overview': {
     width: 1600,
     height: 1000,
-    alt: { vi: 'Thaigit: graph commit nhiều màu, sidebar nhánh và panel commit', en: 'Thaigit: a colorful commit graph, branch sidebar and commit panel' },
+    alt: { vi: 'Gitlane: graph commit nhiều màu, sidebar nhánh và panel commit', en: 'Gitlane: a colorful commit graph, branch sidebar and commit panel' },
   },
   'overview-dark': {
     width: 1600,
     height: 1000,
-    alt: { vi: 'Thaigit giao diện tối', en: 'Thaigit in the dark theme' },
+    alt: { vi: 'Gitlane giao diện tối', en: 'Gitlane in the dark theme' },
   },
   'switch': {
     width: 1600,

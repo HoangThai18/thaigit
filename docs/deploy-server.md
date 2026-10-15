@@ -1,4 +1,4 @@
-# Máy chủ Thaigit trên VPS (AI viết commit + thống kê)
+# Máy chủ Gitlane trên VPS (AI viết commit + thống kê)
 
 `server/` là một dịch vụ nhỏ (Node 24 + Hono + SQLite có sẵn trong Node) chạy cạnh trang chủ trên VPS:
 

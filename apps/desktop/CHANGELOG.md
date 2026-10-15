@@ -1,9 +1,10 @@
-# Nhật ký thay đổi — Thaigit cho Windows & macOS
+# Nhật ký thay đổi — Gitlane cho Windows & macOS
 
-Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
+Bản đa nền tảng (Tauri) của Gitlane. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
 ## Chưa phát hành
 
+- Thaigit đổi tên thành Gitlane. Cài đặt, tài khoản và các repo đã mở vẫn giữ nguyên
 - Sửa lỗi tên nhánh đang đứng trên graph bị cắt cụt (“m…” thay vì “main”)
 
 ## 2.6.8 — 2026-10-15
@@ -52,7 +53,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 - Review thay đổi của nhánh: chuột phải vào nhánh (kể cả nhánh đang đứng) → “Review thay đổi so với nhánh…” mở hộp tìm để chọn nhánh cần so sánh, gợi ý sẵn nhánh đang đứng và main / develop; trong panel review bấm tên nhánh so sánh để đổi sang nhánh khác
 - Giao diện nhiều màu hơn: dòng có nhánh hoặc tag trên graph được tô theo màu của làn, icon ở sidebar có màu riêng theo từng mục
 - Luôn biết mình đang ở nhánh nào: nút nhánh trên thanh công cụ thành chip xanh lá ghi rõ “Đang ở nhánh”, nhánh hiện tại trong sidebar có nhãn “Đang ở”, dòng của nhánh hiện tại trên graph được viền và tô đậm
-- Góp ý & báo lỗi ngay trong app: menu … (hoặc bảng lệnh Ctrl/⌘ + P, hay màn hình chào) → “Góp ý & báo lỗi…”, viết vài dòng rồi bấm “Soạn email” để mở ứng dụng email với thư soạn sẵn gửi tới tác giả; tuỳ chọn kèm phiên bản Thaigit và hệ điều hành, không kèm gì về repo của bạn
+- Góp ý & báo lỗi ngay trong app: menu … (hoặc bảng lệnh Ctrl/⌘ + P, hay màn hình chào) → “Góp ý & báo lỗi…”, viết vài dòng rồi bấm “Soạn email” để mở ứng dụng email với thư soạn sẵn gửi tới tác giả; tuỳ chọn kèm phiên bản Gitlane và hệ điều hành, không kèm gì về repo của bạn
 
 ## 2.6.0 — 2026-10-14
 
@@ -60,11 +61,11 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## 2.5.1 — 2026-10-07
 
-- Bản đa nền tảng nay chạy được cả trên macOS: build cùng mã nguồn Rust + Svelte, cài từ file `Thaigit-macOS.dmg`, tự cập nhật qua cùng kênh Ổn định / Beta như Windows
-- Chuyển nhánh khi còn code chưa commit: không xung đột thì cứ chuyển và mang file theo; xung đột thì Thaigit trả mọi thứ về như cũ và hỏi bạn commit hoặc cất vào stash (lưu nháp) rồi mới chuyển, không còn tự mang file xung đột sang nhánh khác
+- Bản đa nền tảng nay chạy được cả trên macOS: build cùng mã nguồn Rust + Svelte, cài từ file `Gitlane-macOS.dmg`, tự cập nhật qua cùng kênh Ổn định / Beta như Windows
+- Chuyển nhánh khi còn code chưa commit: không xung đột thì cứ chuyển và mang file theo; xung đột thì Gitlane trả mọi thứ về như cũ và hỏi bạn commit hoặc cất vào stash (lưu nháp) rồi mới chuyển, không còn tự mang file xung đột sang nhánh khác
 - Nhánh đang đứng nổi bật hơn trong sidebar: nền màu, vạch bên trái, chữ đậm màu nhấn
-- Fetch nền (auto-fetch): khi mạng lỗi lặp thì Thaigit chờ lâu dần (tối đa 1 tiếng) rồi mới thử lại, thay vì cứ thử mỗi chu kỳ; sidebar nhánh dựng lại nhanh hơn trên repo nhiều nhánh
-- Mục “An toàn” trong Cài đặt: hiện tóm tắt những lớp bảo vệ đang bật — chỉ chạy đúng các lệnh git Thaigit biết, luôn tắt `core.fsmonitor` / `--no-textconv` / URL scheme nguy hiểm, và lược bỏ biến môi trường git có thể trỏ sang repo khác
+- Fetch nền (auto-fetch): khi mạng lỗi lặp thì Gitlane chờ lâu dần (tối đa 1 tiếng) rồi mới thử lại, thay vì cứ thử mỗi chu kỳ; sidebar nhánh dựng lại nhanh hơn trên repo nhiều nhánh
+- Mục “An toàn” trong Cài đặt: hiện tóm tắt những lớp bảo vệ đang bật — chỉ chạy đúng các lệnh git Gitlane biết, luôn tắt `core.fsmonitor` / `--no-textconv` / URL scheme nguy hiểm, và lược bỏ biến môi trường git có thể trỏ sang repo khác
 - Trong panel PR / MR: gửi bình luận chung, duyệt (approve) và gộp (merge, chọn cách merge / squash / rebase) ngay trong app — không cần mở web; chỉ gửi tiêu đề/mô tả/nhánh bạn nhìn thấy trong hộp thoại
 - Gộp PR/MR: chỉ hiện chiến lược mà dịch vụ hỗ trợ (GitLab không còn tuỳ chọn Rebase, Bitbucket còn đúng Merge), không còn lặng lẽ gộp theo kiểu khác; nút Gộp xác nhận bằng hộp thoại trong app (trên GitLab/Bitbucket/Windows trước đó hay bị chặn)
 
@@ -82,7 +83,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 ## 2.3.0 — 2026-10-05
 
-- Khoá SSH ngay trong Thaigit (Cài đặt → Khoá SSH): tạo khoá mới hoặc nhập khoá có sẵn chỉ với vài cú bấm, khoá được cất an toàn trên máy — clone / fetch / push repo SSH không cần tự cấu hình gì thêm
+- Khoá SSH ngay trong Gitlane (Cài đặt → Khoá SSH): tạo khoá mới hoặc nhập khoá có sẵn chỉ với vài cú bấm, khoá được cất an toàn trên máy — clone / fetch / push repo SSH không cần tự cấu hình gì thêm
 - Thêm khoá SSH lên GitHub / GitLab chỉ một bước, kèm nút kiểm tra kết nối
 - Đăng nhập GitLab.com bằng mã, và giữ đăng nhập GitLab lâu dài — không còn bị đăng xuất sau vài giờ
 - Giao diện tiếng Anh không còn lẫn chữ tiếng Việt ở dòng báo thao tác đang làm dở (merge, rebase…)
@@ -90,7 +91,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 ## 2.2.0 — 2026-10-05
 
 - Nhiều nhánh / tag cùng một commit: nhãn ưu tiên nhánh đang đứng rồi main / master / develop; rê chuột vào "+N" hiện danh sách nhánh bị gom, bấm để chọn nhánh (Checkout, Merge, Push…); nhấp đúp lên nhãn checkout đúng nhánh đó
-- Checkout khi còn thay đổi chưa commit: Thaigit tự stash, chuyển nhánh rồi mang thay đổi sang — không còn báo lỗi; xung đột thì bản gốc vẫn giữ trong stash
+- Checkout khi còn thay đổi chưa commit: Gitlane tự stash, chuyển nhánh rồi mang thay đổi sang — không còn báo lỗi; xung đột thì bản gốc vẫn giữ trong stash
 - Cạnh tên nhánh trên thanh công cụ có số file chưa commit (bấm để về WIP); xem một commit mà còn file chưa commit thì đầu panel chi tiết nhắc kèm nút Stage tất cả / Xem & commit
 - Nút Undo trên thanh công cụ: hoàn tác thao tác git gần nhất (commit, checkout, pull, huỷ thay đổi…), tự tắt khi repo đã đổi khác
 - Rê chuột vào cột graph để xem tên người commit và thời gian; dải "Nên xem lại trước khi commit" có nút ẩn; danh sách đang trống trong panel thay đổi thu nhỏ để danh sách kia hiện nhiều file hơn; cùng một thông báo không hiện lặp
@@ -109,7 +110,7 @@ Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https:/
 
 Tab nhiều repo, rebase tương tác, lịch sử file và blame, worktree / submodule, Git LFS, command palette và diff tô màu cú pháp.
 
-- Dòng thời gian: Thaigit tự lưu thư mục làm việc mỗi khi file thay đổi (kể cả file chưa commit) để bạn quay lại được khi code bị hỏng — rất hợp khi code cùng AI (Cursor, Claude Code…). Mở bằng nút "Dòng thời gian" ở panel thay đổi hoặc menu Thêm; chọn một mốc để xem khác gì so với bây giờ, khôi phục một file hoặc tất cả, luôn hỏi trước và có Hoàn tác
+- Dòng thời gian: Gitlane tự lưu thư mục làm việc mỗi khi file thay đổi (kể cả file chưa commit) để bạn quay lại được khi code bị hỏng — rất hợp khi code cùng AI (Cursor, Claude Code…). Mở bằng nút "Dòng thời gian" ở panel thay đổi hoặc menu Thêm; chọn một mốc để xem khác gì so với bây giờ, khôi phục một file hoặc tất cả, luôn hỏi trước và có Hoàn tác
 - Mốc chỉ lưu trên máy bạn, không ảnh hưởng tới phần đã stage, nhánh hay stash; mỗi worktree một dòng thời gian riêng. Mặc định giữ 7 ngày / 300 mốc, chỉnh ở Cài đặt → Dòng thời gian; tắt riêng cho một repo ngay trong panel
 - Cảnh báo trước khi commit: panel thay đổi báo khi bạn (hoặc AI) xoá / bỏ qua test, đổi dependency, sửa CI / Docker, thêm file lớn hơn 1 MB, hoặc có file trông như chứa mật khẩu / khoá bí mật — chỉ hiện tên file, không chặn commit
 - Giao diện tiếng Anh: chọn ở Cài đặt → Giao diện → Ngôn ngữ / Language
@@ -119,7 +120,7 @@ Tab nhiều repo, rebase tương tác, lịch sử file và blame, worktree / su
 - Mục PULL REQUESTS ở sidebar: xem Pull Request / Merge Request đang mở, mở trên web, checkout nhánh của PR (cả PR từ fork trên GitHub / GitLab)
 - Tạo Pull Request từ nhánh hiện tại (menu Thêm, hoặc nút + ở mục PULL REQUESTS): chọn nhánh đích, tạo dạng nháp
 - Remote từ chối đăng nhập: thông báo có nút "Tài khoản…" để đăng nhập hoặc chọn đúng tài khoản
-- Duyệt thay đổi liên tục: stage, bỏ stage hay huỷ file đang xem thì Thaigit mở luôn file kế tiếp thay vì quay về graph; nút ↑ / ↓ (kèm "2/5") ở đầu diff và Alt + Shift + ↑ / ↓ để chuyển file, Alt + ↑ / ↓ để nhảy giữa các hunk
+- Duyệt thay đổi liên tục: stage, bỏ stage hay huỷ file đang xem thì Gitlane mở luôn file kế tiếp thay vì quay về graph; nút ↑ / ↓ (kèm "2/5") ở đầu diff và Alt + Shift + ↑ / ↓ để chuyển file, Alt + ↑ / ↓ để nhảy giữa các hunk
 - Commit & Push một bước: nút mũi tên cạnh nút Commit hoặc Ctrl + Shift + Enter
 - Message commit đang gõ dở được giữ riêng cho từng repo — đóng app, đổi repo rồi quay lại vẫn còn
 - Push bị từ chối vì remote có commit mới: nút "Pull rồi Push" làm cả hai trong một bước; menu Pull có thêm "Đồng bộ (pull rồi push)"

@@ -1,5 +1,5 @@
 <!--
-  Mục "Khoá SSH" trong Cài đặt: khoá SSH riêng của Thaigit (như agent của 1Password). Khoá bí mật do Rust giữ trong kho bí
+  Mục "Khoá SSH" trong Cài đặt: khoá SSH riêng của Gitlane (như agent của 1Password). Khoá bí mật do Rust giữ trong kho bí
   mật của hệ điều hành — webview chỉ thấy tên, khoá công khai và dấu vân tay.
 -->
 <script lang="ts">

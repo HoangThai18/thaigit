@@ -41,10 +41,10 @@ ALTS = {
         'A repo with 30,000 commits and nearly 1,100 branches and tags',
     ),
     'overview': (
-        'Thaigit: graph commit nhiều màu, sidebar nhánh và panel commit',
-        'Thaigit: a colorful commit graph, branch sidebar and commit panel',
+        'Gitlane: graph commit nhiều màu, sidebar nhánh và panel commit',
+        'Gitlane: a colorful commit graph, branch sidebar and commit panel',
     ),
-    'overview-dark': ('Thaigit giao diện tối', 'Thaigit in the dark theme'),
+    'overview-dark': ('Gitlane giao diện tối', 'Gitlane in the dark theme'),
     'switch': ('Hộp tìm và chuyển nhánh nhanh (⌘B)', 'Quick branch search and switch (⌘B)'),
     'welcome': (
         'Màn hình chào: mở, clone, tạo repository',

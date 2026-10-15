@@ -298,7 +298,7 @@ pub fn write_worktree_file(entry: &RepoEntry, rel: &str, bytes: &[u8], expected_
         (Some(_), Some(expected)) => {
             let current = std::fs::read(&path).map_err(|e| AppError::io("Đọc file hiện tại", &e))?;
             if !sha256_hex(&current).eq_ignore_ascii_case(expected.trim()) {
-                return Err(AppError::Conflict(format!("`{rel}` đã bị sửa bên ngoài Thaigit")));
+                return Err(AppError::Conflict(format!("`{rel}` đã bị sửa bên ngoài Gitlane")));
             }
         }
         (Some(_), None) => return Err(AppError::Conflict(format!("`{rel}` đã tồn tại"))),

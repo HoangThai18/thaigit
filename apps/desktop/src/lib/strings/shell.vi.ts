@@ -5,7 +5,7 @@
  * numbers or names. Wording follows the Swift app (`Sources/Nhanh`).
  */
 export const shell = {
-  appName: 'Thaigit',
+  appName: 'Gitlane',
 
   welcome: {
     accounts: 'Tài khoản GitHub / GitLab',
@@ -27,7 +27,7 @@ export const shell = {
     forget: 'Xoá khỏi danh sách',
     loadRecentFailed: 'Không đọc được danh sách repo gần đây',
     openFailed: 'Không mở được repo',
-    notInTauri: 'Đang chạy ngoài ứng dụng Thaigit (không có lõi Rust) nên chưa mở được repo.',
+    notInTauri: 'Đang chạy ngoài ứng dụng Gitlane (không có lõi Rust) nên chưa mở được repo.',
     forgetMissing: 'Xoá khỏi danh sách',
     newWindow: 'Cửa sổ mới',
     newWindowFailed: 'Không mở được cửa sổ mới',
@@ -38,7 +38,7 @@ export const shell = {
     cloneUrlPlaceholder: 'https://github.com/ten/repo.git',
     cloneHost: (host: string, path: string) => (path ? `${host} · ${path}` : host),
     cloneLocalFolder: 'thư mục trên máy',
-    cloneDangerous: 'Địa chỉ này có thể chạy lệnh trên máy nên Thaigit không clone.',
+    cloneDangerous: 'Địa chỉ này có thể chạy lệnh trên máy nên Gitlane không clone.',
     cloneInvalid: 'Chưa nhận ra địa chỉ repository.',
     cloneCredentials:
       'Địa chỉ có chứa mật khẩu / token — nó sẽ nằm nguyên trong .git/config của repo. Nên dùng địa chỉ không kèm token.',
@@ -61,7 +61,7 @@ export const shell = {
 
   trust: {
     title: 'Tin tưởng repo này?',
-    lead: 'Repo có cấu hình hoặc hook có thể chạy lệnh trên máy bạn. Thaigit chưa chạy gì cả — chỉ tiếp tục khi bạn tin nguồn của repo.',
+    lead: 'Repo có cấu hình hoặc hook có thể chạy lệnh trên máy bạn. Gitlane chưa chạy gì cả — chỉ tiếp tục khi bạn tin nguồn của repo.',
     findings: 'Đã tìm thấy',
     trust: 'Tin tưởng repo',
     cancel: 'Huỷ',
@@ -250,32 +250,32 @@ export const shell = {
     stashDetails: 'Không tải được nội dung stash',
     watch: 'Không theo dõi được thay đổi của repo (phải bấm làm mới thủ công)',
     repoMissing: 'Không tìm thấy thư mục repository',
-    repoUntrusted: 'Cấu hình repo vừa thay đổi — Thaigit tạm dừng chạy lệnh cho tới khi bạn xem lại.',
+    repoUntrusted: 'Cấu hình repo vừa thay đổi — Gitlane tạm dừng chạy lệnh cho tới khi bạn xem lại.',
     reviewTrust: 'Xem lại cấu hình repo',
     cancelled: (title: string) => `Đã huỷ: ${title}`,
     unexpectedTitle: 'Đã xảy ra lỗi',
     crashTitle: 'Màn hình này gặp lỗi',
     crashMessage:
-      'Thaigit đã dừng phần giao diện bị lỗi để không ảnh hưởng tới repository của bạn. Dữ liệu không bị thay đổi.',
+      'Gitlane đã dừng phần giao diện bị lỗi để không ảnh hưởng tới repository của bạn. Dữ liệu không bị thay đổi.',
     crashRetry: 'Thử lại',
     crashHome: 'Về màn hình chính',
     /** Friendly wording in place of raw errors (errors/friendly.ts) — never shows stderr / the original message / a stack trace. */
     friendly: {
-      unexpected: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+      unexpected: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Gitlane.',
       cancelled: 'Thao tác đã được huỷ.',
       gitFailed:
         'Git không thực hiện được thao tác này. Xem chi tiết trong “Nhật ký lệnh git” (menu Thêm ⋯).',
-      policy: 'Thaigit chặn lệnh này vì lý do an toàn.',
+      policy: 'Gitlane chặn lệnh này vì lý do an toàn.',
       notFound: 'Không tìm thấy file hoặc thư mục cần dùng — có thể nó đã bị xoá hoặc đổi tên.',
-      outOfScope: 'Đường dẫn nằm ngoài repository nên Thaigit không truy cập.',
+      outOfScope: 'Đường dẫn nằm ngoài repository nên Gitlane không truy cập.',
       conflict: 'Nội dung vừa thay đổi ở nơi khác hoặc đã tồn tại — hãy tải lại rồi thử lại.',
       busy: 'Repository đang bận với một thao tác khác — thử lại sau giây lát.',
       io: 'Không đọc / ghi được dữ liệu trên máy — kiểm tra quyền truy cập và dung lượng ổ đĩa.',
-      gitMissing: 'Không tìm thấy git trên máy — hãy cài Git (Windows: Git for Windows) rồi mở lại Thaigit.',
+      gitMissing: 'Không tìm thấy git trên máy — hãy cài Git (Windows: Git for Windows) rồi mở lại Gitlane.',
       lfsMissing: 'Máy chưa cài Git LFS — hãy cài Git LFS (git-lfs.com) rồi thử lại.',
       lfsServer: 'Máy chủ Git LFS báo lỗi hoặc thiếu file LFS — xem chi tiết trong Nhật ký lệnh git.',
       gitTooOld: 'Phiên bản git trên máy quá cũ — hãy cập nhật git.',
-      untrusted: 'Repository chưa được tin tưởng nên Thaigit không chạy lệnh này.',
+      untrusted: 'Repository chưa được tin tưởng nên Gitlane không chạy lệnh này.',
       notARepository: 'Thư mục này không phải repository git.',
       bareRepository: 'Đây là bare repository (không có working tree) nên không mở được.',
       invalidName: 'Tên không hợp lệ.',

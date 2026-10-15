@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FEEDBACK_EMAIL, feedbackBody, feedbackMailto } from '../src/lib/feedback/compose.ts';
 
 const labels = {
-  subject: (kind: 'bug' | 'idea') => (kind === 'bug' ? '[Thaigit] Báo lỗi' : '[Thaigit] Góp ý'),
+  subject: (kind: 'bug' | 'idea') => (kind === 'bug' ? '[Gitlane] Báo lỗi' : '[Gitlane] Góp ý'),
   trimmed: '(đã cắt)',
 };
 
@@ -26,7 +26,7 @@ describe('feedback mailto', () => {
     expect(trimmed).toBe(false);
     expect(decode(url)).toEqual({
       to: FEEDBACK_EMAIL,
-      subject: '[Thaigit] Báo lỗi',
+      subject: '[Gitlane] Báo lỗi',
       body: 'Bấm Push bị treo & mất nút?\n\n---\nPhiên bản: 2.6.0',
     });
     expect(url).not.toMatch(/\s/);

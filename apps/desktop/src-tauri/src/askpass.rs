@@ -367,7 +367,7 @@ pub fn ask_server(port: u16, token: &str, prompt: &str) -> Option<String> {
 /// Content of the Unix interactive askpass wrapper script.
 pub fn client_script(exe: &Path) -> String {
     let quoted = format!("'{}'", exe.to_string_lossy().replace('\'', r"'\''"));
-    format!("#!/bin/sh\n# Thaigit: hỏi tên đăng nhập / mật khẩu / passphrase trong app cho GIT_ASKPASS/SSH_ASKPASS.\nexec {quoted} {CLIENT_FLAG} \"$@\"\n")
+    format!("#!/bin/sh\n# Gitlane: hỏi tên đăng nhập / mật khẩu / passphrase trong app cho GIT_ASKPASS/SSH_ASKPASS.\nexec {quoted} {CLIENT_FLAG} \"$@\"\n")
 }
 
 /// The program for `<askpass>`: on Unix the wrapper script in the data directory; on Windows the app's own exe.
@@ -400,7 +400,7 @@ fn write_program(data_dir: &Path, name: &str, script: &str, exe: &Path) -> Optio
 pub fn wrapper_script(exe: &Path) -> String {
     let quoted = format!("'{}'", exe.to_string_lossy().replace('\'', r"'\''"));
     format!(
-        "#!/bin/sh\n# Thaigit: trả lời \"từ chối\" cho GIT_ASKPASS/SSH_ASKPASS của lệnh chạy nền (không bao giờ bật hộp thoại).\n[ -x {quoted} ] && exec {quoted} {DENY_FLAG}\nexit 1\n"
+        "#!/bin/sh\n# Gitlane: trả lời \"từ chối\" cho GIT_ASKPASS/SSH_ASKPASS của lệnh chạy nền (không bao giờ bật hộp thoại).\n[ -x {quoted} ] && exec {quoted} {DENY_FLAG}\nexit 1\n"
     )
 }
 
@@ -551,16 +551,16 @@ mod tests {
 
     #[test]
     fn client_script_execs_the_app_with_the_flag() {
-        let script = client_script(Path::new("/Applications/Thaigit's App.app/Contents/MacOS/thaigit"));
+        let script = client_script(Path::new("/Applications/Gitlane's App.app/Contents/MacOS/thaigit"));
         assert!(script.starts_with("#!/bin/sh\n"));
-        assert!(script.trim_end().ends_with(r#"'/Applications/Thaigit'\''s App.app/Contents/MacOS/thaigit' --askpass "$@""#), "{script}");
+        assert!(script.trim_end().ends_with(r#"'/Applications/Gitlane'\''s App.app/Contents/MacOS/thaigit' --askpass "$@""#), "{script}");
     }
 
     #[test]
     fn wrapper_script_quotes_the_executable_path() {
-        let script = wrapper_script(Path::new("/Applications/Thaigit's App.app/Contents/MacOS/thaigit"));
+        let script = wrapper_script(Path::new("/Applications/Gitlane's App.app/Contents/MacOS/thaigit"));
         assert!(script.starts_with("#!/bin/sh\n"));
-        assert!(script.contains(r"'/Applications/Thaigit'\''s App.app/Contents/MacOS/thaigit' --askpass-deny"));
+        assert!(script.contains(r"'/Applications/Gitlane'\''s App.app/Contents/MacOS/thaigit' --askpass-deny"));
         assert!(script.trim_end().ends_with("exit 1"));
     }
 

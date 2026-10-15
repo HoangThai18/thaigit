@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::accounts::{Provider, provider_for, valid_host};
 use crate::errors::{AppError, Result};
 
-const USER_AGENT: &str = concat!("Thaigit/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!("Gitlane/", env!("CARGO_PKG_VERSION"));
 const MAX_ITEMS: usize = 200;
 const REQUEST_TIMEOUT_S: u64 = 30;
 

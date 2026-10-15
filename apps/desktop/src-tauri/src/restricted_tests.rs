@@ -275,7 +275,7 @@ async fn credential_helpers_are_reset_and_askpass_is_blanked() {
     let opened = fx.open().await;
     assert_eq!(opened.trust, "unknown");
     let query = "protocol=https\nhost=example.com\n\n";
-    // the interactive profile: without Thaigit's GIT_ASKPASS the repo's `core.askpass` would be used, unless it is overridden
+    // the interactive profile: without Gitlane's GIT_ASKPASS the repo's `core.askpass` would be used, unless it is overridden
     let out = fx.internal(&opened, "credential", &["fill"], EnvProfile::Interactive, Some(query)).await;
     assert!(out.exit.is_some());
     assert!(!fx.ran("cred"), "credential.helper của repo lạ bị đặt lại");

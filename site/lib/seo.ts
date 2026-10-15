@@ -3,8 +3,8 @@ import { alternatesFor, OG_LOCALE, type Lang } from './i18n';
 import { SITE, SITE_TEXT } from './site';
 
 const OG_ALT: Record<Lang, string> = {
-  vi: 'Thaigit — Git client trực quan, miễn phí cho macOS và Windows: kéo thả để merge, stage từng dòng, giải conflict vài cú bấm',
-  en: 'Thaigit — a free, visual Git client for macOS and Windows: drag & drop to merge, stage lines, resolve conflicts in a few clicks',
+  vi: 'Gitlane — Git client trực quan, miễn phí cho macOS và Windows: kéo thả để merge, stage từng dòng, giải conflict vài cú bấm',
+  en: 'Gitlane — a free, visual Git client for macOS and Windows: drag & drop to merge, stage lines, resolve conflicts in a few clicks',
 };
 
 const ogImage = (lang: Lang) => ({ url: `/og/${lang}.png`, width: 1200, height: 630, alt: OG_ALT[lang] });
@@ -22,7 +22,7 @@ export function rootMetadata(lang: Lang): Metadata {
   const text = SITE_TEXT[lang];
   return {
     metadataBase: new URL(SITE.url),
-    title: { default: text.title, template: '%s · Thaigit' },
+    title: { default: text.title, template: '%s · Gitlane' },
     description: text.description,
     applicationName: SITE.name,
     keywords: text.keywords,

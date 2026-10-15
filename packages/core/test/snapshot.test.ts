@@ -116,7 +116,7 @@ describe('SnapshotStore.take', () => {
 });
 
 describe('SnapshotStore.list / changes', () => {
-  it('bỏ qua mục reflog không phải snapshot của Thaigit nhưng giữ đúng chỉ số reflog', () =>
+  it('bỏ qua mục reflog không phải snapshot của Gitlane nhưng giữ đúng chỉ số reflog', () =>
     withTestRepo(async (t) => {
       await seeded(t);
       const store = new SnapshotStore(t.repo);

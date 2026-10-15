@@ -6,7 +6,7 @@ CI đã tự kiểm trên `windows-latest` và `macos-15` mỗi lần push: ki�
 
 ## 1. Cài đặt và cập nhật
 
-- [ ] Tải `Thaigit-Windows-setup.exe` từ trang chủ → SmartScreen cảnh báo (chưa ký) → *More info → Run anyway* → cài cho người dùng hiện tại, không hỏi quyền admin.
+- [ ] Tải `Gitlane-Windows-setup.exe` từ trang chủ → SmartScreen cảnh báo (chưa ký) → *More info → Run anyway* → cài cho người dùng hiện tại, không hỏi quyền admin.
 - [ ] Mở từ Start menu; gỡ cài đặt từ *Settings → Apps* sạch sẽ.
 - [ ] Có bản mới trên kênh Beta → thanh cập nhật hiện trong ≤ 20 giây sau khi mở → *Cập nhật ngay* → tải, kiểm chữ ký, cài (NSIS passive) → app tự mở lại đúng phiên bản mới.
 - [ ] Đang có lệnh git chạy (vd. push lớn) thì cài cập nhật phải đợi lệnh xong.
@@ -16,7 +16,7 @@ CI đã tự kiểm trên `windows-latest` và `macos-15` mỗi lần push: ki�
 ## 2. Đăng nhập remote
 
 - [ ] HTTPS tới GitHub với Git Credential Manager (mặc định của Git for Windows): fetch / pull / push, cửa sổ đăng nhập của GCM hiện ra và lần sau không hỏi lại.
-- [ ] Remote HTTPS không có GCM (`git config --global --unset credential.helper`): app tự hỏi tên đăng nhập / mật khẩu trong hộp thoại của Thaigit (askpass), Huỷ được.
+- [ ] Remote HTTPS không có GCM (`git config --global --unset credential.helper`): app tự hỏi tên đăng nhập / mật khẩu trong hộp thoại của Gitlane (askpass), Huỷ được.
 - [ ] SSH có passphrase: hỏi passphrase trong app; khoá không passphrase chạy thẳng.
 - [ ] Sai mật khẩu / token hết hạn: chỉ hiện câu "Remote từ chối đăng nhập…", không hiện stderr.
 
@@ -44,7 +44,7 @@ CI đã tự kiểm trên `windows-latest` và `macos-15` mỗi lần push: ki�
 
 ## 5. Quyền riêng tư
 
-- [ ] Mở lần đầu: thẻ "Giúp Thaigit tốt hơn?" — chọn *Không, cảm ơn* thì không có request nào tới `/v1/telemetry/ping` (kiểm bằng Fiddler / trang admin không tăng DAU).
+- [ ] Mở lần đầu: thẻ "Giúp Gitlane tốt hơn?" — chọn *Không, cảm ơn* thì không có request nào tới `/v1/telemetry/ping` (kiểm bằng Fiddler / trang admin không tăng DAU).
 - [ ] Bật thống kê → trang admin có thêm 1 máy trong ngày; mở lại app cùng ngày không tăng.
 - [ ] Nhật ký lệnh git (menu Thêm) không chứa token / mật khẩu.
 

@@ -86,7 +86,7 @@ impl Terminals {
         command.env("PATH", &path_env);
         command.env("TERM", "xterm-256color");
         command.env("COLORTERM", "truecolor");
-        command.env("TERM_PROGRAM", "Thaigit");
+        command.env("TERM_PROGRAM", "Gitlane");
         let child = pair.slave.spawn_command(command).map_err(unavailable)?;
         drop(pair.slave);
         let killer = child.clone_killer();

@@ -2,7 +2,7 @@ import type { Lang } from './i18n';
 
 const vi = {
   skip: 'Bỏ qua tới nội dung',
-  brandAria: 'Thaigit — trang chủ',
+  brandAria: 'Gitlane — trang chủ',
   navAria: 'Mục chính',
   nav: { features: 'Tính năng', guides: 'Hướng dẫn', download: 'Tải về', faq: 'Hỏi đáp' },
   headerDownload: 'Tải về',
@@ -11,15 +11,15 @@ const vi = {
   footer: {
     tagline: 'Git client trực quan, miễn phí.',
     disclaimer:
-      'Thaigit là dự án độc lập. Git và tên các sản phẩm khác được nhắc tới là nhãn hiệu của chủ sở hữu tương ứng.',
+      'Gitlane là dự án độc lập. Git và tên các sản phẩm khác được nhắc tới là nhãn hiệu của chủ sở hữu tương ứng.',
     aria: 'Liên kết cuối trang',
-    mac: 'Thaigit cho macOS',
-    windows: 'Thaigit cho Windows',
+    mac: 'Gitlane cho macOS',
+    windows: 'Gitlane cho Windows',
     guides: 'Hướng dẫn Git',
     changelog: 'Nhật ký thay đổi',
     privacy: 'Quyền riêng tư',
     feedback: 'Góp ý & báo lỗi',
-    feedbackSubject: 'Góp ý Thaigit',
+    feedbackSubject: 'Góp ý Gitlane',
   },
   download: {
     mac: 'Tải cho macOS',
@@ -27,7 +27,7 @@ const vi = {
     version: (version: string, size: string) => `Phiên bản ${version} · ${size}`,
     win: 'Tải cho Windows',
     winSub: 'Windows 10 / 11 · miễn phí',
-    winTitle: 'Thaigit cho Windows 10 / 11',
+    winTitle: 'Gitlane cho Windows 10 / 11',
     free: 'Tải miễn phí',
     noRelease: 'Bản phát hành đầu tiên đang được chuẩn bị.',
     released: 'Phát hành',
@@ -35,7 +35,7 @@ const vi = {
   },
   cta: {
     title: 'Làm việc với Git nhẹ nhàng hơn',
-    text: 'Thaigit — Git client trực quan, miễn phí cho macOS và Windows.',
+    text: 'Gitlane — Git client trực quan, miễn phí cho macOS và Windows.',
   },
   copy: { idle: 'Chép', done: 'Đã chép', failed: 'Hãy chép tay' },
   crumbs: { home: 'Trang chủ', aria: 'Vị trí trang' },
@@ -63,7 +63,7 @@ const vi = {
 
 const en: typeof vi = {
   skip: 'Skip to content',
-  brandAria: 'Thaigit — home',
+  brandAria: 'Gitlane — home',
   navAria: 'Main',
   nav: { features: 'Features', guides: 'Guides', download: 'Download', faq: 'FAQ' },
   headerDownload: 'Download',
@@ -72,15 +72,15 @@ const en: typeof vi = {
   footer: {
     tagline: 'A visual Git client, free.',
     disclaimer:
-      'Thaigit is an independent project. Git and other product names mentioned are trademarks of their respective owners.',
+      'Gitlane is an independent project. Git and other product names mentioned are trademarks of their respective owners.',
     aria: 'Footer links',
-    mac: 'Thaigit for macOS',
-    windows: 'Thaigit for Windows',
+    mac: 'Gitlane for macOS',
+    windows: 'Gitlane for Windows',
     guides: 'Git guides',
     changelog: 'Changelog',
     privacy: 'Privacy',
     feedback: 'Feedback & bug reports',
-    feedbackSubject: 'Thaigit feedback',
+    feedbackSubject: 'Gitlane feedback',
   },
   download: {
     mac: 'Download for macOS',
@@ -88,7 +88,7 @@ const en: typeof vi = {
     version: (version: string, size: string) => `Version ${version} · ${size}`,
     win: 'Download for Windows',
     winSub: 'Windows 10 / 11 · free',
-    winTitle: 'Thaigit for Windows 10 / 11',
+    winTitle: 'Gitlane for Windows 10 / 11',
     free: 'Download free',
     noRelease: 'The first release is being prepared.',
     released: 'Released',
@@ -96,7 +96,7 @@ const en: typeof vi = {
   },
   cta: {
     title: 'Make Git a little easier today',
-    text: 'Thaigit — a visual Git client, free for macOS and Windows.',
+    text: 'Gitlane — a visual Git client, free for macOS and Windows.',
   },
   copy: { idle: 'Copy', done: 'Copied', failed: 'Copy by hand' },
   crumbs: { home: 'Home', aria: 'Breadcrumb' },

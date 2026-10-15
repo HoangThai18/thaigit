@@ -35,8 +35,8 @@ const VI: Texts = Texts {
     pick_folder: "Chọn thư mục",
     pick_git: "Chọn chương trình git",
     pick_ssh_key: "Chọn khoá SSH bí mật",
-    safe_mode_title: "Thaigit — chế độ an toàn",
-    safe_mode_message: "Thaigit đã không khởi động được vài lần liên tiếp. Thaigit đang kiểm tra bản sửa lỗi — nếu có, thanh cập \
+    safe_mode_title: "Gitlane — chế độ an toàn",
+    safe_mode_message: "Gitlane đã không khởi động được vài lần liên tiếp. Gitlane đang kiểm tra bản sửa lỗi — nếu có, thanh cập \
                         nhật sẽ hiện ở đầu cửa sổ. Bạn vẫn dùng tiếp được.",
 };
 
@@ -44,8 +44,8 @@ const EN: Texts = Texts {
     pick_folder: "Choose Folder",
     pick_git: "Choose the Git executable",
     pick_ssh_key: "Choose a Private SSH Key",
-    safe_mode_title: "Thaigit — safe mode",
-    safe_mode_message: "Thaigit failed to start several times in a row. It is checking for a fix — if there is one, the update \
+    safe_mode_title: "Gitlane — safe mode",
+    safe_mode_message: "Gitlane failed to start several times in a row. It is checking for a fix — if there is one, the update \
                         bar will appear at the top of the window. You can keep using the app.",
 };
 

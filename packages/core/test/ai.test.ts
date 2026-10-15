@@ -80,7 +80,7 @@ describe('buildDiffContext (git thật)', () => {
       await t.write('src/app.ts', `${numberedLines(30).join('\n')}\n`);
       await t.commitAll('init');
       const lines = numberedLines(30);
-      lines[2] = 'export const title = "Thaigit — xin chào";';
+      lines[2] = 'export const title = "Gitlane — xin chào";';
       lines[25] = `const leaked = "ghp_${'x9Y8'.repeat(9)}";`;
       await t.write('src/app.ts', `${lines.join('\n')}\n`);
       await t.write('.env', 'SECRET=abc\n');
@@ -97,7 +97,7 @@ describe('buildDiffContext (git thật)', () => {
       expect(sent).not.toContain('AKIA');
       expect(sent).not.toContain('không gửi');
       expect(sent).not.toContain('lockfileVersion');
-      expect(sent).toContain('Thaigit — xin chào');
+      expect(sent).toContain('Gitlane — xin chào');
       expect(context.files.map((file) => file.path)).toEqual(['src/app.ts']);
       expect(context.files[0]?.truncated).toBe(true);
       const reasons = Object.fromEntries(context.skipped.map((file) => [file.path, file.reason]));

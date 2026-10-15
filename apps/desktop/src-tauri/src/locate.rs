@@ -112,7 +112,7 @@ pub fn check_floor(version: &GitVersion) -> FloorCheck {
     if check.below_floor {
         let minimum = check.minimum.clone().unwrap_or_default();
         check.warning = Some(format!(
-            "Git {} chưa có bản vá bảo mật clone/checkout (cần ≥ {minimum}). Thaigit chặn clone/fetch/pull cho tới khi bạn cập nhật git.",
+            "Git {} chưa có bản vá bảo mật clone/checkout (cần ≥ {minimum}). Gitlane chặn clone/fetch/pull cho tới khi bạn cập nhật git.",
             version.dotted()
         ));
     } else if let Some(build) = version.windows_build
@@ -349,7 +349,7 @@ impl Locator {
     pub fn current(&self) -> Result<Arc<GitInfo>> {
         self.read().info.clone().ok_or_else(|| {
             AppError::GitMissing(
-                "Không tìm thấy git. Hãy cài git (macOS: `xcode-select --install` hoặc `brew install git`; Windows: Git for Windows) rồi mở lại Thaigit.".into(),
+                "Không tìm thấy git. Hãy cài git (macOS: `xcode-select --install` hoặc `brew install git`; Windows: Git for Windows) rồi mở lại Gitlane.".into(),
             )
         })
     }
@@ -452,7 +452,7 @@ impl Locator {
                 };
                 if !allowed {
                     return Err(AppError::policy(
-                        "đường dẫn git phải là một ứng viên Thaigit tìm thấy hoặc chọn bằng hộp thoại hệ thống",
+                        "đường dẫn git phải là một ứng viên Gitlane tìm thấy hoặc chọn bằng hộp thoại hệ thống",
                     ));
                 }
                 Some(path)

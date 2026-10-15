@@ -52,7 +52,7 @@ export const FEATURES: Record<Lang, Feature[]> = {
       id: 'chuyen-nhanh',
       tag: '⌘B',
       title: 'Tìm & chuyển nhánh trong một giây',
-      text: 'Nhấn ⌘B, gõ vài chữ, ↑↓ để chọn, Enter để checkout. Đang có thay đổi chưa commit? Thaigit đề xuất “Stash rồi checkout”.',
+      text: 'Nhấn ⌘B, gõ vài chữ, ↑↓ để chọn, Enter để checkout. Đang có thay đổi chưa commit? Gitlane đề xuất “Stash rồi checkout”.',
       points: [
         '15 nhánh dùng gần đây ngay trên thanh công cụ',
         'Nhấp đúp nhánh ở sidebar để checkout',
@@ -114,7 +114,7 @@ export const FEATURES: Record<Lang, Feature[]> = {
       id: 'switch-branch',
       tag: '⌘B',
       title: 'Find and switch branches in a second',
-      text: 'Press ⌘B, type a few letters, ↑↓ to choose, Enter to checkout. Uncommitted changes? Thaigit offers “Stash and checkout”.',
+      text: 'Press ⌘B, type a few letters, ↑↓ to choose, Enter to checkout. Uncommitted changes? Gitlane offers “Stash and checkout”.',
       points: [
         'The 15 most recent branches sit right on the toolbar',
         'Double-click a branch in the sidebar to check it out',
@@ -232,34 +232,34 @@ export const FAQ: Record<Lang, HomeFaq[]> = {
   vi: [
     {
       id: 'free',
-      q: 'Thaigit có miễn phí không?',
-      a: ['Có. Thaigit miễn phí, không quảng cáo, không cần tài khoản, không giới hạn repo riêng tư.'],
+      q: 'Gitlane có miễn phí không?',
+      a: ['Có. Gitlane miễn phí, không quảng cáo, không cần tài khoản, không giới hạn repo riêng tư.'],
     },
     {
       id: 'different',
-      q: 'Thaigit khác các Git client khác ở điểm nào?',
+      q: 'Gitlane khác các Git client khác ở điểm nào?',
       a: [
-        'Thaigit tập trung vào cách làm trực quan — graph nhiều màu, kéo & thả để merge / rebase / push — mà vẫn miễn phí, nhẹ (app native) và có giao diện tiếng Việt. Các thao tác thường ngày cần ít bước và luôn có nút hoàn tác.',
+        'Gitlane tập trung vào cách làm trực quan — graph nhiều màu, kéo & thả để merge / rebase / push — mà vẫn miễn phí, nhẹ (app native) và có giao diện tiếng Việt. Các thao tác thường ngày cần ít bước và luôn có nút hoàn tác.',
       ],
     },
     {
       id: 'privacy',
       q: 'Code của tôi có bị gửi đi đâu không?',
       a: [
-        'Không. Thaigit chạy git ngay trên máy bạn. App chỉ hỏi GitHub Releases để kiểm tra bản cập nhật và không gửi thông tin gì về máy hay repo của bạn.',
+        'Không. Gitlane chạy git ngay trên máy bạn. App chỉ hỏi GitHub Releases để kiểm tra bản cập nhật và không gửi thông tin gì về máy hay repo của bạn.',
       ],
     },
     {
       id: 'mac-blocked',
-      q: 'Vì sao macOS báo không mở được Thaigit?',
+      q: 'Vì sao macOS báo không mở được Gitlane?',
       a: [
-        'Thaigit chưa được ký bằng Apple Developer ID nên lần đầu macOS có thể chặn. Vào Cài đặt hệ thống → Quyền riêng tư & Bảo mật → bấm “Vẫn mở”.',
-        'Hoặc chạy trong Terminal: xattr -dr com.apple.quarantine /Applications/Thaigit.app',
+        'Gitlane chưa được ký bằng Apple Developer ID nên lần đầu macOS có thể chặn. Vào Cài đặt hệ thống → Quyền riêng tư & Bảo mật → bấm “Vẫn mở”.',
+        'Hoặc chạy trong Terminal: xattr -dr com.apple.quarantine /Applications/Gitlane.app',
       ],
     },
     {
       id: 'intel',
-      q: 'Thaigit có chạy trên Mac Intel không?',
+      q: 'Gitlane có chạy trên Mac Intel không?',
       a: [
         'Bản tải sẵn được build cho Mac chip Apple (M1 trở lên). Mac Intel có thể build từ mã nguồn bằng Xcode hoặc Command Line Tools. Bản đa nền tảng sắp tới hỗ trợ cả hai.',
       ],
@@ -268,15 +268,15 @@ export const FAQ: Record<Lang, HomeFaq[]> = {
       id: 'windows',
       q: 'Có bản Windows chưa?',
       a: [
-        'Có. Thaigit cho Windows 10 / 11 (xây dựng trên Tauri 2): graph, stage từng dòng, commit, fetch / pull / push, merge, rebase, cherry-pick, giải conflict trong app; tự cập nhật.',
+        'Có. Gitlane cho Windows 10 / 11 (xây dựng trên Tauri 2): graph, stage từng dòng, commit, fetch / pull / push, merge, rebase, cherry-pick, giải conflict trong app; tự cập nhật.',
         'Cần cài Git for Windows trước. Bản cài chưa ký số nên lần đầu SmartScreen có thể cảnh báo — bấm “More info” → “Run anyway”.',
       ],
     },
     {
       id: 'update',
-      q: 'Cập nhật Thaigit thế nào?',
+      q: 'Cập nhật Gitlane thế nào?',
       a: [
-        'Tự động: khi app đang mở, cứ mỗi giờ và mỗi lần bạn quay lại cửa sổ app, Thaigit kiểm tra bản mới. Có bản mới thì hiện thông báo — bấm Cài đặt là app tải, kiểm chữ ký rồi mở lại ở bản mới.',
+        'Tự động: khi app đang mở, cứ mỗi giờ và mỗi lần bạn quay lại cửa sổ app, Gitlane kiểm tra bản mới. Có bản mới thì hiện thông báo — bấm Cài đặt là app tải, kiểm chữ ký rồi mở lại ở bản mới.',
       ],
     },
     {
@@ -290,34 +290,34 @@ export const FAQ: Record<Lang, HomeFaq[]> = {
   en: [
     {
       id: 'free',
-      q: 'Is Thaigit free?',
-      a: ['Yes. Thaigit is free, with no ads, no account needed and no limit on private repositories.'],
+      q: 'Is Gitlane free?',
+      a: ['Yes. Gitlane is free, with no ads, no account needed and no limit on private repositories.'],
     },
     {
       id: 'different',
-      q: 'How is Thaigit different from other Git clients?',
+      q: 'How is Gitlane different from other Git clients?',
       a: [
-        'Thaigit is built around doing things visually — a colorful graph, drag & drop to merge / rebase / push — while staying free, light (a native app) and with a Vietnamese interface (Vietnamese and English on Windows). Everyday actions take few steps and always come with an Undo button.',
+        'Gitlane is built around doing things visually — a colorful graph, drag & drop to merge / rebase / push — while staying free, light (a native app) and with a Vietnamese interface (Vietnamese and English on Windows). Everyday actions take few steps and always come with an Undo button.',
       ],
     },
     {
       id: 'privacy',
       q: 'Does my code get sent anywhere?',
       a: [
-        'No. Thaigit runs git right on your machine. The app only asks GitHub Releases whether an update exists and sends nothing about your computer or your repositories.',
+        'No. Gitlane runs git right on your machine. The app only asks GitHub Releases whether an update exists and sends nothing about your computer or your repositories.',
       ],
     },
     {
       id: 'mac-blocked',
-      q: 'Why does macOS say it can’t open Thaigit?',
+      q: 'Why does macOS say it can’t open Gitlane?',
       a: [
-        'Thaigit is not yet signed with an Apple Developer ID, so macOS may block it the first time. Open System Settings → Privacy & Security and click “Open Anyway”.',
-        'Or run this in Terminal: xattr -dr com.apple.quarantine /Applications/Thaigit.app',
+        'Gitlane is not yet signed with an Apple Developer ID, so macOS may block it the first time. Open System Settings → Privacy & Security and click “Open Anyway”.',
+        'Or run this in Terminal: xattr -dr com.apple.quarantine /Applications/Gitlane.app',
       ],
     },
     {
       id: 'intel',
-      q: 'Does Thaigit run on Intel Macs?',
+      q: 'Does Gitlane run on Intel Macs?',
       a: [
         'The ready-made download is built for Apple-silicon Macs (M1 or later). On an Intel Mac you can build from source with Xcode or the Command Line Tools. The upcoming cross-platform build will support both.',
       ],
@@ -326,13 +326,13 @@ export const FAQ: Record<Lang, HomeFaq[]> = {
       id: 'windows',
       q: 'Is there a Windows version?',
       a: [
-        'Yes. Thaigit for Windows 10 / 11 (built on Tauri 2) has the graph, line-by-line staging, commit, fetch / pull / push, merge, rebase, cherry-pick and in-app conflict resolution, and it updates itself.',
+        'Yes. Gitlane for Windows 10 / 11 (built on Tauri 2) has the graph, line-by-line staging, commit, fetch / pull / push, merge, rebase, cherry-pick and in-app conflict resolution, and it updates itself.',
         'Git for Windows must be installed first. The installer is not code-signed yet, so SmartScreen may warn you the first time — click “More info” → “Run anyway”.',
       ],
     },
     {
       id: 'update',
-      q: 'How do I update Thaigit?',
+      q: 'How do I update Gitlane?',
       a: [
         'Automatically: while the app is open it checks every hour and whenever you come back to its window. When a new version is out you get a notification — click Install and the app downloads it, verifies the signature and reopens on the new version.',
       ],

@@ -1,4 +1,4 @@
-// The Git repository and every operation Thaigit performs on it (port of GitRepository.swift). Each method runs one or
+// The Git repository and every operation Gitlane performs on it (port of GitRepository.swift). Each method runs one or
 // a few `git` commands through `Exec`; all file I/O goes through `RepoFs`. Diff/patch parsing does NOT happen here
 // (see the `diff/` module): diff methods return raw bytes and the staging code consumes byte patches. `exec` (main
 // thread) and parsing (worker) are separated: e.g. `logBytes()` returns bytes and `parseLog()` is pure.
@@ -78,7 +78,7 @@ function repositoryErrorMessage(kind: RepositoryErrorKind, subject: string): str
     case 'notARepository':
       return `“${subject}” không phải là một Git repository.`;
     case 'bareRepository':
-      return `“${subject}” là bare repository (không có working tree) — Thaigit chưa hỗ trợ loại này.`;
+      return `“${subject}” là bare repository (không có working tree) — Gitlane chưa hỗ trợ loại này.`;
     case 'invalidName':
       return `Tên “${subject}” không hợp lệ.`;
   }

@@ -7,11 +7,11 @@ const files = (count: number): string => `${count} ${count === 1 ? 'file' : 'fil
 export const snapshots: Translation<typeof source> = {
   title: 'Timeline',
   open: 'Timeline…',
-  openHint: 'Snapshots Thaigit saves of your working folder — go back when something breaks',
+  openHint: 'Snapshots Gitlane saves of your working folder — go back when something breaks',
   close: 'Close timeline',
   intro:
-    'Thaigit saves your working folder whenever files change, including uncommitted ones. Pick a snapshot to see how it differs from now, then restore.',
-  empty: 'No snapshots yet. Thaigit saves one when files in this repo change.',
+    'Gitlane saves your working folder whenever files change, including uncommitted ones. Pick a snapshot to see how it differs from now, then restore.',
+  empty: 'No snapshots yet. Gitlane saves one when files in this repo change.',
   loading: 'Reading the timeline…',
   loadFailed: 'Couldn’t read the timeline',
   takeNow: 'Save a snapshot now',
@@ -35,7 +35,7 @@ export const snapshots: Translation<typeof source> = {
   restoreAll: 'Restore everything to this snapshot',
   restoreConfirmTitle: (count: number) => `Restore ${files(count)} to this snapshot?`,
   restoreConfirmMessage:
-    'Your current working folder is saved as a snapshot before anything is overwritten, so you can undo. Files created after this snapshot are moved to Thaigit’s trash. Staged changes stay as they are.',
+    'Your current working folder is saved as a snapshot before anything is overwritten, so you can undo. Files created after this snapshot are moved to Gitlane’s trash. Staged changes stay as they are.',
   restoreConfirm: 'Restore',
   restoreTitle: 'Restore from timeline',
   restored: (count: number) => `Restored ${files(count)}`,
@@ -45,7 +45,7 @@ export const snapshots: Translation<typeof source> = {
   undone: 'Your working folder is back to how it was before the restore',
 
   firstNotice:
-    'Thaigit will save your working folder when files change so you can go back if your code breaks (Timeline, in the changes panel). Snapshots stay on your computer.',
+    'Gitlane will save your working folder when files change so you can go back if your code breaks (Timeline, in the changes panel). Snapshots stay on your computer.',
 
   settingsTitle: 'Timeline',
   settingsEnabled: 'Save the working folder automatically when files change',

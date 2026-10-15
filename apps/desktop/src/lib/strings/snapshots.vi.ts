@@ -4,11 +4,11 @@
 export const snapshots = {
   title: 'Dòng thời gian',
   open: 'Dòng thời gian…',
-  openHint: 'Các bản Thaigit tự lưu thư mục làm việc — quay lại khi có gì hỏng',
+  openHint: 'Các bản Gitlane tự lưu thư mục làm việc — quay lại khi có gì hỏng',
   close: 'Đóng dòng thời gian',
   intro:
-    'Thaigit tự lưu thư mục làm việc mỗi khi file thay đổi, kể cả file chưa commit. Chọn một mốc để xem khác gì so với bây giờ rồi khôi phục.',
-  empty: 'Chưa có mốc nào. Thaigit sẽ tự lưu khi file trong repo thay đổi.',
+    'Gitlane tự lưu thư mục làm việc mỗi khi file thay đổi, kể cả file chưa commit. Chọn một mốc để xem khác gì so với bây giờ rồi khôi phục.',
+  empty: 'Chưa có mốc nào. Gitlane sẽ tự lưu khi file trong repo thay đổi.',
   loading: 'Đang đọc dòng thời gian…',
   loadFailed: 'Không đọc được dòng thời gian',
   takeNow: 'Lưu mốc ngay',
@@ -33,7 +33,7 @@ export const snapshots = {
   restoreConfirmTitle: (count: number) =>
     count === 1 ? 'Khôi phục 1 file về mốc này?' : `Khôi phục ${count} file về mốc này?`,
   restoreConfirmMessage:
-    'Thư mục làm việc hiện tại được lưu thành một mốc trước khi ghi đè nên bạn hoàn tác được. File tạo sau mốc này được dời vào thùng rác của Thaigit. Phần đã stage không đổi.',
+    'Thư mục làm việc hiện tại được lưu thành một mốc trước khi ghi đè nên bạn hoàn tác được. File tạo sau mốc này được dời vào thùng rác của Gitlane. Phần đã stage không đổi.',
   restoreConfirm: 'Khôi phục',
   restoreTitle: 'Khôi phục từ dòng thời gian',
   restored: (count: number) => `Đã khôi phục ${count} file`,
@@ -43,7 +43,7 @@ export const snapshots = {
   undone: 'Đã đưa thư mục làm việc về như trước khi khôi phục',
 
   firstNotice:
-    'Thaigit sẽ tự lưu thư mục làm việc khi file thay đổi để bạn quay lại được nếu code bị hỏng (Dòng thời gian, ở panel thay đổi). Mốc chỉ lưu trên máy bạn.',
+    'Gitlane sẽ tự lưu thư mục làm việc khi file thay đổi để bạn quay lại được nếu code bị hỏng (Dòng thời gian, ở panel thay đổi). Mốc chỉ lưu trên máy bạn.',
 
   settingsTitle: 'Dòng thời gian',
   settingsEnabled: 'Tự lưu thư mục làm việc khi file thay đổi',

@@ -5,7 +5,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Cách giải quyết conflict (xung đột) trong Git — dễ hiểu cho người mới',
     short: 'Giải conflict Git',
     description:
-      'Conflict Git là gì, vì sao xảy ra khi merge / rebase / pull, đọc các dấu <<<<<<< ======= >>>>>>> thế nào và cách giải quyết bằng lệnh hoặc bằng vài cú bấm trong Thaigit.',
+      'Conflict Git là gì, vì sao xảy ra khi merge / rebase / pull, đọc các dấu <<<<<<< ======= >>>>>>> thế nào và cách giải quyết bằng lệnh hoặc bằng vài cú bấm trong Gitlane.',
     intro: [
       'Conflict (xung đột) xảy ra khi hai nhánh cùng sửa một chỗ trong một file và Git không tự quyết được giữ bản nào. Chuyện này rất bình thường khi làm việc nhóm — không có gì hỏng cả, Git chỉ đang chờ bạn chọn.',
     ],
@@ -51,9 +51,9 @@ export const GUIDES_VI: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Giải conflict bằng Thaigit',
+        heading: 'Giải conflict bằng Gitlane',
         paragraphs: [
-          'Thaigit hiện banner cho biết đang merge, rebase hay cherry-pick, kèm danh sách file xung đột. Bấm vào file để mở trình giải xung đột: mỗi khối được tách riêng, không cần tự xoá dấu.',
+          'Gitlane hiện banner cho biết đang merge, rebase hay cherry-pick, kèm danh sách file xung đột. Bấm vào file để mở trình giải xung đột: mỗi khối được tách riêng, không cần tự xoá dấu.',
         ],
         steps: [
           'Với mỗi khối, chọn Giữ Current, Giữ Incoming hoặc giữ cả hai.',
@@ -76,7 +76,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
       {
         q: 'Giải conflict sai thì sửa lại được không?',
         a: [
-          'Được. Nếu chưa commit, chạy git merge --abort (hoặc bấm Huỷ trong Thaigit) để làm lại từ đầu. Nếu đã commit, bấm Hoàn tác trong Thaigit hoặc dùng git reset để quay lại.',
+          'Được. Nếu chưa commit, chạy git merge --abort (hoặc bấm Huỷ trong Gitlane) để làm lại từ đầu. Nếu đã commit, bấm Hoàn tác trong Gitlane hoặc dùng git reset để quay lại.',
         ],
       },
       {
@@ -91,7 +91,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Stage từng dòng trong Git (thay cho git add -p) — commit gọn, đúng ý',
     short: 'Stage từng dòng',
     description:
-      'Cách chỉ đưa một phần thay đổi của file vào commit: git add -p trên dòng lệnh và cách chọn từng dòng để Stage / Huỷ trong Thaigit.',
+      'Cách chỉ đưa một phần thay đổi của file vào commit: git add -p trên dòng lệnh và cách chọn từng dòng để Stage / Huỷ trong Gitlane.',
     intro: [
       'Bạn sửa một file cho hai việc khác nhau — sửa lỗi và thêm tính năng — nhưng muốn tách thành hai commit riêng. Lúc đó cần stage từng phần (từng hunk hoặc từng dòng) thay vì cả file.',
     ],
@@ -118,7 +118,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
         ],
       },
       {
-        heading: 'Stage từng dòng trong Thaigit',
+        heading: 'Stage từng dòng trong Gitlane',
         steps: [
           'Chọn file trong mục “Chưa stage” để xem diff.',
           'Bấm vào một dòng để chọn, Shift + bấm để chọn cả đoạn liên tiếp.',
@@ -127,7 +127,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
         ],
         shot: 'diff-lines',
         paragraphs: [
-          'Lỡ huỷ nhầm? Bấm Hoàn tác ngay sau đó. Thaigit giữ nguyên từng byte của file (kể cả xuống dòng CRLF hay file không phải UTF-8) khi stage một phần.',
+          'Lỡ huỷ nhầm? Bấm Hoàn tác ngay sau đó. Gitlane giữ nguyên từng byte của file (kể cả xuống dòng CRLF hay file không phải UTF-8) khi stage một phần.',
         ],
       },
     ],
@@ -144,7 +144,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Cách hoàn tác (undo) commit trong Git: reset, revert, amend',
     short: 'Hoàn tác commit',
     description:
-      'Lỡ commit sai, commit nhầm file hay sai message? So sánh git reset, git revert, git commit --amend — khi nào dùng cái nào — và cách hoàn tác bằng một nút trong Thaigit.',
+      'Lỡ commit sai, commit nhầm file hay sai message? So sánh git reset, git revert, git commit --amend — khi nào dùng cái nào — và cách hoàn tác bằng một nút trong Gitlane.',
     intro: [
       'Commit nhầm là chuyện thường gặp. Cách sửa đúng phụ thuộc vào một câu hỏi: commit đó đã push lên remote chưa?',
     ],
@@ -179,7 +179,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
         code: ['git reflog', 'git reset --hard HEAD@{1}'],
       },
       {
-        heading: 'Hoàn tác trong Thaigit',
+        heading: 'Hoàn tác trong Gitlane',
         steps: [
           'Ngay sau khi commit, checkout, pull, merge, rebase, reset, xoá nhánh hay huỷ thay đổi, bấm nút Hoàn tác trên thanh công cụ để quay về trạng thái trước đó.',
           'Sửa commit cuối: bật “Sửa commit trước (amend)” ở ô commit, sửa message hoặc stage thêm file rồi commit lại.',
@@ -212,7 +212,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Git merge và rebase khác nhau thế nào? Khi nào dùng cái nào',
     short: 'Merge hay rebase',
     description:
-      'Giải thích dễ hiểu git merge và git rebase, ưu nhược điểm, quy tắc vàng khi rebase, và cách merge / rebase bằng kéo & thả trong Thaigit.',
+      'Giải thích dễ hiểu git merge và git rebase, ưu nhược điểm, quy tắc vàng khi rebase, và cách merge / rebase bằng kéo & thả trong Gitlane.',
     intro: [
       'Cả merge và rebase đều đưa thay đổi từ nhánh này sang nhánh khác. Khác nhau ở chỗ lịch sử sau đó trông thế nào.',
     ],
@@ -243,10 +243,10 @@ export const GUIDES_VI: Record<string, GuideText> = {
         note: { kind: 'warn', text: 'Rebase viết lại lịch sử. Chỉ rebase những commit chưa ai khác lấy về.' },
       },
       {
-        heading: 'Merge / rebase bằng kéo & thả trong Thaigit',
+        heading: 'Merge / rebase bằng kéo & thả trong Gitlane',
         steps: [
           'Kéo nhãn nhánh trên graph (hoặc ở sidebar) rồi thả lên nhánh đích.',
-          'Thaigit hỏi bạn muốn merge, rebase hay fast-forward — không có gì chạy ngầm ngoài ý muốn.',
+          'Gitlane hỏi bạn muốn merge, rebase hay fast-forward — không có gì chạy ngầm ngoài ý muốn.',
           'Nếu có conflict, trình giải xung đột mở ra ngay (xem bài Giải conflict Git).',
           'Đổi ý? Bấm Hoàn tác merge / Hoàn tác rebase.',
         ],
@@ -275,7 +275,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Git stash là gì? Cất tạm thay đổi để chuyển nhánh',
     short: 'Git stash',
     description:
-      'Dùng git stash để cất tạm code đang làm dở khi cần chuyển nhánh gấp: stash, stash pop, apply, list, drop — và cách làm bằng một nút trong Thaigit.',
+      'Dùng git stash để cất tạm code đang làm dở khi cần chuyển nhánh gấp: stash, stash pop, apply, list, drop — và cách làm bằng một nút trong Gitlane.',
     intro: [
       'Đang code dở thì cần sửa gấp một lỗi trên nhánh khác? Chưa muốn commit nửa vời — hãy stash: Git cất tạm thay đổi vào một ngăn riêng, thư mục làm việc trở lại sạch sẽ.',
     ],
@@ -298,10 +298,10 @@ export const GUIDES_VI: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Stash trong Thaigit',
+        heading: 'Stash trong Gitlane',
         steps: [
           'Bấm Stash trên thanh công cụ để cất mọi thay đổi chưa commit, hoặc chọn “Stash kèm message…” để đặt tên dễ nhớ.',
-          'Khi chuyển nhánh mà đang có thay đổi, Thaigit đề xuất “Stash rồi checkout” — một bước là xong.',
+          'Khi chuyển nhánh mà đang có thay đổi, Gitlane đề xuất “Stash rồi checkout” — một bước là xong.',
           'Các stash nằm ở sidebar: Apply stash để lấy lại, Xoá stash khi không cần nữa. Lỡ xoá? Bấm Hoàn tác.',
         ],
         shot: 'switch',
@@ -349,7 +349,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
         heading: 'Git Bash là gì?',
         paragraphs: [
           'Git Bash được cài kèm Git for Windows: một cửa sổ dòng lệnh giống terminal Linux / macOS, có sẵn git, ls, cat, ssh-keygen… Nhiều hướng dẫn trên mạng viết lệnh cho Bash, nên dùng Git Bash sẽ chạy được y nguyên.',
-          'Không thích gõ lệnh? Bạn không bắt buộc phải mở Git Bash — Git GUI như Thaigit dùng Git đã cài và cho bạn làm mọi việc bằng chuột.',
+          'Không thích gõ lệnh? Bạn không bắt buộc phải mở Git Bash — Git GUI như Gitlane dùng Git đã cài và cho bạn làm mọi việc bằng chuột.',
         ],
       },
       {
@@ -375,9 +375,9 @@ export const GUIDES_VI: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Bắt đầu với Thaigit',
+        heading: 'Bắt đầu với Gitlane',
         steps: [
-          'Tải Thaigit cho macOS hoặc Windows (miễn phí, không cần tài khoản).',
+          'Tải Gitlane cho macOS hoặc Windows (miễn phí, không cần tài khoản).',
           'Ở màn hình chào, chọn mở thư mục có sẵn, clone từ GitHub / GitLab, hoặc tạo repository mới.',
           'Graph lịch sử hiện ngay — từ đây commit, pull, push bằng nút bấm.',
         ],
@@ -407,7 +407,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Git cherry-pick là gì? Lấy đúng một commit sang nhánh khác',
     short: 'Git cherry-pick',
     description:
-      'Dùng git cherry-pick để chép riêng một hoặc vài commit sang nhánh khác mà không merge cả nhánh. Cách dùng, xử lý conflict, và cherry-pick bằng chuột phải trong Thaigit.',
+      'Dùng git cherry-pick để chép riêng một hoặc vài commit sang nhánh khác mà không merge cả nhánh. Cách dùng, xử lý conflict, và cherry-pick bằng chuột phải trong Gitlane.',
     intro: [
       'Bạn sửa một lỗi trên nhánh tính năng, nhưng bản vá đó cần có ngay trên nhánh chính. Merge cả nhánh thì chưa được vì tính năng chưa xong — lúc này dùng cherry-pick: chép đúng commit đó sang nhánh khác.',
     ],
@@ -448,10 +448,10 @@ export const GUIDES_VI: Record<string, GuideText> = {
         ],
       },
       {
-        heading: 'Cherry-pick trong Thaigit',
+        heading: 'Cherry-pick trong Gitlane',
         steps: [
           'Chuột phải vào commit trên graph, chọn Cherry-pick vào <nhánh>.',
-          'Thaigit chạy và báo kết quả. Nếu có conflict, banner “Đang cherry-pick” hiện ra cùng trình giải xung đột (xem bài Giải conflict Git).',
+          'Gitlane chạy và báo kết quả. Nếu có conflict, banner “Đang cherry-pick” hiện ra cùng trình giải xung đột (xem bài Giải conflict Git).',
           'Chọn nhầm commit? Bấm Hoàn tác cherry-pick.',
         ],
         shot: 'overview',
@@ -470,7 +470,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: '.gitignore là gì? Cách bỏ qua file không muốn đưa lên Git',
     short: 'File .gitignore',
     description:
-      'Cách dùng .gitignore để Git không theo dõi file rác, file build, file bí mật (.env). Cú pháp cơ bản, xử lý file lỡ commit, và thêm nhanh vào .gitignore bằng Thaigit.',
+      'Cách dùng .gitignore để Git không theo dõi file rác, file build, file bí mật (.env). Cú pháp cơ bản, xử lý file lỡ commit, và thêm nhanh vào .gitignore bằng Gitlane.',
     intro: [
       'Không phải file nào trong thư mục dự án cũng nên vào Git: thư mục node_modules, file build, file cấu hình có mật khẩu (.env), file hệ thống như .DS_Store… File .gitignore cho Git biết những thứ cần bỏ qua.',
     ],
@@ -511,10 +511,10 @@ export const GUIDES_VI: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Thêm vào .gitignore bằng Thaigit',
+        heading: 'Thêm vào .gitignore bằng Gitlane',
         steps: [
           'Trong danh sách “Chưa stage”, chuột phải vào file hoặc thư mục cần bỏ qua.',
-          'Chọn “Thêm vào .gitignore”. Thaigit ghi mẫu phù hợp vào file .gitignore và báo lại đã thêm gì.',
+          'Chọn “Thêm vào .gitignore”. Gitlane ghi mẫu phù hợp vào file .gitignore và báo lại đã thêm gì.',
           'File biến khỏi danh sách thay đổi; chỉ cần commit file .gitignore.',
         ],
         shot: 'diff-lines',
@@ -539,7 +539,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'git fetch và git pull khác nhau thế nào? Nên dùng cái nào',
     short: 'Fetch và pull',
     description:
-      'So sánh git fetch và git pull, pull merge hay pull rebase, khi nào dùng fast-forward only, và cách chọn kiểu pull trong Thaigit.',
+      'So sánh git fetch và git pull, pull merge hay pull rebase, khi nào dùng fast-forward only, và cách chọn kiểu pull trong Gitlane.',
     intro: [
       'Cả hai đều lấy thay đổi từ remote về máy. Khác nhau ở chỗ có tự động đưa thay đổi vào nhánh của bạn hay không.',
     ],
@@ -572,9 +572,9 @@ export const GUIDES_VI: Record<string, GuideText> = {
         note: { kind: 'tip', text: 'Không chắc thì cứ fetch trước — fetch không bao giờ gây conflict.' },
       },
       {
-        heading: 'Fetch và pull trong Thaigit',
+        heading: 'Fetch và pull trong Gitlane',
         steps: [
-          'Bấm Fetch trên thanh công cụ để cập nhật mọi remote; Thaigit cũng tự fetch định kỳ.',
+          'Bấm Fetch trên thanh công cụ để cập nhật mọi remote; Gitlane cũng tự fetch định kỳ.',
           'Bấm Pull để kéo về nhánh hiện tại. Mũi tên nhỏ cạnh nút cho chọn Pull (merge), Pull (rebase) hoặc Pull (chỉ fast-forward).',
           'Muốn nút Pull luôn dùng một kiểu: chọn ở mục “Nút Pull dùng” trong Cài đặt.',
           'Pull xong thấy không ổn? Bấm Hoàn tác pull.',
@@ -595,7 +595,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Git tag là gì? Đánh dấu phiên bản phát hành cho dự án',
     short: 'Git tag',
     description:
-      'Git tag dùng để đánh dấu một commit quan trọng như phiên bản v1.0. Phân biệt lightweight và annotated tag, cách tạo, push, xoá tag, và tạo tag bằng chuột phải trong Thaigit.',
+      'Git tag dùng để đánh dấu một commit quan trọng như phiên bản v1.0. Phân biệt lightweight và annotated tag, cách tạo, push, xoá tag, và tạo tag bằng chuột phải trong Gitlane.',
     intro: [
       'Nhánh luôn di chuyển theo commit mới, còn tag thì đứng yên. Vì vậy tag hợp để đánh dấu những điểm cần nhớ lâu dài — điển hình là các phiên bản phát hành như v1.0.0.',
     ],
@@ -623,7 +623,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
         ],
       },
       {
-        heading: 'Tạo tag trong Thaigit',
+        heading: 'Tạo tag trong Gitlane',
         steps: [
           'Chuột phải vào commit trên graph, chọn “Tạo tag tại đây…”.',
           'Nhập tên tag. Điền thêm message nếu muốn tạo annotated tag.',
@@ -650,7 +650,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Tạo khoá SSH để dùng GitHub, GitLab không cần nhập mật khẩu',
     short: 'Khoá SSH GitHub',
     description:
-      'Cách tạo khoá SSH (ed25519), thêm khoá công khai lên GitHub / GitLab và clone repo bằng git@github.com. Làm bằng dòng lệnh hoặc tạo khoá ngay trong Thaigit.',
+      'Cách tạo khoá SSH (ed25519), thêm khoá công khai lên GitHub / GitLab và clone repo bằng git@github.com. Làm bằng dòng lệnh hoặc tạo khoá ngay trong Gitlane.',
     intro: [
       'Mỗi lần push lên GitHub mà phải gõ lại mật khẩu hay token rất phiền. Khoá SSH giải quyết việc này: bạn tạo một cặp khoá, đưa nửa công khai lên GitHub, và máy tự chứng minh danh tính mỗi lần kết nối.',
       'Lưu ý: GitHub không còn nhận mật khẩu tài khoản khi dùng Git qua HTTPS — bạn cần dùng khoá SSH hoặc Personal access token.',
@@ -684,12 +684,12 @@ export const GUIDES_VI: Record<string, GuideText> = {
         code: ['ssh -T git@github.com', 'git clone git@github.com:ten-ban/du-an.git'],
       },
       {
-        heading: 'Tạo khoá ngay trong Thaigit',
+        heading: 'Tạo khoá ngay trong Gitlane',
         steps: [
           'Mở Cài đặt → Khoá SSH, bấm “Tạo khoá mới” và đặt tên theo máy.',
           'Bấm “Sao chép khoá công khai”, dán lên GitHub / GitLab như bước trên.',
           'Từ đó clone, fetch, push repo dạng git@github.com:… mà không cần cấu hình ssh-agent hay thư mục .ssh.',
-          'Không dùng khoá nữa? Xoá khoá trong Thaigit và nhớ gỡ khoá công khai trên GitHub / GitLab.',
+          'Không dùng khoá nữa? Xoá khoá trong Gitlane và nhớ gỡ khoá công khai trên GitHub / GitLab.',
         ],
         shot: 'welcome',
       },
@@ -713,7 +713,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Top phần mềm Git GUI miễn phí tốt nhất 2026 cho Windows và macOS',
     short: 'Phần mềm Git GUI',
     description:
-      'So sánh các phần mềm Git GUI (Git client có giao diện) phổ biến nhất 2026: Thaigit, GitHub Desktop, Sourcetree, GitKraken, Fork, TortoiseGit — giá, hệ điều hành và nên chọn cái nào.',
+      'So sánh các phần mềm Git GUI (Git client có giao diện) phổ biến nhất 2026: Gitlane, GitHub Desktop, Sourcetree, GitKraken, Fork, TortoiseGit — giá, hệ điều hành và nên chọn cái nào.',
     intro: [
       'Phần mềm Git GUI (còn gọi là Git client) giúp bạn dùng Git bằng chuột thay vì gõ lệnh: xem lịch sử commit dạng graph, commit, tạo nhánh, merge, pull, push chỉ bằng nút bấm. Bài này so sánh các phần mềm Git GUI phổ biến nhất hiện nay để bạn chọn đúng cái hợp với mình.',
       'Giá và tính năng của các app có thể thay đổi theo thời gian — trước khi mua, hãy xem lại trang chủ của từng app.',
@@ -732,7 +732,7 @@ export const GUIDES_VI: Record<string, GuideText> = {
           head: ['Phần mềm', 'Giá', 'Hệ điều hành', 'Hợp với'],
           rows: [
             [
-              'Thaigit',
+              'Gitlane',
               'Miễn phí, không cần tài khoản',
               'Windows 10 / 11, macOS 11+',
               'Muốn làm Git bằng chuột, kéo & thả, giao diện tiếng Việt',
@@ -767,9 +767,9 @@ export const GUIDES_VI: Record<string, GuideText> = {
         },
       },
       {
-        heading: 'Thaigit — miễn phí, kéo & thả, giao diện tiếng Việt',
+        heading: 'Gitlane — miễn phí, kéo & thả, giao diện tiếng Việt',
         paragraphs: [
-          'Thaigit là Git GUI miễn phí cho Windows và macOS, không quảng cáo, không cần tài khoản và không giới hạn repo riêng tư. Đây là một trong số ít Git client có giao diện tiếng Việt (có cả tiếng Anh).',
+          'Gitlane là Git GUI miễn phí cho Windows và macOS, không quảng cáo, không cần tài khoản và không giới hạn repo riêng tư. Đây là một trong số ít Git client có giao diện tiếng Việt (có cả tiếng Anh).',
           'Điểm khác biệt là cách làm bằng chuột: kéo nhánh thả lên nhánh khác để merge hoặc rebase, kéo nhánh lên remote để push, bấm chọn từng dòng để stage, và giải conflict bằng vài cú bấm thay vì tự xoá dấu <<<<<<<. Graph lịch sử nhiều màu, mở repo 30.000 commit trong khoảng một giây, app tự cập nhật.',
         ],
         shot: 'drag',
@@ -805,9 +805,9 @@ export const GUIDES_VI: Record<string, GuideText> = {
       {
         heading: 'Nên chọn phần mềm Git GUI nào?',
         steps: [
-          'Mới học Git, muốn miễn phí hoàn toàn và có tiếng Việt: Thaigit.',
-          'Làm việc với repo riêng tư mà không muốn trả phí: Thaigit, GitHub Desktop hoặc Sourcetree.',
-          'Chỉ dùng GitHub và cần thật đơn giản: GitHub Desktop hoặc Thaigit.',
+          'Mới học Git, muốn miễn phí hoàn toàn và có tiếng Việt: Gitlane.',
+          'Làm việc với repo riêng tư mà không muốn trả phí: Gitlane, GitHub Desktop hoặc Sourcetree.',
+          'Chỉ dùng GitHub và cần thật đơn giản: GitHub Desktop hoặc Gitlane.',
           'Cần chạy trên Linux: GitKraken, SmartGit hoặc git-gui.',
           'Cần tích hợp issue, pull request, Jira ngay trong app: GitKraken.',
         ],
@@ -821,31 +821,31 @@ export const GUIDES_VI: Record<string, GuideText> = {
       {
         q: 'Phần mềm Git GUI miễn phí nào tốt nhất?',
         a: [
-          'Tuỳ nhu cầu. Muốn miễn phí hoàn toàn (kể cả repo riêng tư), không cần tài khoản và có giao diện tiếng Việt thì chọn Thaigit. Chỉ làm việc với GitHub và cần thật đơn giản thì GitHub Desktop cũng là lựa chọn tốt.',
+          'Tuỳ nhu cầu. Muốn miễn phí hoàn toàn (kể cả repo riêng tư), không cần tài khoản và có giao diện tiếng Việt thì chọn Gitlane. Chỉ làm việc với GitHub và cần thật đơn giản thì GitHub Desktop cũng là lựa chọn tốt.',
         ],
       },
       {
         q: 'Có phần mềm Git GUI tiếng Việt không?',
         a: [
-          'Có. Thaigit có giao diện tiếng Việt và tiếng Anh, chạy trên Windows 10 / 11 và macOS 11 trở lên.',
+          'Có. Gitlane có giao diện tiếng Việt và tiếng Anh, chạy trên Windows 10 / 11 và macOS 11 trở lên.',
         ],
       },
       {
         q: 'Dùng Git GUI có cần biết lệnh Git không?',
         a: [
-          'Không bắt buộc — các việc thường ngày đều có nút bấm. Nhưng hiểu commit, nhánh, merge là gì sẽ giúp bạn dùng tự tin hơn; các bài hướng dẫn của Thaigit giải thích từng khái niệm kèm lệnh tương ứng.',
+          'Không bắt buộc — các việc thường ngày đều có nút bấm. Nhưng hiểu commit, nhánh, merge là gì sẽ giúp bạn dùng tự tin hơn; các bài hướng dẫn của Gitlane giải thích từng khái niệm kèm lệnh tương ứng.',
         ],
       },
       {
         q: 'Git GUI có làm khác đi repo so với dùng lệnh không?',
         a: [
-          'Không. Thaigit gọi thẳng git trên máy bạn, nên kết quả giống hệt khi gõ lệnh trong terminal — chỉ dễ nhìn và dễ bấm hơn.',
+          'Không. Gitlane gọi thẳng git trên máy bạn, nên kết quả giống hệt khi gõ lệnh trong terminal — chỉ dễ nhìn và dễ bấm hơn.',
         ],
       },
       {
         q: 'Có cần cài Git trước khi dùng Git GUI không?',
         a: [
-          'Một số app kèm sẵn Git riêng. Thaigit dùng Git đã cài trên máy: macOS chạy xcode-select --install, Windows cài Git for Windows — xem bài Cài đặt Git.',
+          'Một số app kèm sẵn Git riêng. Gitlane dùng Git đã cài trên máy: macOS chạy xcode-select --install, Windows cài Git for Windows — xem bài Cài đặt Git.',
         ],
       },
     ],
@@ -854,15 +854,15 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Phần mềm thay thế Sourcetree miễn phí cho Windows và macOS',
     short: 'Thay thế Sourcetree',
     description:
-      'Tìm phần mềm thay thế Sourcetree? So sánh Thaigit và Sourcetree: kéo & thả để merge, stage từng dòng, giải conflict, giao diện tiếng Việt — và cách chuyển sang trong một phút.',
+      'Tìm phần mềm thay thế Sourcetree? So sánh Gitlane và Sourcetree: kéo & thả để merge, stage từng dòng, giải conflict, giao diện tiếng Việt — và cách chuyển sang trong một phút.',
     intro: [
-      'Sourcetree là Git client miễn phí lâu đời của Atlassian và vẫn được nhiều người dùng. Nếu bạn thấy Sourcetree quá nhiều nút, chậm với repo lớn, hoặc chỉ muốn một giao diện tiếng Việt gọn gàng hơn, Thaigit là lựa chọn miễn phí đáng thử.',
+      'Sourcetree là Git client miễn phí lâu đời của Atlassian và vẫn được nhiều người dùng. Nếu bạn thấy Sourcetree quá nhiều nút, chậm với repo lớn, hoặc chỉ muốn một giao diện tiếng Việt gọn gàng hơn, Gitlane là lựa chọn miễn phí đáng thử.',
     ],
     sections: [
       {
-        heading: 'Thaigit và Sourcetree khác nhau thế nào?',
+        heading: 'Gitlane và Sourcetree khác nhau thế nào?',
         table: {
-          head: ['Tiêu chí', 'Thaigit', 'Sourcetree'],
+          head: ['Tiêu chí', 'Gitlane', 'Sourcetree'],
           rows: [
             ['Giá', 'Miễn phí, không quảng cáo', 'Miễn phí'],
             ['Hệ điều hành', 'Windows 10 / 11, macOS 11+', 'Windows, macOS'],
@@ -885,17 +885,17 @@ export const GUIDES_VI: Record<string, GuideText> = {
         heading: 'Vì sao nhiều người tìm cách thay Sourcetree',
         paragraphs: [
           'Sourcetree mạnh nhưng nhồi nhiều tuỳ chọn lên cùng một màn hình, người mới dễ bấm nhầm. Nhiều người dùng cũng phản ánh app chậm dần khi repo có lịch sử dài.',
-          'Thaigit đi theo hướng ngược lại: ít nút hơn, việc thường ngày làm bằng kéo & thả, mọi thao tác có hộp thoại hỏi lại và có nút hoàn tác. Repo 30.000 commit mở trong khoảng một giây.',
+          'Gitlane đi theo hướng ngược lại: ít nút hơn, việc thường ngày làm bằng kéo & thả, mọi thao tác có hộp thoại hỏi lại và có nút hoàn tác. Repo 30.000 commit mở trong khoảng một giây.',
         ],
         shot: 'drag',
       },
       {
-        heading: 'Chuyển từ Sourcetree sang Thaigit',
+        heading: 'Chuyển từ Sourcetree sang Gitlane',
         steps: [
-          'Tải Thaigit cho Windows hoặc macOS (miễn phí, không cần tài khoản).',
+          'Tải Gitlane cho Windows hoặc macOS (miễn phí, không cần tài khoản).',
           'Mở đúng thư mục repo bạn đang dùng với Sourcetree — không cần import, không mất lịch sử, nhánh hay stash.',
           'Remote, nhánh và tag hiện ra ngay trên graph và sidebar.',
-          'Thaigit dùng chính git trên máy nên khoá SSH và thông tin đăng nhập đã cấu hình cho git vẫn dùng được.',
+          'Gitlane dùng chính git trên máy nên khoá SSH và thông tin đăng nhập đã cấu hình cho git vẫn dùng được.',
         ],
         note: {
           kind: 'tip',
@@ -905,14 +905,14 @@ export const GUIDES_VI: Record<string, GuideText> = {
     ],
     faq: [
       {
-        q: 'Chuyển sang Thaigit có mất lịch sử commit không?',
+        q: 'Chuyển sang Gitlane có mất lịch sử commit không?',
         a: [
-          'Không. Lịch sử, nhánh, tag và stash nằm trong chính repo Git, Thaigit chỉ đọc và hiển thị chúng.',
+          'Không. Lịch sử, nhánh, tag và stash nằm trong chính repo Git, Gitlane chỉ đọc và hiển thị chúng.',
         ],
       },
       {
-        q: 'Thaigit có miễn phí như Sourcetree không?',
-        a: ['Có. Thaigit miễn phí, không quảng cáo, không cần tài khoản và không giới hạn repo riêng tư.'],
+        q: 'Gitlane có miễn phí như Sourcetree không?',
+        a: ['Có. Gitlane miễn phí, không quảng cáo, không cần tài khoản và không giới hạn repo riêng tư.'],
       },
     ],
   },
@@ -920,15 +920,15 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Phần mềm thay thế GitHub Desktop: có graph nhánh, kéo & thả để merge',
     short: 'Thay thế GitHub Desktop',
     description:
-      'So sánh Thaigit và GitHub Desktop: graph lịch sử nhiều màu, kéo & thả để merge / rebase / push, giải conflict ngay trong app, giao diện tiếng Việt — miễn phí cho Windows và macOS.',
+      'So sánh Gitlane và GitHub Desktop: graph lịch sử nhiều màu, kéo & thả để merge / rebase / push, giải conflict ngay trong app, giao diện tiếng Việt — miễn phí cho Windows và macOS.',
     intro: [
-      'GitHub Desktop đơn giản và miễn phí, rất hợp lúc mới học Git. Khi dự án có nhiều nhánh, bạn sẽ muốn nhìn thấy các nhánh tách ra, nhập lại thế nào và merge nhanh hơn — đó là lúc nên thử một Git GUI có graph như Thaigit.',
+      'GitHub Desktop đơn giản và miễn phí, rất hợp lúc mới học Git. Khi dự án có nhiều nhánh, bạn sẽ muốn nhìn thấy các nhánh tách ra, nhập lại thế nào và merge nhanh hơn — đó là lúc nên thử một Git GUI có graph như Gitlane.',
     ],
     sections: [
       {
-        heading: 'Thaigit và GitHub Desktop khác nhau thế nào?',
+        heading: 'Gitlane và GitHub Desktop khác nhau thế nào?',
         table: {
-          head: ['Tiêu chí', 'Thaigit', 'GitHub Desktop'],
+          head: ['Tiêu chí', 'Gitlane', 'GitHub Desktop'],
           rows: [
             ['Giá', 'Miễn phí', 'Miễn phí, mã nguồn mở'],
             ['Graph lịch sử', 'Graph nhiều màu, thấy mọi nhánh', 'Danh sách commit của nhánh hiện tại'],
@@ -947,32 +947,32 @@ export const GUIDES_VI: Record<string, GuideText> = {
       {
         heading: 'Thấy toàn cảnh nhánh bằng graph',
         paragraphs: [
-          'Graph của Thaigit vẽ mỗi nhánh một màu, nên bạn thấy ngay nhánh nào tách từ đâu, đã merge chưa, đang đứng ở commit nào. Nhấn ⌘B / Ctrl+B để tìm và chuyển nhánh trong một giây.',
+          'Graph của Gitlane vẽ mỗi nhánh một màu, nên bạn thấy ngay nhánh nào tách từ đâu, đã merge chưa, đang đứng ở commit nào. Nhấn ⌘B / Ctrl+B để tìm và chuyển nhánh trong một giây.',
         ],
         shot: 'overview-dark',
       },
       {
-        heading: 'Chuyển từ GitHub Desktop sang Thaigit',
+        heading: 'Chuyển từ GitHub Desktop sang Gitlane',
         steps: [
-          'Tải Thaigit cho Windows hoặc macOS.',
+          'Tải Gitlane cho Windows hoặc macOS.',
           'Mở thư mục repo bạn đã clone bằng GitHub Desktop — không cần clone lại.',
           'Pull, push, tạo nhánh như cũ, chỉ khác là làm được bằng kéo & thả.',
         ],
         note: {
           kind: 'tip',
-          text: 'Thaigit dùng git trên máy. Nếu trước giờ chỉ dùng GitHub Desktop, hãy cài Git (xem bài Cài đặt Git) và tạo khoá SSH hoặc token để push lên GitHub.',
+          text: 'Gitlane dùng git trên máy. Nếu trước giờ chỉ dùng GitHub Desktop, hãy cài Git (xem bài Cài đặt Git) và tạo khoá SSH hoặc token để push lên GitHub.',
         },
       },
     ],
     faq: [
       {
-        q: 'Thaigit có dùng được với GitHub không?',
+        q: 'Gitlane có dùng được với GitHub không?',
         a: [
-          'Có. Thaigit làm việc với mọi remote Git: GitHub, GitLab, Bitbucket hay máy chủ riêng của công ty.',
+          'Có. Gitlane làm việc với mọi remote Git: GitHub, GitLab, Bitbucket hay máy chủ riêng của công ty.',
         ],
       },
       {
-        q: 'Có thể dùng cả GitHub Desktop và Thaigit không?',
+        q: 'Có thể dùng cả GitHub Desktop và Gitlane không?',
         a: ['Được. Hai app cùng đọc một repo Git chuẩn, bạn dùng song song thoải mái.'],
       },
     ],
@@ -981,15 +981,15 @@ export const GUIDES_VI: Record<string, GuideText> = {
     title: 'Phần mềm thay thế GitKraken miễn phí, dùng được cả repo riêng tư',
     short: 'Thay thế GitKraken',
     description:
-      'So sánh Thaigit và GitKraken Desktop: graph nhiều màu, kéo & thả để merge — miễn phí cả với repo riêng tư, không cần tài khoản, giao diện tiếng Việt cho Windows và macOS.',
+      'So sánh Gitlane và GitKraken Desktop: graph nhiều màu, kéo & thả để merge — miễn phí cả với repo riêng tư, không cần tài khoản, giao diện tiếng Việt cho Windows và macOS.',
     intro: [
-      'GitKraken nổi tiếng với graph đẹp và kéo & thả, nhưng bản miễn phí chỉ dùng với repo cục bộ và repo công khai. Nếu bạn cần làm việc với repo riêng tư mà không muốn trả phí hằng tháng, Thaigit có cách làm tương tự và miễn phí hoàn toàn.',
+      'GitKraken nổi tiếng với graph đẹp và kéo & thả, nhưng bản miễn phí chỉ dùng với repo cục bộ và repo công khai. Nếu bạn cần làm việc với repo riêng tư mà không muốn trả phí hằng tháng, Gitlane có cách làm tương tự và miễn phí hoàn toàn.',
     ],
     sections: [
       {
-        heading: 'Thaigit và GitKraken khác nhau thế nào?',
+        heading: 'Gitlane và GitKraken khác nhau thế nào?',
         table: {
-          head: ['Tiêu chí', 'Thaigit', 'GitKraken Desktop'],
+          head: ['Tiêu chí', 'Gitlane', 'GitKraken Desktop'],
           rows: [
             [
               'Giá',
@@ -1006,26 +1006,26 @@ export const GUIDES_VI: Record<string, GuideText> = {
       {
         heading: 'Kéo & thả như GitKraken, nhưng miễn phí',
         paragraphs: [
-          'Trong Thaigit, kéo nhãn nhánh trên graph rồi thả lên nhánh khác để merge, rebase hoặc fast-forward; thả lên remote để push. Luôn có hộp thoại hỏi lại, không có gì chạy ngầm ngoài ý muốn.',
+          'Trong Gitlane, kéo nhãn nhánh trên graph rồi thả lên nhánh khác để merge, rebase hoặc fast-forward; thả lên remote để push. Luôn có hộp thoại hỏi lại, không có gì chạy ngầm ngoài ý muốn.',
         ],
         shot: 'drag',
       },
       {
         heading: 'Khi nào GitKraken vẫn hợp hơn?',
         paragraphs: [
-          'Nếu nhóm bạn cần xem issue, pull request và Jira ngay trong Git client, hoặc phải chạy trên Linux, GitKraken vẫn là lựa chọn mạnh. Còn nếu chủ yếu commit, tạo nhánh, merge và giải conflict, Thaigit đủ dùng mà không tốn phí.',
+          'Nếu nhóm bạn cần xem issue, pull request và Jira ngay trong Git client, hoặc phải chạy trên Linux, GitKraken vẫn là lựa chọn mạnh. Còn nếu chủ yếu commit, tạo nhánh, merge và giải conflict, Gitlane đủ dùng mà không tốn phí.',
         ],
       },
     ],
     faq: [
       {
-        q: 'Thaigit có giới hạn repo riêng tư không?',
+        q: 'Gitlane có giới hạn repo riêng tư không?',
         a: [
-          'Không. Thaigit miễn phí với mọi repo, riêng tư hay công khai, trên GitHub, GitLab, Bitbucket hay máy chủ riêng.',
+          'Không. Gitlane miễn phí với mọi repo, riêng tư hay công khai, trên GitHub, GitLab, Bitbucket hay máy chủ riêng.',
         ],
       },
       {
-        q: 'Có cần tạo tài khoản để dùng Thaigit không?',
+        q: 'Có cần tạo tài khoản để dùng Gitlane không?',
         a: ['Không cần. Tải về, mở repo là dùng được ngay.'],
       },
     ],

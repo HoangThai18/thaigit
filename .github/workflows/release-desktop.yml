@@ -63,11 +63,11 @@ jobs:
         run: |
           version='${{ steps.version.outputs.version }}'
           bundle=apps/desktop/src-tauri/target/release/bundle/nsis
-          exe="$bundle/Thaigit_${version}_x64-setup.exe"
+          exe="$bundle/Gitlane_${version}_x64-setup.exe"
           test -f "$exe" && test -f "$exe.sig"
           mkdir -p out
           cp "$exe" "$exe.sig" out/
-          cp "$exe" out/Thaigit-Windows-setup.exe
+          cp "$exe" out/Gitlane-Windows-setup.exe
           node -e "
             const fs = require('fs');
             const text = fs.readFileSync('apps/desktop/CHANGELOG.md', 'utf8').replace(/\r\n/g, '\n');
@@ -127,10 +127,10 @@ jobs:
           dmg=$(ls "$bundle"/dmg/*.dmg)
           test -f "$tgz" && test -f "$tgz.sig" && test -f "$dmg"
           mkdir -p out
-          cp "$tgz" "out/Thaigit_${version}_aarch64.app.tar.gz"
-          cp "$tgz.sig" "out/Thaigit_${version}_aarch64.app.tar.gz.sig"
+          cp "$tgz" "out/Gitlane_${version}_aarch64.app.tar.gz"
+          cp "$tgz.sig" "out/Gitlane_${version}_aarch64.app.tar.gz.sig"
           cp "$dmg" out/
-          cp "$dmg" out/Thaigit-macOS.dmg
+          cp "$dmg" out/Gitlane-macOS.dmg
           ls -la out
       - uses: actions/upload-artifact@v7
         with:
@@ -164,9 +164,9 @@ jobs:
           version='${{ needs.build.outputs.version }}'
           tgz=$(ls out-macos/*.app.tar.gz)
           node scripts/desktop-latest-json.mjs "$version" "$GITHUB_REF_NAME" apps/desktop/CHANGELOG.md \
-            --windows "out/Thaigit_${version}_x64-setup.exe" "out/Thaigit_${version}_x64-setup.exe.sig" \
+            --windows "out/Gitlane_${version}_x64-setup.exe" "out/Gitlane_${version}_x64-setup.exe.sig" \
             --darwin-aarch64 "$tgz" "$tgz.sig" > out/latest.json
-          exe="out/Thaigit_${version}_x64-setup.exe"
+          exe="out/Gitlane_${version}_x64-setup.exe"
           node -e "
             const fs = require('fs');
             const text = fs.readFileSync('apps/desktop/CHANGELOG.md', 'utf8').replace(/\r\n/g, '\n');
@@ -182,13 +182,13 @@ jobs:
           prerelease=()
           case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
           gh release create "$GITHUB_REF_NAME" \
-            --title "Thaigit cho Windows & macOS $VERSION" \
+            --title "Gitlane cho Windows & macOS $VERSION" \
             --notes-file out/notes.md \
             "${prerelease[@]}" --latest=false --verify-tag \
-            "out/Thaigit_${VERSION}_x64-setup.exe" "out/Thaigit_${VERSION}_x64-setup.exe.sig" \
-            "out-macos/Thaigit_${VERSION}_aarch64.dmg" "out-macos/Thaigit_${VERSION}_aarch64.app.tar.gz" "out-macos/Thaigit_${VERSION}_aarch64.app.tar.gz.sig" \
-            out/Thaigit-Windows-setup.exe out-macos/Thaigit-macOS.dmg out/latest.json
-          cp out-macos/Thaigit-macOS.dmg out/
+            "out/Gitlane_${VERSION}_x64-setup.exe" "out/Gitlane_${VERSION}_x64-setup.exe.sig" \
+            "out-macos/Gitlane_${VERSION}_aarch64.dmg" "out-macos/Gitlane_${VERSION}_aarch64.app.tar.gz" "out-macos/Gitlane_${VERSION}_aarch64.app.tar.gz.sig" \
+            out/Gitlane-Windows-setup.exe out-macos/Gitlane-macOS.dmg out/latest.json
+          cp out-macos/Gitlane-macOS.dmg out/
           cp out-macos/*.app.tar.gz* out/ 2>/dev/null || true
       # Release cố định của kênh phải có sẵn (tạo một lần bằng tài khoản người: token của Actions không được tạo tag mới trỏ
       # vào commit có đổi file workflow — GitHub trả 403). Ở đây chỉ thay `latest.json` + file cài.
@@ -198,14 +198,18 @@ jobs:
           case "$VERSION" in *-*) ;; *) channels+=(desktop-stable) ;; esac
           for channel in "${channels[@]}"; do
             if ! gh release view "$channel" > /dev/null 2>&1; then
-              echo "::error::Chưa có release $channel — tạo một lần bằng: gh release create $channel --latest=false --target main --title 'Thaigit cho Windows & macOS — kênh …' --notes '…'"
+              echo "::error::Chưa có release $channel — tạo một lần bằng: gh release create $channel --latest=false --target main --title 'Gitlane cho Windows & macOS — kênh …' --notes '…'"
               exit 1
             fi
-            gh release upload "$channel" out/latest.json out/Thaigit-Windows-setup.exe out/Thaigit-macOS.dmg --clobber
+            gh release upload "$channel" out/latest.json out/Gitlane-Windows-setup.exe out/Gitlane-macOS.dmg --clobber
+            # Pre-rename download links (Thaigit-*) shared around the web keep pointing at the newest installer.
+            cp out/Gitlane-Windows-setup.exe out/Thaigit-Windows-setup.exe
+            cp out/Gitlane-macOS.dmg out/Thaigit-macOS.dmg
+            gh release upload "$channel" out/Thaigit-Windows-setup.exe out/Thaigit-macOS.dmg --clobber
             # The site reads the version of the single merged download from this title.
             label='ổn định'
             [ "$channel" = desktop-beta ] && label='beta'
             gh release edit "$channel" \
-              --title "Thaigit cho Windows & macOS — kênh $label $VERSION" \
-              --notes "Release cố định của kênh $label cho Thaigit trên Windows và macOS (file cài mới nhất để tải về và dữ liệu để app tự cập nhật). Ghi chú từng phiên bản nằm ở release desktop-v<phiên bản> tương ứng."
+              --title "Gitlane cho Windows & macOS — kênh $label $VERSION" \
+              --notes "Release cố định của kênh $label cho Gitlane trên Windows và macOS (file cài mới nhất để tải về và dữ liệu để app tự cập nhật). Ghi chú từng phiên bản nằm ở release desktop-v<phiên bản> tương ứng."
           done

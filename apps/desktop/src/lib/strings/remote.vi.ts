@@ -83,7 +83,7 @@ export const remote = {
     `Ghi đè ${target} bằng bản trên máy bạn (--force-with-lease: sẽ dừng nếu remote có commit mới mà bạn chưa fetch).`,
   forcePushConfirm: 'Force push',
   publishTitle: (branch: string) => `Push nhánh ${branch} lên remote`,
-  publishMessage: 'Nhánh này chưa có upstream. Thaigit sẽ tạo nhánh trên remote và đặt làm upstream.',
+  publishMessage: 'Nhánh này chưa có upstream. Gitlane sẽ tạo nhánh trên remote và đặt làm upstream.',
   publishRemote: 'Remote',
   publishBranch: 'Tên nhánh trên remote',
   publishConfirm: 'Push',
@@ -110,7 +110,7 @@ export const remote = {
   askpassOtherLabel: 'Câu trả lời',
   askpassWaiting: (operation: string) => `${operation} đang chờ thông tin đăng nhập.`,
   askpassGithubToken: 'GitHub không nhận mật khẩu tài khoản — hãy dùng Personal access token.',
-  askpassPrivacy: 'Thaigit chỉ chuyển câu trả lời cho git, không lưu lại.',
+  askpassPrivacy: 'Gitlane chỉ chuyển câu trả lời cho git, không lưu lại.',
   askpassContinue: 'Tiếp tục',
 
   // Remote management (sidebar → REMOTE)
@@ -145,7 +145,7 @@ export const remote = {
   removeRemoteTitle: (name: string) => `Xoá remote ${name}?`,
   removeRemoteMessage: (branches: number) =>
     branches > 0
-      ? `Thaigit bỏ ${branches} nhánh remote khỏi máy bạn; các nhánh local đang theo dõi remote này không còn upstream. Repo trên máy chủ không bị đụng tới.`
+      ? `Gitlane bỏ ${branches} nhánh remote khỏi máy bạn; các nhánh local đang theo dõi remote này không còn upstream. Repo trên máy chủ không bị đụng tới.`
       : 'Repo trên máy chủ không bị đụng tới.',
   removeRemoteConfirm: 'Xoá remote',
   removeRemoteRunning: (name: string) => `Xoá remote ${name}`,

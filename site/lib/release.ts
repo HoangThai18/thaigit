@@ -29,8 +29,8 @@ interface GitHubRelease {
 }
 
 const ASSET_NAMES: Record<ReleaseOs, string> = {
-  mac: 'Thaigit-macOS.dmg',
-  win: 'Thaigit-Windows-setup.exe',
+  mac: 'Gitlane-macOS.dmg',
+  win: 'Gitlane-Windows-setup.exe',
 };
 
 const VERSION_PATTERN = /\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?/;

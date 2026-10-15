@@ -3,7 +3,7 @@ export const hooks = {
   section: 'HOOKS',
   running: 'Đang chạy',
   blocked: 'Bị chặn',
-  blockedNote: 'Repo chưa được tin cậy nên Thaigit không chạy các hook này.',
+  blockedNote: 'Repo chưa được tin cậy nên Gitlane không chạy các hook này.',
   runningNote: 'Hook chạy tự động khi bạn commit, push, checkout… ngay trong app.',
   describe: {
     'pre-commit': 'Chạy trước khi commit — thường để chạy lint / test, có thể chặn commit.',

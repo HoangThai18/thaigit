@@ -12,7 +12,7 @@ function canvasSignal(): string {
     context.fillStyle = '#f60';
     context.fillRect(100, 1, 60, 20);
     context.fillStyle = '#069';
-    context.fillText('Thaigit ✓ Tiếng Việt', 2, 15);
+    context.fillText('Gitlane ✓ Tiếng Việt', 2, 15);
     return canvas.toDataURL();
   } catch {
     return '';

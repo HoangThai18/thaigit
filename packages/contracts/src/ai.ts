@@ -1,5 +1,5 @@
 /**
- * AI contract between the app and the Thaigit server (`server/`, which forwards to a self-hosted Hermes). The app
+ * AI contract between the app and the Gitlane server (`server/`, which forwards to a self-hosted Hermes). The app
  * only sends packaged context (a filtered, secret-scanned diff plus a few recent subjects); prompts live on the
  * server, so tuning them needs no app release.
  *

@@ -31,30 +31,30 @@ const vi: PageText = {
   guides: {
     metaTitle: 'Hướng dẫn Git cho người mới — dễ hiểu, có hình',
     metaDescription:
-      'Các bài hướng dẫn Git bằng tiếng Việt: giải conflict, stage từng dòng, hoàn tác commit, merge và rebase, git stash, cherry-pick, .gitignore, SSH — kèm lệnh và cách làm trực quan bằng Thaigit.',
+      'Các bài hướng dẫn Git bằng tiếng Việt: giải conflict, stage từng dòng, hoàn tác commit, merge và rebase, git stash, cherry-pick, .gitignore, SSH — kèm lệnh và cách làm trực quan bằng Gitlane.',
     kicker: 'Hướng dẫn',
     h1: 'Hướng dẫn Git cho người mới',
-    lead: 'Những việc hay gặp khi làm việc với Git, giải thích ngắn gọn bằng tiếng Việt. Mỗi bài có lệnh git để làm trên Terminal và cách làm bằng vài cú bấm trong Thaigit.',
+    lead: 'Những việc hay gặp khi làm việc với Git, giải thích ngắn gọn bằng tiếng Việt. Mỗi bài có lệnh git để làm trên Terminal và cách làm bằng vài cú bấm trong Gitlane.',
     chips: (count) => [`${count} bài viết`, 'Có hình minh hoạ', 'Lệnh & cách bấm chuột'],
   },
   changelog: {
-    metaTitle: 'Nhật ký thay đổi — Thaigit có gì mới',
+    metaTitle: 'Nhật ký thay đổi — Gitlane có gì mới',
     metaDescription:
-      'Toàn bộ tính năng mới và sửa lỗi của Thaigit qua từng phiên bản, cho cả macOS và Windows.',
+      'Toàn bộ tính năng mới và sửa lỗi của Gitlane qua từng phiên bản, cho cả macOS và Windows.',
     h1: 'Nhật ký thay đổi',
-    lead: 'Những gì mới trong từng phiên bản Thaigit. App tự cập nhật, bạn không cần tải lại.',
+    lead: 'Những gì mới trong từng phiên bản Gitlane. App tự cập nhật, bạn không cần tải lại.',
     note: null,
   },
   privacy: {
     metaTitle: 'Quyền riêng tư',
     metaDescription:
-      'Thaigit gửi gì, khi nào và tới đâu: tự cập nhật, thống kê ẩn danh có đồng ý, trang web này.',
+      'Gitlane gửi gì, khi nào và tới đâu: tự cập nhật, thống kê ẩn danh có đồng ý, trang web này.',
     h1: 'Quyền riêng tư',
     updated: 'Cập nhật ngày 15/10/2026',
     sections: [
       {
         heading: 'Tóm tắt',
-        text: 'Thaigit chạy git ngay trên máy của bạn. Code, tên repo, đường dẫn và lịch sử commit không rời khỏi máy.',
+        text: 'Gitlane chạy git ngay trên máy của bạn. Code, tên repo, đường dẫn và lịch sử commit không rời khỏi máy.',
       },
       {
         heading: 'Tự cập nhật',
@@ -79,29 +79,29 @@ const en: PageText = {
   guides: {
     metaTitle: 'Git guides for beginners — clear and illustrated',
     metaDescription:
-      'Git guides in plain English: resolve conflicts, stage line by line, undo a commit, merge vs rebase, git stash, cherry-pick, .gitignore, SSH keys — with the commands and the point-and-click way in Thaigit.',
+      'Git guides in plain English: resolve conflicts, stage line by line, undo a commit, merge vs rebase, git stash, cherry-pick, .gitignore, SSH keys — with the commands and the point-and-click way in Gitlane.',
     kicker: 'Guides',
     h1: 'Git guides for beginners',
-    lead: 'The things you run into most often with Git, explained briefly. Each guide shows the git commands for the terminal and the few-clicks way in Thaigit.',
+    lead: 'The things you run into most often with Git, explained briefly. Each guide shows the git commands for the terminal and the few-clicks way in Gitlane.',
     chips: (count) => [`${count} guides`, 'Illustrated', 'Commands & point-and-click'],
   },
   changelog: {
-    metaTitle: 'Changelog — what’s new in Thaigit',
-    metaDescription: 'Every new feature and fix in Thaigit, version by version, for macOS and Windows.',
+    metaTitle: 'Changelog — what’s new in Gitlane',
+    metaDescription: 'Every new feature and fix in Gitlane, version by version, for macOS and Windows.',
     h1: 'Changelog',
-    lead: 'What is new in each version of Thaigit. The app updates itself, no need to download again.',
+    lead: 'What is new in each version of Gitlane. The app updates itself, no need to download again.',
     note: 'Release notes are written in Vietnamese.',
   },
   privacy: {
     metaTitle: 'Privacy',
     metaDescription:
-      'What Thaigit sends, when and where: self-updating, opt-in anonymous statistics, and this website.',
+      'What Gitlane sends, when and where: self-updating, opt-in anonymous statistics, and this website.',
     h1: 'Privacy',
     updated: 'Updated October 15, 2026',
     sections: [
       {
         heading: 'In short',
-        text: 'Thaigit runs git right on your machine. Your code, repository names, paths and commit history never leave it.',
+        text: 'Gitlane runs git right on your machine. Your code, repository names, paths and commit history never leave it.',
       },
       {
         heading: 'Self-updating',

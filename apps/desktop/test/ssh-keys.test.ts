@@ -1,4 +1,4 @@
-// Thaigit's SSH keys: the store keeps exactly the shape Rust returned, errors only show a friendly
+// Gitlane's SSH keys: the store keeps exactly the shape Rust returned, errors only show a friendly
 // sentence based on the code, cancelling the file picker is not an error, and the connection check records
 // its result per host.
 import type { SshKeyInfo, SshKeysView } from '@thaigit/contracts';

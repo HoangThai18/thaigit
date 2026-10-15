@@ -1,7 +1,7 @@
 import type { Lang } from './i18n';
 
 export const SITE = {
-  name: 'Thaigit',
+  name: 'Gitlane',
   url: 'https://git.thaipro.store',
   author: 'Phan Thái',
   email: 'phanthai18072001@gmail.com',
@@ -10,10 +10,11 @@ export const SITE = {
 
 export const SITE_TEXT: Record<Lang, { title: string; description: string; keywords: string[] }> = {
   vi: {
-    title: 'Thaigit — Phần mềm Git GUI miễn phí, trực quan cho Windows & macOS',
+    title: 'Gitlane — Phần mềm Git GUI miễn phí, trực quan cho Windows & macOS',
     description:
-      'Thaigit là phần mềm Git GUI miễn phí, giao diện tiếng Việt: graph lịch sử nhiều màu, kéo & thả để merge, rebase, push, stage từng dòng, giải conflict vài cú bấm. Tải cho Windows và macOS.',
+      'Gitlane là phần mềm Git GUI miễn phí, giao diện tiếng Việt: graph lịch sử nhiều màu, kéo & thả để merge, rebase, push, stage từng dòng, giải conflict vài cú bấm. Tải cho Windows và macOS.',
     keywords: [
+      'Gitlane',
       'Thaigit',
       'phần mềm git gui',
       'phần mềm quản lý git',
@@ -32,10 +33,11 @@ export const SITE_TEXT: Record<Lang, { title: string; description: string; keywo
     ],
   },
   en: {
-    title: 'Thaigit — a free, visual Git client for macOS & Windows',
+    title: 'Gitlane — a free, visual Git client for macOS & Windows',
     description:
-      'Thaigit is a free, visual Git GUI: a colorful commit graph, drag & drop to merge, rebase and push, line-by-line staging, and conflict resolution in a few clicks. Download for macOS and Windows.',
+      'Gitlane is a free, visual Git GUI: a colorful commit graph, drag & drop to merge, rebase and push, line-by-line staging, and conflict resolution in a few clicks. Download for macOS and Windows.',
     keywords: [
+      'Gitlane',
       'Thaigit',
       'git client',
       'git gui',

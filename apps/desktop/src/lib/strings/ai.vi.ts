@@ -34,10 +34,10 @@ export const ai = {
   consentTitle: 'Dùng AI để viết commit?',
   consentWhat: 'Gửi gì',
   consentWhatText:
-    'Các thay đổi đã stage của lần commit này, tên nhánh và tiêu đề 10 commit gần nhất (để AI viết đúng giọng của repo). Trước khi gửi, Thaigit tự bỏ file nhạy cảm (.env, khoá SSH, chứng chỉ…), lockfile, file sinh tự động, ảnh/nhị phân và mọi đoạn trông như mật khẩu, token hay khoá.',
+    'Các thay đổi đã stage của lần commit này, tên nhánh và tiêu đề 10 commit gần nhất (để AI viết đúng giọng của repo). Trước khi gửi, Gitlane tự bỏ file nhạy cảm (.env, khoá SSH, chứng chỉ…), lockfile, file sinh tự động, ảnh/nhị phân và mọi đoạn trông như mật khẩu, token hay khoá.',
   consentWhere: 'Gửi đi đâu',
   consentWhereText:
-    'Tới máy chủ Thaigit do tác giả Thaigit vận hành. Model AI (Hermes) chạy ngay trên máy chủ đó — không gửi cho bên thứ ba, không lưu nội dung. Máy chủ chỉ giữ số liệu kỹ thuật (số token, thời gian, mã lỗi) trong 30 ngày.',
+    'Tới máy chủ Gitlane do tác giả Gitlane vận hành. Model AI (Hermes) chạy ngay trên máy chủ đó — không gửi cho bên thứ ba, không lưu nội dung. Máy chủ chỉ giữ số liệu kỹ thuật (số token, thời gian, mã lỗi) trong 30 ngày.',
   consentLimits: 'Giới hạn',
   consentLimitsText:
     'Miễn phí, mỗi máy có số lượt nhất định mỗi ngày. Chỉ gửi khi bạn bấm nút AI. Tắt bất cứ lúc nào trong menu Tuỳ chọn AI.',

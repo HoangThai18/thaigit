@@ -1,5 +1,5 @@
-# Build bản cài Windows (thử nghiệm) của Thaigit đa nền tảng trên máy Windows của GitHub.
-# Tải file: tab Actions → lượt "Bản Windows" → mục Artifacts → Thaigit-Windows (trong đó có ...-setup.exe).
+# Build bản cài Windows (thử nghiệm) của Gitlane đa nền tảng trên máy Windows của GitHub.
+# Tải file: tab Actions → lượt "Bản Windows" → mục Artifacts → Gitlane-Windows (trong đó có ...-setup.exe).
 # Bản chưa ký số nên Windows SmartScreen sẽ cảnh báo lần đầu ("More info" → "Run anyway").
 name: Bản Windows
 
@@ -43,7 +43,7 @@ jobs:
         run: pnpm --filter @thaigit/desktop tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - uses: actions/upload-artifact@v7
         with:
-          name: Thaigit-Windows
+          name: Gitlane-Windows
           path: apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
           retention-days: 30

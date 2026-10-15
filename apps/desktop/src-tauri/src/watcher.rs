@@ -505,7 +505,7 @@ mod tests {
             ("sequencer/todo", Change::BOTH),
             ("BISECT_LOG", Change::BOTH),
             ("worktrees/wt/HEAD", Change::BOTH),
-            // A Thaigit snapshot (temporary index + per-worktree ref) is not a user change.
+            // A Gitlane snapshot (temporary index + per-worktree ref) is not a user change.
             ("thaigit/snapshot.index", Change::NONE),
             ("refs/worktree/thaigit/snapshots", Change::NONE),
             ("worktrees/wt/refs/worktree/thaigit/snapshots", Change::NONE),

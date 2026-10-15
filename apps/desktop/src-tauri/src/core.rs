@@ -145,7 +145,7 @@ pub struct Core {
     pub accounts: Arc<Accounts>,
     /// Credential helper answering `git credential` — present after `credential::init`; without it a network command does not use the app's tokens.
     pub credential: std::sync::OnceLock<Arc<CredentialServer>>,
-    /// Thaigit's own SSH keys (secret in the OS keystore) — loaded into a temporary ssh-agent for commands touching an SSH remote.
+    /// Gitlane's own SSH keys (secret in the OS keystore) — loaded into a temporary ssh-agent for commands touching an SSH remote.
     pub ssh_keys: Arc<crate::ssh_keys::SshKeys>,
     /// Commit-author avatars downloaded + cached on disk (shared by every repo window).
     pub avatars: Arc<crate::avatars::Avatars>,
@@ -218,6 +218,7 @@ fn check_index_file(value: &str, entry: &RepoEntry) -> Result<()> {
 }
 
 /// Service name in the OS keystore (Keychain / Credential Manager) — each entry is one account's token.
+/// Kept as the pre-rename app name: changing it would orphan every saved token.
 pub const KEYCHAIN_SERVICE: &str = "Thaigit";
 
 impl Core {
@@ -401,7 +402,7 @@ impl Core {
         (!hosts.is_empty()).then(|| server.session(hosts))
     }
 
-    /// Temporary ssh-agent for a network command touching `urls`: only built when there is an SSH remote and a Thaigit SSH key is
+    /// Temporary ssh-agent for a network command touching `urls`: only built when there is an SSH remote and a Gitlane SSH key is
     /// enabled. A failing agent (ssh-agent not found…) means the command runs as usual with the user's agent / ~/.ssh keys.
     pub async fn ssh_agent_for(&self, urls: &[String], git: &GitInfo, spec: &mut ProcessSpec) -> Option<crate::ssh_keys::SshAgent> {
         if !urls.iter().any(|url| crate::ssh_keys::is_ssh_url(url)) || !self.ssh_keys.has_keys() {
@@ -541,7 +542,7 @@ impl Core {
             return Err(if stderr.contains("not a git repository") {
                 AppError::NotFound("Thư mục này không phải repo git".into())
             } else if stderr.contains("must be run in a work tree") {
-                AppError::NotFound("Đây là repo bare — Thaigit chỉ mở repo có working tree".into())
+                AppError::NotFound("Đây là repo bare — Gitlane chỉ mở repo có working tree".into())
             } else {
                 AppError::Io(format!("Không mở được repo: {}", stderr.trim()))
             });
@@ -711,7 +712,7 @@ impl Core {
             askpass.as_ref(),
             credential.as_ref(),
         );
-        // SSH remote + Thaigit SSH key: the temporary agent lives until the command ends (drop = stop agent, remove socket).
+        // SSH remote + Gitlane SSH key: the temporary agent lives until the command ends (drop = stop agent, remove socket).
         let _ssh_agent = self.ssh_agent_for(&urls, &git, &mut spec).await;
 
         let cancel = CancelToken::new();
@@ -1379,7 +1380,7 @@ mod tests {
         for index in 0..30_000u32 {
             let message = format!("Commit số {index} — thông điệp có tiếng Việt để đo byte");
             stream.push_str(&format!(
-                "commit refs/heads/main\nmark :{mark}\ncommitter Thaigit Test <test@example.com> {time} +0000\ndata {len}\n{message}\n",
+                "commit refs/heads/main\nmark :{mark}\ncommitter Gitlane Test <test@example.com> {time} +0000\ndata {len}\n{message}\n",
                 mark = index + 1,
                 time = 1_700_000_000 + index,
                 len = message.len()

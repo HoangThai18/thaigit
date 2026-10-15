@@ -26,7 +26,7 @@ export const rebase: Translation<typeof source> = {
   cancel: 'Cancel',
 
   problemEmpty: 'There are no commits to rebase.',
-  problemMerge: 'This range contains a merge commit — Thaigit can’t interactively rebase across merges yet.',
+  problemMerge: 'This range contains a merge commit — Gitlane can’t interactively rebase across merges yet.',
   problemLeadingSquash:
     'The bottom remaining commit can’t be squashed (there’s no commit below it to combine into).',
   problemEmptyMessage: 'The new commit message can’t be empty.',

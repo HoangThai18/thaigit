@@ -35,10 +35,10 @@ export const ai: Translation<typeof source> = {
   consentTitle: 'Use AI to write commits?',
   consentWhat: 'What is sent',
   consentWhatText:
-    "The staged changes for this commit, the branch name and the subjects of the 10 most recent commits (so the AI matches the repository's style). Before sending, Thaigit removes sensitive files (.env, SSH keys, certificates…), lockfiles, generated files, images/binaries and anything that looks like a password, token or key.",
+    "The staged changes for this commit, the branch name and the subjects of the 10 most recent commits (so the AI matches the repository's style). Before sending, Gitlane removes sensitive files (.env, SSH keys, certificates…), lockfiles, generated files, images/binaries and anything that looks like a password, token or key.",
   consentWhere: 'Where it goes',
   consentWhereText:
-    "To the Thaigit server run by Thaigit's author. The AI model (Hermes) runs on that server — nothing goes to third parties and no content is stored. The server only keeps technical data (token counts, timing, error codes) for 30 days.",
+    "To the Gitlane server run by Gitlane's author. The AI model (Hermes) runs on that server — nothing goes to third parties and no content is stored. The server only keeps technical data (token counts, timing, error codes) for 30 days.",
   consentLimits: 'Limits',
   consentLimitsText:
     'Free, with a number of uses per computer per day. Only sent when you click the AI button. Turn it off any time in the AI options menu.',

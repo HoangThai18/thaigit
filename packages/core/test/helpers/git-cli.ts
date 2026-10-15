@@ -72,7 +72,7 @@ export class TempRepo {
     repo.git('init', ['-q', '-b', 'main', '--template=']);
     // Write config straight into .git/config (saves a few git spawns); a later value wins over an earlier one.
     repo.appendConfig(
-      '[user]\n\tname = Thaigit Test\n\temail = test@example.com\n[commit]\n\tgpgsign = false\n[core]\n\tsafecrlf = false\n',
+      '[user]\n\tname = Gitlane Test\n\temail = test@example.com\n[commit]\n\tgpgsign = false\n[core]\n\tsafecrlf = false\n',
     );
     if (options.autocrlf !== undefined) repo.setAutocrlf(options.autocrlf);
     return repo;

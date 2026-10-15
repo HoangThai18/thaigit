@@ -31,7 +31,7 @@ export const staging = {
       ? `Huỷ mọi thay đổi chưa stage của ${name}?`
       : `Huỷ mọi thay đổi chưa stage của ${count} file?`,
   discardConfirmMessage:
-    'Thay đổi chưa stage sẽ bị bỏ; file mới (chưa track) được dời vào thùng rác của Thaigit. Có thể bấm “Hoàn tác” ngay sau đó.',
+    'Thay đổi chưa stage sẽ bị bỏ; file mới (chưa track) được dời vào thùng rác của Gitlane. Có thể bấm “Hoàn tác” ngay sau đó.',
   discardSubmoduleMessage:
     'Submodule sẽ quay về đúng commit mà repo đang ghi nhận. Commit đang mở trong submodule không mất — vẫn còn trong lịch sử của submodule đó.',
   submoduleContentOnly: (name: string) =>

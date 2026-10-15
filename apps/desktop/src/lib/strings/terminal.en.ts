@@ -11,5 +11,5 @@ export const terminal: Translation<typeof terminalSource> = {
   closeTab: "Close tab (stops this tab's shell)",
   hide: 'Hide terminal (Ctrl+`) — running commands keep going',
   resize: 'Drag to change the terminal height',
-  unavailable: 'The terminal only runs inside the Thaigit app.',
+  unavailable: 'The terminal only runs inside the Gitlane app.',
 };

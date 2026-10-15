@@ -80,7 +80,7 @@ export const remote: Translation<typeof source> = {
   forcePushConfirm: 'Force push',
   publishTitle: (branch: string) => `Push branch ${branch} to the remote`,
   publishMessage:
-    'This branch has no upstream yet. Thaigit will create it on the remote and set it as the upstream.',
+    'This branch has no upstream yet. Gitlane will create it on the remote and set it as the upstream.',
   publishRemote: 'Remote',
   publishBranch: 'Branch name on the remote',
   publishConfirm: 'Push',
@@ -106,7 +106,7 @@ export const remote: Translation<typeof source> = {
   askpassOtherLabel: 'Answer',
   askpassWaiting: (operation: string) => `${operation} is waiting for sign-in details.`,
   askpassGithubToken: "GitHub doesn't accept account passwords — use a Personal access token.",
-  askpassPrivacy: 'Thaigit only passes your answer to git and does not store it.',
+  askpassPrivacy: 'Gitlane only passes your answer to git and does not store it.',
   askpassContinue: 'Continue',
 
   addRemote: 'Add remote…',
@@ -139,7 +139,7 @@ export const remote: Translation<typeof source> = {
   removeRemoteTitle: (name: string) => `Remove remote ${name}?`,
   removeRemoteMessage: (branches: number) =>
     branches > 0
-      ? `Thaigit removes ${branches} remote ${branches === 1 ? 'branch' : 'branches'} from your computer; local branches tracking this remote lose their upstream. The repository on the server isn’t touched.`
+      ? `Gitlane removes ${branches} remote ${branches === 1 ? 'branch' : 'branches'} from your computer; local branches tracking this remote lose their upstream. The repository on the server isn’t touched.`
       : 'The repository on the server isn’t touched.',
   removeRemoteConfirm: 'Remove remote',
   removeRemoteRunning: (name: string) => `Remove remote ${name}`,

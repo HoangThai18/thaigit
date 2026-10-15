@@ -517,7 +517,7 @@ pub async fn ssh_keys_upload(core: CoreState<'_>, id: String, host: String, logi
     let Some(token) = core.accounts.token(&host, &login) else {
         return Ok(SshUploadResult { outcome: forge::SshKeyUpload::MissingScope, page });
     };
-    let outcome = forge::add_ssh_key(&host, provider, &token, &format!("Thaigit — {}", key.name), &key.public_key).await?;
+    let outcome = forge::add_ssh_key(&host, provider, &token, &format!("Gitlane — {}", key.name), &key.public_key).await?;
     Ok(SshUploadResult { outcome, page })
 }
 
@@ -529,7 +529,7 @@ pub struct SshUploadResult {
     page: String,
 }
 
-/// `ssh -T git@<host>` with exactly Thaigit's keys (a temporary agent), asking nothing. Returns the translated greeting.
+/// `ssh -T git@<host>` with exactly Gitlane's keys (a temporary agent), asking nothing. Returns the translated greeting.
 #[tauri::command]
 pub async fn ssh_keys_test(core: CoreState<'_>, host: String) -> Result<String> {
     let host = host.trim().to_ascii_lowercase();
@@ -545,7 +545,7 @@ pub async fn ssh_keys_test(core: CoreState<'_>, host: String) -> Result<String> 
     let git_path = std::path::PathBuf::from(&git.path);
     let tool = |name: &str| {
         crate::ssh_keys::find_tool(name, &git_path, &dirs)
-            .ok_or_else(|| AppError::Io("Không chạy được ssh-agent nên chưa dùng được khoá SSH của Thaigit".into()))
+            .ok_or_else(|| AppError::Io("Không chạy được ssh-agent nên chưa dùng được khoá SSH của Gitlane".into()))
     };
     let (agent, add, ssh) = (tool("ssh-agent")?, tool("ssh-add")?, tool("ssh")?);
     let env: Vec<(std::ffi::OsString, std::ffi::OsString)> = std::env::vars_os().collect();

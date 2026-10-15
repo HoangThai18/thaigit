@@ -5,7 +5,7 @@
 
 export const accounts = {
   title: 'Tài khoản',
-  help: 'Thaigit giữ token trong kho bí mật của hệ điều hành (Keychain trên macOS, Credential Manager trên Windows) và tự dùng đúng tài khoản cho từng repo theo owner.',
+  help: 'Gitlane giữ token trong kho bí mật của hệ điều hành (Keychain trên macOS, Credential Manager trên Windows) và tự dùng đúng tài khoản cho từng repo theo owner.',
   add: 'Thêm tài khoản',
   empty: 'Chưa có tài khoản nào — thêm token để fetch / pull / push không cần hỏi lại.',
   host: 'Máy chủ',
@@ -38,7 +38,7 @@ export const accounts = {
   ownerForRepo: 'Tài khoản cho repo này',
   identity: 'Tên và email cho commit',
   identityHelp:
-    'Dùng khi bạn gán tài khoản này cho repo: Thaigit đề nghị ghi tên / email này vào cấu hình repo.',
+    'Dùng khi bạn gán tài khoản này cho repo: Gitlane đề nghị ghi tên / email này vào cấu hình repo.',
   identityName: 'Tên',
   identityEmail: 'Email',
   identitySave: 'Lưu',

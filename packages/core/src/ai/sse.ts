@@ -1,4 +1,4 @@
-// WHATWG-conformant Server-Sent Events reader (enough for both the Thaigit server and OpenAI-style APIs): lines split
+// WHATWG-conformant Server-Sent Events reader (enough for both the Gitlane server and OpenAI-style APIs): lines split
 // by CRLF/LF/CR, "event:" names the frame, several "data:" lines join with "\n", a blank line dispatches the frame,
 // and a ":" line is a comment. A network chunk can cut mid-line (or mid-CRLF), so the parser holds the partial tail
 
@@ -70,7 +70,7 @@ export class SseParser {
   }
 }
 
-/** Parse the Thaigit server's SSE body into `AiFrame`s (unknown frames are ignored). */
+/** Parse the Gitlane server's SSE body into `AiFrame`s (unknown frames are ignored). */
 export async function* readAiFrames(body: ReadableStream<Uint8Array>): AsyncGenerator<AiFrame> {
   const parser = new SseParser();
   const decoder = new TextDecoder();

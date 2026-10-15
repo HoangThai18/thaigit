@@ -106,7 +106,7 @@ export function createAdminApp(db: Db, now: () => number = Date.now): Hono {
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>Thaigit · Admin</title>
+            <title>Gitlane · Admin</title>
             <style>
               body {
                 font:
@@ -165,7 +165,7 @@ export function createAdminApp(db: Db, now: () => number = Date.now): Hono {
             </style>
           </head>
           <body>
-            <h1>Thaigit · Thống kê (${today}, giờ VN)</h1>
+            <h1>Gitlane · Thống kê (${today}, giờ VN)</h1>
             <p class="note">
               Chỉ đọc. Không lưu ID gốc hay nội dung; IP và fingerprint chỉ có ở lượt tải (xoá sau 90 ngày).
             </p>

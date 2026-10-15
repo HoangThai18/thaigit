@@ -46,54 +46,54 @@ export const PLATFORM_LABELS: Record<Lang, PlatformLabels> = {
 export const PLATFORM_TEXT: Record<'mac' | 'win', Record<Lang, PlatformText>> = {
   mac: {
     vi: {
-      metaTitle: 'Thaigit cho macOS — Git client miễn phí cho Mac',
+      metaTitle: 'Gitlane cho macOS — Git client miễn phí cho Mac',
       metaDescription:
         'Git GUI miễn phí cho Mac: nhẹ và nhanh, sáng / tối theo máy, graph nhiều màu, kéo & thả để merge / rebase / push, stage từng dòng, giải conflict vài cú bấm. macOS 11 trở lên, chip Apple.',
-      h1: 'Thaigit cho macOS — Git client miễn phí cho Mac',
+      h1: 'Gitlane cho macOS — Git client miễn phí cho Mac',
       lead: 'Cho Mac, nhẹ và nhanh, sáng / tối theo máy. Graph lịch sử nhiều màu, kéo & thả để merge, rebase hay push, stage từng dòng và giải conflict bằng vài cú bấm — miễn phí, không cần tài khoản.',
       requirements: 'macOS 11 trở lên · Mac chip Apple (M1 trở lên)',
       operatingSystem: 'macOS 11+',
       install: [
-        'Tải file Thaigit-macOS.dmg.',
-        'Mở file dmg rồi kéo Thaigit vào thư mục Applications.',
+        'Tải file Gitlane-macOS.dmg.',
+        'Mở file dmg rồi kéo Gitlane vào thư mục Applications.',
         'Lần đầu mở, nếu macOS chặn: Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Vẫn mở. Hoặc chạy lệnh dưới đây trong Terminal.',
         'Từ đó app tự cập nhật, không cần tải lại.',
       ],
-      installCode: 'xattr -dr com.apple.quarantine /Applications/Thaigit.app',
+      installCode: 'xattr -dr com.apple.quarantine /Applications/Gitlane.app',
       features: 'home',
       faqIds: ['free', 'mac-blocked', 'intel', 'update', 'requirements', 'privacy'],
     },
     en: {
-      metaTitle: 'Thaigit for macOS — a free Git client for Mac',
+      metaTitle: 'Gitlane for macOS — a free Git client for Mac',
       metaDescription:
         'A free Git GUI for Mac: light and fast, light / dark per system look, colorful graph, drag & drop to merge / rebase / push, line-by-line staging and conflict resolution in a few clicks. macOS 11 or later, Apple silicon.',
-      h1: 'Thaigit for macOS — a free Git client for Mac',
+      h1: 'Gitlane for macOS — a free Git client for Mac',
       lead: 'For Mac, light and fast, following your light / dark setting. A colorful history graph, drag & drop to merge, rebase or push, line-by-line staging and conflict resolution in a few clicks — free, no account needed.',
       requirements: 'macOS 11 or later · Apple-silicon Mac (M1 or later)',
       operatingSystem: 'macOS 11+',
       install: [
-        'Download the Thaigit-macOS.dmg file.',
-        'Open the dmg and drag Thaigit into the Applications folder.',
+        'Download the Gitlane-macOS.dmg file.',
+        'Open the dmg and drag Gitlane into the Applications folder.',
         'If macOS blocks it the first time: System Settings → Privacy & Security → Open Anyway. Or run the command below in Terminal.',
         'From then on the app updates itself, no need to download again.',
       ],
-      installCode: 'xattr -dr com.apple.quarantine /Applications/Thaigit.app',
+      installCode: 'xattr -dr com.apple.quarantine /Applications/Gitlane.app',
       features: 'home',
       faqIds: ['free', 'mac-blocked', 'intel', 'update', 'requirements', 'privacy'],
     },
   },
   win: {
     vi: {
-      metaTitle: 'Thaigit cho Windows — Git GUI miễn phí cho Windows 10 / 11',
+      metaTitle: 'Gitlane cho Windows — Git GUI miễn phí cho Windows 10 / 11',
       metaDescription:
         'Git client miễn phí, giao diện tiếng Việt cho Windows 10 / 11: graph lịch sử nhiều màu, kéo & thả để merge / rebase / push, stage từng dòng, giải conflict, rebase tương tác, nút hoàn tác. Tự cập nhật.',
-      h1: 'Thaigit cho Windows — Git GUI miễn phí, giao diện tiếng Việt',
+      h1: 'Gitlane cho Windows — Git GUI miễn phí, giao diện tiếng Việt',
       lead: 'Git client trực quan cho Windows 10 / 11: xem graph lịch sử nhiều màu, kéo & thả nhánh để merge, rebase hay push, stage từng dòng, giải conflict ngay trong app và hoàn tác thao tác lỡ tay. Miễn phí, không quảng cáo, không cần tài khoản.',
       requirements: 'Windows 10 / 11 · 64-bit',
       operatingSystem: 'Windows 10, Windows 11',
       install: [
         'Cài Git for Windows nếu máy chưa có (git-scm.com/download/win).',
-        'Tải và mở Thaigit-Windows-setup.exe để cài — không cần quyền quản trị.',
+        'Tải và mở Gitlane-Windows-setup.exe để cài — không cần quyền quản trị.',
         'Bản cài chưa ký số nên lần đầu Windows SmartScreen có thể cảnh báo: bấm More info → Run anyway.',
         'Từ đó app tự cập nhật; chọn kênh Ổn định hoặc Beta trong Cài đặt.',
       ],
@@ -118,16 +118,16 @@ export const PLATFORM_TEXT: Record<'mac' | 'win', Record<Lang, PlatformText>> = 
       faqIds: ['free', 'windows', 'update', 'privacy'],
     },
     en: {
-      metaTitle: 'Thaigit for Windows — a free Git GUI for Windows 10 / 11',
+      metaTitle: 'Gitlane for Windows — a free Git GUI for Windows 10 / 11',
       metaDescription:
         'A free Git client for Windows 10 / 11 in Vietnamese and English: colorful history graph, drag & drop to merge / rebase / push, line-by-line staging, conflict resolution, interactive rebase and Undo. Updates itself.',
-      h1: 'Thaigit for Windows — a free Git GUI',
+      h1: 'Gitlane for Windows — a free Git GUI',
       lead: 'A visual Git client for Windows 10 / 11: a colorful history graph, drag a branch onto another to merge, rebase or push, stage single lines, resolve conflicts right in the app and undo slips. Free, no ads, no account needed. The interface comes in Vietnamese and English.',
       requirements: 'Windows 10 / 11 · 64-bit',
       operatingSystem: 'Windows 10, Windows 11',
       install: [
         'Install Git for Windows if you do not have it yet (git-scm.com/download/win).',
-        'Download and open Thaigit-Windows-setup.exe to install — no admin rights needed.',
+        'Download and open Gitlane-Windows-setup.exe to install — no admin rights needed.',
         'The installer is not code-signed yet, so Windows SmartScreen may warn you the first time: click More info → Run anyway.',
         'From then on the app updates itself; pick the Stable or Beta channel in Settings.',
       ],

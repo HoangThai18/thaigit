@@ -1,5 +1,5 @@
 /*
- * Token giao diện Thaigit — cùng ngôn ngữ kính với app Swift (Theme.swift, GraphStyle.swift).
+ * Token giao diện Gitlane — cùng ngôn ngữ kính với app Swift (Theme.swift, GraphStyle.swift).
  * Lớp `no-glass` trên <html>: OS tắt trong suốt hoặc người dùng tắt kính → nền đặc, cùng màu, đủ tương phản.
  * Kính (`backdrop-filter`) CHỈ dùng cho chrome (toolbar, sidebar, inspector, popover, toast), không bao giờ phủ vùng graph/diff.
  */

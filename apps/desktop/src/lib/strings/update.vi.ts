@@ -2,7 +2,7 @@
  * Strings for automatic updates. Reached through `vi.update.*`.
  */
 export const update = {
-  available: (version: string) => `Có Thaigit ${version}`,
+  available: (version: string) => `Có Gitlane ${version}`,
   availableMessage: (current: string) => `Bạn đang dùng ${current}. Cập nhật xong app sẽ tự khởi động lại.`,
   installNow: 'Cập nhật ngay',
   later: 'Để sau',
@@ -13,9 +13,9 @@ export const update = {
   checking: 'Đang kiểm tra cập nhật…',
   upToDate: (version: string) => `Bạn đang dùng bản mới nhất (${version})`,
   checkFailed: 'Không kiểm tra được bản cập nhật',
-  installConfirmTitle: (version: string) => `Cập nhật lên Thaigit ${version}?`,
+  installConfirmTitle: (version: string) => `Cập nhật lên Gitlane ${version}?`,
   installConfirmMessage:
-    'Thaigit sẽ tải bản mới, xác minh chữ ký rồi cài và tự khởi động lại. Các repo đang mở sẽ được mở lại.',
+    'Gitlane sẽ tải bản mới, xác minh chữ ký rồi cài và tự khởi động lại. Các repo đang mở sẽ được mở lại.',
   installConfirm: 'Cập nhật & khởi động lại',
   downloading: 'Đang tải bản cập nhật',
   verifying: 'Đang xác minh chữ ký',
@@ -25,12 +25,12 @@ export const update = {
   failedHint: 'Không tải hoặc cài được bản mới — kiểm tra kết nối mạng rồi thử lại.',
   retry: 'Thử lại',
   close: 'Đóng',
-  whatsNewTip: 'Có gì mới trong Thaigit',
-  youAreOn: (version: string) => `Bạn đang dùng Thaigit ${version}`,
+  whatsNewTip: 'Có gì mới trong Gitlane',
+  youAreOn: (version: string) => `Bạn đang dùng Gitlane ${version}`,
   checkButton: 'Kiểm tra cập nhật',
   currentBadge: 'Bản bạn đang dùng',
   unreleasedBadge: 'Đang phát triển',
-  sectionTitle: (version: string) => `Thaigit ${version}`,
+  sectionTitle: (version: string) => `Gitlane ${version}`,
   notesEmptyTitle: 'Chưa có nhật ký thay đổi',
   notesEmpty: 'Bản build này không kèm nhật ký thay đổi.',
   progressBytes: (downloaded: string, total: string | null) =>

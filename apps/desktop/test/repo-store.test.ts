@@ -480,7 +480,7 @@ describe('RepoStore: toast của repo đã đóng và lỗi trùng', () => {
 
     await storeA.dispose();
     expect(toasts.items.map((toast) => toast.title)).toEqual([
-      'Cấu hình repo vừa thay đổi — Thaigit tạm dừng chạy lệnh cho tới khi bạn xem lại.',
+      'Cấu hình repo vừa thay đổi — Gitlane tạm dừng chạy lệnh cho tới khi bạn xem lại.',
       'của ứng dụng',
     ]);
     expect(toasts.items.some((toast) => toast.id === staleToast.id)).toBe(false);
@@ -521,7 +521,7 @@ describe('RepoStore: toast của repo đã đóng và lỗi trùng', () => {
     await store.start();
     await until(() => store.hasLoaded, 'nạp xong');
     expect(toasts.items.map((toast) => toast.style)).toEqual(['warning']);
-    expect(store.historyError).toBe('Repository chưa được tin tưởng nên Thaigit không chạy lệnh này.');
+    expect(store.historyError).toBe('Repository chưa được tin tưởng nên Gitlane không chạy lệnh này.');
   });
 
   it('mọi lệnh báo `not-found` (thư mục repo mất): đúng MỘT thông báo "không tìm thấy thư mục"', async () => {
@@ -549,7 +549,7 @@ describe('RepoStore: toast của repo đã đóng và lỗi trùng', () => {
     await until(() => toasts.items.some((toast) => toast.style === 'error'), 'lỗi thường');
     expect(toasts.items.find((toast) => toast.style === 'error')).toMatchObject({
       title: 'Không tải được chi tiết commit',
-      message: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+      message: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Gitlane.',
     });
   });
 });
@@ -585,7 +585,7 @@ describe('RepoStore: hàng đợi thao tác', () => {
       [
         'error',
         'Thao tác 2',
-        'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+        'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Gitlane.',
       ],
     ]);
     expect(status.mock.calls.length).toBeGreaterThanOrEqual(3);
@@ -697,7 +697,7 @@ describe('RepoStore — lõi Rust từ chối vì repo chưa được tin tưở
     const [toast] = toasts.items;
     expect(toast?.style).toBe('warning');
     expect(toast?.title).toBe(
-      'Cấu hình repo vừa thay đổi — Thaigit tạm dừng chạy lệnh cho tới khi bạn xem lại.',
+      'Cấu hình repo vừa thay đổi — Gitlane tạm dừng chạy lệnh cho tới khi bạn xem lại.',
     );
     expect(toast?.actions.map((action) => action.title)).toEqual(['Xem lại cấu hình repo']);
     toast?.actions[0]?.run();

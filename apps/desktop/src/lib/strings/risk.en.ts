@@ -6,7 +6,7 @@ const files = (count: number): string => `${count} ${count === 1 ? 'file' : 'fil
 
 export const risk: Translation<typeof source> = {
   title: 'Worth a look before you commit',
-  hint: 'Just a warning — Thaigit won’t block the commit.',
+  hint: 'Just a warning — Gitlane won’t block the commit.',
   dismiss: 'Hide this warning (it comes back when something new is flagged)',
   testsRemoved: (count: number) => `Deleted ${count} test ${count === 1 ? 'file' : 'files'}`,
   testsSkipped: (count: number) => `Tests skipped or narrowed (skip / only) in ${files(count)}`,

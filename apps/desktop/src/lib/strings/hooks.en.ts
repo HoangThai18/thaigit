@@ -5,7 +5,7 @@ export const hooks: Translation<typeof hooksSource> = {
   section: 'HOOKS',
   running: 'Active',
   blocked: 'Blocked',
-  blockedNote: 'This repo is not trusted, so Thaigit does not run these hooks.',
+  blockedNote: 'This repo is not trusted, so Gitlane does not run these hooks.',
   runningNote: 'Hooks run automatically when you commit, push, check out… inside the app.',
   describe: {
     'pre-commit': 'Runs before a commit — usually lint / tests; it can block the commit.',

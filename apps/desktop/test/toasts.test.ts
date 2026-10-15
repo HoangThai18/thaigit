@@ -15,10 +15,10 @@ describe('toastLifetimeMs', () => {
 describe('describeError', () => {
   it('không bao giờ trả message gốc của lỗi: chỉ câu thân thiện', () => {
     expect(describeError(new Error('  boom\n'))).toBe(
-      'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+      'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Gitlane.',
     );
     expect(describeError('chuỗi')).toBe(
-      'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+      'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Gitlane.',
     );
     expect(describeError(new TypeError("Cannot read properties of undefined (reading 'x')"))).not.toContain(
       'Cannot',
@@ -44,7 +44,7 @@ describe('ToastStore', () => {
     expect(store.items[0]).toMatchObject({
       style: 'error',
       title: 'hỏng',
-      message: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Thaigit.',
+      message: 'Đã xảy ra lỗi không mong muốn. Hãy thử lại; nếu vẫn lỗi, khởi động lại Gitlane.',
     });
   });
 

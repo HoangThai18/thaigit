@@ -53,7 +53,7 @@ export function toastLifetimeMs(
  * The original error only goes to the console in dev builds.
  */
 export function describeError(error: unknown): string {
-  if (import.meta.env?.DEV) console.warn('[Thaigit]', error);
+  if (import.meta.env?.DEV) console.warn('[Gitlane]', error);
   return friendlyError(error);
 }
 

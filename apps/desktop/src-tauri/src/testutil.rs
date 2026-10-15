@@ -67,7 +67,7 @@ impl TestRepo {
         std::fs::create_dir_all(&bin).unwrap();
         let repo = Self { dir, root, home, bin };
         repo.git(&["init", "-q", "-b", "main"]);
-        repo.git(&["config", "user.name", "Thaigit Test"]);
+        repo.git(&["config", "user.name", "Gitlane Test"]);
         repo.git(&["config", "user.email", "test@example.com"]);
         repo.git(&["config", "commit.gpgsign", "false"]);
         repo

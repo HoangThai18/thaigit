@@ -229,7 +229,7 @@ export async function HomePage({ lang }: { lang: Lang }) {
                   </span>
                 </li>
               </ol>
-              <CopyCode code="xattr -dr com.apple.quarantine /Applications/Thaigit.app" />
+              <CopyCode code="xattr -dr com.apple.quarantine /Applications/Gitlane.app" />
               <ReleaseDetails os="mac" initial={release} />
             </div>
           </div>

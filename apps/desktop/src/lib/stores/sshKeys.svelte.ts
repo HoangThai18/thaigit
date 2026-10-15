@@ -1,4 +1,4 @@
-// Thaigit's own SSH keys: the store holds the `SshKeysView` Rust returns (the single source of truth). A secret key never
+// Gitlane's own SSH keys: the store holds the `SshKeysView` Rust returns (the single source of truth). A secret key never
 // reaches the webview, and errors are only shown as a friendly sentence per Rust's error code.
 
 import type { SshKeysView, SshUploadResult } from '@thaigit/contracts';

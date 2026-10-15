@@ -3,7 +3,7 @@ import type { shell as source } from './shell.vi.ts';
 import type { Translation } from './types.ts';
 
 export const shell: Translation<typeof source> = {
-  appName: 'Thaigit',
+  appName: 'Gitlane',
 
   welcome: {
     accounts: 'GitHub / GitLab accounts',
@@ -25,7 +25,7 @@ export const shell: Translation<typeof source> = {
     forget: 'Remove from list',
     loadRecentFailed: "Couldn't read the recent repositories",
     openFailed: "Couldn't open the repository",
-    notInTauri: 'Running outside the Thaigit app (no Rust core), so repositories cannot be opened.',
+    notInTauri: 'Running outside the Gitlane app (no Rust core), so repositories cannot be opened.',
     forgetMissing: 'Remove from list',
     newWindow: 'New window',
     newWindowFailed: "Couldn't open a new window",
@@ -36,7 +36,7 @@ export const shell: Translation<typeof source> = {
     cloneUrlPlaceholder: 'https://github.com/name/repo.git',
     cloneHost: (host: string, path: string) => (path ? `${host} · ${path}` : host),
     cloneLocalFolder: 'local folder',
-    cloneDangerous: 'This address can run commands on your computer, so Thaigit will not clone it.',
+    cloneDangerous: 'This address can run commands on your computer, so Gitlane will not clone it.',
     cloneInvalid: 'Not a recognized repository address yet.',
     cloneCredentials:
       "The address contains a password / token — it will stay in the repository's .git/config. Prefer an address without a token.",
@@ -59,7 +59,7 @@ export const shell: Translation<typeof source> = {
 
   trust: {
     title: 'Trust this repository?',
-    lead: 'This repository has configuration or hooks that can run commands on your computer. Thaigit has not run anything yet — only continue if you trust where it came from.',
+    lead: 'This repository has configuration or hooks that can run commands on your computer. Gitlane has not run anything yet — only continue if you trust where it came from.',
     findings: 'Found',
     trust: 'Trust repository',
     cancel: 'Cancel',
@@ -252,33 +252,33 @@ export const shell: Translation<typeof source> = {
     watch: "Couldn't watch the repository for changes (refresh manually)",
     repoMissing: 'Repository folder not found',
     repoUntrusted:
-      'The repository configuration just changed — Thaigit has paused running commands until you review it.',
+      'The repository configuration just changed — Gitlane has paused running commands until you review it.',
     reviewTrust: 'Review repository configuration',
     cancelled: (title: string) => `Cancelled: ${title}`,
     unexpectedTitle: 'Something went wrong',
     crashTitle: 'This screen ran into a problem',
     crashMessage:
-      'Thaigit stopped the broken part of the interface so it cannot affect your repository. No data was changed.',
+      'Gitlane stopped the broken part of the interface so it cannot affect your repository. No data was changed.',
     crashRetry: 'Try again',
     crashHome: 'Back to the start screen',
     friendly: {
       unexpected:
-        'Something unexpected went wrong. Please try again; if it keeps happening, restart Thaigit.',
+        'Something unexpected went wrong. Please try again; if it keeps happening, restart Gitlane.',
       cancelled: 'The operation was cancelled.',
       gitFailed: 'Git could not complete this operation. See the details in “Git command log” (More ⋯ menu).',
-      policy: 'Thaigit blocked this command for safety reasons.',
+      policy: 'Gitlane blocked this command for safety reasons.',
       notFound: "The file or folder needed wasn't found — it may have been deleted or renamed.",
-      outOfScope: 'The path is outside the repository, so Thaigit will not access it.',
+      outOfScope: 'The path is outside the repository, so Gitlane will not access it.',
       conflict: 'The content just changed elsewhere or already exists — reload and try again.',
       busy: 'The repository is busy with another operation — try again in a moment.',
       io: "Couldn't read / write data on this computer — check permissions and free disk space.",
       gitMissing:
-        'Git was not found on this computer — install Git (Windows: Git for Windows) and reopen Thaigit.',
+        'Git was not found on this computer — install Git (Windows: Git for Windows) and reopen Gitlane.',
       lfsMissing: "Git LFS isn't installed — install Git LFS (git-lfs.com) and try again.",
       lfsServer:
         'The Git LFS server returned an error or an LFS file is missing — see the git command log for details.',
       gitTooOld: 'The installed git is too old — please update git.',
-      untrusted: "The repository isn't trusted yet, so Thaigit won't run this command.",
+      untrusted: "The repository isn't trusted yet, so Gitlane won't run this command.",
       notARepository: 'This folder is not a git repository.',
       bareRepository: 'This is a bare repository (no working tree), so it cannot be opened.',
       invalidName: 'Invalid name.',

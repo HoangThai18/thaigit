@@ -2,7 +2,7 @@
   "name": "@thaigit/core",
   "version": "0.1.0",
   "private": true,
-  "description": "Lõi Thaigit (port từ NhanhCore): chạy git, đọc output, diff/patch, xếp làn graph — không phụ thuộc giao diện",
+  "description": "Lõi Gitlane (port từ NhanhCore): chạy git, đọc output, diff/patch, xếp làn graph — không phụ thuộc giao diện",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",

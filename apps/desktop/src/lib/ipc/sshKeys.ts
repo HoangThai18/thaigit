@@ -1,4 +1,4 @@
-// Thaigit's own SSH keys: the secrets live only in Rust plus the OS keychain; the webview only ever sees the public key.
+// Gitlane's own SSH keys: the secrets live only in Rust plus the OS keychain; the webview only ever sees the public key.
 import type { SshKeysView, SshUploadResult } from '@thaigit/contracts';
 import { Commands } from './commands.ts';
 import { call } from './invoke.ts';
@@ -34,7 +34,7 @@ export function sshKeysUpload(id: string, host: string, login: string): Promise<
   return call<SshUploadResult>(Commands.sshKeysUpload, { id, host, login });
 }
 
-/** `ssh -T git@<host>` with Thaigit's key — returns the greeting on success. */
+/** `ssh -T git@<host>` with Gitlane's key — returns the greeting on success. */
 export function sshKeysTest(host: string): Promise<string> {
   return call<string>(Commands.sshKeysTest, { host });
 }

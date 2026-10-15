@@ -59,9 +59,9 @@ describe('FeedbackDialog', () => {
     const url = new URL(opened[0] ?? '');
     expect(url.protocol).toBe('mailto:');
     expect(decodeURIComponent(url.pathname)).toBe(FEEDBACK_EMAIL);
-    expect(url.searchParams.get('subject')).toBe('[Thaigit] Báo lỗi');
+    expect(url.searchParams.get('subject')).toBe('[Gitlane] Báo lỗi');
     expect(url.searchParams.get('body')).toBe(
-      'Bấm Push bị treo\n\n---\nPhiên bản Thaigit: 2.6.0\nHệ điều hành: macOS (aarch64)',
+      'Bấm Push bị treo\n\n---\nPhiên bản Gitlane: 2.6.0\nHệ điều hành: macOS (aarch64)',
     );
     expect(store.isOpen).toBe(false);
   });
@@ -81,7 +81,7 @@ describe('FeedbackDialog', () => {
     type(target, 'Thêm phím tắt cho Fetch');
     await click(target, 'Soạn email');
     const url = new URL(opened[0] ?? '');
-    expect(url.searchParams.get('subject')).toBe('[Thaigit] Góp ý');
+    expect(url.searchParams.get('subject')).toBe('[Gitlane] Góp ý');
     expect(url.searchParams.get('body')).toBe('Thêm phím tắt cho Fetch');
     expect(store.isOpen).toBe(true);
     expect((target.querySelector('textarea') as HTMLTextAreaElement).value).toBe('Thêm phím tắt cho Fetch');

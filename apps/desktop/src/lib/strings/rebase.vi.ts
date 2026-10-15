@@ -26,7 +26,7 @@ export const rebase = {
   cancel: 'Huỷ',
 
   problemEmpty: 'Không có commit nào để rebase.',
-  problemMerge: 'Đoạn này có commit merge — Thaigit chưa hỗ trợ rebase tương tác qua commit merge.',
+  problemMerge: 'Đoạn này có commit merge — Gitlane chưa hỗ trợ rebase tương tác qua commit merge.',
   problemLeadingSquash:
     'Commit dưới cùng không squash / fixup được vì bên dưới không còn commit nào để gộp vào.',
   problemEmptyMessage: 'Message mới không được để trống.',

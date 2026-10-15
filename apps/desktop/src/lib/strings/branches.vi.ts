@@ -26,7 +26,7 @@ export const branches = {
     'Bạn sẽ ở trạng thái detached HEAD (không thuộc nhánh nào). Muốn commit tiếp thì hãy tạo nhánh mới tại đó.',
   detached: (label: string) => `Đang ở ${label} (detached HEAD)`,
   undoCheckout: 'Hoàn tác checkout',
-  autoStashMessage: (title: string) => `Thaigit: tự stash trước khi ${title.toLowerCase()}`,
+  autoStashMessage: (title: string) => `Gitlane: tự stash trước khi ${title.toLowerCase()}`,
   carriedChanges: (title: string) => `${title} xong — đã mang theo thay đổi chưa commit`,
   stashedAndDone: (title: string) => `${title} xong — thay đổi chưa commit đã được cất vào stash mới nhất`,
   dirtyTitle: 'Thay đổi chưa commit đang vướng',
@@ -141,7 +141,7 @@ export const branches = {
   resetHardMenu: 'Hard — bỏ mọi thay đổi',
   discardAllConfirmTitle: 'Huỷ TẤT CẢ thay đổi chưa commit?',
   discardAllConfirmMessage:
-    'Mọi thay đổi (kể cả đã stage) sẽ bị bỏ, file chưa track được dời vào thùng rác của Thaigit. Có thể bấm “Hoàn tác” ngay sau đó.',
+    'Mọi thay đổi (kể cả đã stage) sẽ bị bỏ, file chưa track được dời vào thùng rác của Gitlane. Có thể bấm “Hoàn tác” ngay sau đó.',
   discardAll: 'Huỷ tất cả',
   discardAllTitle: 'Huỷ tất cả thay đổi',
   discardedAll: 'Đã huỷ tất cả thay đổi',

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tạo bộ icon Thaigit từ logo gốc (brand/thaigit-logo-source.png, xuất từ Muse).
+"""Tạo bộ icon Gitlane từ logo gốc (brand/thaigit-logo-source.png, xuất từ Muse).
 
     python3 scripts/make-icons.py
 

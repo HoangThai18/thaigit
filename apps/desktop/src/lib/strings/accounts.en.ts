@@ -4,7 +4,7 @@ import type { Translation } from './types.ts';
 
 export const accounts: Translation<typeof accountsSource> = {
   title: 'Accounts',
-  help: "Thaigit keeps tokens in the operating system's secret store (Keychain on macOS, Credential Manager on Windows) and automatically uses the right account for each repository based on its owner.",
+  help: "Gitlane keeps tokens in the operating system's secret store (Keychain on macOS, Credential Manager on Windows) and automatically uses the right account for each repository based on its owner.",
   add: 'Add account',
   empty: 'No accounts yet — add a token so fetch / pull / push stop asking for credentials.',
   host: 'Server',
@@ -41,7 +41,7 @@ export const accounts: Translation<typeof accountsSource> = {
   ownerForRepo: 'Account for this repository',
   identity: 'Commit name and email',
   identityHelp:
-    'Used when you assign this account to a repository: Thaigit offers to write this name / email into the repository config.',
+    'Used when you assign this account to a repository: Gitlane offers to write this name / email into the repository config.',
   identityName: 'Name',
   identityEmail: 'Email',
   identitySave: 'Save',

@@ -1,9 +1,9 @@
-# systemd: chạy API Thaigit từ bản checkout của repo trên VPS (Node 24 chạy thẳng TypeScript).
+# systemd: chạy API Gitlane từ bản checkout của repo trên VPS (Node 24 chạy thẳng TypeScript).
 #   sudo cp server/deploy/thaigit-api.service /etc/systemd/system/
 #   sudo systemctl daemon-reload && sudo systemctl enable --now thaigit-api
 # Đường dẫn repo mặc định /srv/thaigit — sửa WorkingDirectory nếu checkout nằm chỗ khác.
 [Unit]
-Description=Thaigit API (AI proxy toi Hermes + thong ke)
+Description=Gitlane API (AI proxy toi Hermes + thong ke)
 After=network-online.target
 Wants=network-online.target
 
