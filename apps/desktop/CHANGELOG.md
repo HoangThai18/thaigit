@@ -2,7 +2,7 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
-## Chưa phát hành
+## 2.6.5 — 2026-10-15
 
 - Thông báo “… gặp xung đột” tự tắt khi xung đột đã giải quyết xong hoặc đã huỷ thao tác, không còn nằm lì trên màn hình
 - Cảnh báo chỉ để báo tin tự tắt sau vài giây thay vì chồng chất; cảnh báo có nút bấm vẫn giữ đến khi bạn đóng
