@@ -2,7 +2,7 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
-## Chưa phát hành
+## 2.6.1 — 2026-10-15
 
 - Git hooks: mục HOOKS ở sidebar liệt kê các hook của repo (pre-commit, pre-push…), cho biết hook nào đang chạy hay bị chặn vì repo chưa được tin cậy, rê chuột để xem hook làm gì. Ô soạn commit có tuỳ chọn “Bỏ qua hook”; khi hook chặn commit hoặc push, thông báo lỗi có sẵn nút “Commit bỏ qua hook” / “Push bỏ qua hook”
 - Git-flow: nút Branch ▾ trên thanh công cụ → khởi tạo Git-flow (chọn nhánh chính, nhánh develop, tiền tố), bắt đầu feature / release / hotfix, và hoàn tất nhánh — app tự merge vào develop (release / hotfix vào cả nhánh chính), gắn tag phiên bản và xoá nhánh; chuột phải nhánh feature / release / hotfix cũng có mục Hoàn tất. Dùng chung cài đặt với git-flow và Sourcetree
