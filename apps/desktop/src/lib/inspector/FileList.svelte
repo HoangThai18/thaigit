@@ -3,6 +3,7 @@
   import { fileChangeDirectory, fileChangeName, type FileChange } from '@thaigit/core';
   import { showBidi } from '../format/bidi.ts';
   import VirtualList from '../ui/VirtualList.svelte';
+  import FileTypeIcon from '../files/FileTypeIcon.svelte';
   import ChangeIcon from './ChangeIcon.svelte';
   import { summarizeChanges } from './changes.ts';
 
@@ -60,6 +61,7 @@
             }}
           >
             <ChangeIcon kind={change.kind} />
+            <FileTypeIcon path={change.path} />
             <span class="name selectable"><bdi>{showBidi(fileChangeName(change))}</bdi></span>
             {#if fileChangeDirectory(change) !== ''}
               <span class="dir selectable"><bdi>{showBidi(fileChangeDirectory(change))}</bdi></span>

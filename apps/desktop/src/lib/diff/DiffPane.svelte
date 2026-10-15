@@ -5,6 +5,7 @@
   Hai bố cục: gộp (một cột) và tách đôi (cũ | mới, chọn dòng như nhau); file ảnh xem bản cũ / mới cạnh nhau.
 -->
 <script lang="ts">
+  import FileTypeIcon from '../files/FileTypeIcon.svelte';
   import {
     fileChangeDirectory,
     fileChangeName,
@@ -229,6 +230,7 @@
           file.change.oldPath ? `${file.change.oldPath} → ${file.change.path}` : file.change.path,
         )}
       >
+        <FileTypeIcon path={file.change.path} />
         <strong class="name"><bdi>{showBidi(fileChangeName(file.change))}</bdi></strong>
         {#if fileChangeDirectory(file.change) !== ''}
           <span class="dir"><bdi>{showBidi(fileChangeDirectory(file.change))}</bdi></span>
@@ -508,7 +510,7 @@
 
   .file {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 7px;
     min-width: 0;
     overflow: hidden;

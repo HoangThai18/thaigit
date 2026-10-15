@@ -18,6 +18,7 @@
   import { fileChangeDirectory, fileChangeName } from '@thaigit/core';
   import { drag } from '../dnd/drag.svelte.ts';
   import { showBidi } from '../format/bidi.ts';
+  import FileTypeIcon from '../files/FileTypeIcon.svelte';
   import ChangeIcon from '../inspector/ChangeIcon.svelte';
   import { prefs } from '../stores/prefs.svelte.ts';
   import { vi } from '../strings.vi.ts';
@@ -196,6 +197,7 @@
     }}
   >
     <ChangeIcon kind={change.kind} />
+    <FileTypeIcon path={change.path} />
     <span class="name"><bdi>{showBidi(fileChangeName(change))}</bdi></span>
     {#if !tree && fileChangeDirectory(change) !== ''}
       <span class="dir"><bdi>{showBidi(fileChangeDirectory(change))}</bdi></span>
