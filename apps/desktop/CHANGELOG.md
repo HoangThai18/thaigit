@@ -2,6 +2,11 @@
 
 Bản đa nền tảng (Tauri) của Thaigit. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
+## 2.6.3 — 2026-10-15
+
+- Nút về màn hình chính giờ là biểu tượng ngôi nhà ở góc phải thanh công cụ, dễ thấy hơn; bấm vào thì về màn hình chính ngay trong tab đó
+- Thanh tab luôn hiện khi đang mở repo, có sẵn nút + để mở thêm repo khác (trước đây chỉ hiện khi đã có từ 2 tab)
+
 ## 2.6.2 — 2026-10-15
 
 - Thông báo bản mới nhanh hơn: đang mở app vẫn nhận được thông báo cập nhật — app kiểm tra mỗi giờ và mỗi khi bạn quay lại cửa sổ app, không cần thoát ra mở lại
