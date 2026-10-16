@@ -2,7 +2,7 @@
 
 Bản đa nền tảng (Tauri) của Gitlane. Phiên bản theo [SemVer](https://semver.org/lang/vi/); bản thử có hậu tố `-beta.N`.
 
-## Chưa phát hành
+## 2.6.9 — 2026-10-16
 
 - Thaigit đổi tên thành Gitlane. Cài đặt, tài khoản và các repo đã mở vẫn giữ nguyên
 - Biểu tượng app mới
