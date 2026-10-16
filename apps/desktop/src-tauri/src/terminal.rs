@@ -194,7 +194,12 @@ mod tests {
         while std::time::Instant::now() < deadline && !output.contains("\nthaigit-42") {
             if let Ok(TerminalEvent::Data { data }) = rx.recv_timeout(Duration::from_millis(200)) {
                 use base64::Engine;
-                output.push_str(&String::from_utf8_lossy(&base64::engine::general_purpose::STANDARD.decode(data).unwrap()));
+                let chunk = String::from_utf8_lossy(&base64::engine::general_purpose::STANDARD.decode(data).unwrap()).into_owned();
+                // ConPTY asks for the cursor position (DSR) and stalls until answered; xterm.js replies in the app.
+                if chunk.contains("\x1b[6n") {
+                    terminals.write("main", &id, "\x1b[1;1R").unwrap();
+                }
+                output.push_str(&chunk);
             }
         }
         assert!(output.contains("\nthaigit-42"), "{output}");

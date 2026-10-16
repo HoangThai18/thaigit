@@ -9,7 +9,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [svelte()],
   test: {
-    testTimeout: 20_000,
+    // Git-backed tests spawn many processes; the Windows CI runner is several times slower at that.
+    testTimeout: process.platform === 'win32' ? 60_000 : 20_000,
     projects: [
       {
         extends: true,
