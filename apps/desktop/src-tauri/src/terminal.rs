@@ -185,7 +185,8 @@ mod tests {
         // Another window cannot type into or close this terminal.
         assert!(terminals.write("other", &id, "echo x\r").is_err());
         terminals.close("other", &id);
-        // Command substitution in the shell, so the output differs from the typed line (the terminal echoes keystrokes itself).
+        // The shell joins the string, so only its output contains "thaigit-42" in one piece (the typed line is echoed
+        // split, and PowerShell colors it).
         let line = if cfg!(windows) { "echo ('thai' + 'git-42')\r" } else { "echo thai''git-42\r" };
         // PowerShell drops keystrokes typed before its prompt is up, so on Windows wait for the prompt first.
         let mut sent = !cfg!(windows);
@@ -195,7 +196,7 @@ mod tests {
         terminals.resize("main", &id, 100, 30).unwrap();
         let mut output = String::new();
         let deadline = std::time::Instant::now() + Duration::from_secs(if cfg!(windows) { 60 } else { 20 });
-        while std::time::Instant::now() < deadline && !output.contains("\nthaigit-42") {
+        while std::time::Instant::now() < deadline && !output.contains("thaigit-42") {
             if let Ok(TerminalEvent::Data { data }) = rx.recv_timeout(Duration::from_millis(200)) {
                 use base64::Engine;
                 let chunk = String::from_utf8_lossy(&base64::engine::general_purpose::STANDARD.decode(data).unwrap()).into_owned();
@@ -210,7 +211,7 @@ mod tests {
                 }
             }
         }
-        assert!(output.contains("\nthaigit-42"), "{output}");
+        assert!(output.contains("thaigit-42"), "{output}");
         terminals.close_window("main");
         assert!(terminals.write("main", &id, "x").is_err());
         let exited = (0..100).any(|_| matches!(rx.recv_timeout(Duration::from_millis(200)), Ok(TerminalEvent::Exit)));
