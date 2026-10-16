@@ -187,10 +187,14 @@ mod tests {
         terminals.close("other", &id);
         // Command substitution in the shell, so the output differs from the typed line (the terminal echoes keystrokes itself).
         let line = if cfg!(windows) { "echo ('thai' + 'git-42')\r" } else { "echo thai''git-42\r" };
-        terminals.write("main", &id, line).unwrap();
+        // PowerShell drops keystrokes typed before its prompt is up, so on Windows wait for the prompt first.
+        let mut sent = !cfg!(windows);
+        if sent {
+            terminals.write("main", &id, line).unwrap();
+        }
         terminals.resize("main", &id, 100, 30).unwrap();
         let mut output = String::new();
-        let deadline = std::time::Instant::now() + Duration::from_secs(20);
+        let deadline = std::time::Instant::now() + Duration::from_secs(if cfg!(windows) { 60 } else { 20 });
         while std::time::Instant::now() < deadline && !output.contains("\nthaigit-42") {
             if let Ok(TerminalEvent::Data { data }) = rx.recv_timeout(Duration::from_millis(200)) {
                 use base64::Engine;
@@ -200,6 +204,10 @@ mod tests {
                     terminals.write("main", &id, "\x1b[1;1R").unwrap();
                 }
                 output.push_str(&chunk);
+                if !sent && output.contains("PS ") && output.contains('>') {
+                    sent = true;
+                    terminals.write("main", &id, line).unwrap();
+                }
             }
         }
         assert!(output.contains("\nthaigit-42"), "{output}");

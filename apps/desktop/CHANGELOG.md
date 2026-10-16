@@ -5,6 +5,7 @@ Bản đa nền tảng (Tauri) của Gitlane. Phiên bản theo [SemVer](https:/
 ## Chưa phát hành
 
 - Thaigit đổi tên thành Gitlane. Cài đặt, tài khoản và các repo đã mở vẫn giữ nguyên
+- Biểu tượng app mới
 - Sửa lỗi tên nhánh đang đứng trên graph bị cắt cụt (“m…” thay vì “main”)
 
 ## 2.6.8 — 2026-10-15

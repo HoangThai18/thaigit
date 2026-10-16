@@ -1,64 +1,29 @@
 #!/usr/bin/env python3
-"""Tạo bộ icon Gitlane từ logo gốc (brand/thaigit-logo-source.png, xuất từ Muse).
+"""Tạo bộ icon Gitlane từ logo gốc brand/gitlane-logo-source.png (xuất từ brand/gitlane-logo-source.svg ở 1024 px,
+nền trong suốt — vd. mở SVG bằng Chrome rồi chụp, hoặc `rsvg-convert -w 1024`).
 
     python3 scripts/make-icons.py
 
 Kết quả:
-  brand/thaigit-icon-macos.png    1024×1024, nền trong suốt, theo lưới icon macOS (khối 824 px + bóng đổ)
-  brand/thaigit-icon-square.png   1024×1024, nền trong suốt, khối gần kín khung (cho Windows / `tauri icon`)
-  apps/desktop/src-tauri/icons/icon.icns   icon của app macOS (từ bản theo lưới icon macOS)
+  brand/gitlane-icon-macos.png    1024×1024, nền trong suốt, theo lưới icon macOS (khối 824 px + bóng đổ)
+  brand/gitlane-icon-square.png   1024×1024, nền trong suốt, khối gần kín khung (cho Windows / `tauri icon`)
+  apps/desktop/src-tauri/icons/   `tauri icon` từ bản vuông, rồi icon.icns dựng lại từ bản theo lưới macOS
+  site/public/                    icon.png, apple-icon.png, logo-256.png, logo-96.png
+  apps/desktop/src/lib/assets/logo.png   logo trong app (trang chủ, Có gì mới)
 
-Cần Pillow (`pip3 install pillow`) và `iconutil` (có sẵn trên macOS).
+Cần Pillow (`pip3 install pillow`), `iconutil` (có sẵn trên macOS) và pnpm (cho `tauri icon`).
 """
 import os
 import shutil
 import subprocess
 import tempfile
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SOURCE = os.path.join(ROOT, "brand", "thaigit-logo-source.png")
-WHITE_THRESHOLD = 238  # điểm ảnh có kênh màu nhỏ nhất ≥ ngưỡng này coi là nền trắng
-HALO_THRESHOLD = 214   # quầng sáng sát nền (bóng mờ của ảnh gốc) cũng bỏ
-SLAB_BOX = (36, 20, 988, 1000)  # khung khối kính trong ảnh gốc 1024 px (đo bằng mắt + profile độ sáng)
-SLAB_RADIUS = 196
-
-
-def rounded_mask(size, box, radius):
-    """Mặt nạ bo góc khử răng cưa (vẽ ở 4× rồi thu nhỏ)."""
-    scale = 4
-    big = Image.new("L", (size[0] * scale, size[1] * scale), 0)
-    ImageDraw.Draw(big).rounded_rectangle([v * scale for v in box], radius=radius * scale, fill=255)
-    return big.resize(size, Image.LANCZOS)
-
-
-def cut_out_background(image: Image.Image) -> Image.Image:
-    """Bỏ nền trắng quanh khối kính: loang từ mép ảnh qua các điểm gần trắng."""
-    rgb = image.convert("RGB")
-    whiteness = ImageChops.darker(ImageChops.darker(*rgb.split()[:2]), rgb.split()[2])
-    binary = whiteness.point(lambda v: 255 if v >= WHITE_THRESHOLD else 0)
-    width, height = binary.size
-    for x in range(0, width, 8):
-        for y in (0, height - 1):
-            if binary.getpixel((x, y)) == 255:
-                ImageDraw.floodfill(binary, (x, y), 128)
-    for y in range(0, height, 8):
-        for x in (0, width - 1):
-            if binary.getpixel((x, y)) == 255:
-                ImageDraw.floodfill(binary, (x, y), 128)
-    # Halo / soft shadow around the slab: eat into it gradually through pixels still bright enough next to the background (stop at the darker glass edge).
-    background = binary.point(lambda v: 255 if v == 128 else 0)
-    halo = whiteness.point(lambda v: 255 if v >= HALO_THRESHOLD else 0)
-    for _ in range(10):
-        background = ImageChops.darker(background.filter(ImageFilter.MaxFilter(3)), halo)
-        background = ImageChops.lighter(background, binary.point(lambda v: 255 if v == 128 else 0))
-    alpha = ImageChops.invert(background).filter(ImageFilter.GaussianBlur(1.2))
-    # The source image leaves the slab touching the bottom edge → round the bottom off with a corner mask matching the slab.
-    alpha = ImageChops.darker(alpha, rounded_mask(image.size, SLAB_BOX, SLAB_RADIUS))
-    result = image.convert("RGBA")
-    result.putalpha(alpha)
-    return result.crop(alpha.getbbox())
+SOURCE = os.path.join(ROOT, "brand", "gitlane-logo-source.png")
+ICONS = os.path.join(ROOT, "apps", "desktop", "src-tauri", "icons")
+PUBLIC = os.path.join(ROOT, "site", "public")
 
 
 def place(slab: Image.Image, target_width: int, shadow: bool) -> Image.Image:
@@ -89,13 +54,32 @@ def build_icns(icon: Image.Image, destination: str) -> None:
 
 
 def main() -> None:
-    slab = cut_out_background(Image.open(SOURCE))
+    source = Image.open(SOURCE).convert("RGBA")
+    slab = source.crop(source.getchannel("A").getbbox())
     macos = place(slab, 824, shadow=True)
     square = place(slab, 984, shadow=False)
-    macos.save(os.path.join(ROOT, "brand", "thaigit-icon-macos.png"))
-    square.save(os.path.join(ROOT, "brand", "thaigit-icon-square.png"))
-    build_icns(macos, os.path.join(ROOT, "apps", "desktop", "src-tauri", "icons", "icon.icns"))
-    print("✓ brand/thaigit-icon-macos.png, brand/thaigit-icon-square.png, apps/desktop/src-tauri/icons/icon.icns")
+    macos_path = os.path.join(ROOT, "brand", "gitlane-icon-macos.png")
+    square_path = os.path.join(ROOT, "brand", "gitlane-icon-square.png")
+    macos.save(macos_path)
+    square.save(square_path)
+
+    subprocess.run(
+        ["pnpm", "--filter", "@thaigit/desktop", "exec", "tauri", "icon", square_path, "-o", ICONS],
+        check=True,
+        cwd=ROOT,
+    )
+    for extra in ("android", "ios"):
+        shutil.rmtree(os.path.join(ICONS, extra), ignore_errors=True)
+    build_icns(macos, os.path.join(ICONS, "icon.icns"))
+
+    macos.resize((512, 512), Image.LANCZOS).save(os.path.join(PUBLIC, "icon.png"))
+    flat = Image.new("RGBA", slab.size, (255, 255, 255, 255))
+    flat.alpha_composite(slab)
+    flat.convert("RGB").resize((180, 180), Image.LANCZOS).save(os.path.join(PUBLIC, "apple-icon.png"))
+    square.resize((256, 256), Image.LANCZOS).save(os.path.join(PUBLIC, "logo-256.png"))
+    square.resize((96, 96), Image.LANCZOS).save(os.path.join(PUBLIC, "logo-96.png"))
+    square.resize((256, 256), Image.LANCZOS).save(os.path.join(ROOT, "apps", "desktop", "src", "lib", "assets", "logo.png"))
+    print("✓ brand/gitlane-icon-*.png, apps/desktop/src-tauri/icons/*, site/public/*.png, apps/desktop/src/lib/assets/logo.png")
 
 
 if __name__ == "__main__":

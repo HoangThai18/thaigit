@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="slab" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#fdfeff"/>
+      <stop offset="0.55" stop-color="#eef2f9"/>
+      <stop offset="1" stop-color="#d9e2ef"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.3" cy="0.12" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="blue" gradientUnits="userSpaceOnUse" x1="0" y1="40" x2="0" y2="214">
+      <stop offset="0" stop-color="#7cc0ff"/>
+      <stop offset="1" stop-color="#2f6fe6"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffa36b"/>
+      <stop offset="1" stop-color="#f2542f"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d4a8ff"/>
+      <stop offset="1" stop-color="#8a5cf5"/>
+    </linearGradient>
+    <radialGradient id="beadBlue" cx="0.38" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#e3f1ff"/>
+      <stop offset="0.45" stop-color="#6aaeff"/>
+      <stop offset="1" stop-color="#2a63d8"/>
+    </radialGradient>
+    <radialGradient id="beadOrange" cx="0.38" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#ffe6d6"/>
+      <stop offset="0.45" stop-color="#ff8656"/>
+      <stop offset="1" stop-color="#e2451f"/>
+    </radialGradient>
+    <radialGradient id="beadViolet" cx="0.38" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#f3e6ff"/>
+      <stop offset="0.45" stop-color="#b78bff"/>
+      <stop offset="1" stop-color="#7a4ae8"/>
+    </radialGradient>
+    <filter id="drop" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#1b2a4a" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" rx="232" fill="url(#slab)"/>
+  <rect x="0" y="0" width="1024" height="1024" rx="232" fill="url(#sheen)"/>
+  <rect x="5" y="5" width="1014" height="1014" rx="227" fill="none" stroke="#ffffff" stroke-opacity="0.9" stroke-width="10"/>
+  <rect x="1" y="1" width="1022" height="1022" rx="231" fill="none" stroke="#8a9bb8" stroke-opacity="0.35" stroke-width="2"/>
+
+  <g transform="translate(512 520) scale(3.35) translate(-157 -130)">
+    <g filter="url(#drop)" fill="none" stroke-linecap="round">
+      <path d="M100 72 C100 104 160 96 160 128 V150 C160 182 100 176 100 206" stroke="url(#orange)" stroke-width="17"/>
+      <path d="M100 40 V214" stroke="url(#blue)" stroke-width="17"/>
+      <path d="M160 128 C160 108 214 112 214 84 V56" stroke="url(#violet)" stroke-width="17"/>
+    </g>
+    <g fill="none" stroke-linecap="round" stroke="#ffffff" stroke-opacity="0.55" stroke-width="4.5" transform="translate(-3.2 -1)">
+      <path d="M100 52 V200"/>
+      <path d="M100 80 C100 104 160 96 160 128 V150"/>
+      <path d="M160 124 C160 108 214 112 214 84 V66"/>
+    </g>
+    <g filter="url(#drop)">
+      <circle cx="100" cy="40" r="19" fill="url(#beadBlue)"/>
+      <circle cx="160" cy="138" r="19" fill="url(#beadOrange)"/>
+      <circle cx="214" cy="56" r="17" fill="url(#beadViolet)"/>
+      <circle cx="100" cy="214" r="19" fill="url(#beadBlue)"/>
+    </g>
+    <g fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="2.6">
+      <circle cx="100" cy="40" r="19"/>
+      <circle cx="160" cy="138" r="19"/>
+      <circle cx="214" cy="56" r="17"/>
+      <circle cx="100" cy="214" r="19"/>
+    </g>
+    <g fill="#ffffff" fill-opacity="0.85">
+      <ellipse cx="94" cy="33" rx="6.5" ry="4.2" transform="rotate(-30 94 33)"/>
+      <ellipse cx="154" cy="131" rx="6.5" ry="4.2" transform="rotate(-30 154 131)"/>
+      <ellipse cx="208.5" cy="50" rx="5.8" ry="3.8" transform="rotate(-30 208.5 50)"/>
+      <ellipse cx="94" cy="207" rx="6.5" ry="4.2" transform="rotate(-30 94 207)"/>
+    </g>
+  </g>
+</svg>

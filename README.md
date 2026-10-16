@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="brand/thaigit-icon-macos.png" width="128" alt="Biểu tượng Gitlane">
+  <img src="brand/gitlane-icon-macos.png" width="128" alt="Biểu tượng Gitlane">
 </p>
 
 <h1 align="center">Gitlane</h1>
