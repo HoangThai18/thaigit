@@ -757,6 +757,19 @@ button {
   box-shadow: var(--shadow-lg);
 }
 
+.promo-video {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.promo-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 15px;
+  background: #070b16;
+}
+
 .window-bar {
   display: flex;
   align-items: center;

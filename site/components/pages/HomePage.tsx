@@ -157,6 +157,30 @@ export async function HomePage({ lang }: { lang: Lang }) {
         </div>
       </section>
 
+      {text.video && (
+        <section id="video" className="section container" aria-labelledby="video-tieu-de">
+          <div className="section-head" data-reveal>
+            <span className="kicker">{text.video.kicker}</span>
+            <h2 id="video-tieu-de">{text.video.title}</h2>
+            <p>{text.video.text}</p>
+          </div>
+          <div className="window promo-video" data-reveal>
+            <video
+              src="/video/gitlane-gioi-thieu.mp4"
+              poster="/video/gitlane-gioi-thieu.webp"
+              width={1920}
+              height={1080}
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              preload="metadata"
+            />
+          </div>
+        </section>
+      )}
+
       <section id="tinh-nang" className="section container">
         <div className="section-head" data-reveal>
           <span className="kicker">{text.features.kicker}</span>

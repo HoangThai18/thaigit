@@ -11,6 +11,7 @@ interface HomeText {
     badges: { drag: string; switch: string; stage: string };
     stats: { value: string; label: string; warm?: boolean }[];
   };
+  video: { kicker: string; title: string; text: string } | null;
   features: { kicker: string; title: string; text: string };
   look: { kicker: string; title: string };
   gallery: { shot: ShotName; caption: string }[];
@@ -50,6 +51,11 @@ const vi: HomeText = {
       { value: '1 cú kéo', label: 'merge, rebase, push' },
       { value: '0 đồng', label: 'miễn phí, không quảng cáo', warm: true },
     ],
+  },
+  video: {
+    kicker: 'Xem nhanh',
+    title: 'Gitlane trong 35 giây',
+    text: 'Quay trên app thật: graph, kéo nhánh để merge, stage từng dòng, gỡ xung đột, push.',
   },
   features: {
     kicker: 'Tính năng',
@@ -123,6 +129,7 @@ const en: HomeText = {
       { value: '$0', label: 'free, no ads', warm: true },
     ],
   },
+  video: null,
   features: {
     kicker: 'Features',
     title: 'Everything Git, in a single window',
