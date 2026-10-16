@@ -54,7 +54,7 @@ const vi: HomeText = {
   },
   video: {
     kicker: 'Xem nhanh',
-    title: 'Gitlane trong 35 giây',
+    title: 'Gitlane trong 40 giây',
     text: 'Quay trên app thật: graph, kéo nhánh để merge, stage từng dòng, gỡ xung đột, push.',
   },
   features: {
