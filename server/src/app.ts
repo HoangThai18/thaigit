@@ -63,11 +63,11 @@ const FINGERPRINT_PATTERN = /^[0-9a-f]{32}$/;
 
 const DOWNLOAD_TARGETS: Record<DownloadAsset, (repo: string) => { url: string; manifest: string }> = {
   mac: (repo) => ({
-    url: `https://github.com/${repo}/releases/download/desktop-stable/Thaigit-macOS.dmg`,
+    url: `https://github.com/${repo}/releases/download/desktop-stable/Gitlane-macOS.dmg`,
     manifest: `https://github.com/${repo}/releases/download/desktop-stable/latest.json`,
   }),
   win: (repo) => ({
-    url: `https://github.com/${repo}/releases/download/desktop-stable/Thaigit-Windows-setup.exe`,
+    url: `https://github.com/${repo}/releases/download/desktop-stable/Gitlane-Windows-setup.exe`,
     manifest: `https://github.com/${repo}/releases/download/desktop-stable/latest.json`,
   }),
 };

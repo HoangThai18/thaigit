@@ -263,7 +263,7 @@ describe('thống kê và lượt tải', () => {
     });
     expect(mac.status).toBe(302);
     expect(mac.headers.get('location')).toBe(
-      'https://github.com/HoangThai18/thaigit/releases/download/desktop-stable/Thaigit-macOS.dmg',
+      'https://github.com/HoangThai18/thaigit/releases/download/desktop-stable/Gitlane-macOS.dmg',
     );
     await app.request('/download/win?fp=<script>', { headers: { 'x-test-peer': '198.51.100.7' } });
     expect((await app.request('/download/linux')).status).toBe(404);
