@@ -11,7 +11,15 @@ interface HomeText {
     badges: { drag: string; switch: string; stage: string };
     stats: { value: string; label: string; warm?: boolean }[];
   };
-  video: { kicker: string; title: string; text: string } | null;
+  video: {
+    kicker: string;
+    title: string;
+    text: string;
+    src: string;
+    poster: string;
+    soundOn: string;
+    soundOff: string;
+  };
   features: { kicker: string; title: string; text: string };
   look: { kicker: string; title: string };
   gallery: { shot: ShotName; caption: string }[];
@@ -56,6 +64,10 @@ const vi: HomeText = {
     kicker: 'Xem nhanh',
     title: 'Gitlane trong 40 giây',
     text: 'Quay trên app thật: graph, kéo nhánh để merge, stage từng dòng, gỡ xung đột, push.',
+    src: '/video/gitlane-gioi-thieu.mp4',
+    poster: '/video/gitlane-gioi-thieu.webp',
+    soundOn: 'Bật tiếng',
+    soundOff: 'Tắt tiếng',
   },
   features: {
     kicker: 'Tính năng',
@@ -129,7 +141,15 @@ const en: HomeText = {
       { value: '$0', label: 'free, no ads', warm: true },
     ],
   },
-  video: null,
+  video: {
+    kicker: 'Quick look',
+    title: 'Gitlane in 40 seconds',
+    text: 'Recorded in the real app: the graph, drag a branch to merge, stage single lines, resolve a conflict, push.',
+    src: '/video/gitlane-intro.mp4',
+    poster: '/video/gitlane-intro.webp',
+    soundOn: 'Unmute',
+    soundOff: 'Mute',
+  },
   features: {
     kicker: 'Features',
     title: 'Everything Git, in a single window',
