@@ -3,37 +3,37 @@
 // Highlighting runs line by line (a diff only has disjoint hunks), so multi-line strings / comments can come
 // out slightly wrong — acceptable, and true of most diff tools.
 
-import { refractor } from 'refractor/lib/core.js';
-import bash from 'refractor/lang/bash.js';
-import batch from 'refractor/lang/batch.js';
-import c from 'refractor/lang/c.js';
-import cpp from 'refractor/lang/cpp.js';
-import csharp from 'refractor/lang/csharp.js';
-import css from 'refractor/lang/css.js';
-import dart from 'refractor/lang/dart.js';
-import docker from 'refractor/lang/docker.js';
-import go from 'refractor/lang/go.js';
-import ini from 'refractor/lang/ini.js';
-import java from 'refractor/lang/java.js';
-import javascript from 'refractor/lang/javascript.js';
-import json from 'refractor/lang/json.js';
-import jsx from 'refractor/lang/jsx.js';
-import kotlin from 'refractor/lang/kotlin.js';
-import lua from 'refractor/lang/lua.js';
-import markdown from 'refractor/lang/markdown.js';
-import markup from 'refractor/lang/markup.js';
-import php from 'refractor/lang/php.js';
-import powershell from 'refractor/lang/powershell.js';
-import python from 'refractor/lang/python.js';
-import ruby from 'refractor/lang/ruby.js';
-import rust from 'refractor/lang/rust.js';
-import scss from 'refractor/lang/scss.js';
-import sql from 'refractor/lang/sql.js';
-import swift from 'refractor/lang/swift.js';
-import toml from 'refractor/lang/toml.js';
-import tsx from 'refractor/lang/tsx.js';
-import typescript from 'refractor/lang/typescript.js';
-import yaml from 'refractor/lang/yaml.js';
+import { refractor } from 'refractor/core';
+import bash from 'refractor/bash';
+import batch from 'refractor/batch';
+import c from 'refractor/c';
+import cpp from 'refractor/cpp';
+import csharp from 'refractor/csharp';
+import css from 'refractor/css';
+import dart from 'refractor/dart';
+import docker from 'refractor/docker';
+import go from 'refractor/go';
+import ini from 'refractor/ini';
+import java from 'refractor/java';
+import javascript from 'refractor/javascript';
+import json from 'refractor/json';
+import jsx from 'refractor/jsx';
+import kotlin from 'refractor/kotlin';
+import lua from 'refractor/lua';
+import markdown from 'refractor/markdown';
+import markup from 'refractor/markup';
+import php from 'refractor/php';
+import powershell from 'refractor/powershell';
+import python from 'refractor/python';
+import ruby from 'refractor/ruby';
+import rust from 'refractor/rust';
+import scss from 'refractor/scss';
+import sql from 'refractor/sql';
+import swift from 'refractor/swift';
+import toml from 'refractor/toml';
+import tsx from 'refractor/tsx';
+import typescript from 'refractor/typescript';
+import yaml from 'refractor/yaml';
 
 for (const syntax of [
   bash,
