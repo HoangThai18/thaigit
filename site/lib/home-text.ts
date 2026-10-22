@@ -87,7 +87,8 @@ const vi: HomeText = {
     fit: 'Phù hợp với máy bạn',
     macMeta: 'macOS 11 trở lên · Mac chip Apple (M1 trở lên)',
     macSteps: {
-      first: 'Tải và mở file Gitlane-macOS.dmg.',
+      first:
+        'Tải và mở file Gitlane-macOS.dmg (hoặc dán lệnh cài bằng Terminal ở trang macOS để macOS không chặn).',
       second: 'Kéo Gitlane.app vào thư mục Applications.',
       third: 'Lần đầu mở, nếu macOS chặn: Cài đặt hệ thống → Quyền riêng tư & Bảo mật →',
     },
@@ -168,7 +169,8 @@ const en: HomeText = {
     fit: 'Matches your machine',
     macMeta: 'macOS 11 or later · Apple-silicon Mac (M1 or later)',
     macSteps: {
-      first: 'Download and open the Gitlane-macOS.dmg file.',
+      first:
+        'Download and open the Gitlane-macOS.dmg file (or paste the Terminal install command from the macOS page so macOS does not block it).',
       second: 'Drag Gitlane.app into the Applications folder.',
       third: 'If macOS blocks it the first time: System Settings → Privacy & Security →',
     },
