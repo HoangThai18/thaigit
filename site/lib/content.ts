@@ -253,8 +253,8 @@ export const FAQ: Record<Lang, HomeFaq[]> = {
       id: 'mac-blocked',
       q: 'Vì sao macOS báo không mở được Gitlane?',
       a: [
-        'Gitlane chưa được ký bằng Apple Developer ID nên lần đầu macOS có thể chặn. Vào Cài đặt hệ thống → Quyền riêng tư & Bảo mật → bấm “Vẫn mở”.',
-        'Hoặc chạy trong Terminal: xattr -dr com.apple.quarantine /Applications/Gitlane.app',
+        'Gitlane chưa được ký bằng Apple Developer ID nên lần đầu macOS có thể chặn file dmg tải bằng trình duyệt. Cách nhanh nhất là cài bằng Terminal (không bị chặn): curl -fsSL https://git.thaipro.store/install.sh | sh',
+        'Nếu đã tải dmg: vào Cài đặt hệ thống → Quyền riêng tư & Bảo mật → bấm “Vẫn mở”, hoặc chạy xattr -dr com.apple.quarantine /Applications/Gitlane.app',
       ],
     },
     {
@@ -311,8 +311,8 @@ export const FAQ: Record<Lang, HomeFaq[]> = {
       id: 'mac-blocked',
       q: 'Why does macOS say it can’t open Gitlane?',
       a: [
-        'Gitlane is not yet signed with an Apple Developer ID, so macOS may block it the first time. Open System Settings → Privacy & Security and click “Open Anyway”.',
-        'Or run this in Terminal: xattr -dr com.apple.quarantine /Applications/Gitlane.app',
+        'Gitlane is not yet signed with an Apple Developer ID, so macOS may block a dmg downloaded in the browser. The quickest fix is to install from Terminal (no warning): curl -fsSL https://git.thaipro.store/install.sh | sh',
+        'If you already downloaded the dmg: open System Settings → Privacy & Security and click “Open Anyway”, or run xattr -dr com.apple.quarantine /Applications/Gitlane.app',
       ],
     },
     {

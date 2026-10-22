@@ -144,7 +144,7 @@ THAIGIT_DEV_REPO=/đường/dẫn/repo THAIGIT_DEV_AUTOOPEN=1 pnpm --filter @tha
 ```
 
 Ghi chú:
-- Bản macOS ký ad-hoc: tải về lần đầu Gatekeeper có thể chặn (Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Vẫn mở, hoặc `xattr -dr com.apple.quarantine /Applications/Gitlane.app`). Phát hành rộng nên ký bằng Apple Developer ID.
+- Bản macOS ký ad-hoc: dmg tải bằng trình duyệt lần đầu bị Gatekeeper chặn. Cài bằng `curl -fsSL https://git.thaipro.store/install.sh | sh` (`site/public/install.sh`) thì không bị chặn vì curl không gắn cờ quarantine. Đã tải dmg rồi thì: Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Vẫn mở, hoặc `xattr -dr com.apple.quarantine /Applications/Gitlane.app`. Hết hẳn cảnh báo cho mọi cách cài thì phải ký Apple Developer ID + notarize (Apple Developer Program, 99 USD/năm).
 - Tự cập nhật chỉ thay app nằm trong thư mục ứng dụng.
 
 ### Xác thực khi fetch / push
